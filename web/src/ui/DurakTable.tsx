@@ -53,7 +53,7 @@ import { useDurakMotion } from './DurakMotion';
 import { DurakReactions } from './DurakReactions';
 import { TurnRing } from './TurnRing';
 import { useVoiceTier } from './useVoice';
-import { IntegrationBarSlot } from './IntegrationBar';
+import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
 import { Avatar, IconButton, useStore } from './primitives';
 
 type SheetKind = 'settings' | 'result' | 'score' | null;
@@ -406,6 +406,8 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
         >
           <Settings2 size={20} />
         </IconButton>
+        {/* Выход к участникам (R121) — рядом с полным экраном: обе кнопки про вид, а не про игру. */}
+        <StageExitButton variant="bar" />
         <IconButton label={full ? t(($) => $.durak.exitFull) : t(($) => $.durak.full)} onClick={toggleFull}>
           {full ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
         </IconButton>

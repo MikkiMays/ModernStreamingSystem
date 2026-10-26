@@ -13,6 +13,8 @@ import { volumeKey } from './volumes';
 import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
 import { allowed } from './permissions';
+import { knownProvider } from './cinema/link';
+import { awayAfter, stageOccupant, type StageKind, type StageOccupant } from './stage-view';
 import {
   DesktopNotifier,
   readWindowState,
@@ -49,6 +51,16 @@ export class Meeting {
    * вставить ту же ссылку ещё раз — тоже просьба её открыть.
    */
   readonly cinemaAt = new Store<CinemaAt | null>(null);
+  /**
+   * От какой интеграции этот человек ушёл к участникам (R121), или `null` — смотрит то, что на сцене.
+   *
+   * Своё у каждого, как каталог: интеграция идёт для всех, а кто-то хочет посмотреть на людей — камеры
+   * блоками, чужие показы экрана. Комната об этом не знает. Уход привязан к интеграции: кончилась она или
+   * её сменила другая — уход забыт (`core/stage-view.ts`), и новая открывается у всех.
+   */
+  readonly stageAway = new Store<StageKind | null>(null);
+  /** Что занимало сцену при прошлой проверке ухода — чтобы отличить новую интеграцию от той же. */
+  private stageBefore: StageOccupant | null = null;
   /**
    * Недописанное сообщение чата.
    *
@@ -260,6 +272,7 @@ export class Meeting {
     if (snapshot.sequence < this.snapshot.get().sequence) return;
     this.listen(snapshot);
     this.snapshot.set(snapshot);
+    this.settleStage();
     // Музыкальный бот публикует свой трек как обычный микрофон — иначе комната не услышала
     // бы стерео. Значит, отличить музыку от речи по самой дорожке нельзя, и единственный,
     // кто знает состав служебных участников, — ядро. Медиа узнаёт это отсюда, чтобы дать
@@ -455,6 +468,8 @@ export class Meeting {
     const revision = ++this.viewRevision;
     this.viewing.set({ screenId, participantId });
     this.pinnedCamera.set(null);
+    // Чужой экран открыт во всю сцену — это вид участников (R121): закрыли его — сетка, а не интеграция.
+    this.stageAway.set(this.stageOccupant()?.kind ?? null);
     this.media.watchScreen(participantId);
     this.viewChange = this.viewChange
       .catch(() => {})
@@ -470,16 +485,44 @@ export class Meeting {
       });
   }
   returnToConversation() {
+    this.closeViewing();
+    this.pinnedCamera.set(null);
+  }
+  /** Закрыть чужой экран, открытый во всю сцену, — и сказать ядру, что смотреть его перестали. */
+  private closeViewing() {
     const old = this.viewing.get();
     this.viewRevision++;
     this.viewing.set(null);
-    this.pinnedCamera.set(null);
     this.media.watchScreen(null);
     if (old)
       this.viewChange = this.viewChange
         .catch(() => {})
         .then(() => (this.disposed ? undefined : this.command('view.close', undefined, old.screenId)))
         .catch(() => {});
+  }
+  /** Что сейчас занимает сцену: интеграция комнаты или свой открытый каталог кинозала. */
+  stageOccupant(): StageOccupant | null {
+    const catalog = this.cinema.get();
+    return stageOccupant(this.snapshot.get(), !!catalog && knownProvider(catalog));
+  }
+  /**
+   * Уйти из интеграции к участникам (R121) — у себя: интеграция идёт для всех, фильм звучит дальше.
+   * Сцена свободна — уходить не от чего.
+   */
+  leaveStage() {
+    const occupant = this.stageOccupant();
+    if (occupant) this.stageAway.set(occupant.kind);
+  }
+  /** Вернуться в интеграцию (чёлка, «Открыть на сцене»): чужой экран закрывается, закрепление остаётся. */
+  returnToStage() {
+    this.stageAway.set(null);
+    if (this.viewing.get()) this.closeViewing();
+  }
+  /** Сцена сменилась — уход помнится, только пока на ней та же интеграция (`awayAfter`). */
+  private settleStage() {
+    const after = this.stageOccupant();
+    this.stageAway.set(awayAfter(this.stageAway.get(), this.stageBefore, after));
+    this.stageBefore = after;
   }
   screenPlaying(screenId: string) {
     if (this.played.has(screenId) || this.viewing.get()?.screenId !== screenId) return;
@@ -499,6 +542,8 @@ export class Meeting {
   pinCamera(participantId: string) {
     this.returnToConversation();
     this.pinnedCamera.set(participantId);
+    // Закрепить при занятой сцене — значит смотреть людей: закреплённый крупно бывает только в их виде (R121).
+    this.stageAway.set(this.stageOccupant()?.kind ?? null);
   }
   /** Открепить — вернуть сетку (или «Говорящего»), не трогая ничего другого. */
   unpinCamera() {
@@ -513,6 +558,9 @@ export class Meeting {
     // Страница — раньше площадки: сцена, которую откроет смена площадки, должна увидеть её сразу.
     this.cinemaAt.set(provider && at ? at : null);
     this.cinema.set(provider);
+    // Каталог открывают, чтобы его видеть: ушедший к участникам возвращается в кинозал (R121).
+    if (provider) this.stageAway.set(null);
+    this.settleStage();
   }
   async leave() {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });

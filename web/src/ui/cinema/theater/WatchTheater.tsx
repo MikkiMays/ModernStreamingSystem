@@ -8,6 +8,7 @@ import { useFullscreen } from '../../../core/fullscreen';
 import { t as translate } from '../../../i18n';
 import { targetPosition, VISIBLE_DRIFT } from '../../../core/watch';
 import { useStore } from '../../primitives';
+import { useStageExit } from '../../stage-context';
 import { adAt, skipRank, SKIP_STEP_MS } from './ad-breaks';
 import { Chrome } from './Chrome';
 import type { QualityPage } from './menus/QualityMenu';
@@ -19,6 +20,7 @@ import { useEcho, useRoomSync } from './useRoomSync';
 import { useWatchKeys } from './useWatchKeys';
 import { controlsShown, framePress, playToggle } from './watch-controls';
 import { KEY_TEXT, muteToggle, volumeAfter, type WatchAction } from './watch-keys';
+import { theaterVideo } from './live-frame';
 
 /** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором (T19). */
 const IDLE_MS = 2500;
@@ -63,6 +65,8 @@ export function WatchTheater({
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const preferences = useStore(meeting.media.preferences);
+  /** Зритель ушёл к участникам (R121): плеер спрятан, но идёт — и звучит. */
+  const { away } = useStageExit();
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const owner = snapshot.participants.find((p) => p.id === watch.openedBy);
@@ -105,6 +109,14 @@ export function WatchTheater({
   // плеер на всё окно сама — см. {@link useFullscreen}.
   const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(screen);
   const video = useRef<HTMLVideoElement>(null);
+  // Кадр и время для чёлки у ушедшего к участникам (R121).
+  useEffect(() => {
+    const element = video.current;
+    theaterVideo.set(element);
+    return () => {
+      if (theaterVideo.get() === element) theaterVideo.set(null);
+    };
+  }, []);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const echo = useEcho();
   const player = usePlayback({ meeting, api, watch, video, echo, preferences });
@@ -184,6 +196,7 @@ export function WatchTheater({
     onAction: act,
     onHint: say,
     wake,
+    disabled: away,
   });
 
   /*

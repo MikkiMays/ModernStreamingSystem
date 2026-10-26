@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Meeting } from './meeting';
 import type { Admission, Snapshot } from '../api/types';
 vi.mock('../media/session', async () => {
@@ -472,4 +472,79 @@ it('уведомления Windows (R59): сообщение без фокуса
   expect(meeting.handleNotificationAction('open', 'room:other-room:message')).toBeNull();
   meeting.windowState.set({ focused: true, visible: true });
   expect(send).toHaveBeenLastCalledWith('badge', { count: 0 });
+});
+
+/** Команды ядру идут каналом управления; здесь он подменён — что ушло, видно по вызовам. */
+const sent = vi.fn(async (_command: { type: string }) => ({}));
+const commandsSent = () => sent.mock.calls.map(([command]) => command.type);
+
+describe('выход из интеграции к участникам (R121)', () => {
+  const sharing = { ...person('ann', 'CONNECTED'), screen: true, screenId: 's1', screenStarted: true };
+  async function room(extra: Partial<Snapshot>) {
+    snapshot = {
+      ...snapshot,
+      sequence: 2,
+      participants: [person('guest', 'CONNECTED'), sharing],
+      ...extra,
+    };
+    sent.mockClear();
+    (meeting.control as unknown as { command: typeof sent }).command = sent;
+    meeting.start();
+    await meeting.refresh();
+  }
+
+  it('уйти можно только от того, что на сцене, — и уход личный: ядру не уходит ничего', async () => {
+    await room({});
+    meeting.leaveStage();
+    expect(meeting.stageAway.get()).toBeNull();
+    snapshot = { ...snapshot, sequence: 3, poker: { seats: [] } as unknown as Snapshot['poker'] };
+    await meeting.refresh();
+    const before = commandsSent().length;
+    meeting.leaveStage();
+    expect(meeting.stageAway.get()).toBe('poker');
+    expect(commandsSent().length).toBe(before);
+  });
+
+  it('интеграция кончилась — уход забыт, и следующая открывается у ушедшего, как у всех', async () => {
+    await room({ poker: { seats: [] } as unknown as Snapshot['poker'] });
+    meeting.leaveStage();
+    snapshot = { ...snapshot, sequence: 3, poker: null };
+    await meeting.refresh();
+    expect(meeting.stageAway.get()).toBeNull();
+  });
+
+  it('вернуться — закрыть чужой экран, но не снимать закрепление', async () => {
+    await room({ watch: { provider: 'youtube' } as unknown as Snapshot['watch'] });
+    meeting.pinCamera('ann');
+    expect(meeting.stageAway.get()).toBe('cinema');
+    meeting.openStream('ann');
+    expect(meeting.viewing.get()).not.toBeNull();
+    meeting.returnToStage();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(meeting.stageAway.get()).toBeNull();
+    expect(meeting.viewing.get()).toBeNull();
+    expect(commandsSent()).toContain('view.close');
+    meeting.pinCamera('ann');
+    meeting.returnToStage();
+    expect(meeting.pinnedCamera.get()).toBe('ann');
+  });
+
+  it('смотреть чужой экран поверх кинозала — это вид участников; каталог из панели возвращает в кинозал', async () => {
+    await room({ watch: { provider: 'youtube' } as unknown as Snapshot['watch'] });
+    meeting.openStream('ann');
+    expect(meeting.stageAway.get()).toBe('cinema');
+    meeting.openCinema('youtube');
+    expect(meeting.stageAway.get()).toBeNull();
+    expect(meeting.viewing.get()).toBeNull();
+  });
+
+  it('ушёл из своего каталога, а комната включила фильм — фильм открывается и у него', async () => {
+    await room({});
+    meeting.openCinema('youtube');
+    meeting.leaveStage();
+    expect(meeting.stageAway.get()).toBe('cinema');
+    snapshot = { ...snapshot, sequence: 3, watch: { provider: 'youtube' } as unknown as Snapshot['watch'] };
+    await meeting.refresh();
+    expect(meeting.stageAway.get()).toBeNull();
+  });
 });

@@ -77,6 +77,29 @@
   background: transparent;
 }
 
+/*
+  Зритель ушёл из интеграции к участникам (R121): её слой не размонтируется, а прячется в том же узле —
+  у кинозала это `<video>` с буфером и синхронностью, у столов звук хода и открытый лист. Именно
+  `visibility`: видео под ним не встаёт на паузу и рисует кадры для превью чёлки (проверено в Chromium), а
+  размер сохраняется — hls.js выбирает качество по размеру кадра. `display: none` обнулил бы размер, сжатие
+  `transform` — уменьшило бы, и на возврате качество просело бы. Под пультом слой не нужен — до его места.
+*/
+.stage[data-away] {
+  position: absolute;
+  inset: 0 0 var(--dock-space);
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Строка для диктора: куда человек попал после выхода или возврата. */
+.stage-announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ---------- сетка участников ---------- */
 /*
   Колонки и место каждой плитки задаёт `Stage.tsx` по настоящему размеру сцены (`ui/grid.ts`);
@@ -994,6 +1017,10 @@ button.watch-stream.is-stop:hover {
   .meeting-body.panel-open .tile-unpin > span,
   .meeting-body.panel-open .stage[data-spotlight='true'] .person-tile > .participant-more,
   .meeting-body.panel-open .stage .people-grid .person-tile > .participant-more {
+    display: none;
+  }
+  /* «Смотреть стрим» в полосе лиц — значком и LIVE, как в ленте под плеером: подпись в плитку 110 не входит. */
+  .meeting-body.panel-open .stage .people-grid .watch-stream span:not(.live-badge) {
     display: none;
   }
   /* Крупно один — та же полоса лиц: крупная плитка первой, лента за ней. */

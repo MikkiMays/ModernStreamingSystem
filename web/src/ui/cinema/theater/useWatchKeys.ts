@@ -41,6 +41,7 @@ export function useWatchKeys({
   onAction,
   onHint,
   wake,
+  disabled = false,
 }: {
   /** Плеер целиком: фокус внутри него — клавиша плеера. */
   screen: RefObject<HTMLElement | null>;
@@ -50,16 +51,22 @@ export function useWatchKeys({
   onHint: (text: string) => void;
   /** Нажатие — тоже движение: пульт возвращается (T19). */
   wake: () => void;
+  /**
+   * Плеер спрятан: зритель ушёл к участникам (R121). Фильм идёт, но клавиши — не его: пробел, нажатый
+   * над сеткой, не должен ставить паузу всей комнате.
+   */
+  disabled?: boolean;
 }) {
-  const latest = useRef({ context, micHotkey, onAction, onHint, wake });
+  const latest = useRef({ context, micHotkey, onAction, onHint, wake, disabled });
   useEffect(() => {
-    latest.current = { context, micHotkey, onAction, onHint, wake };
+    latest.current = { context, micHotkey, onAction, onHint, wake, disabled };
   });
   useEffect(() => {
     const listen = (event: KeyboardEvent) => {
       const section = screen.current;
       if (!section) return;
       const now = latest.current;
+      if (now.disabled) return;
       const target = event.target;
       const place: FocusPlace =
         target instanceof Node && section.contains(target)

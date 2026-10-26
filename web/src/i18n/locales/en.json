@@ -2178,6 +2178,23 @@
     "gameLoading": "Opening the game…",
     "unpin": "Unpin",
     "unpinOf": "Unpin: {{name}}",
+    "exit": {
+      "label": "All participants",
+      "title": "All participants ({{key}})",
+      "announcePeople": "All participants",
+      "announceIntegration": "On stage: {{name}}",
+      "toStage": "Show on stage"
+    },
+    "notch": {
+      "seated": "{{n}} at the table",
+      "turn": "Your turn",
+      "drawing": "{{name}} is drawing",
+      "youDraw": "You're drawing",
+      "paused": "paused",
+      "back": "Back to {{integration}} — {{state}}",
+      "title": "Go back ({{key}})",
+      "backPlain": "Back to {{integration}}"
+    },
     "menu": {
       "volume": "Your volume · {{value}}%",
       "volumeOf": "Volume: {{name}}",

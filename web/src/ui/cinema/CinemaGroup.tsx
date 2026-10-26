@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { MonitorPlay, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../../core/meeting';
 import { CinemaApi, PROVIDERS, providerName, type ProviderId } from '../../core/cinema';
@@ -8,6 +8,8 @@ import { Button } from '../kit';
 import { shelfName } from '../integration-shelf';
 import { PlatformPicker, useLastPlatform, type PlatformTile } from '../PlatformPicker';
 import { useStore } from '../primitives';
+import { backToStage } from '../stage-context';
+import { useStageView } from '../useStageView';
 import { useProviders } from './useProviders';
 
 /**
@@ -32,6 +34,8 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
   const cinema = useStore(meeting.cinema);
   const canUse = allowed(snapshot, meeting.admission.participantId, 'watch.close');
   const watch = snapshot.watch;
+  const { occupant, view } = useStageView(meeting);
+  const away = occupant?.kind === 'cinema' && view === 'people';
   const [error, setError] = useState('');
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   /** Какие площадки есть на этой установке и какие из них отсюда доступны прямо сейчас. */
@@ -74,6 +78,12 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
             <p>
               {t(($) => $.cinema.group.watching)} <b>{watch.title ?? watch.contentId}</b>
             </p>
+            {/* Ушёл к участникам (R121) — открыть кинозал отсюда значит вернуться в него. */}
+            {away && (
+              <Button size="sm" variant="primary" icon={<MonitorPlay />} onClick={() => backToStage(meeting)}>
+                {t(($) => $.stage.exit.toStage)}
+              </Button>
+            )}
             {canUse && (
               <Button
                 size="sm"

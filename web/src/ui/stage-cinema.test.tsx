@@ -35,6 +35,7 @@ function meeting(watch: Watch | null, browsing: string | null = null) {
     admission: { roomId: 'room', participantId: 'me', credential: 'token' },
     snapshot: new Store({ participants: [], integrationsAllowed: true, watch }),
     viewing: new Store(null),
+    stageAway: new Store(null),
     pinnedCamera: new Store(null),
     cinema,
     cinemaAt: new Store(null),

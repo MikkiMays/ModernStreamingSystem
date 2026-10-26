@@ -2178,6 +2178,23 @@
     "gameLoading": "Spiel wird geöffnet…",
     "unpin": "Lösen",
     "unpinOf": "Lösen: {{name}}",
+    "exit": {
+      "label": "Alle Teilnehmer",
+      "title": "Alle Teilnehmer ({{key}})",
+      "announcePeople": "Alle Teilnehmer",
+      "announceIntegration": "Auf der Bühne: {{name}}",
+      "toStage": "Auf der Bühne öffnen"
+    },
+    "notch": {
+      "seated": "{{n}} am Tisch",
+      "turn": "Du bist dran",
+      "drawing": "{{name}} zeichnet",
+      "youDraw": "Du zeichnest",
+      "paused": "pausiert",
+      "back": "Zurück zu {{integration}} — {{state}}",
+      "title": "Zurück ({{key}})",
+      "backPlain": "Zurück zu {{integration}}"
+    },
     "menu": {
       "volume": "Deine Lautstärke · {{value}} %",
       "volumeOf": "Lautstärke: {{name}}",

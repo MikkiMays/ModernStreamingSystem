@@ -2205,6 +2205,23 @@
     "gameLoading": "Ouverture du jeu…",
     "unpin": "Désépingler",
     "unpinOf": "Désépingler : {{name}}",
+    "exit": {
+      "label": "Tous les participants",
+      "title": "Tous les participants ({{key}})",
+      "announcePeople": "Tous les participants",
+      "announceIntegration": "En scène : {{name}}",
+      "toStage": "Ouvrir sur scène"
+    },
+    "notch": {
+      "seated": "{{n}} à la table",
+      "turn": "À vous de jouer",
+      "drawing": "{{name}} dessine",
+      "youDraw": "Vous dessinez",
+      "paused": "en pause",
+      "back": "Revenir à {{integration}} — {{state}}",
+      "title": "Revenir ({{key}})",
+      "backPlain": "Revenir à {{integration}}"
+    },
     "menu": {
       "volume": "Votre volume · {{value}} %",
       "volumeOf": "Volume : {{name}}",

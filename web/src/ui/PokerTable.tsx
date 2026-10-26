@@ -66,7 +66,8 @@ import { GameResult, GameCrown } from './PokerResult';
 import { useFullscreen } from '../core/fullscreen';
 import { allowed } from '../core/permissions';
 import { readPreferences, savePreferences } from '../core/preferences';
-import { IntegrationBarSlot } from './IntegrationBar';
+import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
+import { useStageExit } from './stage-context';
 import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
 import { CordMark, CordWordmark } from './brand/Logo';
 import { FaceZoomButton, useFaceZoom } from './FaceZoom';
@@ -589,6 +590,8 @@ function TableBar({
           )}
         </div>
       )}
+      {/* Выход к участникам (R121) — рядом с полным экраном: обе кнопки про вид, а не про игру. */}
+      <StageExitButton variant="bar" />
       {/* Условия вокруг кнопки нет намеренно: замену полному экрану там, где его не бывает,
           держит сам `useFullscreen` — снаружи разницы никакой. */}
       <IconButton
@@ -1173,8 +1176,10 @@ function Controls({
     осторожно — в той же встрече есть чат и горячая клавиша микрофона, поэтому набор текста и
     открытые диалоги выключают их целиком.
   */
+  /** Зритель ушёл к участникам (R121): стол спрятан, и «F» над сеткой — не пас. */
+  const { away } = useStageExit();
   useEffect(() => {
-    if (!turn || !you) return;
+    if (!turn || !you || away) return;
     const keys = (event: KeyboardEvent) => {
       if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
       if (isTyping(event.target) || document.querySelector('[role="dialog"]')) return;
@@ -1188,7 +1193,7 @@ function Controls({
     };
     window.addEventListener('keydown', keys);
     return () => window.removeEventListener('keydown', keys);
-  }, [turn, you]);
+  }, [turn, you, away]);
 
   const seat = you ? table.seats.find((seat) => seat.index === you.seat) : null;
   const seated = !!seat;

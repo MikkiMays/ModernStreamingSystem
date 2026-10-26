@@ -5,6 +5,7 @@ import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
 import { VoiceLevels } from '../media/levels';
 import PokerScene, { Slide } from './PokerTable';
+import { StageExitContext } from './stage-context';
 vi.mock('../core/sounds', () => ({
   signal: vi.fn(),
   ensureNotificationAudio: vi.fn(),
@@ -202,4 +203,47 @@ it('keeps a rebuy drag active when the moving knob leaves the track', () => {
   expect(knob).toHaveStyle({ left: 'calc(50.0% - 24.0px)' });
   fireEvent.pointerMove(track, { buttons: 1, clientX: 196, pointerId: 1 });
   expect(confirm).toHaveBeenCalledOnce();
+});
+
+/*
+  R121: ушедший к участникам видит сетку, а стол идёт спрятанным. Клавиша «F», нажатая над сеткой, — не
+  пас: пока стол спрятан, его клавиши молчат; вернулся — снова работают.
+*/
+it('keeps the poker keys quiet while the player is away with the participants', () => {
+  const meeting = room('p0');
+  const turn = table({
+    you: {
+      seat: 0,
+      turn: true,
+      actions: ['fold', 'call', 'raise'],
+      cards: ['As', 'Kd'],
+      hand: '',
+      callAmount: 50,
+      minRaiseTo: 100,
+      maxRaiseTo: 5000,
+      rebuy: 0,
+      rebuysLeft: 0,
+      timeBankMs: 60000,
+    },
+    seats: Array.from({ length: 10 }, (_, index) =>
+      seat(index, { memberId: index < 3 ? `p${index}` : null, inHand: index < 3 }),
+    ),
+  });
+  const view = render(
+    <StageExitContext.Provider value={{ away: true, leave: null }}>
+      <PokerScene meeting={meeting} table={turn} />
+    </StageExitContext.Provider>,
+  );
+  fireEvent.keyDown(document.body, { key: 'f' });
+  expect(meeting.command).not.toHaveBeenCalled();
+  view.rerender(
+    <StageExitContext.Provider value={{ away: false, leave: null }}>
+      <PokerScene meeting={meeting} table={turn} />
+    </StageExitContext.Provider>,
+  );
+  fireEvent.keyDown(document.body, { key: 'f' });
+  expect(meeting.command).toHaveBeenCalledWith('poker.act', undefined, undefined, {
+    option: 'fold',
+    chips: undefined,
+  });
 });

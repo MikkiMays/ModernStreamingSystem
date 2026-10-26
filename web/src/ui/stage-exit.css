@@ -1,0 +1,67 @@
+/*
+  «Участники» в шапке интеграции (R121, `IntegrationBar.tsx`). Только токены.
+
+  Кнопка вида, а не действия игры: тихая, на поверхности шапки, рядом с соседями своего размера — 32 в
+  шапке стола (как «Настройки игры» покера), значок сетки 16 и подпись. На узкой шапке остаётся значок,
+  имя — у `aria-label`. Модификатор `--bar` держит размер против правил столов для всех кнопок
+  (`.durak button` — 44 под палец).
+*/
+.stage-exit.stage-exit--bar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+  height: var(--control-sm);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+.stage-exit.stage-exit--bar:hover {
+  background: var(--surface-hover);
+}
+.stage-exit.stage-exit--bar:active {
+  transform: scale(0.98);
+}
+.stage-exit.stage-exit--bar:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.stage-exit > svg.lucide {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+/* Телефон: значок без подписи; палец — 44 по высоте шапки, а не по кнопке: шапку стола не раздуваем. */
+@media (max-width: 700px) {
+  .stage-exit.stage-exit--bar {
+    width: var(--control-sm);
+    padding: 0;
+    justify-content: center;
+  }
+  .stage-exit--bar .stage-exit__label {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-exit.stage-exit--bar:active {
+    transform: none;
+  }
+}
+
+/* Панель «Интеграции»: ушедшему к участникам у идущей игры — «Открыть на сцене» под её строкой. */
+.games-to-stage {
+  display: grid;
+  padding: 0 var(--space-3) var(--space-3);
+}

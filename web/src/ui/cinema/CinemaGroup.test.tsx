@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { json, sceneMeeting } from '../../test/cinemaMeeting';
 import { CinemaGroup } from './CinemaGroup';
@@ -116,4 +116,24 @@ it('экран выбора — тот же, что у музыки: прошл�
   expect(meeting.media.saveSettings).toHaveBeenCalledWith({ lastPlatform: { cinema: 'rutube' } });
   const rutube = await screen.findByRole('button', { name: /^Rutube/ });
   await waitFor(() => expect(within(rutube).getByText('Последний выбор')).toBeVisible());
+});
+
+/*
+  R121: открыть кинозал из панели, когда ушёл к участникам, — значит вернуться в него. Пока фильм на
+  сцене перед глазами, кнопки нет: открывать нечего.
+*/
+it('ушёл из кинозала к участникам — «Открыть на сцене» возвращает; в кинозале кнопки нет', async () => {
+  const meeting = mount(() => json({ providers: [entry('youtube')] }));
+  act(() =>
+    meeting.snapshot.set({
+      ...meeting.snapshot.get(),
+      watch: { provider: 'youtube', title: 'Дюна', contentId: 'x', kind: 'video' },
+    } as never),
+  );
+  expect(screen.getByText('Дюна')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Открыть на сцене' })).toBeNull();
+  act(() => meeting.stageAway.set('cinema'));
+  fireEvent.click(screen.getByRole('button', { name: 'Открыть на сцене' }));
+  expect(meeting.returnToStage).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('button', { name: 'Открыть на сцене' })).toBeNull();
 });

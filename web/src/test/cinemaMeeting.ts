@@ -20,6 +20,9 @@ export function sceneMeeting(provider: ProviderId, links: string[] = []) {
     cinema.set(next);
   });
   const command = vi.fn(() => Promise.resolve());
+  // Ушёл ли человек из кинозала к участникам (R121) — у себя, как в настоящей встрече.
+  const stageAway = new Store<'cinema' | null>(null);
+  const returnToStage = vi.fn(() => stageAway.set(null));
   const meeting = {
     admission: { roomId: 'room', participantId: 'self', credential: 'token' },
     snapshot: new Store({
@@ -29,13 +32,18 @@ export function sceneMeeting(provider: ProviderId, links: string[] = []) {
     }),
     cinema,
     cinemaAt,
+    viewing: new Store(null),
+    stageAway,
     media: { preferences, saveSettings },
     command,
     openCinema,
+    returnToStage,
   };
   return meeting as unknown as Meeting & {
     command: typeof command;
     openCinema: typeof openCinema;
+    returnToStage: typeof returnToStage;
+    stageAway: typeof stageAway;
     media: { saveSettings: typeof saveSettings };
   };
 }

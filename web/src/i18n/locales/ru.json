@@ -2232,6 +2232,23 @@
     "gameLoading": "Открываем игру…",
     "unpin": "Открепить",
     "unpinOf": "Открепить: {{name}}",
+    "exit": {
+      "label": "Все участники",
+      "title": "Все участники ({{key}})",
+      "announcePeople": "Все участники",
+      "announceIntegration": "На сцене: {{name}}",
+      "toStage": "Открыть на сцене"
+    },
+    "notch": {
+      "seated": "{{n}} за столом",
+      "turn": "Ваш ход",
+      "drawing": "Рисует {{name}}",
+      "youDraw": "Вы рисуете",
+      "paused": "на паузе",
+      "back": "Вернуться: {{integration}} — {{state}}",
+      "title": "Вернуться ({{key}})",
+      "backPlain": "Вернуться: {{integration}}"
+    },
     "menu": {
       "volume": "Громкость у вас · {{value}}%",
       "volumeOf": "Громкость: {{name}}",

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Snapshot } from '../api/types';
@@ -7,7 +7,8 @@ import { readPreferences } from '../core/preferences';
 import type { MusicState } from '../core/services';
 import { Store } from '../core/store';
 import { t } from '../i18n';
-import { StageOverlay, stageChips, stageShows } from './StageOverlay';
+import { IntegrationBarSlot } from './IntegrationBar';
+import { StageOverlay, stageChips } from './StageOverlay';
 
 /*
   Активные интеграции — полупрозрачными чипами поверх звонка справа сверху (R30), а не отдельной
@@ -65,18 +66,15 @@ describe('чипы интеграций по снимку', () => {
     expect(chips[1]!.title).toBe('Кинозал: Фильм');
   });
 
-  it('чип того, что и так во всю сцену, не дублируется; поверх чужого экрана видно всё', () => {
+  it('чипа того, что занимает сцену, нет никогда: в интеграции он повторял бы её, у ушедшего — чёлку (R121)', () => {
     const room = snapshot({
       poker: { seats: [{ memberId: 'me' }] },
       watch: { provider: 'youtube', title: 'Фильм' },
     });
-    expect(stageShows(room, false)).toBe('poker');
     expect(stageChips(t, room, { present: true, state: music() }, 'poker').map((chip) => chip.kind)).toEqual([
       'cinema',
       'music',
     ]);
-    expect(stageShows(room, true)).toBeNull();
-    expect(stageShows(snapshot({ watch: { provider: 'vk', title: null } }), false)).toBe('cinema');
   });
 
   it('шахматы и Gartic — по игрокам; кинозал без названия — словом «Кинозал»', () => {
@@ -115,6 +113,8 @@ function fakeMeeting(initial: Snapshot) {
     admission: { roomId: 'room', participantId: 'me', credential: 'token' },
     snapshot: new Store(initial),
     viewing: new Store(null),
+    stageAway: new Store(null),
+    cinema: new Store(null),
     ended: new Store<string | null>(null),
     media: {
       preferences: new Store(readPreferences()),
@@ -150,13 +150,13 @@ describe('слой поверх сцены', () => {
     expect(screen.queryByRole('region')).toBeNull();
   });
 
-  it('музыкальный бот во встрече — мини-плеер, а не чип панели; игра — чипом, он открывает интеграции', async () => {
+  it('музыкальный бот во встрече — мини-плеер, а не чип панели; стол спрятан — плеер на слое сцены, чипа стола нет', async () => {
     // Служба музыки отвечает тем же, что видит панель интеграций.
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response(JSON.stringify(music()), { status: 200 }))),
     );
-    // Смотрят чужой экран — стол не на сцене, и его чип виден.
+    // Смотрят чужой экран — стол спрятан (R121): его место в шапке есть, но мини-плеер туда не идёт.
     const room = fakeMeeting(
       snapshot({
         participants: [person('me'), person('bot', { service: 'music' })],
@@ -164,22 +164,23 @@ describe('слой поверх сцены', () => {
       }),
     );
     (room as unknown as { viewing: Store<unknown> }).viewing.set({ screenId: 's', participantId: 'ann' });
-    const onOpen = show(room);
+    render(<IntegrationBarSlot />);
+    show(room);
     const region = screen.getByRole('region', { name: 'Боты и интеграции' });
     const bar = await screen.findByRole('group', { name: 'Мини-плеер' });
     expect(region).toContainElement(bar);
     await waitFor(() => expect(bar.textContent).toContain('Put On'));
-    expect(region.querySelector('.stage-chip[data-kind="music"]')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Дурак · 1 за столом' }));
-    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(region.querySelector('.stage-chip')).toBeNull();
   });
 
-  it('игра началась, пока смотрят чужой экран, — чип появляется без перезагрузки', () => {
+  it('игра началась, пока смотрят чужой экран, — чипа нет: игру показывает чёлка', () => {
     const meeting = fakeMeeting(snapshot());
     (meeting as unknown as { viewing: Store<unknown> }).viewing.set({ screenId: 's', participantId: 'ann' });
     show(meeting);
     expect(screen.queryByRole('button')).toBeNull();
-    meeting.snapshot.set(snapshot({ durak: { seats: [{ memberId: 'me' }, { memberId: 'ann' }] } }));
-    return waitFor(() => expect(screen.getByRole('button', { name: 'Дурак · 2 за столом' })).toBeVisible());
+    act(() =>
+      meeting.snapshot.set(snapshot({ durak: { seats: [{ memberId: 'me' }, { memberId: 'ann' }] } })),
+    );
+    expect(screen.queryByRole('button', { name: 'Дурак · 2 за столом' })).toBeNull();
   });
 });

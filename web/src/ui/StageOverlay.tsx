@@ -9,6 +9,7 @@ import type { Translate } from '../i18n';
 import { useIntegrationBarSlot } from './IntegrationBar';
 import { MusicMini, useMusicMini } from './music/MusicMini';
 import { useStore } from './primitives';
+import { useStageView } from './useStageView';
 import './stage-overlay.css';
 
 /**
@@ -23,6 +24,10 @@ import './stage-overlay.css';
  * Музыка здесь — мини-плеер (R31, `music/MusicMini`): играет трек — полоса с ⏮ ⏯ ⏭ и виджетом плеера по
  * нажатию на трек; идёт игра, а музыки нет, — предложение её включить. За столом игры мини-плеер и
  * предложение уходят в шапку стола (`IntegrationBarSlot`, R128). `children` — ещё что-то в тот же ряд.
+ *
+ * С R121 интеграцию, которая занимает сцену, здесь чипом не показывают: у ушедшего к участникам и поверх
+ * чужого экрана её показывает чёлка сверху по центру (`StageNotch`). Интеграция на сцене одна (`stageBusy`
+ * ядра), поэтому чипы игр и кино остаются только для снимка, где сцену делят двое.
  */
 export type ChipKind = 'poker' | 'durak' | 'chess' | 'gartic' | 'cinema' | 'music';
 
@@ -43,7 +48,8 @@ export interface MusicPresence {
   failed?: boolean;
 }
 
-const ICONS: Record<ChipKind, LucideIcon> = {
+/** Знаки интеграций — общие у чипов и чёлки (R121). */
+export const ICONS: Record<ChipKind, LucideIcon> = {
   poker: Spade,
   durak: Club,
   chess: Crown,
@@ -60,19 +66,12 @@ function game(t: Translate, name: string, count: number): string {
 }
 
 /**
- * Что сейчас занимает сцену (`Stage.tsx`, тот же порядок): чужой экран, стол, кинозал — или разговор.
- * Чип того, что и так во всю сцену, не нужен: он повторял бы стол и закрывал бы его же кнопки.
+ * Что показать чипами — по снимку комнаты и ответу службы музыки. Порядок: игра, кино, музыка.
+ *
+ * `onStage` — то, что занимает сцену (`core/stage-view.ts`): его чип не нужен никогда. В интеграции он
+ * повторял бы её и закрывал бы её же кнопки, а у ушедшего к участникам (R121) и поверх чужого экрана
+ * интеграцию показывает чёлка сверху по центру — с живым состоянием и возвратом одним нажатием.
  */
-export function stageShows(snapshot: Snapshot, viewing: boolean): ChipKind | null {
-  if (viewing) return null;
-  if (snapshot.chess) return 'chess';
-  if (snapshot.gartic) return 'gartic';
-  if (snapshot.poker) return 'poker';
-  if (snapshot.durak) return 'durak';
-  return snapshot.watch ? 'cinema' : null;
-}
-
-/** Что показать чипами — по снимку комнаты и ответу службы музыки. Порядок: игра, кино, музыка. */
 export function stageChips(
   t: Translate,
   snapshot: Snapshot,
@@ -171,7 +170,6 @@ export function StageOverlay({
 }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
-  const viewing = useStore(meeting.viewing);
   // Музыка — мини-плеером или предложением её включить (R31), а не чипом, который открывал панель:
   // виджет управляет музыкой, не переключая интеграции. Чипы — игра и кино.
   const mini = useMusicMini(meeting);
@@ -180,9 +178,15 @@ export function StageOverlay({
     порталом, частью шапки, а не плашкой поверх стола. Состояние и открытый виджет — те же.
   */
   const slot = useIntegrationBarSlot();
-  const chips = stageChips(t, snapshot, { present: false }, stageShows(snapshot, !!viewing));
-  const empty = chips.length === 0 && (mini.view.kind === 'none' || !!slot) && !children;
-  const music = <MusicMini meeting={meeting} mini={mini} placement={slot ? 'bar' : 'stage'} />;
+  /*
+    Ушедшему к участникам (R121) стол спрятан, но смонтирован — и его место в шапке тоже: мини-плеер туда
+    не идёт, он остаётся на слое сцены, как в обычной встрече.
+  */
+  const { occupant, view } = useStageView(meeting);
+  const bar = view === 'integration' ? slot : null;
+  const chips = stageChips(t, snapshot, { present: false }, occupant?.kind ?? null);
+  const empty = chips.length === 0 && (mini.view.kind === 'none' || !!bar) && !children;
+  const music = <MusicMini meeting={meeting} mini={mini} placement={bar ? 'bar' : 'stage'} />;
   return (
     <div
       className="stage-overlay"
@@ -216,7 +220,7 @@ export function StageOverlay({
           </button>
         );
       })}
-      {slot ? createPortal(music, slot) : music}
+      {bar ? createPortal(music, bar) : music}
       {children}
     </div>
   );

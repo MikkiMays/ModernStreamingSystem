@@ -102,6 +102,8 @@ function meeting(extra: Record<string, unknown> = {}) {
       ...extra,
     } as unknown as Snapshot),
     viewing: new Store(null),
+    stageAway: new Store(null),
+    cinema: new Store(null),
     ended: new Store<string | null>(null),
     media: {
       preferences,

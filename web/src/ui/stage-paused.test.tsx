@@ -59,6 +59,7 @@ function fakeMeeting({
       durak: null,
     } as unknown as Snapshot),
     viewing: new Store(viewing),
+    stageAway: new Store(null),
     pinnedCamera: new Store(null),
     cinema: new Store(null),
     cinemaAt: new Store(null),
