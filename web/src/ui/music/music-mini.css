@@ -296,6 +296,19 @@
   border-radius: var(--radius-2);
 }
 
+/*
+  Столы задают своим кнопкам высоту под палец (`.durak button` — 44): внутри полосы музыки размер
+  кнопок — свой, иначе ⏮ ⏯ ⏭ вытягиваются в овалы.
+*/
+.music-mini .music-mini__track,
+.music-mini .ui-icon-button,
+.music-offer .music-offer__chip,
+.music-offer .ui-icon-button,
+.integration-bar-slot .music-mini__chip {
+  min-width: 0;
+  min-height: 0;
+}
+
 /* Место в шапке стола (`IntegrationBarSlot`): пустое — не занимает места и зазора. */
 .integration-bar-slot {
   display: flex;
