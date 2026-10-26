@@ -222,7 +222,8 @@ export const ROWS = {
   'server-password': { section: 'server' },
   'server-ping': { section: 'server' },
   'about-version': { section: 'about' },
-  'about-updates': { section: 'about' },
+  'about-updates': { section: 'about', only: 'desktop' },
+  'about-app': { section: 'about', only: 'browser' },
   'about-tour': { section: 'about' },
 } satisfies Record<string, RowSpec>;
 

@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "About",
-        "keywords": "version cord updates tour"
+        "keywords": "version cord updates tutorial download"
       },
       "desktop": {
         "title": "Windows",
@@ -226,15 +226,20 @@
         "hint": "",
         "keywords": "check update download windows"
       },
+      "about-app": {
+        "label": "Windows app",
+        "hint": "",
+        "keywords": "download windows install app client updates"
+      },
       "appearance-language": {
         "label": "Interface language",
         "hint": "",
         "keywords": "language translation interface"
       },
       "about-tour": {
-        "label": "Cord tour",
+        "label": "Tutorial",
         "hint": "Short tips next to the main buttons",
-        "keywords": "tour tips onboarding guide"
+        "keywords": "tutorial tips onboarding guide tour"
       },
       "desktop-tray": {
         "label": "Tray icon",
@@ -347,14 +352,13 @@
       "webUpdates": "In the browser, Cord is always the latest version",
       "latest": "Latest Windows version: {{version}}",
       "desktop": "Windows app",
-      "web": "This server's web app",
       "desktopUpdate": "An app update is available.",
-      "windowsUpdate": "Cord {{version}} for Windows is out.",
       "checkLabel": "Check for updates",
       "check": "Check",
       "update": "Update",
       "download": "Download {{version}}",
-      "tour": "Take the tour"
+      "get": "Download",
+      "tour": "Start the tutorial"
     },
     "accounts": {
       "save": "Save",
@@ -2460,6 +2464,8 @@
     "shell": {
       "sidebar": "Sidebar",
       "width": "Sidebar width",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar",
       "openMenu": "Open menu",
       "closeMenu": "Close menu",
       "menu": "Menu",
@@ -3300,7 +3306,7 @@
       },
       "settings": {
         "title": "Settings",
-        "text": "Camera, microphone, sound, theme and language. In “About” you can take this tour again."
+        "text": "Camera, microphone, sound, theme and language. In “About” you can go through this tutorial again."
       },
       "help": {
         "title": "Support",

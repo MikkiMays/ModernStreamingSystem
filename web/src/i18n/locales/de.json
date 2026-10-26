@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "Über Cord",
-        "keywords": "version cord updates einführung"
+        "keywords": "version cord updates tutorial herunterladen"
       },
       "desktop": {
         "title": "Windows",
@@ -226,15 +226,20 @@
         "hint": "",
         "keywords": "prüfen aktualisieren herunterladen windows"
       },
+      "about-app": {
+        "label": "App für Windows",
+        "hint": "",
+        "keywords": "herunterladen windows installieren app client updates"
+      },
       "appearance-language": {
         "label": "Sprache der Oberfläche",
         "hint": "",
         "keywords": "language Sprache Übersetzung Oberfläche"
       },
       "about-tour": {
-        "label": "Einführung in Cord",
+        "label": "Tutorial",
         "hint": "Kurze Hinweise an den wichtigsten Schaltflächen",
-        "keywords": "einführung hinweise tour anleitung"
+        "keywords": "tutorial hinweise einführung anleitung tour"
       },
       "desktop-tray": {
         "label": "Symbol im Infobereich",
@@ -347,14 +352,13 @@
       "webUpdates": "Im Browser ist Cord immer auf dem neuesten Stand",
       "latest": "Neueste Windows-Version: {{version}}",
       "desktop": "Windows-App",
-      "web": "Web-App dieses Servers",
       "desktopUpdate": "Ein App-Update ist verfügbar.",
-      "windowsUpdate": "Cord {{version}} für Windows ist da.",
       "checkLabel": "Nach Updates suchen",
       "check": "Prüfen",
       "update": "Aktualisieren",
       "download": "{{version}} herunterladen",
-      "tour": "Einführung starten"
+      "get": "Herunterladen",
+      "tour": "Tutorial starten"
     },
     "accounts": {
       "save": "Speichern",
@@ -2460,6 +2464,8 @@
     "shell": {
       "sidebar": "Seitenleiste",
       "width": "Breite der Seitenleiste",
+      "collapse": "Seitenleiste einklappen",
+      "expand": "Seitenleiste ausklappen",
       "openMenu": "Menü öffnen",
       "closeMenu": "Menü schließen",
       "menu": "Menü",
@@ -3300,7 +3306,7 @@
       },
       "settings": {
         "title": "Einstellungen",
-        "text": "Kamera, Mikrofon, Ton, Design und Sprache. Unter „Über Cord“ kannst du die Einführung erneut starten."
+        "text": "Kamera, Mikrofon, Ton, Design und Sprache. Unter „Über Cord“ kannst du das Tutorial erneut starten."
       },
       "help": {
         "title": "Support",

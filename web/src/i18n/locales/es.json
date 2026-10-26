@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "Acerca de",
-        "keywords": "versión cord actualizaciones recorrido"
+        "keywords": "versión cord actualizaciones tutorial descargar"
       },
       "desktop": {
         "title": "Windows",
@@ -226,15 +226,20 @@
         "hint": "",
         "keywords": "buscar actualizar descargar windows"
       },
+      "about-app": {
+        "label": "Aplicación para Windows",
+        "hint": "",
+        "keywords": "descargar windows instalar aplicación cliente actualizaciones"
+      },
       "appearance-language": {
         "label": "Idioma de la interfaz",
         "hint": "",
         "keywords": "language idioma traducción interfaz"
       },
       "about-tour": {
-        "label": "Recorrido por Cord",
+        "label": "Tutorial",
         "hint": "Consejos breves junto a los botones principales",
-        "keywords": "recorrido consejos guía introducción"
+        "keywords": "tutorial consejos guía introducción recorrido"
       },
       "desktop-tray": {
         "label": "Icono en la bandeja",
@@ -347,14 +352,13 @@
       "webUpdates": "En el navegador, Cord siempre está en su última versión",
       "latest": "Última versión para Windows: {{version}}",
       "desktop": "App para Windows",
-      "web": "Versión web de este servidor",
       "desktopUpdate": "Hay una actualización de la app.",
-      "windowsUpdate": "Ya está disponible Cord {{version}} para Windows.",
       "checkLabel": "Buscar actualizaciones",
       "check": "Buscar",
       "update": "Actualizar",
       "download": "Descargar {{version}}",
-      "tour": "Hacer el recorrido"
+      "get": "Descargar",
+      "tour": "Hacer el tutorial"
     },
     "accounts": {
       "save": "Guardar",
@@ -2489,6 +2493,8 @@
     "shell": {
       "sidebar": "Barra lateral",
       "width": "Ancho de la barra lateral",
+      "collapse": "Contraer la barra lateral",
+      "expand": "Expandir la barra lateral",
       "openMenu": "Abrir menú",
       "closeMenu": "Cerrar menú",
       "menu": "Menú",
@@ -3339,7 +3345,7 @@
       },
       "settings": {
         "title": "Ajustes",
-        "text": "Cámara, micrófono, sonido, tema e idioma. En «Acerca de» puedes repetir este recorrido."
+        "text": "Cámara, micrófono, sonido, tema e idioma. En «Acerca de» puedes repetir este tutorial."
       },
       "help": {
         "title": "Soporte",

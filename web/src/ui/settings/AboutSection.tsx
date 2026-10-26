@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Compass, Download, RefreshCw, TriangleAlert } from 'lucide-react';
-import { isNewer, windowsRelease, type WindowsRelease } from '../../core/download';
+import { windowsRelease, type WindowsRelease } from '../../core/download';
 import { desktopUpdate, desktopVersion, notifyDesktop, isDesktop } from '../../core/desktop';
-import { appLabel, appVersion } from '../../core/version';
+import { appLabel } from '../../core/version';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
@@ -15,9 +15,10 @@ import { SettingGroup, SettingRow } from './Row';
  * (R51), а не строка «Открыть» со вторым окном.
  *
  * Два разных вопроса. В браузере обновлять нечего — страница и есть то, что сервер отдал сию
- * секунду, — поэтому проверка отвечает про клиент для Windows. В самом приложении обновлять
- * есть что, и проверку выполняет оболочка: страница о её файлах ничего не знает. Плашка
- * появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
+ * секунду, — поэтому там нет ни «Обновлений», ни «Проверить» (R132): версия говорит «всегда
+ * последняя», а строка «Приложение для Windows» называет последний выпуск и предлагает его скачать.
+ * В самом приложении обновлять есть что, и проверку выполняет оболочка: страница о её файлах ничего
+ * не знает. Плашка появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
  *
  * В приложении раздел зеркало сам не спрашивает — только по «Проверить»: оболочка уже спросила его
  * при запуске (и спрашивает раз в шесть часов), а её ответ раздел берёт из `update.version`. В
@@ -50,83 +51,80 @@ export function AboutSection({ onTour }: { onTour?: () => void }) {
     if (!desktop) check();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const latest = release === undefined ? undefined : (release?.version ?? null);
-  const installed = desktop ? desktopVersion(shell) : appVersion;
-  const fresh = !!latest && !!installed && isNewer(latest, installed);
   // Плашка ниже говорит о новом выпуске; подпись строки — о том, что известно сейчас.
-  const updates = desktop
-    ? shell.available
-      ? undefined
-      : shell.status || undefined
-    : latest === undefined
+  const updates = shell.available ? undefined : shell.status || undefined;
+  /** Что известно о приложении для Windows — в браузере, строкой под «Приложение для Windows». */
+  const app =
+    latest === undefined
       ? t(($) => $.settings.about.checking)
       : latest === null
         ? t(($) => $.settings.about.unknown)
-        : fresh
-          ? t(($) => $.settings.about.webUpdates)
-          : t(($) => $.settings.about.latest, { version: latest });
+        : t(($) => $.settings.about.latest, { version: latest });
   return (
     <>
       <SettingGroup title="Cord">
         <SettingRow
           id="about-version"
-          hint={desktop ? t(($) => $.settings.about.desktop) : t(($) => $.settings.about.web)}
+          hint={desktop ? t(($) => $.settings.about.desktop) : t(($) => $.settings.about.webUpdates)}
         >
           <span className="setting-value setting-value--strong">
             Cord {desktop ? desktopVersion(shell) || '…' : appLabel}
           </span>
         </SettingRow>
-        <SettingRow
-          id="about-updates"
-          hint={updates ? <span role="status">{updates}</span> : null}
-          below={
-            (desktop && shell.available) || (!desktop && fresh) ? (
-              <p className="setting-note" data-tone="warning" role="status">
-                <TriangleAlert size={16} aria-hidden="true" />
-                <span>
-                  {desktop
-                    ? shell.status || t(($) => $.settings.about.desktopUpdate)
-                    : t(($) => $.settings.about.windowsUpdate, { version: latest })}
-                </span>
-              </p>
-            ) : undefined
-          }
-        >
-          <div className="setting-actions">
-            <Button
-              size="sm"
-              icon={<RefreshCw />}
-              loading={checking}
-              aria-label={t(($) => $.settings.about.checkLabel)}
-              onClick={check}
-            >
-              {t(($) => $.settings.about.check)}
-            </Button>
-            {desktop && shell.available && (
+        {desktop ? (
+          <SettingRow
+            id="about-updates"
+            hint={updates ? <span role="status">{updates}</span> : null}
+            below={
+              shell.available ? (
+                <p className="setting-note" data-tone="warning" role="status">
+                  <TriangleAlert size={16} aria-hidden="true" />
+                  <span>{shell.status || t(($) => $.settings.about.desktopUpdate)}</span>
+                </p>
+              ) : undefined
+            }
+          >
+            <div className="setting-actions">
               <Button
                 size="sm"
-                variant="primary"
-                icon={<Download />}
-                onClick={() => notifyDesktop('update.apply')}
+                icon={<RefreshCw />}
+                loading={checking}
+                aria-label={t(($) => $.settings.about.checkLabel)}
+                onClick={check}
               >
-                {t(($) => $.settings.about.update)}
+                {t(($) => $.settings.about.check)}
               </Button>
-            )}
-            {!desktop && fresh && release?.installer && (
-              <a
-                className="ui-button ui-button--primary ui-button--sm"
-                href={release.installer.url}
-                download=""
-              >
-                <span className="ui-button__icon" aria-hidden="true">
-                  <Download />
-                </span>
-                <span className="ui-button__label">
-                  {t(($) => $.settings.about.download, { version: latest })}
-                </span>
-              </a>
-            )}
-          </div>
-        </SettingRow>
+              {shell.available && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={<Download />}
+                  onClick={() => notifyDesktop('update.apply')}
+                >
+                  {t(($) => $.settings.about.update)}
+                </Button>
+              )}
+            </div>
+          </SettingRow>
+        ) : (
+          <SettingRow id="about-app" hint={<span role="status">{app}</span>}>
+            {/* Установщик — прямой ссылкой, когда зеркало его назвало; иначе — страница «Скачать». */}
+            <a
+              className="ui-button ui-button--secondary ui-button--sm"
+              href={release?.installer?.url ?? '/download'}
+              download={release?.installer ? '' : undefined}
+            >
+              <span className="ui-button__icon" aria-hidden="true">
+                <Download />
+              </span>
+              <span className="ui-button__label">
+                {latest
+                  ? t(($) => $.settings.about.download, { version: latest })
+                  : t(($) => $.settings.about.get)}
+              </span>
+            </a>
+          </SettingRow>
+        )}
         {onTour && (
           <SettingRow id="about-tour">
             <Button size="sm" icon={<Compass />} onClick={onTour}>

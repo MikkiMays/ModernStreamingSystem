@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "Sobre",
-        "keywords": "versão cord atualizações tour"
+        "keywords": "versão cord atualizações tutorial baixar"
       },
       "desktop": {
         "title": "Windows",
@@ -226,15 +226,20 @@
         "hint": "",
         "keywords": "verificar atualizar baixar windows"
       },
+      "about-app": {
+        "label": "Aplicativo para Windows",
+        "hint": "",
+        "keywords": "baixar windows instalar aplicativo cliente atualizações"
+      },
       "appearance-language": {
         "label": "Idioma da interface",
         "hint": "",
         "keywords": "language idioma tradução interface"
       },
       "about-tour": {
-        "label": "Tour pelo Cord",
+        "label": "Tutorial",
         "hint": "Dicas curtas ao lado dos botões principais",
-        "keywords": "tour dicas guia introdução"
+        "keywords": "tutorial dicas guia introdução tour"
       },
       "desktop-tray": {
         "label": "Ícone na bandeja",
@@ -347,14 +352,13 @@
       "webUpdates": "No navegador, o Cord está sempre na versão mais recente",
       "latest": "Versão mais recente para Windows: {{version}}",
       "desktop": "App para Windows",
-      "web": "Versão web deste servidor",
       "desktopUpdate": "Há uma atualização do app disponível.",
-      "windowsUpdate": "Saiu o Cord {{version}} para Windows.",
       "checkLabel": "Verificar atualizações",
       "check": "Verificar",
       "update": "Atualizar",
       "download": "Baixar {{version}}",
-      "tour": "Fazer o tour"
+      "get": "Baixar",
+      "tour": "Fazer o tutorial"
     },
     "accounts": {
       "save": "Salvar",
@@ -2489,6 +2493,8 @@
     "shell": {
       "sidebar": "Barra lateral",
       "width": "Largura da barra lateral",
+      "collapse": "Recolher a barra lateral",
+      "expand": "Expandir a barra lateral",
       "openMenu": "Abrir menu",
       "closeMenu": "Fechar menu",
       "menu": "Menu",
@@ -3339,7 +3345,7 @@
       },
       "settings": {
         "title": "Configurações",
-        "text": "Câmera, microfone, som, tema e idioma. Em “Sobre” você pode fazer este tour de novo."
+        "text": "Câmera, microfone, som, tema e idioma. Em “Sobre” você pode fazer este tutorial de novo."
       },
       "help": {
         "title": "Suporte",
