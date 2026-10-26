@@ -2202,7 +2202,7 @@
     "unpin": "Sblocca",
     "unpinOf": "Sblocca: {{name}}",
     "exit": {
-      "label": "Partecipanti",
+      "label": "Tutti i partecipanti",
       "title": "Tutti i partecipanti ({{key}})",
       "announcePeople": "Tutti i partecipanti",
       "announceIntegration": "In scena: {{name}}",

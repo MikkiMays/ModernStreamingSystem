@@ -264,14 +264,14 @@ it('в шапке доски «Участники» уводит к участн
   const session = room();
   const leave = vi.fn();
   const view = render(<ChessTable meeting={session.meeting} />);
-  expect(screen.queryByRole('button', { name: 'Участники' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Все участники' })).toBeNull();
   view.unmount();
   render(
     <StageExitContext.Provider value={{ away: false, leave }}>
       <ChessTable meeting={session.meeting} />
     </StageExitContext.Provider>,
   );
-  const exit = screen.getByRole('button', { name: 'Участники' });
+  const exit = screen.getByRole('button', { name: 'Все участники' });
   expect(exit.closest('.chess-header')).not.toBeNull();
   expect(exit).toHaveAttribute('aria-keyshortcuts', 'G');
   expect(exit).toHaveAttribute('title', 'Все участники (G)');

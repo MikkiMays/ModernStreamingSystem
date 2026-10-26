@@ -223,7 +223,7 @@ describe('выход и возврат одним нажатием', () => {
         <Stage meeting={room} />
       </>,
     );
-    const exit = await screen.findByRole('button', { name: 'Участники' });
+    const exit = await screen.findByRole('button', { name: 'Все участники' });
     expect(screen.getByRole('status')).toHaveTextContent('На сцене: Шахматы');
     fireEvent.click(exit);
     expect(room.leaveStage).toHaveBeenCalledTimes(1);
@@ -233,7 +233,7 @@ describe('выход и возврат одним нажатием', () => {
     fireEvent.click(notch);
     expect(room.returnToStage).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: /^Вернуться/ })).toBeNull();
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Участники' })).toHaveFocus());
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Все участники' })).toHaveFocus());
     expect(mounts.chess).toBe(1);
   });
 });

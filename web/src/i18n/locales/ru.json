@@ -2229,7 +2229,7 @@
     "unpin": "Открепить",
     "unpinOf": "Открепить: {{name}}",
     "exit": {
-      "label": "Участники",
+      "label": "Все участники",
       "title": "Все участники ({{key}})",
       "announcePeople": "Все участники",
       "announceIntegration": "На сцене: {{name}}",

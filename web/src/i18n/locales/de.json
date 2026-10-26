@@ -2175,7 +2175,7 @@
     "unpin": "Lösen",
     "unpinOf": "Lösen: {{name}}",
     "exit": {
-      "label": "Teilnehmer",
+      "label": "Alle Teilnehmer",
       "title": "Alle Teilnehmer ({{key}})",
       "announcePeople": "Alle Teilnehmer",
       "announceIntegration": "Auf der Bühne: {{name}}",

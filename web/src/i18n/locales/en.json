@@ -2175,7 +2175,7 @@
     "unpin": "Unpin",
     "unpinOf": "Unpin: {{name}}",
     "exit": {
-      "label": "Participants",
+      "label": "All participants",
       "title": "All participants ({{key}})",
       "announcePeople": "All participants",
       "announceIntegration": "On stage: {{name}}",

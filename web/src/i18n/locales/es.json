@@ -2202,7 +2202,7 @@
     "unpin": "Desfijar",
     "unpinOf": "Desfijar: {{name}}",
     "exit": {
-      "label": "Participantes",
+      "label": "Todos los participantes",
       "title": "Todos los participantes ({{key}})",
       "announcePeople": "Todos los participantes",
       "announceIntegration": "En escena: {{name}}",
