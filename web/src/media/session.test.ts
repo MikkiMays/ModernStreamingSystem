@@ -11,6 +11,7 @@ import {
 import { MediaSession, SCREEN_GONE_GRACE_MS } from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter, ScreenAudioEvent, ScreenAudioSource } from './capture';
+import { fakeCameraTrack } from './fake-track';
 
 vi.mock('livekit-client', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('livekit-client')>();
@@ -1033,6 +1034,41 @@ describe('пауза видео от SFU', () => {
       expect(f.media.videoPaused.get()).toEqual({});
     } finally {
       f.media.dispose();
+    }
+  });
+});
+
+/**
+ * Смена качества камеры во встрече — на месте (27.10.2026). Раньше это был новый захват, снятие с
+ * публикации и публикация заново: у зрителя плитка гасла, а на телефоне камера оставалась
+ * выключенной до нового нажатия.
+ */
+describe('качество камеры во встрече', () => {
+  it('меняет кадр и полосу у той же дорожки, не захватывая и не публикуя её заново', async () => {
+    const { media, room } = fixture();
+    try {
+      const { track, media: capture, sender } = fakeCameraTrack();
+      const restartTrack = vi.fn(async () => {});
+      Object.assign(track, { restartTrack });
+      const publication = { track, options: { videoEncoding: { maxBitrate: 3000000, maxFramerate: 30 } } };
+      const local = (room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+      (local.trackPublications as Map<Track.Source, unknown>).set(Track.Source.Camera, publication);
+      local.unpublishTrack = vi.fn(async () => {});
+      (media as unknown as { wanted: { camera: boolean } }).wanted.camera = true;
+
+      await media.setCameraProfile({ resolution: 1080, fps: 60 });
+
+      expect(capture.applyConstraints).toHaveBeenCalledWith(
+        expect.objectContaining({ frameRate: { min: 60, ideal: 60 } }),
+      );
+      expect(sender.setParameters).toHaveBeenCalled();
+      expect(restartTrack).not.toHaveBeenCalled();
+      expect(local.unpublishTrack).not.toHaveBeenCalled();
+      expect(local.publishTrack).not.toHaveBeenCalled();
+      expect(publication.options.videoEncoding).toEqual({ maxBitrate: 10000000, maxFramerate: 60 });
+    } finally {
+      media.dispose();
+      localStorage.clear();
     }
   });
 });

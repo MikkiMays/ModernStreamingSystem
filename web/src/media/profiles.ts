@@ -145,6 +145,14 @@ function touchFirst(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 }
 /**
+ * Что просить у камеры для превью (настройки, предпросмотр): тот же кадр и частота, что пойдут во
+ * встречу, но пожеланием — превью не повод для отказа камеры.
+ */
+export function previewConstraints(profile: ScreenProfile): MediaTrackConstraints {
+  const { width, height, frameRate } = cameraCapture(profile).resolution;
+  return { width: { ideal: width }, height: { ideal: height }, frameRate: { ideal: frameRate } };
+}
+/**
  * Частота как требование, а не как пожелание.
  *
  * ЗАЧЕМ. «Выбрал 30 — плашка показывает 22» почти всегда не про кодировщик и не про канал:

@@ -1,5 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { Track } from 'livekit-client';
 import type { Meeting } from '../../core/meeting';
+import { Store } from '../../core/store';
+import type { MediaTile } from '../../media/session';
+import { useStore } from '../primitives';
 import type { Preferences } from '../../core/preferences';
 import { Switch } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
@@ -9,6 +13,7 @@ import { DeviceSelect, useMediaDevices } from './devices';
 import { QualityRows } from './media-fields';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
+const noTiles = new Store<MediaTile[]>([]);
 
 /**
  * «Видео» (R100): сверху — превью камеры, как у Телемоста (n09), рядом — выбор камеры и её
@@ -27,11 +32,19 @@ export function VideoSection({
 }) {
   const { t } = useTranslation();
   const devices = useMediaDevices();
+  // Камера встречи, если она включена: превью показывает её, а не захватывает камеру второй раз.
+  const tiles = useStore(meeting?.media.tracks ?? noTiles);
+  const camera = tiles.find((tile) => tile.local && tile.source === Track.Source.Camera && !tile.muted);
+  const live = camera?.track.mediaStreamTrack;
   return (
     <>
       <SettingGroup title={t(($) => $.settings.anchors.camera)} anchor="camera">
         <div className="setting-camera">
-          <CameraPreview deviceId={preferences.devices.camera} />
+          <CameraPreview
+            deviceId={preferences.devices.camera}
+            profile={preferences.camera}
+            live={live?.readyState === 'live' ? live : null}
+          />
           <div className="setting-camera__rows">
             <SettingRow id="camera-device" stack>
               <DeviceSelect

@@ -1,27 +1,72 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { VideoOff } from 'lucide-react';
+import { previewConstraints, type ScreenProfile } from '../../media/profiles';
 import { rowDomId, rowText } from './sections';
 
 type State = 'starting' | 'live' | 'denied' | 'failed';
 
+/** «720p · 30 fps» — короткая сторона и частота, которые камера отдаёт сейчас. */
+export function frameLabel(track: MediaStreamTrack | null | undefined): string | null {
+  const { width, height, frameRate } = track?.getSettings() ?? {};
+  if (!width || !height) return null;
+  return `${Math.min(width, height)}p${frameRate ? ` · ${Math.round(frameRate)} fps` : ''}`;
+}
+
+function show(element: HTMLVideoElement | null, stream: MediaStream, track: MediaStreamTrack) {
+  if (!element) return;
+  element.srcObject = stream;
+  // Тот же признак, что в разговоре и на предпросмотре: задняя камера не зеркалится.
+  element.style.transform = track.getSettings().facingMode === 'environment' ? 'none' : 'scaleX(-1)';
+}
+
 /**
  * Превью камеры наверху раздела «Видео» (R100) — как у Телемоста (n09): открыл раздел — видишь
- * себя, без кнопки «Показать». Захват только для себя, ничего не публикуется даже во встрече.
+ * себя, без кнопки «Показать». Ничего не публикуется даже во встрече.
  *
- * Камера держится ровно столько, сколько раздел на экране: ушли в другой раздел или закрыли окно —
- * компонент размонтирован и дорожка остановлена (индикатор камеры гаснет). Сменили камеру в списке —
- * захват перезапускается с новой. Отказ в доступе — не пустой чёрный прямоугольник, а объяснение;
- * остальной раздел работает и без превью.
+ * Во встрече с включённой камерой превью — та же дорожка, что уходит собеседникам (`live`), а не
+ * второй захват. Второй захват той же камеры на телефоне спорит с первым за устройство, а превью
+ * показывало бы не то, что видят другие: смена качества (`setCameraProfile`) видна здесь сразу.
+ *
+ * Без встречи или с выключенной камерой — свой захват под выбранный уровень. Сменили уровень — тот
+ * же захват меняет кадр и частоту (`applyConstraints`), без перезапуска и чёрного кадра; сменили
+ * камеру — захват перезапускается с новой. Камера держится ровно столько, сколько раздел на экране.
+ * Отказ в доступе — не пустой чёрный прямоугольник, а объяснение. В углу — что камера отдаёт сейчас.
  */
-export function CameraPreview({ deviceId }: { deviceId?: string }) {
+export function CameraPreview({
+  deviceId,
+  profile,
+  live,
+}: {
+  deviceId?: string;
+  profile: ScreenProfile;
+  /** Живая дорожка камеры встречи; нет — превью захватывает камеру само. */
+  live?: MediaStreamTrack | null;
+}) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
+  const own = useRef<MediaStreamTrack | null>(null);
+  // Уровень для захвата читается при запуске, а не держит его: смена уровня — `applyConstraints`.
+  const level = useRef(profile);
+  level.current = profile;
   // Для какой камеры и чем закончился захват; другая камера в списке — снова «включается».
   const [result, setResult] = useState<{ deviceId?: string; state: State } | null>(null);
-  const state: State = result && result.deviceId === deviceId ? result.state : 'starting';
+  const [frame, setFrame] = useState<string | null>(null);
+  const state: State = live ? 'live' : result && result.deviceId === deviceId ? result.state : 'starting';
+
   useEffect(() => {
-    let stream: MediaStream | null = null;
+    if (!live) return;
+    const element = video.current;
+    show(element, new MediaStream([live]), live);
+    return () => {
+      if (element) element.srcObject = null;
+    };
+  }, [live]);
+
+  const capturing = !live;
+  useEffect(() => {
+    if (!capturing) return;
+    let track: MediaStreamTrack | null = null;
     let cancelled = false;
     const element = video.current;
     const media = navigator.mediaDevices;
@@ -36,20 +81,16 @@ export function CameraPreview({ deviceId }: { deviceId?: string }) {
       .getUserMedia({
         audio: false,
         // Выбранная камера — пожеланием, а не требованием: вынутая камера не оставляет превью пустым.
-        video: { deviceId: deviceId || undefined, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { deviceId: deviceId || undefined, ...previewConstraints(level.current) },
       })
       .then((captured) => {
         if (cancelled) {
-          for (const track of captured.getTracks()) track.stop();
+          for (const each of captured.getTracks()) each.stop();
           return;
         }
-        stream = captured;
-        if (element) {
-          element.srcObject = captured;
-          // Тот же признак, что в разговоре и на предпросмотре: задняя камера не зеркалится.
-          const facing = captured.getVideoTracks()[0]?.getSettings().facingMode;
-          element.style.transform = facing === 'environment' ? 'none' : 'scaleX(-1)';
-        }
+        track = captured.getVideoTracks()[0] ?? null;
+        own.current = track;
+        if (track) show(element, captured, track);
         finish('live');
       })
       .catch((error: unknown) => {
@@ -58,10 +99,29 @@ export function CameraPreview({ deviceId }: { deviceId?: string }) {
       });
     return () => {
       cancelled = true;
-      for (const track of stream?.getTracks() ?? []) track.stop();
+      track?.stop();
+      own.current = null;
       if (element) element.srcObject = null;
     };
-  }, [deviceId]);
+  }, [deviceId, capturing]);
+
+  const { resolution, fps } = profile;
+  useEffect(() => {
+    const track = own.current;
+    if (!capturing || !track) return;
+    // Камера, которая не умеет столько, отдаёт что может — это и покажет подпись в углу.
+    void track.applyConstraints(previewConstraints({ resolution, fps })).catch(() => {});
+  }, [resolution, fps, capturing]);
+
+  // Подпись в углу: что камера отдаёт на самом деле. Захват меняет кадр не мгновенно, поэтому —
+  // раз в секунду, а не по событию.
+  useEffect(() => {
+    const read = () => setFrame(frameLabel(live ?? own.current));
+    read();
+    const timer = setInterval(read, 1000);
+    return () => clearInterval(timer);
+  }, [live]);
+
   const problem =
     state === 'denied'
       ? t(($) => $.settings.video.previewDenied)
@@ -85,6 +145,9 @@ export function CameraPreview({ deviceId }: { deviceId?: string }) {
         </figcaption>
       )}
       <span className="setting-camera__tag">{rowText(t, 'camera-preview').hint}</span>
+      {frame && state === 'live' && (
+        <span className="setting-camera__tag setting-camera__frame">{frame}</span>
+      )}
     </figure>
   );
 }

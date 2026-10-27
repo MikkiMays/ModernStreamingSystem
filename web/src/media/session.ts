@@ -832,11 +832,15 @@ export class MediaSession {
   private async enforceCameraRate() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (!(track instanceof LocalVideoTrack)) return;
+    const media = track.mediaStreamTrack;
+    // `applyConstraints` заменяет набор целиком: зум (`applyCameraZoom`) едет вместе с кадром,
+    // иначе смена частоты сбросила бы его.
+    const zoom = (media.getConstraints?.().advanced ?? []).filter((set) => 'zoom' in set);
     // Просьбы идут от самой строгой к самой мягкой; первая исполненная и остаётся. Отказ
     // ничего не ломает: дорожка такая же, какой была, а недобор виден в плашке.
     for (const wanted of forcedCameraConstraints(this.cameraProfile, this.cameraCapabilities())) {
       try {
-        await track.mediaStreamTrack.applyConstraints(wanted);
+        await media.applyConstraints(zoom.length ? { ...wanted, advanced: zoom } : wanted);
         return;
       } catch {
         /* Камера не умеет столько при этом кадре — пробуем следующую просьбу. */
@@ -1918,10 +1922,24 @@ export class MediaSession {
     this.preferences.set(savePreferences({ camera: profile }));
     this.cameraChange = this.cameraChange.then(async () => {
       if (this.disposed || !this.wanted.camera) return;
-      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      const publication = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
+      const track = publication?.track;
       if (!(track instanceof LocalVideoTrack)) return;
       this.deviceBusy.add('camera');
       try {
+        // На месте — та же дорожка и тот же отправитель: захват меняет кадр и частоту сам
+        // (`applyConstraints`), кодировщик получает новую полосу (`setParameters`). У зрителя кадр
+        // меняется внутри потока — плитка не гаснет, у себя камера не выключается. Переопубликация
+        // (ниже) — только если на месте нельзя.
+        await this.enforceCameraRate();
+        if (this.disposed) return;
+        if (await this.retuneCamera(track, profile)) {
+          // Полное переподключение публикует дорожку заново по этим параметрам — пусть по новым.
+          if (publication) publication.options = { ...publication.options, ...this.cameraOptionsNow() };
+          this.cameraProfilePending = false;
+          this.refreshTracks();
+          return;
+        }
         await track.restartTrack({
           ...this.cameraCaptureNow(),
           deviceId: this.preferences.get().devices.camera || undefined,

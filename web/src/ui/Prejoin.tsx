@@ -16,6 +16,7 @@ import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
 import { Button, Dialog, Field, IconButton, Input, Segmented, Switch } from './kit';
+import { previewConstraints } from '../media/profiles';
 import './prejoin.css';
 
 export function Prejoin({
@@ -232,11 +233,8 @@ export function Prejoin({
         const acquired = await navigator.mediaDevices.getUserMedia(
           kind === 'video'
             ? {
-                video: {
-                  deviceId: choices.camera || undefined,
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
-                },
+                // Под выбранное качество: превью показывает тот кадр, с которым камера войдёт во встречу.
+                video: { deviceId: choices.camera || undefined, ...previewConstraints(preferences.camera) },
               }
             : {
                 audio: {
@@ -524,7 +522,12 @@ export function Prejoin({
           <QualityFields
             kind="camera"
             value={preferences.camera}
-            onChange={(p) => setPreferences(savePreferences({ camera: p }))}
+            onChange={(p) => {
+              setPreferences(savePreferences({ camera: p }));
+              // Включённое превью меняет кадр и частоту на лету — тем же захватом, без перезапуска.
+              for (const track of stream.current.getVideoTracks())
+                void track.applyConstraints(previewConstraints(p)).catch(() => {});
+            }}
           />
           <QualityFields
             kind="screen"

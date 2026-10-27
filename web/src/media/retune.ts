@@ -86,6 +86,14 @@ export async function retune(
       Object.assign(encoding, tunes[index]);
     });
     await sender.setParameters(params);
+    // Firefox слой не гасит, а глушит битрейтом, и будит его битрейтом из этих слоёв LiveKit:
+    // без правки проснулся бы прежний уровень. Сам массив тот же — раскладка от него не пересчитается.
+    const published = (track as unknown as Internals).encodings;
+    if (published?.length === tunes.length)
+      published.forEach((encoding, index) => {
+        encoding.maxBitrate = tunes[index]!.maxBitrate;
+        encoding.maxFramerate = tunes[index]!.maxFramerate;
+      });
     return true;
   } finally {
     unlock?.();

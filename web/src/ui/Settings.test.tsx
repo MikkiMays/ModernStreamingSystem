@@ -14,7 +14,20 @@ afterEach(() => {
 
 /** Камера для превью «Видео»: `getUserMedia` отдаёт поток с одной дорожкой (или отказ). */
 function fakeCamera(failure?: Error) {
-  const track = { stop: vi.fn(), getSettings: () => ({ facingMode: 'user' }), kind: 'video' };
+  const settings = { facingMode: 'user', width: 1280, height: 720, frameRate: 30 };
+  const track = {
+    stop: vi.fn(),
+    getSettings: () => settings,
+    kind: 'video',
+    // Камера исполняет просьбу превью: кадр и частота меняются у той же дорожки.
+    applyConstraints: vi.fn(async (c: { height: { ideal: number }; frameRate: { ideal: number } }) => {
+      Object.assign(settings, {
+        width: (c.height.ideal * 16) / 9,
+        height: c.height.ideal,
+        frameRate: c.frameRate.ideal,
+      });
+    }),
+  };
   const getUserMedia = vi.fn(async () => {
     if (failure) throw failure;
     return { getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream;
@@ -29,7 +42,7 @@ function fakeCamera(failure?: Error) {
       getSupportedConstraints: () => ({}),
     },
   });
-  return { getUserMedia, stopped: () => track.stop.mock.calls.length > 0 };
+  return { getUserMedia, track, stopped: () => track.stop.mock.calls.length > 0 };
 }
 
 const nav = () => screen.getByRole('navigation', { name: 'Разделы настроек' });
@@ -179,6 +192,14 @@ describe('окно настроек (T26)', () => {
     ).toEqual(['30 fps', '60 fps']);
     fireEvent.click(within(fps).getByRole('radio', { name: '60 fps' }));
     expect(readPreferences().camera).toEqual({ resolution: 1080, fps: 60 });
+    // Превью меняет кадр на лету тем же захватом, а в углу — что камера отдаёт сейчас.
+    await vi.waitFor(() =>
+      expect(device.track.applyConstraints).toHaveBeenLastCalledWith(
+        expect.objectContaining({ height: { ideal: 1080 }, frameRate: { ideal: 60 } }),
+      ),
+    );
+    expect(device.getUserMedia).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('1080p · 60 fps', {}, { timeout: 2000 })).toBeInTheDocument();
     // Показ — та же шкала; под ним — что выбранное значит (X10), строки потолка больше нет.
     const shown = screen.getByRole('radiogroup', { name: 'Экран: качество' });
     fireEvent.click(within(shown).getByRole('radio', { name: '1080p' }));
