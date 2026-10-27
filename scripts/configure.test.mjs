@@ -33,6 +33,8 @@ test('configuration keeps media internal, shares external 443, and cannot overwr
     assert.equal(sfu.rtc.packet_buffer_size_audio, 400);
     assert.deepEqual(sfu.rtc.congestion_control, { enabled: true, allow_pause: true });
     assert.equal(sfu.rtc.tcp_fallback_rtt_threshold, 150);
+    // «Только TCP» после обрыва — навсегда до перезахода; без него ICE restart возвращает UDP.
+    assert.equal(sfu.rtc.allow_tcp_fallback, false);
     assert.deepEqual(sfu.audio, { active_red_encoding: true, update_interval: 200, smooth_intervals: 2 });
     // Двадцать людей ядра и четыре места ботам и переходным сессиям (T06).
     assert.equal(sfu.room.max_participants, 24);

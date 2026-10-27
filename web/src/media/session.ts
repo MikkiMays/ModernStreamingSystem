@@ -61,6 +61,7 @@ import { LiveHealth } from './live-health';
 import { VideoPauses } from './video-pause';
 import { VideoSilence } from './video-silence';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
+import { PathRetry } from './path-retry';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { CallQuality, type CallReport } from './call-quality';
@@ -142,6 +143,10 @@ export interface OutboundVideo {
   settling: boolean;
 }
 
+/** Network Information API: есть в Chrome на Android, нет в Safari и Firefox. */
+function connection(): EventTarget | undefined {
+  return (navigator as Navigator & { connection?: EventTarget }).connection;
+}
 /**
  * Свой `AudioContext` для звука собеседников, а не созданный SDK.
  *
@@ -379,6 +384,8 @@ export class MediaSession {
   private videoChangedAt = { camera: 0, screen: 0 };
   /** Когда в последний раз просили SDK пройти resume по знаку сети (`reconnect-plan.ts`). */
   private lastNudge = -Infinity;
+  /** Медиа застряло на TCP или в узком канале — когда пробовать путь лучше (`path-retry.ts`). */
+  private pathRetry = new PathRetry();
   private codec: VideoCodec = 'vp8';
   /**
    * Кодек камеры. Здесь годами стоял жёсткий VP8, который почти нигде не кодируется железом —
@@ -547,6 +554,10 @@ export class MediaSession {
         else this.pauses.resume(publication.trackSid);
       });
     window.addEventListener('online', this.network);
+    // Сменилась сеть (Wi-Fi ↔ сотовая) — Chrome на Android говорит об этом сам, а `online` при этом
+    // не приходит: браузер и до, и после «в сети». Safari такого события не знает — там путь
+    // возвращает `pathRetry`.
+    connection()?.addEventListener?.('change', this.network);
     // Экран погас, браузер свёрнут или заморожен — и вернулся: см. «звонок в кармане» ниже.
     this.lifecycle = new PageLifecycle({ hidden: this.wentAway, returned: this.cameBack });
     this.subscriptions.push(
@@ -666,6 +677,16 @@ export class MediaSession {
       this.audioFlowing = audio > this.lastAudioBytes;
       this.lastAudioBytes = audio;
       if (this.playout.link.ice === 'disconnected') this.nudge('ice-disconnected', flowing);
+      const sending = this.outbound.get();
+      const retry = this.pathRetry.observe(
+        {
+          connected: this.playout.link.ice === 'connected',
+          ordered: this.playout.link.ordered,
+          starved: sending?.limitation === 'bandwidth' && !sending.settling,
+        },
+        Date.now(),
+      );
+      if (retry) this.restartIce();
     } catch {
       // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
     } finally {
@@ -1013,6 +1034,15 @@ export class MediaSession {
     }, delay);
   }
   private network = () => this.nudge('online');
+  /**
+   * Новый раунд ICE на живом соединении: по тому же сигнальному сокету, дорожки не трогаются, медиа
+   * идёт по старой паре, пока не выбрана новая. Зачем и когда — `path-retry.ts`.
+   */
+  private restartIce() {
+    if (this.disposed || this.room.state !== 'connected') return;
+    console.info('[cord] ищем путь лучше — перезапуск ICE', { path: this.link.get().path });
+    void this.room.engine?.pcManager?.triggerIceRestart().catch(() => {});
+  }
   /**
    * Сеть подала знак — не ждать, пока SDK заметит сам.
    *
@@ -2119,6 +2149,7 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
     window.removeEventListener('online', this.network);
+    connection()?.removeEventListener?.('change', this.network);
     this.lifecycle.dispose();
     this.subscriptions.forEach((off) => off());
     clearTimeout(this.micGapTimer);
