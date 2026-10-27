@@ -168,40 +168,43 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByLabelText('Превью камеры только для вас').tagName).toBe('VIDEO');
     expect(screen.getByText('Видно только вам')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Камера' })).toBeInTheDocument();
-    // Качество — сегментом 720 / 1080 / 1440 × 30 / 60 (R78), без «Авто»; выше потолка сервера —
-    // недоступно, причина — в подсказке пункта, а не строкой под группой.
+    // Качество камеры — 480 / 720 / 1080 × 15 / 30 / 60, без «Авто»; 1080p виден, но недоступен
+    // (камера — до 720p), причина — в подсказке пункта, а не строкой под группой.
     const camera = screen.getByRole('radiogroup', { name: 'Камера: качество' });
     expect(
       within(camera)
         .getAllByRole('radio')
         .map((radio) => radio.textContent),
-    ).toEqual(['720p', '1080p', '1440p']);
+    ).toEqual(['480p', '720p', '1080p']);
     expect(within(camera).getByRole('radio', { name: '720p' })).toBeChecked();
-    expect(within(camera).getByRole('radio', { name: '1440p' })).toHaveAttribute('aria-disabled', 'true');
-    expect(within(camera).getByRole('radio', { name: '1440p' })).toHaveAttribute(
-      'title',
-      'Этот сервер допускает до 1080p · 60 fps',
-    );
-    fireEvent.click(within(camera).getByRole('radio', { name: '1080p' }));
-    expect(readPreferences().camera.resolution).toBe(1080);
+    expect(within(camera).getByRole('radio', { name: '1080p' })).toHaveAttribute('aria-disabled', 'true');
+    expect(within(camera).getByRole('radio', { name: '1080p' })).toHaveAttribute('title', 'Камера — до 720p');
+    fireEvent.click(within(camera).getByRole('radio', { name: '480p' }));
+    expect(readPreferences().camera.resolution).toBe(480);
     const fps = screen.getByRole('radiogroup', { name: 'Камера: частота кадров' });
     expect(
       within(fps)
         .getAllByRole('radio')
         .map((radio) => radio.getAttribute('aria-label')),
-    ).toEqual(['30 fps', '60 fps']);
+    ).toEqual(['15 fps', '30 fps', '60 fps']);
     fireEvent.click(within(fps).getByRole('radio', { name: '60 fps' }));
-    expect(readPreferences().camera).toEqual({ resolution: 1080, fps: 60 });
+    expect(readPreferences().camera).toEqual({ resolution: 480, fps: 60 });
     // Превью меняет кадр на лету тем же захватом, а в углу — что камера отдаёт сейчас.
     await vi.waitFor(() =>
       expect(device.track.applyConstraints).toHaveBeenLastCalledWith(
-        expect.objectContaining({ height: { ideal: 1080 }, frameRate: { ideal: 60 } }),
+        expect.objectContaining({ width: { ideal: 854 }, height: { ideal: 480 }, frameRate: { ideal: 60 } }),
       ),
     );
     expect(device.getUserMedia).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText('1080p · 60 fps', {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByText('480p · 60 fps', {}, { timeout: 2000 })).toBeInTheDocument();
     // Показ — та же шкала; под ним — что выбранное значит (X10), строки потолка больше нет.
     const shown = screen.getByRole('radiogroup', { name: 'Экран: качество' });
+    // У показа шкала своя и прежняя: 480p и 15 fps — только у камеры.
+    expect(
+      within(shown)
+        .getAllByRole('radio')
+        .map((radio) => radio.textContent),
+    ).toEqual(['720p', '1080p', '1440p']);
     fireEvent.click(within(shown).getByRole('radio', { name: '1080p' }));
     expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30 });
     expect(screen.getByText('Ниже этого качества Cord не передаёт')).toBeInTheDocument();

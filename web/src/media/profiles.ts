@@ -1,6 +1,7 @@
 import type { TrackPublishOptions, VideoCodec } from 'livekit-client';
 
-export type Resolution = 720 | 1080 | 1440;
+/** 480 — только у камеры (`CAMERA_RESOLUTIONS`); показ начинается с 720. */
+export type Resolution = 480 | 720 | 1080 | 1440;
 export type FrameRate = 15 | 30 | 60;
 /**
  * Уровень отдачи, выбранный человеком: кадр и частота.
@@ -39,6 +40,7 @@ export const defaultScreenMode: ScreenMode = 'smooth';
 export const modeOf = (profile: Pick<ScreenProfile, 'mode'>): ScreenMode =>
   profile.mode === 'sharp' ? 'sharp' : 'smooth';
 const bitrates = {
+  480: { 15: 0.75, 30: 1.2, 60: 2 },
   720: { 15: 1.5, 30: 3, 60: 5 },
   1080: { 15: 3, 30: 6, 60: 10 },
   1440: { 15: 5, 30: 10, 60: 16 },
@@ -47,7 +49,7 @@ const bitrates = {
  * Полоса режима «чёткость» не зависит от частоты: кадров там столько, сколько влезает, а
  * каждый — почти ключевой. Два мегабита на 720p, четыре на 1080p, шесть на 1440p (§9.2).
  */
-const sharpBitrates: Record<Resolution, number> = { 720: 2, 1080: 4, 1440: 6 };
+const sharpBitrates: Record<Resolution, number> = { 480: 1, 720: 2, 1080: 4, 1440: 6 };
 /** What a level asks of the link, in bits per second. */
 export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps' | 'mode'>) {
   if (modeOf(level) === 'sharp') return sharpBitrates[level.resolution] * 1000000;
@@ -122,7 +124,8 @@ export function screenOptions(profile: ScreenProfile, codec: VideoCodec): TrackP
  * фактический результат читается из `getSettings()` после захвата — см. `reportCapture`.
  */
 export function cameraCapture(profile: ScreenProfile, capabilities?: MediaTrackCapabilities) {
-  const width = Math.round((profile.resolution * 16) / 9);
+  // Чётная ширина: 480 × 16/9 = 853,3, а кодировщику нужен чётный кадр — 854.
+  const width = Math.round((profile.resolution * 8) / 9) * 2;
   const height = profile.resolution;
   const cap = (value: number, range?: { max?: number }) =>
     range?.max !== undefined ? Math.min(value, range.max) : value;
@@ -141,7 +144,7 @@ export function cameraCapture(profile: ScreenProfile, capabilities?: MediaTrackC
 }
 
 /** Основной указатель — палец (телефон, планшет): у ноутбука с сенсорным экраном основной — мышь. */
-function touchFirst(): boolean {
+export function touchFirst(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 }
 /**

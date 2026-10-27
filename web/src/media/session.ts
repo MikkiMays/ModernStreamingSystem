@@ -28,6 +28,7 @@ import {
   screenOptions,
   type ScreenMode,
   cameraCapture,
+  touchFirst,
   cameraOptions,
   forcedCameraConstraints,
   type ScreenProfile,
@@ -386,6 +387,8 @@ export class MediaSession {
   private lastNudge = -Infinity;
   /** Медиа застряло на TCP или в узком канале — когда пробовать путь лучше (`path-retry.ts`). */
   private pathRetry = new PathRetry();
+  /** Включали ли камеру в этой встрече: первое включение на телефоне — всегда фронтальная. */
+  private cameraStarted = false;
   private codec: VideoCodec = 'vp8';
   /**
    * Кодек камеры. Здесь годами стоял жёсткий VP8, который почти нигде не кодируется железом —
@@ -1459,13 +1462,20 @@ export class MediaSession {
         if (!this.state.get().camera) {
           await this.ensureCameraCodec();
         }
+        // Первое включение на телефоне — фронтальная камера, а не та, что запомнилась (владелец,
+        // 27.10.2026): после «перевернуть» в прошлой встрече следующая начиналась с задней. Дальше
+        // во встрече — какую выбрали.
+        const front = !this.cameraStarted && touchFirst();
         await this.room.localParticipant.setCameraEnabled(
           !this.state.get().camera,
-          { deviceId, ...this.cameraCaptureNow() },
+          front
+            ? { facingMode: 'user', ...this.cameraCaptureNow() }
+            : { deviceId, ...this.cameraCaptureNow() },
           this.cameraOptionsNow(),
         );
         this.videoChangedAt.camera = performance.now();
         this.applyCameraHint();
+        if (this.room.localParticipant.isCameraEnabled) this.cameraStarted = true;
       }
       this.wanted[kind] =
         kind === 'microphone'

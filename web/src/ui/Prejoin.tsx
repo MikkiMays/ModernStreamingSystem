@@ -16,7 +16,7 @@ import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
 import { Button, Dialog, Field, IconButton, Input, Segmented, Switch } from './kit';
-import { previewConstraints } from '../media/profiles';
+import { previewConstraints, touchFirst } from '../media/profiles';
 import './prejoin.css';
 
 export function Prejoin({
@@ -60,6 +60,7 @@ export function Prejoin({
   const [deviceBusy, setDeviceBusy] = useState(false);
   const accessId = useId();
   const preview = useRef<HTMLVideoElement>(null);
+  const cameraUsed = useRef(false);
   const stream = useRef(new MediaStream());
   const commandId = useRef(crypto.randomUUID());
   const mounted = useRef(true);
@@ -233,8 +234,14 @@ export function Prejoin({
         const acquired = await navigator.mediaDevices.getUserMedia(
           kind === 'video'
             ? {
-                // Под выбранное качество: превью показывает тот кадр, с которым камера войдёт во встречу.
-                video: { deviceId: choices.camera || undefined, ...previewConstraints(preferences.camera) },
+                video: {
+                  // Первое включение на телефоне — фронтальная, как и во встрече (`MediaSession.toggle`).
+                  ...(touchFirst() && !cameraUsed.current
+                    ? { facingMode: 'user' }
+                    : { deviceId: choices.camera || undefined }),
+                  // Под выбранное качество: превью показывает тот кадр, с которым камера войдёт во встречу.
+                  ...previewConstraints(preferences.camera),
+                },
               }
             : {
                 audio: {
@@ -248,8 +255,10 @@ export function Prejoin({
         }
         acquired.getTracks().forEach((t) => stream.current.addTrack(t));
       }
-      if (kind === 'video') setCamera(!enabled);
-      else setMic(!enabled);
+      if (kind === 'video') {
+        setCamera(!enabled);
+        cameraUsed.current = true;
+      } else setMic(!enabled);
       if (preview.current) {
         preview.current.srcObject = stream.current;
         // Зеркалим себя, а не камеру: у задней зеркала нет, там смотрят на мир.

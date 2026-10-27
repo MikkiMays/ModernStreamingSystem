@@ -414,6 +414,7 @@
       "quality": "{{label}}: calidad",
       "fps": "{{label}}: fotogramas por segundo",
       "ceiling": "Este servidor permite hasta {{resolution}}p · {{fps}} fps",
+      "cameraCeiling": "Cámara: hasta {{resolution}}p",
       "group": {
         "screen": "Compartir pantalla",
         "camera": "Vídeo de la cámara"

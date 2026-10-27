@@ -27,6 +27,7 @@ export interface QualityRules {
   settleMs: number;
 }
 
+/** Шкала показа и правил сервера. Камера — своя (`CAMERA_RESOLUTIONS`). */
 export const RESOLUTIONS: Resolution[] = [720, 1080, 1440];
 export const FRAME_RATES: FrameRate[] = [15, 30, 60];
 /**
@@ -34,6 +35,14 @@ export const FRAME_RATES: FrameRate[] = [15, 30, 60];
  * остаются в правилах сервера (режим «чёткость» показа сбрасывает кадры сам), но не выбираются.
  */
 export const CHOICE_FRAME_RATES: FrameRate[] = [30, 60];
+/**
+ * Шкала камеры (27.10.2026, владелец): 480 / 720 / 1080 и 15 / 30 / 60. С мобильного интернета 720p
+ * на 30 кадров не пролезают, и 480p или 15 кадров — честный выбор, а не «стремление». 1080p виден,
+ * но недоступен: выше `CAMERA_MAX` камера не отдаёт; 1440 у камеры нет.
+ */
+export const CAMERA_RESOLUTIONS: Resolution[] = [480, 720, 1080];
+export const CAMERA_FRAME_RATES: FrameRate[] = [15, 30, 60];
+export const CAMERA_MAX: Resolution = 720;
 /**
  * Умолчание камеры (R13 → R78): 720p · 30, своё, независимо от уровня по умолчанию сервера,
  * который задаёт старт показа экрана.
@@ -132,19 +141,25 @@ export function nearestLevel(
 }
 
 /**
- * Уровень камеры из сохранённого: «Авто» и незнакомое — `CAMERA_DEFAULT`, частота ниже шкалы
- * (старые 15 fps) — 30, выше потолка сервера — потолок. Запись не трогается, как и у показа.
+ * Уровень камеры из сохранённого: «Авто» и незнакомое — `CAMERA_DEFAULT`; кадр выше `CAMERA_MAX`
+ * (прежние 1080p и 1440p) — `CAMERA_MAX`; выше потолка сервера — потолок. Запись не трогается, как и
+ * у показа.
  */
 export function cameraLevel(
   saved: (Partial<ScreenProfile> & { automatic?: unknown }) | null | undefined,
   rules = qualityRules(),
 ): ScreenProfile {
-  const level = nearestLevel(saved, {
-    ...rules,
-    default: within(CAMERA_DEFAULT, rules.ceiling) ? CAMERA_DEFAULT : rules.default,
-  });
-  const fps = Math.max(level.fps, CHOICE_FRAME_RATES[0]!) as FrameRate;
-  return { resolution: level.resolution, fps: Math.min(fps, rules.ceiling.fps) as FrameRate };
+  const fallback = within(CAMERA_DEFAULT, rules.ceiling) ? CAMERA_DEFAULT : rules.default;
+  const known = !!saved && saved.automatic !== true;
+  const resolution =
+    known && CAMERA_RESOLUTIONS.includes(saved.resolution as Resolution)
+      ? (saved.resolution as Resolution)
+      : fallback.resolution;
+  const fps = known && isFrameRate(saved.fps) ? saved.fps : fallback.fps;
+  return {
+    resolution: Math.min(resolution, CAMERA_MAX, rules.ceiling.resolution) as Resolution,
+    fps: Math.min(fps, rules.ceiling.fps) as FrameRate,
+  };
 }
 
 export function settleMs(rules = qualityRules()) {

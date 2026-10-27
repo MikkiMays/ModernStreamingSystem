@@ -1,7 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import { isDesktop } from '../../core/desktop';
 import type { AudioPreferences } from '../../core/preferences';
-import { CHOICE_FRAME_RATES, qualityRules, RESOLUTIONS, type Level } from '../../media/capabilities';
+import {
+  CAMERA_FRAME_RATES,
+  CAMERA_MAX,
+  CAMERA_RESOLUTIONS,
+  CHOICE_FRAME_RATES,
+  qualityRules,
+  RESOLUTIONS,
+  type Level,
+} from '../../media/capabilities';
 import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
 import { Segmented, Slider, Switch, type SegmentedOption } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
@@ -16,9 +24,10 @@ import { useLiveValue } from './live-value';
  */
 
 /**
- * Разрешение и частота кадров отдачи (R78): сегменты 720 / 1080 / 1440 и 30 / 60 — как SD / HD у
- * Discord, одинаково для камеры и показа, без «Авто». Что выше потолка сервера — недоступно, и
- * причина — в подсказке пункта, а не строкой под группой.
+ * Разрешение и частота кадров отдачи (R78): сегменты, как SD / HD у Discord, без «Авто». Показ —
+ * 720 / 1080 / 1440 и 30 / 60; камера — 480 / 720 / 1080 и 15 / 30 / 60, где 1080 недоступно
+ * (`CAMERA_MAX`). Что выше потолка — недоступно, и причина — в подсказке пункта, а не строкой под
+ * группой.
  */
 export function QualityRows({
   kind,
@@ -36,6 +45,13 @@ export function QualityRows({
   const label = t(($) => $.settings.media.kind[kind]);
   const reason = t(($) => $.settings.media.ceiling, { resolution: ceiling.resolution, fps: ceiling.fps });
   const above = (over: boolean) => (over ? { disabled: true, title: reason } : {});
+  const camera = kind === 'camera';
+  const resolutions = camera ? CAMERA_RESOLUTIONS : RESOLUTIONS;
+  const frameRates = camera ? CAMERA_FRAME_RATES : CHOICE_FRAME_RATES;
+  const locked = (resolution: Resolution) =>
+    camera && resolution > CAMERA_MAX
+      ? { disabled: true, title: t(($) => $.settings.media.cameraCeiling, { resolution: CAMERA_MAX }) }
+      : above(resolution > ceiling.resolution);
   return (
     <>
       <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'}>
@@ -44,10 +60,10 @@ export function QualityRows({
           aria-label={t(($) => $.settings.media.quality, { label })}
           value={value.resolution}
           onValueChange={(resolution) => onChange({ ...value, resolution })}
-          options={RESOLUTIONS.map((resolution) => ({
+          options={resolutions.map((resolution) => ({
             value: resolution,
             label: `${resolution}p`,
-            ...above(resolution > ceiling.resolution),
+            ...locked(resolution),
           }))}
         />
       </SettingRow>
@@ -57,7 +73,7 @@ export function QualityRows({
           aria-label={t(($) => $.settings.media.fps, { label })}
           value={value.fps}
           onValueChange={(fps) => onChange({ ...value, fps })}
-          options={CHOICE_FRAME_RATES.map((fps) => ({
+          options={frameRates.map((fps) => ({
             value: fps,
             label: String(fps),
             ariaLabel: `${fps} fps`,

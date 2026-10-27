@@ -464,6 +464,7 @@
       "quality": "{{label}}: качество",
       "fps": "{{label}}: частота кадров",
       "ceiling": "Этот сервер допускает до {{resolution}}p · {{fps}} fps",
+      "cameraCeiling": "Камера — до {{resolution}}p",
       "group": {
         "screen": "Демонстрация экрана",
         "camera": "Видео с камеры"

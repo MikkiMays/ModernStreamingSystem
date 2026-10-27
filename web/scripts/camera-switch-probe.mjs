@@ -158,7 +158,7 @@ console.log(JSON.stringify(await sample('открыт раздел «Видео�
 for (const [name, label] of [
   ['60 fps', 'выбрано 60'],
   ['30 fps', 'выбрано 30'],
-  ['1080p', 'выбрано 1080p'],
+  ['480p', 'выбрано 480p'],
 ]) {
   const t0 = Date.now();
   await page.getByRole('radio', { name }).first().click();

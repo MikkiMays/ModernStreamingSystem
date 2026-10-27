@@ -414,6 +414,7 @@
       "quality": "{{label}}：画质",
       "fps": "{{label}}：帧率",
       "ceiling": "此服务器最高支持 {{resolution}}p · {{fps}} fps",
+      "cameraCeiling": "摄像头最高 {{resolution}}p",
       "group": {
         "screen": "屏幕共享",
         "camera": "摄像头视频"
