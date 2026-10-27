@@ -63,6 +63,7 @@ import { VideoPauses } from './video-pause';
 import { VideoSilence } from './video-silence';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import { PathRetry } from './path-retry';
+import { udpOpen } from './udp-probe';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { CallQuality, type CallReport } from './call-quality';
@@ -647,12 +648,18 @@ export class MediaSession {
       }
     return tracks;
   }
+  /** Отчёт первой своей дорожки — по нему путь виден, даже когда принимать нечего. */
+  private sendingStats = async () => {
+    for (const publication of this.room.localParticipant.trackPublications.values())
+      if (publication.track) return publication.track.getRTCStatsReport();
+    return undefined;
+  };
   private async tunePlayout() {
     if (this.disposed || this.playoutSampling || this.state.get().status !== 'connected') return;
     this.playoutSampling = true;
     const cycle = this.connectionCycle;
     try {
-      const reports = await this.playout.tick(this.playoutTracks());
+      const reports = await this.playout.tick(this.playoutTracks(), Date.now(), this.sendingStats);
       if (this.disposed || cycle !== this.connectionCycle) return;
       // Буфер звука раздуло пачкой далеко за потолок: NetEq выбрасывал бы звук секунды подряд.
       // Переподписка той же пары дорожек ставит всё на место за доли секунды (не чаще раза в 30 с).
@@ -689,7 +696,7 @@ export class MediaSession {
         },
         Date.now(),
       );
-      if (retry) this.restartIce();
+      if (retry) void this.restartIce();
     } catch {
       // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
     } finally {
@@ -1044,9 +1051,16 @@ export class MediaSession {
    * Новый раунд ICE на живом соединении: по тому же сигнальному сокету, дорожки не трогаются, медиа
    * идёт по старой паре, пока не выбрана новая. Зачем и когда — `path-retry.ts`.
    */
-  private restartIce() {
+  private async restartIce() {
     if (this.disposed || this.room.state !== 'connected') return;
-    console.info('[cord] ищем путь лучше — перезапуск ICE', { path: this.link.get().path });
+    const { path, ordered } = this.link.get();
+    // На TCP перезапуск только при открытом UDP: на закрытом он роняет видео на минуты (`udp-probe.ts`).
+    if (ordered && !(await udpOpen(this.room.engine?.latestJoinResponse?.iceServers ?? []))) {
+      console.info('[cord] UDP до сервера закрыт — путь не трогаем', { path });
+      return;
+    }
+    if (this.disposed || this.room.state !== 'connected') return;
+    console.info('[cord] ищем путь лучше — перезапуск ICE', { path });
     void this.room.engine?.pcManager?.triggerIceRestart().catch(() => {});
   }
   /**

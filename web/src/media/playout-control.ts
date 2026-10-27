@@ -104,7 +104,12 @@ export class PlayoutController {
    * Один проход по всем подписанным дорожкам. Возвращает то, что было решено, — этим
    * пользуются и диагностика, и тесты; вызывающему достаточно вызывать это по таймеру.
    */
-  async tick(tracks: PlayoutTrack[], now = Date.now()): Promise<PlayoutReport[]> {
+  async tick(
+    tracks: PlayoutTrack[],
+    now = Date.now(),
+    /** Отчёт своей отдачи — когда принимать нечего, путь узнаётся по нему (`path-retry.ts`). */
+    sending?: () => Promise<RTCStatsReport | undefined>,
+  ): Promise<PlayoutReport[]> {
     const live = new Set(tracks.map((track) => track.id));
     for (const id of this.buffers.keys()) if (!live.has(id)) this.buffers.delete(id);
     const reports = await Promise.all(
@@ -119,8 +124,11 @@ export class PlayoutController {
     this.lastReports = collected.map((value) => value.report);
     // Все подписки живут на одном соединении, поэтому путь и оборот берутся из любого
     // отчёта. Первый попавшийся — такой же, как любой другой, и стоит дешевле остальных.
+    // Принимать нечего (один во встрече, у всех выключены камера и микрофон) — путь тот же,
+    // и его называет отчёт своей отдачи: без него сторож пути был бы слеп.
     const previousOrdered = this.linkState.ordered;
-    if (collected.length) this.linkState = this.monitor.observe(collected[0]!.report);
+    const linkReport = collected[0]?.report ?? (await sending?.().catch(() => undefined));
+    if (linkReport) this.linkState = this.monitor.observe(linkReport);
     if (this.linkState.ordered !== previousOrdered) this.retune();
 
     const result: PlayoutReport[] = [];

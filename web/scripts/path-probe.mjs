@@ -1,7 +1,8 @@
 // Зонд: каким путём идёт медиа (UDP / TCP / TURN) до, во время и после потери UDP.
 //   node scripts/path-probe.mjs --base https://meet.nikg.tech --block all [--before 3 --blocked 10 --after 25]
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
 import { chromium } from 'playwright';
 
 const args = Object.fromEntries(
@@ -27,6 +28,8 @@ process.on('exit', unblock);
 const browser = await chromium.launch({
   executablePath: '/usr/bin/google-chrome',
   args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+  // Без D-Bus: иначе Chrome переселяет себя в свой systemd-scope, и правило по cgroup его не видит.
+  env: { ...process.env, DBUS_SESSION_BUS_ADDRESS: 'disabled:' },
 });
 const hook = () => {
   localStorage.setItem(
@@ -49,7 +52,21 @@ async function open(phone) {
     hasTouch: phone,
     permissions: ['camera', 'microphone'],
     locale: 'ru-RU',
+    serviceWorkers: 'block',
   });
+  // `--dist` — своя сборка вместо выложенной: страница и её файлы из папки, API — с сервера.
+  if (args.dist)
+    await ctx.route(`${base}/**`, (route) => {
+      const request = route.request();
+      const file = path.join(args.dist, new URL(request.url()).pathname);
+      if (existsSync(file) && statSync(file).isFile()) return route.fulfill({ path: file });
+      if (request.resourceType() === 'document')
+        return route.fulfill({
+          contentType: 'text/html',
+          body: readFileSync(path.join(args.dist, 'index.html')),
+        });
+      return route.continue();
+    });
   await ctx.addInitScript(hook);
   return ctx.newPage();
 }
@@ -72,7 +89,7 @@ await connected(phone);
 const on = phone.getByRole('button', { name: 'Включить камеру', exact: true });
 if (await on.isVisible().catch(() => false)) await on.click();
 
-const path = (page) =>
+const mediaPath = (page) =>
   page.evaluate(async () => {
     const out = [];
     for (const [index, pc] of window.__pcs.entries()) {
@@ -84,10 +101,13 @@ const path = (page) =>
       });
       const local = pair && report.get(pair.localCandidateId);
       let video = '';
+      let inbound = 0;
       report.forEach((s) => {
         if (s.type === 'outbound-rtp' && s.kind === 'video' && s.frameHeight)
           video = ` out ${s.frameHeight}p@${s.framesPerSecond ?? 0}`;
+        if (s.type === 'inbound-rtp') inbound++;
       });
+      video += ` in ${inbound}`;
       out.push(
         `pc${index}:${pc.iceConnectionState}` +
           (local ? ` ${local.candidateType}/${local.relayProtocol ?? local.protocol}` : '') +
@@ -98,7 +118,9 @@ const path = (page) =>
   });
 const t0 = Date.now();
 const log = async (phase) =>
-  console.log(`${String(Math.round((Date.now() - t0) / 1000)).padStart(3)}s ${phase}: ${await path(phone)}`);
+  console.log(
+    `${String(Math.round((Date.now() - t0) / 1000)).padStart(3)}s ${phase}: ${await mediaPath(phone)}`,
+  );
 for (let i = 0; i < Number(args.before ?? 3); i++) {
   await phone.waitForTimeout(4000);
   await log('UDP открыт');

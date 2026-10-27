@@ -96,6 +96,20 @@ describe('контроллер запаса', () => {
     expect(voice.receiver.jitterBufferTarget).toBeGreaterThanOrEqual(300);
   });
 
+  it('принимать нечего — путь читается по своей отдаче, а приём важнее', async () => {
+    const controller = new PlayoutController();
+    let sending = 'tcp';
+    const outbound = async () => statsOf(path(sending, 'prflx'));
+    await controller.tick([], 0, outbound);
+    expect(controller.link).toMatchObject({ path: 'direct-tcp', ordered: true, ice: 'unknown' });
+    sending = 'udp';
+    await controller.tick([], 2000, outbound);
+    expect(controller.link.ordered).toBe(false);
+    const voice = track('voice', 'conversation', () => statsOf([...path('tls', 'relay'), inbound(0)]));
+    await controller.tick([voice], 4000, outbound);
+    expect(controller.link.path).toBe('relay-tcp');
+  });
+
   it('заглушка в звуке поднимает запас именно у пострадавшей дорожки', async () => {
     const controller = new PlayoutController();
     let broken = false;
