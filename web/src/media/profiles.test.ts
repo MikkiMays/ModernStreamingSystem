@@ -73,20 +73,30 @@ describe('screen profiles', () => {
     }
   });
 
-  it('камера по-прежнему кладёт под выбранный уровень ступень 720p', () => {
-    const camera = cameraOptions({ resolution: 1080, fps: 60 });
-    expect(camera.videoSimulcastLayers?.map((layer) => layer.height)).toEqual([360, 720]);
+  /**
+   * Подпорок у камеры нет: с ними слой выбирал сервер, и портрет телефона уходил компьютеру
+   * подпоркой 360p на 15 кадров при выставленных 720p30.
+   */
+  it('камера отдаёт один слой — выбранный, временные слои только у VP9/AV1', () => {
+    const camera = cameraOptions({ resolution: 1080, fps: 60 }, 'h264');
+    expect(camera.simulcast).toBe(false);
+    expect(camera.videoSimulcastLayers).toBeUndefined();
+    expect(camera.scalabilityMode).toBeUndefined();
+    expect(camera.videoEncoding).toEqual({ maxBitrate: 10000000, maxFramerate: 60 });
+    const svc = cameraOptions({ resolution: 720, fps: 30 }, 'vp9');
+    expect(svc.scalabilityMode).toBe('L1T3');
+    expect(svc.backupCodec).toEqual({ codec: 'vp8' });
   });
 
-  /** «Авто» нет: любой уровень — выбранный, и держит частоту, а не торгуется ею. */
-  it('публикует выбранное сразу и держит частоту у экрана и у камеры', () => {
+  /** «Авто» нет: любой уровень — выбранный, и держит размер кадра, а не торгуется им. */
+  it('публикует выбранное сразу и держит кадр у экрана и у камеры', () => {
     const screen = screenOptions({ resolution: 720, fps: 30 }, 'vp8');
     expect(screen.screenShareEncoding).toMatchObject({ maxBitrate: 3000000, maxFramerate: 30 });
     expect(screen.degradationPreference).toBe('maintain-resolution');
     const camera = cameraOptions({ resolution: 720, fps: 30 });
     expect(camera.videoEncoding).toEqual({ maxBitrate: 3000000, maxFramerate: 30 });
-    expect(camera.degradationPreference).toBe('maintain-framerate');
-    expect(camera.simulcast).toBe(true);
+    expect(camera.degradationPreference).toBe('maintain-resolution');
+    expect(camera.simulcast).toBe(false);
   });
 
   /**

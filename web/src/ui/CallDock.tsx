@@ -140,7 +140,11 @@ export function CallDock({
     meeting.media.share(choice.profile, desktopCaptureAudio(choice.audio));
   };
   // Что уходит в сеть прямо сейчас — подсказкой у «Диагностики»: раньше это была метка в пульте.
-  const sending = outbound && outbound.width > 0 ? `${outbound.height}p · ${outbound.fps} fps` : null;
+  // «720p» — короткая сторона, как в настройках: портрет 720×1280 — это 720p, а не 1280p.
+  const sending =
+    outbound && outbound.width > 0
+      ? `${Math.min(outbound.width, outbound.height)}p · ${outbound.fps} fps`
+      : null;
   return (
     <footer id="meeting-controls" className="call-footer media-stage" data-compact={compact || undefined}>
       <div className="call-dock">

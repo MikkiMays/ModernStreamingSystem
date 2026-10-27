@@ -1,4 +1,4 @@
-import { VideoPreset, type TrackPublishOptions, type VideoCodec } from 'livekit-client';
+import type { TrackPublishOptions, VideoCodec } from 'livekit-client';
 
 export type Resolution = 720 | 1080 | 1440;
 export type FrameRate = 15 | 30 | 60;
@@ -68,20 +68,6 @@ export function captureConstraints(
     height: { ideal: profile.resolution },
     frameRate: { ideal: profile.fps, max: profile.fps },
   };
-}
-const forcedEncoding = { degradationPreference: 'maintain-framerate' as const };
-/**
- * Слои-подпорки камеры под выбранным уровнем.
- *
- * Приёмник выбирает слой под размер своей плитки, и если между выбранным уровнем и подпоркой
- * пропасть, он падает на дно этой пропасти. С парой 1080p/360p плитка в семьсот пикселей
- * получала 360p — вдвое меньше того, что в неё влезает. Поэтому ступень 720p есть всегда,
- * когда верхний слой выше неё. У показа экрана подпорок нет (`screenOptions`).
- */
-function chosenHelpers(level: Pick<ScreenProfile, 'resolution' | 'fps'>) {
-  const layers = [new VideoPreset(640, 360, 500000, 15)];
-  if (level.resolution > 720) layers.push(new VideoPreset(1280, 720, 2000000, Math.min(30, level.fps)));
-  return layers;
 }
 export function fitSource(width: number, height: number, resolution: Resolution) {
   const short = Math.min(width, height);
@@ -205,20 +191,30 @@ export function forcedCameraConstraints(
   ];
 }
 /**
- * Что камера отдаёт в сеть.
+ * Что камера отдаёт в сеть: ровно выбранный уровень, как показ экрана (`screenOptions`).
  *
- * Битрейт берётся из той же таблицы, что и у экрана: раньше у камеры была своя формула, и
- * 1440p60 просил 13,6 Мбит/с там, где экран того же уровня просит 16. Одно и то же число
- * в двух местах рано или поздно расходится — теперь оно одно.
+ * ЗАЧЕМ БЕЗ СЛОЁВ. Камера публиковалась simulcast: выбранный уровень и под ним подпорка 360p на
+ * 15 кадров. Какой слой отдать зрителю, решал сервер — по высоте плитки, — и у телефона, который
+ * держат вертикально, подпорка 360×640 по высоте «годилась» в основную плитку компьютера. Верхний
+ * слой засыпал, телефон показывал «640p · 15 fps» при выставленных 720p30, зритель видел мыло.
+ * Выставленное должно идти таким, как выставили, а не «стремиться» к нему, — значит, слой один.
+ *
+ * `maintain-resolution` — как у экрана: при нехватке канала или процессора кодировщик сбрасывает
+ * кадры, а кадр не уменьшает; недобор виден в плашке с причиной (`outbound-note.ts`). Зрителю со
+ * слабым каналом VP9/AV1 отдают меньше кадров того же размера (временные слои `L1T3`).
+ *
+ * Битрейт берётся из той же таблицы, что и у экрана: одно и то же число в двух местах рано или
+ * поздно расходится.
  */
 export function cameraOptions(profile: ScreenProfile, codec: VideoCodec = 'vp8'): TrackPublishOptions {
+  const svc = codec === 'vp9' || codec === 'av1';
   return {
     videoCodec: codec,
-    backupCodec: codec === 'av1' || codec === 'vp9' ? ({ codec: 'vp8' } as const) : (false as const),
+    backupCodec: svc ? ({ codec: 'vp8' } as const) : (false as const),
     videoEncoding: { maxBitrate: targetBitrate(profile), maxFramerate: profile.fps },
-    ...forcedEncoding,
-    simulcast: true,
-    videoSimulcastLayers: chosenHelpers(profile),
+    degradationPreference: 'maintain-resolution',
+    simulcast: false,
+    ...(svc ? { scalabilityMode: screenScalability } : {}),
   };
 }
 /** Слой simulcast так, как он был опубликован: короткая сторона кадра, битрейт и частота. */
@@ -279,11 +275,10 @@ export function layerTunes(
   return tunes;
 }
 /**
- * Чем подсказать кодировщику, что важнее в этом кадре.
+ * Чем подсказать кодировщику, что это за кадр.
  *
- * Выбранный уровень держит частоту (`maintain-framerate`), и подсказка та же: без `motion`
- * браузер волен отдать предпочтение резкости и уронить частоту — ровно то, ради чего 60 и
- * выбирают. Когда-то «Авто» просило `detail`; теперь уровень всегда выбран.
+ * `motion` — живое видео: шумодав и настройки под лица, а не screencast-режим экрана (`detail`).
+ * Что уступать при нехватке, задаёт не подсказка, а `degradationPreference` в `cameraOptions`.
  */
 export const cameraHint = 'motion' as const;
 /** Умеет ли эта машина кодировать такой поток аппаратно и без рывков. */
