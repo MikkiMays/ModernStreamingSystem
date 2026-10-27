@@ -1036,7 +1036,10 @@ export class MediaSession {
       else this.scheduleConnect();
     }, delay);
   }
-  private network = () => this.nudge('online');
+  private network = () => {
+    this.pathRetry.wake();
+    this.nudge('online');
+  };
   /**
    * Новый раунд ICE на живом соединении: по тому же сигнальному сокету, дорожки не трогаются, медиа
    * идёт по старой паре, пока не выбрана новая. Зачем и когда — `path-retry.ts`.
@@ -1103,6 +1106,9 @@ export class MediaSession {
   private cameBack = (info: ReturnInfo) => {
     if (this.disposed) return;
     this.recovery.hold(false);
+    // На iPhone Wi-Fi включают в «Пункте управления» или «Настройках»: возврат на страницу — повод
+    // снова поискать путь лучше, если нынешний плохой (`path-retry.ts`).
+    this.pathRetry.wake();
     this.nudge(info.frozen ? 'woke' : 'visible');
     if (info.frozen)
       console.info('[cord] page returned from a freeze', {
@@ -1235,6 +1241,7 @@ export class MediaSession {
   };
   private connected = () => {
     if (this.disposed) return;
+    this.pathRetry.wake();
     if (this.recovery.active && this.recovery.remaining() <= 0) {
       this.dispose();
       this.onEnd(t(($) => $.media.end.recoveryExpired));

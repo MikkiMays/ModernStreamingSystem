@@ -11,11 +11,20 @@
  * - без такой метки браузер сам с TCP не уходит: выбранная пара живёт, пока жива, — сколько бы
  *   UDP ни было доступно. Возвращает только ICE restart: в новом раунде UDP выигрывает по приоритету.
  *
- * Поэтому, пока путь упорядоченный (TCP/TLS), ICE перезапускается: первый раз через 20 с, дальше
- * с удвоением до пяти минут — в сети, где UDP закрыт насовсем, попытки редеют, а не дёргают
- * разговор. Тот же повод — отдача, которую давно душит канал: телефон, подключившийся к Wi-Fi,
- * держит прежнее соединение на сотовой сети, пока оно живо, и новый раунд ICE пересаживает его
- * на Wi-Fi. Тут ждём дольше — 45 с: узкий канал чаще просто узкий.
+ * Поэтому, пока путь упорядоченный (TCP/TLS), ICE перезапускается: через 20 с, 40, 80 и 160 с — четыре
+ * попытки, около пяти минут на эпизод. Тот же повод — отдача, которую давно душит канал: телефон,
+ * подключившийся к Wi-Fi, держит прежнее соединение на сотовой сети, пока оно живо, и новый раунд ICE
+ * пересаживает его на Wi-Fi. Тут первая попытка — через 45 с: узкий канал чаще просто узкий.
+ *
+ * ПОЧЕМУ НЕ БЕСКОНЕЧНО. Не вышло за четыре попытки — UDP здесь закрыт или лучшего пути просто нет, и
+ * пробовать до конца десятичасовой встречи — это сотня перезапусков впустую. Дальше планировщик молчит,
+ * пока не случится событие, после которого путь мог стать другим (`wake`): браузер сказал о смене сети
+ * (Chrome на Android), человек вернулся на страницу (на iPhone Wi-Fi включают в «Пункте управления» или
+ * «Настройках» — Safari при этом уходит в фон), SDK переподключился. Тогда — новая серия, и первая
+ * попытка сразу, если путь всё ещё плохой.
+ *
+ * На хорошем пути планировщик не делает ничего: замер — два готовых признака из статистики, которую
+ * сессия и так читает раз в две секунды.
  *
  * Перезапуск ICE идёт по живому сигнальному сокету и не трогает дорожки: медиа идёт по старой паре,
  * пока новая не выбрана. Это не resume (`reconnect-plan.ts`), который закрывает сигнал, — в узком
@@ -32,23 +41,31 @@ export interface PathSignals {
 
 export const ORDERED_RETRY_MS = 20_000;
 export const STARVED_RETRY_MS = 45_000;
-export const MAX_RETRY_MS = 300_000;
-/** Сколько пути нужно быть хорошим, чтобы забыть прошлые попытки и снова начать с короткой паузы. */
-export const FORGET_AFTER_MS = 120_000;
+/** Попыток на эпизод: 20 + 40 + 80 + 160 с — около пяти минут, дальше — только по событию. */
+export const MAX_ATTEMPTS = 4;
+/**
+ * Сколько пути нужно быть хорошим, чтобы эпизод кончился. Признак «канал душит» мигает от замера к
+ * замеру, и без этой минуты каждый просвет начинал бы серию заново — то есть попытки без конца.
+ */
+export const EPISODE_END_MS = 60_000;
 
 export class PathRetry {
   private badSince: number | null = null;
   private goodSince: number | null = null;
   private attempts = 0;
   private nextAt = 0;
+  /** Было событие, после которого путь мог стать другим: следующий плохой замер — сразу попытка. */
+  private woken = false;
 
   /** Очередной замер пути. @returns `true` — пора перезапустить ICE. */
   observe(signals: PathSignals, now: number): boolean {
     if (!signals.connected) return false;
     if (!signals.ordered && !signals.starved) {
-      this.badSince = null;
+      this.woken = false;
       this.goodSince ??= now;
-      if (now - this.goodSince >= FORGET_AFTER_MS) {
+      // Минута хорошего пути заканчивает эпизод: следующий плохой начнёт серию заново.
+      if (now - this.goodSince >= EPISODE_END_MS) {
+        this.badSince = null;
         this.attempts = 0;
         this.nextAt = 0;
       }
@@ -56,10 +73,25 @@ export class PathRetry {
     }
     this.goodSince = null;
     this.badSince ??= now;
+    if (this.woken) {
+      this.woken = false;
+      this.attempts = 0;
+      return this.attempt(signals, now);
+    }
     const wait = signals.ordered ? ORDERED_RETRY_MS : STARVED_RETRY_MS;
-    if (now - this.badSince < wait || now < this.nextAt) return false;
+    if (this.attempts >= MAX_ATTEMPTS || now - this.badSince < wait || now < this.nextAt) return false;
+    return this.attempt(signals, now);
+  }
+
+  /** Сменилась сеть, вернулись на страницу, SDK переподключился — путь мог стать другим. */
+  wake() {
+    this.woken = true;
+  }
+
+  private attempt(signals: PathSignals, now: number) {
+    const wait = signals.ordered ? ORDERED_RETRY_MS : STARVED_RETRY_MS;
     this.attempts++;
-    this.nextAt = now + Math.min(MAX_RETRY_MS, wait * 2 ** this.attempts);
+    this.nextAt = now + wait * 2 ** this.attempts;
     return true;
   }
 }
