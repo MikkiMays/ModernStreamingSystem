@@ -2,11 +2,11 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { readPreferences, savePreferences } from './preferences';
 beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
-  // Умолчание — с сервера (здесь встроенное 720p30): «Авто» больше нет.
-  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  // У камеры своё умолчание — 480p30 (`CAMERA_DEFAULT`): «Авто» больше нет.
+  expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
   savePreferences({ screen: { resolution: 1080, fps: 60 } });
   expect(readPreferences().screen.fps).toBe(60);
-  expect(readPreferences().camera.resolution).toBe(720);
+  expect(readPreferences().camera.resolution).toBe(480);
   localStorage.setItem(
     'cord:preferences:v1',
     JSON.stringify({ camera: { resolution: 9999, fps: -1 }, devices: { microphone: 42 } }),
@@ -25,7 +25,7 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
     screen: { resolution: 1440, fps: 60, automatic: false },
   };
   localStorage.setItem('cord:preferences:v1', JSON.stringify(saved));
-  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
   expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
   expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!)).toEqual(saved);
   // Сервер, который разрешает 1440p, возвращает выбор человека сам.
@@ -41,10 +41,10 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
 });
 
 /**
- * R78: у камеры своё умолчание — 720p · 30 (`CAMERA_DEFAULT`), независимо от уровня по умолчанию
+ * R78: у камеры своё умолчание — с 27.10.2026 480p · 30 (`CAMERA_DEFAULT`), независимо от уровня по умолчанию
  * сервера для показа; шкала частоты — 30 / 60, старые 15 кадров камеры читаются как 30.
  */
-it('камера: умолчание 720p30 независимо от сервера, «Авто» — тоже 720p30, выше 720p — 720p, 15 fps — на шкале', () => {
+it('камера: умолчание 480p30 независимо от сервера, «Авто» — тоже 480p30, выше 720p — 720p, 15 fps — на шкале', () => {
   localStorage.setItem(
     'cord:quality:v1',
     JSON.stringify({
@@ -53,20 +53,20 @@ it('камера: умолчание 720p30 независимо от серве
       settleMs: 4000,
     }),
   );
-  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
   expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
   localStorage.setItem(
     'cord:preferences:v1',
     JSON.stringify({ camera: { resolution: 1440, fps: 60, automatic: true } }),
   );
-  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
   // Шкала камеры — 480 / 720 / 1080 (1080 недоступно) и 15 / 30 / 60 (27.10.2026).
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 1080, fps: 15 } }));
   expect(readPreferences().camera).toEqual({ resolution: 720, fps: 15 });
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 480, fps: 60 } }));
   expect(readPreferences().camera).toEqual({ resolution: 480, fps: 60 });
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 777, fps: 7 } }));
-  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
 });
 
 it('migrates the display name and validates stored audio and hotkeys', () => {

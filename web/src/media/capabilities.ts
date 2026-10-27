@@ -44,10 +44,11 @@ export const CAMERA_RESOLUTIONS: Resolution[] = [480, 720, 1080];
 export const CAMERA_FRAME_RATES: FrameRate[] = [15, 30, 60];
 export const CAMERA_MAX: Resolution = 720;
 /**
- * Умолчание камеры (R13 → R78): 720p · 30, своё, независимо от уровня по умолчанию сервера,
- * который задаёт старт показа экрана.
+ * Умолчание камеры (R13 → R78 → 27.10.2026, владелец): 480p · 30, своё, независимо от уровня по
+ * умолчанию сервера, который задаёт старт показа экрана. 480p30 — 1,2 Мбит/с против 3 у 720p30:
+ * проходит и по мобильной сети; кому нужно чётче — выбирает 720p сам.
  */
-export const CAMERA_DEFAULT: Level = { resolution: 720, fps: 30 };
+export const CAMERA_DEFAULT: Level = { resolution: 480, fps: 30 };
 
 export const builtinRules: QualityRules = {
   default: { resolution: 720, fps: 30 },

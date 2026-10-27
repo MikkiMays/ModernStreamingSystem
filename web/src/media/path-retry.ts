@@ -17,6 +17,13 @@
  * пересаживает его на Wi-Fi. Тут первая попытка — через 45 с: узкий канал чаще просто узкий.
  * На TCP попытка — сначала проба UDP (`udp-probe.ts`): перезапуск на закрытом UDP роняет видео на минуты.
  *
+ * iPhone (27.10.2026, cordcam): «мобильный интернет, 720p60, ~5 кадров; включил Wi-Fi — ничего».
+ * Safari не называет причину тесноты (`qualityLimitationReason`, WebKit bug 261266), и признак
+ * «канал душит» там не загорался никогда — сторож молчал. Теперь без названной причины признак — сама
+ * частота (`starvedUplink`). И событие «сменилась сеть» Safari не даёт, а Wi-Fi включают в «Пункте
+ * управления», не уходя со страницы: пока путь плохой (`troubled`), раз в 15 с сверяются свои сетевые
+ * адреса (`local-networks.ts`) — появилась новая сеть, значит, `wake`.
+ *
  * ПОЧЕМУ НЕ БЕСКОНЕЧНО. Не вышло за четыре попытки — UDP здесь закрыт или лучшего пути просто нет, и
  * пробовать до конца десятичасовой встречи — это сотня перезапусков впустую. Дальше планировщик молчит,
  * пока не случится событие, после которого путь мог стать другим (`wake`): браузер сказал о смене сети
@@ -38,6 +45,31 @@ export interface PathSignals {
   ordered: boolean;
   /** Отдачу видео ограничивает канал, и это не разгон после публикации. */
   starved: boolean;
+}
+
+/** Что из плашки отдачи (`OutboundVideo`) нужно, чтобы решить, душит ли отдачу канал. */
+export interface UplinkSample {
+  /** `qualityLimitationReason`; `unknown` — браузер её не называет (Safari). */
+  limitation: string;
+  fps: number;
+  targetFps: number;
+  /** Сколько кадров даёт сама камера; не знаем — `undefined`. */
+  sourceFps?: number;
+  settling: boolean;
+  dormant: boolean;
+}
+
+/**
+ * Отдачу душит канал. Chrome и Firefox называют причину сами. Safari — нет, и там признак — частота:
+ * меньше половины ожидаемой, а ожидаемая — выставленная, но не больше, чем даёт камера (камера на 30
+ * при выставленных 60 — это не канал). Ноль кадров — камера на паузе, а не теснота.
+ */
+export function starvedUplink(sample: UplinkSample | null): boolean {
+  if (!sample || sample.settling) return false;
+  if (sample.limitation !== 'unknown') return sample.limitation === 'bandwidth';
+  if (sample.dormant || sample.fps <= 0) return false;
+  const expected = Math.min(sample.targetFps, sample.sourceFps || sample.targetFps);
+  return sample.fps < expected / 2;
 }
 
 export const ORDERED_RETRY_MS = 20_000;
@@ -82,6 +114,11 @@ export class PathRetry {
     const wait = signals.ordered ? ORDERED_RETRY_MS : STARVED_RETRY_MS;
     if (this.attempts >= MAX_ATTEMPTS || now - this.badSince < wait || now < this.nextAt) return false;
     return this.attempt(signals, now);
+  }
+
+  /** Путь сейчас плохой или был плохим меньше минуты назад: стоит следить, не появилась ли другая сеть. */
+  get troubled() {
+    return this.badSince !== null;
   }
 
   /** Сменилась сеть, вернулись на страницу, SDK переподключился — путь мог стать другим. */

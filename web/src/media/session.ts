@@ -62,7 +62,8 @@ import { LiveHealth } from './live-health';
 import { VideoPauses } from './video-pause';
 import { VideoSilence } from './video-silence';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
-import { PathRetry } from './path-retry';
+import { PathRetry, starvedUplink } from './path-retry';
+import { LocalNetworks } from './local-networks';
 import { udpOpen } from './udp-probe';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
@@ -121,7 +122,10 @@ export interface OutboundVideo {
   fps: number;
   /** Мегабиты в секунду по разнице счётчиков за интервал. */
   mbps: number;
-  /** `qualityLimitationReason`: почему кодировщик отдаёт меньше, чем его просили. */
+  /**
+   * `qualityLimitationReason`: почему кодировщик отдаёт меньше, чем его просили. `unknown` — браузер
+   * её не называет (Safari).
+   */
   limitation: string;
   /**
    * Какую частоту у этой дорожки просили. Нужна, чтобы отличить «кодировщику тесно» от
@@ -129,6 +133,8 @@ export interface OutboundVideo {
    * зрения он успевает за всем, что ему приносят.
    */
   targetFps: number;
+  /** Сколько кадров даёт сама камера или экран (`getSettings().frameRate`), если браузер говорит. */
+  sourceFps?: number;
   /**
    * Есть ли слой, который опубликован, но сейчас не отправляется.
    *
@@ -388,6 +394,7 @@ export class MediaSession {
   private lastNudge = -Infinity;
   /** Медиа застряло на TCP или в узком канале — когда пробовать путь лучше (`path-retry.ts`). */
   private pathRetry = new PathRetry();
+  private localNetworks = new LocalNetworks();
   /** Включали ли камеру в этой встрече: первое включение на телефоне — всегда фронтальная. */
   private cameraStarted = false;
   private codec: VideoCodec = 'vp8';
@@ -692,11 +699,13 @@ export class MediaSession {
         {
           connected: this.playout.link.ice === 'connected',
           ordered: this.playout.link.ordered,
-          starved: sending?.limitation === 'bandwidth' && !sending.settling,
+          starved: starvedUplink(sending),
         },
         Date.now(),
       );
       if (retry) void this.restartIce();
+      else if (this.pathRetry.troubled) void this.watchNetworks();
+      else this.localNetworks.reset();
     } catch {
       // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
     } finally {
@@ -1051,6 +1060,12 @@ export class MediaSession {
    * Новый раунд ICE на живом соединении: по тому же сигнальному сокету, дорожки не трогаются, медиа
    * идёт по старой паре, пока не выбрана новая. Зачем и когда — `path-retry.ts`.
    */
+  /** Пока путь плохой: появилась другая сеть (Wi-Fi на iPhone) — пробовать сразу (`local-networks.ts`). */
+  private async watchNetworks() {
+    if (!(await this.localNetworks.changed(Date.now())) || this.disposed) return;
+    console.info('[cord] у устройства сменились сети — ищем путь заново');
+    this.pathRetry.wake();
+  }
   private async restartIce() {
     if (this.disposed || this.room.state !== 'connected') return;
     const { path, ordered } = this.link.get();
@@ -2100,6 +2115,7 @@ export class MediaSession {
       const report = await leading.track.getRTCStatsReport();
       if (this.disposed || cycle !== this.connectionCycle) return;
       let limitation = 'none';
+      let named = false;
       let width = 0;
       let height = 0;
       let fps = 0;
@@ -2108,6 +2124,7 @@ export class MediaSession {
       let dormant = false;
       report?.forEach((stat) => {
         if (stat.type !== 'outbound-rtp' || (stat.kind ?? stat.mediaType) !== 'video') return;
+        if (typeof stat.qualityLimitationReason === 'string') named = true;
         if (typeof stat.qualityLimitationReason === 'string' && stat.qualityLimitationReason !== 'none')
           limitation = stat.qualityLimitationReason;
         bytes += Number(stat.bytesSent ?? 0);
@@ -2121,6 +2138,7 @@ export class MediaSession {
           fps = Number(stat.framesPerSecond ?? 0);
         }
       });
+      if (!named) limitation = 'unknown';
       const previous = this.upstreamCounters;
       const seconds = previous && at > previous.at ? (at - previous.at) / 1000 : 0;
       this.upstreamCounters = { at, bytes };
@@ -2133,6 +2151,7 @@ export class MediaSession {
           mbps: seconds > 0 ? Math.max(0, ((bytes - previous!.bytes) * 8) / seconds / 1000000) : 0,
           limitation,
           targetFps: leading.source === 'screen' ? this.profile.fps : this.cameraProfile.fps,
+          sourceFps: leading.track.mediaStreamTrack?.getSettings?.().frameRate,
           dormant,
           settling: performance.now() - this.videoChangedAt[leading.source] < this.settleMs,
         });

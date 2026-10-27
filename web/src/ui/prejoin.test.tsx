@@ -122,14 +122,14 @@ describe('предвход', () => {
     expect(within(alert).getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
   });
 
-  it('«Перед разговором» — окно набора; качество камеры по умолчанию 720p · 30 сегментами (R72, R78)', async () => {
+  it('«Перед разговором» — окно набора; качество камеры по умолчанию 480p · 30 сегментами (R72, R78)', async () => {
     show();
     fireEvent.click(screen.getByRole('button', { name: 'Настройки предпросмотра' }));
     const dialog = await screen.findByRole('dialog', { name: 'Перед разговором' }, { timeout: 5000 });
     expect(dialog).toHaveClass('ui-dialog');
     expect(within(dialog).getByRole('combobox', { name: 'Микрофон' })).toBeInTheDocument();
     const camera = within(dialog).getByRole('radiogroup', { name: 'Камера: качество' });
-    expect(within(camera).getByRole('radio', { name: '720p' })).toHaveAttribute('aria-checked', 'true');
+    expect(within(camera).getByRole('radio', { name: '480p' })).toHaveAttribute('aria-checked', 'true');
     const fps = within(dialog).getByRole('radiogroup', { name: 'Камера: частота кадров' });
     expect(within(fps).getByRole('radio', { name: '30 fps' })).toHaveAttribute('aria-checked', 'true');
     // Без «Чужого видео» и без подзаголовка про сохранение настроек.

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { EPISODE_END_MS, MAX_ATTEMPTS, ORDERED_RETRY_MS, PathRetry, STARVED_RETRY_MS } from './path-retry';
+import {
+  EPISODE_END_MS,
+  MAX_ATTEMPTS,
+  ORDERED_RETRY_MS,
+  PathRetry,
+  STARVED_RETRY_MS,
+  starvedUplink,
+} from './path-retry';
 
 const tcp = { connected: true, ordered: true, starved: false };
 const udp = { connected: true, ordered: false, starved: false };
@@ -61,5 +68,53 @@ describe('возврат медиа на хороший путь', () => {
     restarts(retry, always(tcp), 0, 3600_000);
     restarts(retry, always(udp), 3600_000 + 2000, EPISODE_END_MS);
     expect(restarts(retry, always(tcp), 3600_000 + EPISODE_END_MS + 4000, 60_000)[0]).toBe(ORDERED_RETRY_MS);
+  });
+});
+
+describe('отдачу душит канал', () => {
+  const sending = {
+    limitation: 'none',
+    fps: 60,
+    targetFps: 60,
+    sourceFps: 60,
+    settling: false,
+    dormant: false,
+  };
+
+  it('Chrome и Firefox называют причину сами', () => {
+    expect(starvedUplink({ ...sending, limitation: 'bandwidth', fps: 50 })).toBe(true);
+    expect(starvedUplink({ ...sending, limitation: 'cpu', fps: 5 })).toBe(false);
+    expect(starvedUplink({ ...sending, limitation: 'none', fps: 5 })).toBe(false);
+  });
+
+  it('Safari причину не называет — признак по частоте: меньше половины ожидаемой', () => {
+    const safari = { ...sending, limitation: 'unknown' };
+    expect(starvedUplink({ ...safari, fps: 5 })).toBe(true);
+    expect(starvedUplink({ ...safari, fps: 40 })).toBe(false);
+    // Камера сама даёт 30 при выставленных 60 — это не канал.
+    expect(starvedUplink({ ...safari, fps: 28, sourceFps: 30 })).toBe(false);
+    expect(starvedUplink({ ...safari, fps: 10, sourceFps: 30 })).toBe(true);
+  });
+
+  it('разгон, спящий слой, ноль кадров и нет видео — не повод', () => {
+    const safari = { ...sending, limitation: 'unknown', fps: 5 };
+    expect(starvedUplink({ ...safari, settling: true })).toBe(false);
+    expect(starvedUplink({ ...safari, dormant: true })).toBe(false);
+    expect(starvedUplink({ ...safari, fps: 0 })).toBe(false);
+    expect(starvedUplink({ ...sending, limitation: 'bandwidth', settling: true })).toBe(false);
+    expect(starvedUplink(null)).toBe(false);
+  });
+});
+
+describe('путь плохой — следим, не появилась ли другая сеть', () => {
+  it('плохой замер — неприятности; минута хорошего — кончились', () => {
+    const retry = new PathRetry();
+    expect(retry.troubled).toBe(false);
+    retry.observe(tcp, 0);
+    expect(retry.troubled).toBe(true);
+    retry.observe(udp, 2000);
+    expect(retry.troubled).toBe(true);
+    retry.observe(udp, 2000 + EPISODE_END_MS);
+    expect(retry.troubled).toBe(false);
   });
 });

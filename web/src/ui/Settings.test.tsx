@@ -176,9 +176,11 @@ describe('окно настроек (T26)', () => {
         .getAllByRole('radio')
         .map((radio) => radio.textContent),
     ).toEqual(['480p', '720p', '1080p']);
-    expect(within(camera).getByRole('radio', { name: '720p' })).toBeChecked();
+    expect(within(camera).getByRole('radio', { name: '480p' })).toBeChecked();
     expect(within(camera).getByRole('radio', { name: '1080p' })).toHaveAttribute('aria-disabled', 'true');
     expect(within(camera).getByRole('radio', { name: '1080p' })).toHaveAttribute('title', 'Камера — до 720p');
+    fireEvent.click(within(camera).getByRole('radio', { name: '720p' }));
+    expect(readPreferences().camera.resolution).toBe(720);
     fireEvent.click(within(camera).getByRole('radio', { name: '480p' }));
     expect(readPreferences().camera.resolution).toBe(480);
     const fps = screen.getByRole('radiogroup', { name: 'Камера: частота кадров' });
