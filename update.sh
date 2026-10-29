@@ -376,6 +376,20 @@ if ! systemctl is-enabled cord-sniffer-firewall.service >/dev/null 2>&1 \
   bash infra/sniffer-firewall.sh --install \
     || warn "Не удалось. Поставить руками: sudo bash infra/sniffer-firewall.sh --install"
 fi
+# Буфер приёма UDP у SFU (`infra/host`) — из тех же, что появились позже сервера: на машинах,
+# поставленных до нагрузочной правки, его применяет обновление. Идемпотентно — перезаписывает
+# своим же файлом. Нужен root (sysctl --system). SFU возьмёт буфер только после перезапуска.
+if [[ -f infra/host/99-cord-livekit-udp.conf ]] \
+  && ! diff -q infra/host/99-cord-livekit-udp.conf /etc/sysctl.d/99-cord-livekit-udp.conf >/dev/null 2>&1; then
+  step "Буфер приёма UDP для SFU"
+  if (( EUID == 0 )) \
+    && install -m 0644 infra/host/99-cord-livekit-udp.conf /etc/sysctl.d/99-cord-livekit-udp.conf \
+    && sysctl --system >/dev/null 2>&1; then
+    note "rmem_max=16 МБ применён; SFU возьмёт буфер после перезапуска: docker compose restart livekit"
+  else
+    warn "Не удалось (нужен root). Руками: sudo install -m0644 infra/host/99-cord-livekit-udp.conf /etc/sysctl.d/ && sudo sysctl --system"
+  fi
+fi
 
 step "Готово"
 note "Версия: $(git rev-parse --short HEAD)"
