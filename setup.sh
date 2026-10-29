@@ -152,6 +152,18 @@ else
   note "Open 443/tcp, 3478/udp, 7882/udp and — outside strict mode — 5349/tcp yourself."
 fi
 
+# The media SFU reads all WebRTC over a single UDP socket. The kernel caps a socket's receive
+# buffer at net.core.rmem_max, and the stock ceiling is below what LiveKit asks for, so under load
+# the socket overflows and drops packets (RcvbufErrors). The values live in infra/host so a fresh
+# install matches a running one; applied here and persisted across reboots by /etc/sysctl.d.
+step "Tuning the host for media"
+if install -m 0644 infra/host/99-cord-livekit-udp.conf /etc/sysctl.d/99-cord-livekit-udp.conf 2>/dev/null \
+   && sysctl --system >/dev/null 2>&1; then
+  note "UDP receive buffers raised to 16 MB (net.core.rmem_max)."
+else
+  note "Could not apply infra/host/99-cord-livekit-udp.conf; copy it into /etc/sysctl.d/ yourself."
+fi
+
 # Disk housekeeping, installed before the first build rather than after it: the build is
 # already the largest thing this script writes, and a server that fills up has no good
 # moment to be told about the timer it never got. Details and the list of what the sweep

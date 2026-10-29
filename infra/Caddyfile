@@ -77,8 +77,25 @@ http://:{$GATEWAY_PORT:8091} {
 			header Cache-Control "no-cache"
 			file_server
 		}
+		# Загрузка музыки (PUT) стримится на диск, служба сама режет на 50 МБ (`media.MAX_FILE`).
+		# Остальным ручкам служб тело больше килобайта не нужно. Жёсткий потолок по байтам на шлюзе
+		# ловит и chunked-запрос без content-length — тот проходил middleware `boundary` службы
+		# (length=0 ≤ MAX_FILE) и копился целиком в памяти uvicorn при разборе JSON (нагрузка 29.10).
+		@services_upload {
+			method PUT
+			path /api/v1/services/*
+		}
+		handle @services_upload {
+			request_body {
+				max_size 64MB
+			}
+			reverse_proxy 127.0.0.1:18100
+		}
 		@services path /api/v1/services/*
 		handle @services {
+			request_body {
+				max_size 1MB
+			}
 			reverse_proxy 127.0.0.1:18100
 		}
 		@api path /api/v1/*
