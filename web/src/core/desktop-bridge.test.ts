@@ -313,6 +313,25 @@ describe('оверлей в игре, игры и мини-окно (R62, R63, R
     expect(errors({ id: 'record' }, def('miniAction')), 'записи в Cord нет').not.toEqual([]);
   });
 
+  it('мини-окно (R137): нажатие с нужным состоянием и номером, ответ mini.ack, повтор по mini.resync', () => {
+    expect(contract.$defs.pageMessage!.enum).toEqual(expect.arrayContaining(['mini.ack']));
+    expect(contract.$defs.hostMessage!.enum).toEqual(expect.arrayContaining(['mini.resync']));
+    expect(errors({ id: 'mic', want: false, seq: 12 }, def('miniAction'))).toEqual([]);
+    expect(errors({ id: 'mic', want: 'off' }, def('miniAction'))).not.toEqual([]);
+    expect(errors({ id: 'mic', seq: -1 }, def('miniAction'))).not.toEqual([]);
+    expect(errors({ seq: 12, result: 'ok' }, def('miniAck'))).toEqual([]);
+    expect(errors({ seq: 12, result: 'ignored', reason: 'link' }, def('miniAck'))).toEqual([]);
+    expect(errors({ seq: 12, result: 'maybe' }, def('miniAck'))).not.toEqual([]);
+    expect(errors({ result: 'ok' }, def('miniAck')), 'без номера').not.toEqual([]);
+    expect(
+      errors({ seq: 1, result: 'ignored', reason: 'Нет связи' }, def('miniAck')),
+      'причина — код',
+    ).not.toEqual([]);
+    expect(errors({ room: 'Пятница', seq: 3 }, def('miniState'))).toEqual([]);
+    expect(errors({ seq: 1.5 }, def('miniState'))).not.toEqual([]);
+    expect(errors({}, def('miniResync'))).toEqual([]);
+  });
+
   it('app.settings: мини-окно и виджет — свои значения; прозрачность 30–100', () => {
     const widget = {
       mini: true,

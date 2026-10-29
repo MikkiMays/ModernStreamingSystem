@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:cord:contracts:desktop-bridge.v2",
   "title": "Мост v2 клиента Windows (Electron) — window.cordDesktop",
-  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language, R103 — трей: state.language, chat.open, app.settings.notifications, коды hotkeys.status; R62 — игры: games.*, game.active; R63 — виджет говорящих: overlay.roster, overlay.levels, overlay.lock, значения виджета в app.settings; R93 — мини-окно звонка: mini.state, mini.action, app.settings.mini; R104 — golive); остальные нагрузки — в messages.ts.",
+  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language, R103 — трей: state.language, chat.open, app.settings.notifications, коды hotkeys.status; R62 — игры: games.*, game.active; R63 — виджет говорящих: overlay.roster, overlay.levels, overlay.lock, значения виджета в app.settings; R93 — мини-окно звонка: mini.state, mini.action, app.settings.mini; R104 — golive; R137 — мини-окно 1.0.11: mini.action {want, seq}, ответ mini.ack, событие mini.resync, mini.state.seq; R138 — оболочка 1.0.11 не объявляет thumbar и badge, в app.settings они всегда false); остальные нагрузки — в messages.ts.",
   "type": "object",
   "required": ["protocol", "features", "app", "bootstrap"],
   "properties": {
@@ -115,7 +115,8 @@
         "badge",
         "capture.select",
         "overlay.roster",
-        "mini.state"
+        "mini.state",
+        "mini.ack"
       ]
     },
     "pageCall": {
@@ -160,6 +161,7 @@
         "games.changed",
         "game.active",
         "mini.action",
+        "mini.resync",
         "golive"
       ]
     },
@@ -338,17 +340,41 @@
         "unread": { "type": "integer", "minimum": 0 },
         "count": { "type": "integer", "minimum": 0 },
         "status": { "enum": ["connecting", "connected", "recovering"] },
-        "remaining": { "type": "integer", "minimum": 0 }
+        "remaining": { "type": "integer", "minimum": 0 },
+        "seq": {
+          "description": "Номер состояния (R137): растёт, когда состояние меняется; страница повторяет последнее раз в 5 с и по mini.resync с тем же номером. Оболочка до 1.0.11 его отбрасывает.",
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "miniAction": {
-      "description": "Оболочка → страница (mini.action, R93): нажатие в мини-окне. mic, camera, leave — встреча исполняет, не поднимая окно; screen — остановить показ или (окно Cord уже впереди) открыть окно выбора; people, chat — панель; settings — настройки (звук).",
+      "description": "Оболочка → страница (mini.action, R93): нажатие в мини-окне. mic, camera, leave — встреча исполняет, не поднимая окно; screen — остановить показ или (окно Cord уже впереди) открыть окно выбора; people, chat — панель; settings — настройки (звук). С 1.0.11 (R137): want — нужное состояние микрофона, камеры или показа (без него — переключить, как раньше), seq — номер нажатия, на который страница отвечает mini.ack. Так же шлёт «Микрофон» меню трея (R138).",
       "type": "object",
       "required": ["id"],
       "additionalProperties": false,
       "properties": {
-        "id": { "enum": ["mic", "camera", "screen", "people", "chat", "settings", "leave"] }
+        "id": { "enum": ["mic", "camera", "screen", "people", "chat", "settings", "leave"] },
+        "want": { "type": "boolean" },
+        "seq": { "type": "integer", "minimum": 0 }
       }
+    },
+    "miniAck": {
+      "description": "Страница → оболочка (mini.ack, R137): исполнено ли нажатие мини-окна с этим seq. ok — сделано или уже так; ignored — нет, reason — код: link (связь восстанавливается), busy (устройство занято), failed (не включилось), unknown (незнакомое нажатие). Мини-окно снимает «ожидание» с кнопки; без ответа — по новому mini.state или через 4 с. Оболочка до 1.0.11 сообщение отбрасывает.",
+      "type": "object",
+      "required": ["seq", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "result": { "enum": ["ok", "ignored"] },
+        "reason": { "type": "string", "pattern": "^[a-z-]{1,30}$" }
+      }
+    },
+    "miniResync": {
+      "description": "Оболочка → страница (mini.resync, R137): мини-окно не дождалось ответа на нажатие — прислать mini.state и overlay.roster заново. Без нагрузки.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
     },
     "golive": {
       "description": "Оболочка → страница (golive, R104): «Показать игру» — источник окна игры (window:<hwnd>:0) и имя игры. Оболочка уже дала странице жест (executeJavaScript с userGesture), страница выбирает источник (capture.select) и начинает показ без окна выбора: «Плавность», 60 fps, звук приложения.",
