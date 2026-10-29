@@ -246,20 +246,10 @@
         "hint": "在时钟旁打开 Cord 并切换麦克风",
         "keywords": "托盘 通知区域"
       },
-      "desktop-thumbar": {
-        "label": "缩略图按钮",
-        "hint": "任务栏中的麦克风、摄像头和离开",
-        "keywords": "任务栏 缩略图 按钮"
-      },
-      "desktop-badge": {
-        "label": "图标徽标",
-        "hint": "会议中的麦克风和未读消息",
-        "keywords": "任务栏 徽标 指示器"
-      },
       "desktop-flash": {
-        "label": "闪烁窗口按钮",
-        "hint": "有人提到你且 Cord 在后台时",
-        "keywords": "闪烁 提及 注意"
+        "label": "在任务栏闪烁",
+        "hint": "有人提到你或请求加入，而 Cord 在后台时",
+        "keywords": "闪烁 提及 注意 任务栏"
       },
       "desktop-sleep": {
         "label": "会议期间不进入睡眠",
@@ -442,8 +432,8 @@
       "connection": "连接",
       "leaveFirst": "请先离开会议",
       "change": "更换服务器",
-      "disconnect": "断开连接",
-      "forget": "忘记密码"
+      "forget": "忘记密码",
+      "here": "当前所在"
     },
     "sounds": {
       "cues": "提示音",
@@ -472,19 +462,16 @@
       "defaultDevice": "默认",
       "device": "设备 {{number}}",
       "micInMeeting": "这是你现在在会议中的声音",
-      "recording": "你的测试录音",
       "micLevel": "麦克风电平",
-      "recordingLabel": "正在录制麦克风测试",
-      "recordLabel": "录制 5 秒麦克风测试",
-      "recordingNow": "正在录制…",
-      "record": "录制 5 秒",
+      "recordingNow": "请说话… {{seconds}}",
+      "playing": "正在回放…",
       "stopMicLabel": "停止麦克风测试",
-      "checkMicLabel": "测试麦克风",
-      "stop": "停止",
+      "checkMicLabel": "录制 5 秒并回放",
       "check": "测试",
       "checkSpeakersLabel": "测试扬声器",
       "previewLabel": "摄像头预览，仅你可见",
       "deviceFailed": "无法启用设备",
+      "micDenied": "无法访问麦克风——请允许 Cord 使用",
       "recordUnsupported": "此浏览器不支持测试录音。电平条仍可使用。",
       "toneFailed": "无法播放测试音"
     },
@@ -2103,9 +2090,9 @@
       "cameraStart": "测试摄像头",
       "speakers": "测试扬声器",
       "micLevel": "麦克风电平",
-      "recording": "正在录制 5 秒…",
+      "recording": "请说话… {{seconds}}",
+      "playing": "正在回放…",
       "record": "录制 5 秒并回放",
-      "recorded": "你的测试录音",
       "cameraPreview": "摄像头测试，仅你可见",
       "startingCamera": "正在开启摄像头…",
       "startingMic": "正在开启麦克风…",

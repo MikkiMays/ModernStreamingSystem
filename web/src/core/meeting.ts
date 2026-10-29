@@ -147,7 +147,6 @@ export class Meeting {
       watchWindowState((state) => this.windowState.set(state)),
       this.windowState.subscribe(this.attend),
       this.chatOpen.subscribe(this.attend),
-      this.unread.subscribe(() => this.notifier.badge(this.unread.get(), this.windowState.get())),
       // Показ, который мы смотрим, снят с публикации — просмотр закрывается сразу, не по снимку (R81).
       this.media.screenGone.subscribe(() => {
         const gone = this.media.screenGone.get();
@@ -231,11 +230,10 @@ export class Meeting {
       canApprove: allowed(snapshot, self, 'participant.approve'),
     };
   }
-  /** Человек смотрит в открытый чат — всё прочитано; иначе значок на панели задач — по фокусу окна. */
+  /** Человек смотрит в открытый чат — всё прочитано. Значка на иконке панели задач нет (R138). */
   private attend = () => {
     const { focused, visible } = this.windowState.get();
     if (this.chatOpen.get() && focused && visible) this.unread.set(0);
-    this.notifier.badge(this.unread.get(), this.windowState.get());
   };
   /**
    * Нажатие в уведомлении Windows (`notification.action {id, tag}`): «Впустить» и «Отклонить» —

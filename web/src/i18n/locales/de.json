@@ -246,20 +246,10 @@
         "hint": "Cord öffnen und Mikrofon schalten – neben der Uhr",
         "keywords": "Infobereich Benachrichtigungsbereich"
       },
-      "desktop-thumbar": {
-        "label": "Schaltflächen in der Miniatur",
-        "hint": "Mikrofon, Kamera und Verlassen in der Taskleiste",
-        "keywords": "Taskleiste Miniatur Schaltflächen"
-      },
-      "desktop-badge": {
-        "label": "Badge am Symbol",
-        "hint": "Mikrofon im Meeting und Ungelesenes",
-        "keywords": "Taskleiste Badge Anzeige"
-      },
       "desktop-flash": {
-        "label": "Fensterschaltfläche blinken lassen",
-        "hint": "Wenn Sie erwähnt werden und Cord im Hintergrund ist",
-        "keywords": "blinken Erwähnung Aufmerksamkeit"
+        "label": "In der Taskleiste blinken",
+        "hint": "Bei Erwähnung oder Beitrittsanfrage im Hintergrund",
+        "keywords": "blinken Erwähnung Aufmerksamkeit Taskleiste"
       },
       "desktop-sleep": {
         "label": "Während des Meetings nicht in den Ruhezustand",
@@ -442,8 +432,8 @@
       "connection": "Verbindung",
       "leaveFirst": "Verlasse zuerst das Meeting",
       "change": "Server wechseln",
-      "disconnect": "Trennen",
-      "forget": "Passwort vergessen"
+      "forget": "Passwort vergessen",
+      "here": "Sie sind hier"
     },
     "sounds": {
       "cues": "Signale",
@@ -472,19 +462,16 @@
       "defaultDevice": "Standard",
       "device": "Gerät {{number}}",
       "micInMeeting": "So hört man dich gerade im Meeting",
-      "recording": "Deine Testaufnahme",
       "micLevel": "Mikrofonpegel",
-      "recordingLabel": "Mikrofonprobe wird aufgenommen",
-      "recordLabel": "5 s Mikrofonprobe aufnehmen",
-      "recordingNow": "Aufnahme…",
-      "record": "5 s aufnehmen",
+      "recordingNow": "Sprechen Sie… {{seconds}}",
+      "playing": "Wiedergabe…",
       "stopMicLabel": "Mikrofontest beenden",
-      "checkMicLabel": "Mikrofon testen",
-      "stop": "Beenden",
+      "checkMicLabel": "5 Sekunden aufnehmen und anhören",
       "check": "Testen",
       "checkSpeakersLabel": "Lautsprecher testen",
       "previewLabel": "Kameravorschau, nur für dich",
       "deviceFailed": "Gerät konnte nicht aktiviert werden",
+      "micDenied": "Kein Mikrofonzugriff – erlaube ihn für Cord",
       "recordUnsupported": "Dieser Browser kann keine Probe aufnehmen. Die Pegelanzeige funktioniert.",
       "toneFailed": "Testton konnte nicht abgespielt werden"
     },
@@ -2128,9 +2115,9 @@
       "cameraStart": "Kamera testen",
       "speakers": "Lautsprecher testen",
       "micLevel": "Mikrofonpegel",
-      "recording": "5 Sekunden werden aufgenommen…",
+      "recording": "Sprechen Sie… {{seconds}}",
+      "playing": "Wiedergabe…",
       "record": "5 Sekunden aufnehmen und anhören",
-      "recorded": "Deine Testaufnahme",
       "cameraPreview": "Kameratest, nur für dich",
       "startingCamera": "Kamera wird eingeschaltet…",
       "startingMic": "Mikrofon wird eingeschaltet…",

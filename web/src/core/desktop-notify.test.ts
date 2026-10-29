@@ -136,20 +136,9 @@ describe('DesktopNotifier', () => {
     expect(notifier.lastKnock).toBe('ann');
   });
 
-  it('значок на панели задач — непрочитанные, пока окно не в фокусе; в фокусе — сброс, без повторов', () => {
-    notifier.badge(2, away);
-    notifier.badge(2, away);
-    notifier.badge(2, here);
-    expect(send.mock.calls).toEqual([
-      ['badge', { count: 2 }],
-      ['badge', { count: 0 }],
-    ]);
-  });
-
   it('оболочка без уведомлений — ничего не шлём', () => {
     const quiet = new DesktopNotifier(t, send, () => false);
     quiet.notify(knock, away);
-    quiet.badge(3, away);
     expect(send).not.toHaveBeenCalled();
   });
 });

@@ -3,13 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const values = {
   tray: true,
-  thumbar: true,
-  badge: true,
   flash: true,
   sleepBlocker: true,
   overlay: false,
   autostart: false,
 };
+/** Так отвечает оболочка 1.0.10 и старше: ещё с кнопками на миниатюре и значком (R138). */
+const before = { ...values, thumbar: true, badge: true };
 
 /** Оболочка v2 с переключателями: `invoke('app.settings', патч)` применяет и отвечает значениями. */
 function fakeDesktop(features: string[], fail = false) {
@@ -69,6 +69,8 @@ describe('переключатели «Windows» (E03, T53) — состояни
   it('ответ оболочки читается без доверия: всё true/false, иначе null', async () => {
     const { parseDesktopSettings } = await import('./desktop-settings');
     expect(parseDesktopSettings(values)).toEqual(values);
+    // Прежняя оболочка присылает и `thumbar`, `badge` — это годный ответ, но странице они не нужны.
+    expect(parseDesktopSettings(before)).toEqual(values);
     expect(parseDesktopSettings({ ...values, tray: 'yes' })).toBeNull();
     expect(parseDesktopSettings({ ...values, extra: true })).toEqual(values);
     expect(parseDesktopSettings(null)).toBeNull();

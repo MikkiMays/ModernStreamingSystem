@@ -246,20 +246,10 @@
         "hint": "Open Cord and toggle the mic next to the clock",
         "keywords": "tray notification area"
       },
-      "desktop-thumbar": {
-        "label": "Thumbnail buttons",
-        "hint": "Mic, camera and leave in the taskbar",
-        "keywords": "taskbar thumbnail buttons"
-      },
-      "desktop-badge": {
-        "label": "Icon badge",
-        "hint": "Mic in a meeting and unread messages",
-        "keywords": "taskbar badge indicator"
-      },
       "desktop-flash": {
-        "label": "Flash the window button",
-        "hint": "When you’re mentioned and Cord is in the background",
-        "keywords": "flash mention attention"
+        "label": "Flash on the taskbar",
+        "hint": "Mention or join request while Cord is in the background",
+        "keywords": "flash blink mention attention taskbar"
       },
       "desktop-sleep": {
         "label": "Stay awake during a meeting",
@@ -442,8 +432,8 @@
       "connection": "Connection",
       "leaveFirst": "Leave the meeting first",
       "change": "Change server",
-      "disconnect": "Disconnect",
-      "forget": "Forget password"
+      "forget": "Forget password",
+      "here": "You’re here"
     },
     "sounds": {
       "cues": "Alerts",
@@ -472,19 +462,16 @@
       "defaultDevice": "Default",
       "device": "Device {{number}}",
       "micInMeeting": "This is how you sound in the meeting right now",
-      "recording": "Your test recording",
       "micLevel": "Microphone level",
-      "recordingLabel": "Recording a mic sample",
-      "recordLabel": "Record a 5 s mic sample",
-      "recordingNow": "Recording…",
-      "record": "Record 5 s",
+      "recordingNow": "Speak… {{seconds}}",
+      "playing": "Playing back…",
       "stopMicLabel": "Stop mic test",
-      "checkMicLabel": "Test microphone",
-      "stop": "Stop",
+      "checkMicLabel": "Record 5 seconds and listen",
       "check": "Test",
       "checkSpeakersLabel": "Test speakers",
       "previewLabel": "Camera preview, only for you",
       "deviceFailed": "Couldn't turn on the device",
+      "micDenied": "No microphone access — allow it for Cord",
       "recordUnsupported": "This browser can't record a sample. The level bar still works.",
       "toneFailed": "Couldn't play the test sound"
     },
@@ -2128,9 +2115,9 @@
       "cameraStart": "Test camera",
       "speakers": "Test speakers",
       "micLevel": "Microphone level",
-      "recording": "Recording 5 seconds…",
+      "recording": "Speak… {{seconds}}",
+      "playing": "Playing back…",
       "record": "Record 5 seconds and play back",
-      "recorded": "Your test recording",
       "cameraPreview": "Camera test, only for you",
       "startingCamera": "Turning on the camera…",
       "startingMic": "Turning on the microphone…",

@@ -419,7 +419,7 @@ it('непрочитанные в чате (R87): чужие при закрыт
   expect(meeting.unread.get()).toBe(0);
 });
 
-it('уведомления Windows (R59): сообщение без фокуса, значок непрочитанных, просьба войти с «Впустить»', async () => {
+it('уведомления Windows (R59): сообщение без фокуса и без значка на иконке (R138), просьба войти с «Впустить»', async () => {
   const send = vi.fn();
   vi.stubGlobal('cordDesktop', {
     protocol: { major: 2, minor: 0 },
@@ -447,7 +447,6 @@ it('уведомления Windows (R59): сообщение без фокуса
     tag: 'room:room:message',
     silent: true,
   });
-  expect(send).toHaveBeenCalledWith('badge', { count: 1 });
   snapshot = {
     ...snapshot,
     sequence: 3,
@@ -471,7 +470,7 @@ it('уведомления Windows (R59): сообщение без фокуса
   expect(meeting.handleNotificationAction('open', 'room:room:message')).toBe('chat');
   expect(meeting.handleNotificationAction('open', 'room:other-room:message')).toBeNull();
   meeting.windowState.set({ focused: true, visible: true });
-  expect(send).toHaveBeenLastCalledWith('badge', { count: 0 });
+  expect(send.mock.calls.map(([type]) => type)).not.toContain('badge');
 });
 
 /** Команды ядру идут каналом управления; здесь он подменён — что ушло, видно по вызовам. */

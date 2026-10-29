@@ -10,6 +10,7 @@ import { describeFailure, openConnection, serverInfo, type Attempt } from '../co
 import { ensureNotificationAudio } from '../core/sounds';
 import { notifyDesktop, isDesktop } from '../core/desktop';
 import { HelpButton } from './support/HelpButton';
+import { ServerMenu } from './ServerMenu';
 
 /**
  * The first screen, and until the handshake succeeds the only one. Nothing about meetings is
@@ -18,10 +19,12 @@ import { HelpButton } from './support/HelpButton';
  *
  * There is exactly one server here, because in a browser there can be only one: the core
  * refuses a foreign `Origin`, so this page can talk to the server that served it and to
- * nothing else. A list of others would be bookmarks pretending to be connections — unable to
- * be checked or connected to, and switching would mean leaving the application. That list
- * belongs to the Windows client, which has none of those limits; from inside it this screen
- * can ask the shell to open it.
+ * nothing else. Other servers of the installation (its catalog) are other sites: «Другой
+ * сервер…» simply goes there (R136). The real list belongs to the Windows client, which has
+ * none of those limits; from inside it this screen asks the shell to open it.
+ *
+ * In a browser connecting is always automatic (R135): the switch lives only in the Windows
+ * client, whose shell remembers it and starts on this screen when it is off.
  */
 export function Connect({ onConnected }: { onConnected: () => void }) {
   const { t } = useTranslation();
@@ -29,7 +32,10 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
   const here = currentServerUrl();
   const saved = thisServer();
   const [password, setPassword] = useState(saved.password);
-  const [autoConnect, setAutoConnect] = useState(saved.autoConnect);
+  // Подключаться ли само (R135) — выбор только в приложении: у него список серверов свой, и с
+  // выключенным автоподключением он открывает этот экран, а не встречи. В браузере сервер один —
+  // тот, что отдал страницу, — и подключение к нему всегда само.
+  const [autoConnect, setAutoConnect] = useState(desktop ? saved.autoConnect : true);
   const [info, setInfo] = useState<Capabilities | null>(null);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,7 +65,7 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
         // device kept the password.
         const remembered = thisServer();
         const ready = !capabilities.passwordRequired || !!remembered.password;
-        if (remembered.autoConnect && ready && !started.current) {
+        if ((remembered.autoConnect || !desktop) && ready && !started.current) {
           started.current = true;
           void connect(remembered.password);
         }
@@ -116,14 +122,20 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
                 />
               </Field>
             )}
-            <Switch
-              label={t(($) => $.connect.autoConnect)}
-              checked={autoConnect}
-              onCheckedChange={(checked) => {
-                setAutoConnect(checked);
-                rememberServer({ autoConnect: checked });
-              }}
-            />
+            {desktop && (
+              <Switch
+                label={t(($) => $.connect.autoConnect)}
+                checked={autoConnect}
+                onCheckedChange={(checked) => {
+                  setAutoConnect(checked);
+                  rememberServer({ autoConnect: checked });
+                  // Помнит выбор оболочка: при следующем запуске она кладёт своё значение поверх
+                  // страничного. Без этого сообщения выключатель здесь откатывался на каждом запуске,
+                  // а в настройках стояло другое (R135).
+                  notifyDesktop('server.autoconnect', { autoConnect: checked });
+                }}
+              />
+            )}
             <Button
               type="submit"
               variant="primary"
@@ -138,10 +150,13 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
           </form>
           <div className="connect-card__status">
             <ConnectionStatus attempt={busy ? null : attempt} />
-            {desktop && (
+            {desktop ? (
               <Button variant="quiet" size="sm" onClick={() => notifyDesktop('servers.open')}>
                 {t(($) => $.connect.otherServer)}
               </Button>
+            ) : (
+              // Сервер молчит или пароля нет — можно уйти на другой сайт Cord из каталога (R136).
+              <ServerMenu label={t(($) => $.connect.otherServer)} variant="quiet" />
             )}
           </div>
         </section>

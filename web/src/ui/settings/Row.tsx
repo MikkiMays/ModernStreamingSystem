@@ -19,6 +19,22 @@ export interface RowA11y {
 }
 
 /**
+ * Строку назвали — из поиска или ссылкой «Настройки → …»: подсветить её на полторы секунды. Нужно
+ * каждому, кто стоит в карте строк под своим id, даже если он не `SettingRow` (шапка профиля).
+ */
+export function useRowFlash(id: RowId): boolean {
+  const target = useContext(SettingsTargetContext);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (target.row !== id || !target.nonce) return;
+    setFlash(true);
+    const timer = setTimeout(() => setFlash(false), 1600);
+    return () => clearTimeout(timer);
+  }, [target.row, target.nonce, id]);
+  return flash;
+}
+
+/**
  * Строка настроек по образцу FACEIT: подпись и короткое пояснение слева, действие справа, тонкая
  * линия между строками. На узком окне действие, которому тесно (ползунок, выбор из списка),
  * уходит под подпись во всю ширину — `stack`.
@@ -59,14 +75,7 @@ export function SettingRow({
     'aria-labelledby': labelId,
     ...(shownHint ? { 'aria-describedby': hintId } : {}),
   };
-  const target = useContext(SettingsTargetContext);
-  const [flash, setFlash] = useState(false);
-  useEffect(() => {
-    if (target.row !== id || !target.nonce) return;
-    setFlash(true);
-    const timer = setTimeout(() => setFlash(false), 1600);
-    return () => clearTimeout(timer);
-  }, [target.row, target.nonce, id]);
+  const flash = useRowFlash(id);
   return (
     <div
       className="setting-row"

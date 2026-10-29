@@ -1,0 +1,25 @@
+/* «Сменить сервер» в браузере (R136): имя сервера и под ним адрес — в одной ячейке пункта меню. */
+.server-menu__item {
+  min-height: var(--control-lg);
+}
+.server-menu__item .ui-menu__label {
+  display: grid;
+  gap: var(--space-0-5);
+  padding-block: var(--space-1);
+}
+.server-menu__name {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+}
+.server-menu__host {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+}
+/* Текущий сервер — отмечен, но не погашен: это «вы здесь», а не недоступный пункт. */
+.server-menu__item[data-disabled] {
+  opacity: 1;
+  cursor: default;
+}

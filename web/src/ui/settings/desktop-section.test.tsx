@@ -81,13 +81,14 @@ describe('«Windows» в настройках', () => {
     expect(within(nav()).getByRole('button', { name: 'Windows' })).toHaveAttribute('aria-current', 'page');
     for (const name of [
       'Значок в трее',
-      'Кнопки на миниатюре',
-      'Значок на иконке',
-      'Мигание кнопки окна',
+      'Мигать на панели задач',
       'Не засыпать во время встречи',
       'Запускать вместе с Windows',
     ])
       expect(screen.getByRole('switch', { name })).toBeInTheDocument();
+    // Кнопок на миниатюре и значка на иконке нет (R138) — даже если оболочка о них знает.
+    expect(screen.queryByRole('switch', { name: 'Кнопки на миниатюре' })).toBeNull();
+    expect(screen.queryByRole('switch', { name: 'Значок на иконке' })).toBeNull();
     expect(screen.getByRole('switch', { name: 'Значок в трее' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Запускать вместе с Windows' })).not.toBeChecked();
     fireEvent.click(screen.getByRole('switch', { name: 'Значок в трее' }));

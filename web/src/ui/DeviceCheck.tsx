@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Mic, Video, VideoOff, Volume2 } from 'lucide-react';
+import { CircleDot, Mic, Square, Video, VideoOff, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Preferences } from '../core/preferences';
 import { Button } from './kit';
@@ -16,7 +16,8 @@ const TONE_MS = 1200;
  * рода — три одинаковые карточки в ряд, как у Discord и Телемоста: значок и имя устройства, окно
  * проверки одной высоты (уровень микрофона, превью камеры, сигнал динамиков) и одна кнопка
  * «Проверить» / «Остановить». До нажатия окно не пустое: в нём то, что появится, приглушённо (шкала
- * уровня, камера выключена, динамик). Запись пробы микрофона и ошибки — под карточками.
+ * уровня, камера выключена, динамик). Проба микрофона (записать и сразу послушать) и ошибки — под
+ * карточками.
  * В настройках те же проверки стоят в строках своих устройств (`settings/AudioSection`); логика у
  * них одна — `useDeviceCheck`. Ничего не публикуется, даже во встрече.
  */
@@ -120,17 +121,21 @@ export function DeviceCheck({ preferences }: { preferences: Preferences }) {
       </div>
       {check.mic && (
         <div className="device-check__record">
-          <Button size="sm" variant="secondary" disabled={check.recording} onClick={check.record}>
-            {check.recording ? t(($) => $.devices.check.recording) : t(($) => $.devices.check.record)}
+          {/* Проба — записать и сразу послушать, без проигрывателя, который потом не убрать (R141). */}
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={check.test === 'idle' ? <CircleDot /> : <Square />}
+            onClick={() => void check.runTest()}
+          >
+            <span role={check.test === 'idle' ? undefined : 'status'}>
+              {check.test === 'recording'
+                ? t(($) => $.devices.check.recording, { seconds: check.seconds })
+                : check.test === 'playing'
+                  ? t(($) => $.devices.check.playing)
+                  : t(($) => $.devices.check.record)}
+            </span>
           </Button>
-          {check.recorded && (
-            <audio
-              ref={check.playback}
-              controls
-              src={check.recorded}
-              aria-label={t(($) => $.devices.check.recorded)}
-            />
-          )}
         </div>
       )}
       {check.busy && (

@@ -8,7 +8,11 @@ import { Store } from './store';
  *
  * Страница читает и меняет их запросом `invoke('app.settings', патч)`, а оболочка, сменив значение
  * сама (клавиша оверлея), присылает событие `app.settings`. Каждая строка раздела видна только при
- * своём флаге возможностей (`tray`, `thumbar`, `badge`, `attention`, `sleep`, `overlay`, `autostart`).
+ * своём флаге возможностей (`tray`, `attention`, `sleep`, `overlay`, `autostart`).
+ *
+ * Кнопки на миниатюре и значок поверх иконки (`thumbar`, `badge`) убраны (R138): страница о них не
+ * спрашивает и их не требует — оболочка 1.0.11 их больше не показывает, а 1.0.10 и старше прислала
+ * бы, и это тоже годный ответ.
  *
  * Не только переключатели (R63, R93): виджет говорящих в игре — угол, размер аватара, имена,
  * прозрачность, всплывашка при старте игры (флаг `overlay.widget`) — и мини-окно звонка (флаг `mini`).
@@ -25,8 +29,6 @@ export const OVERLAY_OPACITY = { min: 30, max: 100 } as const;
 
 export interface DesktopSettings {
   tray: boolean;
-  thumbar: boolean;
-  badge: boolean;
   flash: boolean;
   sleepBlocker: boolean;
   overlay: boolean;
@@ -44,11 +46,9 @@ export interface DesktopSettings {
 
 /** Переключатели, которые знает любая оболочка с `app.settings`: без любого из них ответа нет. */
 export type DesktopSwitch =
-  'tray' | 'thumbar' | 'badge' | 'flash' | 'sleepBlocker' | 'overlay' | 'autostart' | 'mini' | 'overlayToast';
+  'tray' | 'flash' | 'sleepBlocker' | 'overlay' | 'autostart' | 'mini' | 'overlayToast';
 const KEYS: readonly Exclude<DesktopSwitch, 'mini' | 'overlayToast'>[] = [
   'tray',
-  'thumbar',
-  'badge',
   'flash',
   'sleepBlocker',
   'overlay',

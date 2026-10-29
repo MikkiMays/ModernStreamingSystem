@@ -102,7 +102,7 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByRole('slider', { name: 'Громкость микрофона' })).toBeDisabled();
     expect(screen.getByRole('meter', { name: 'Уровень микрофона' })).toBeInTheDocument();
     // У одинаковых на вид «Проверить» — разные имена для диктора.
-    expect(screen.getByRole('button', { name: 'Проверить микрофон' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Записать 5 секунд и послушать' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Проверить динамики' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Устройство вывода' })).toBeInTheDocument();
     // Шумоподавление — сегментом (S4), «Стандартное» по умолчанию.

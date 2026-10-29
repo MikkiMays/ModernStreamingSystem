@@ -10,29 +10,48 @@ import { t } from '../../i18n';
 import { audioCapture, CordAudioProcessor, needsAudioProcessor } from '../../media/audio';
 import { touchFirst } from '../../media/profiles';
 
+/** Сколько длится проба микрофона: запись, затем она же сразу звучит и пропадает. */
+export const TEST_SECONDS = 5;
+
+/** Что делает проба микрофона: ничего, пишет или проигрывает только что записанное. */
+export type MicTest = 'idle' | 'recording' | 'playing';
+
+/** Кто включил микрофон проверки: от этого зависит, кто его и выключит. */
+type MicOwner = 'auto' | 'manual' | 'test';
+
 /**
- * Проверка устройств только для себя: микрофон с полосой уровня и записью пробы, камера в
- * превью, тестовый звук в выбранные динамики. Ничего не публикуется, даже во встрече.
+ * Проверка устройств только для себя: микрофон с полосой уровня и пробой, камера в превью,
+ * тестовый звук в выбранные динамики. Ничего не публикуется, даже во встрече.
  *
- * Раньше это был отдельный блок «Проверьте себя» внизу вкладок «Звук» и «Видео». Теперь каждая
- * проверка стоит в строке своего устройства — как у Телемоста и Discord: выбрал микрофон, тут же
- * проверил (раздел «Микрофон»); одним блоком хук рисует «Диагностика» (`DeviceCheck`). Превью камеры в
- * разделе «Видео» живёт само (`CameraPreview`). Всё захваченное отпускается, когда раздел
+ * Каждая проверка стоит в строке своего устройства — как у Телемоста и Discord: выбрал микрофон,
+ * тут же проверил (раздел «Микрофон»); одним блоком хук рисует «Диагностика» (`DeviceCheck`). Превью
+ * камеры в разделе «Видео» живёт само (`CameraPreview`). Всё захваченное отпускается, когда раздел
  * закрывается или меняется выбранное устройство.
+ *
+ * `auto` (R141) — микрофон слушается сам, пока раздел открыт: полоса уровня работает без кнопки
+ * «Проверить» и сама поднимается снова после смены устройства или обработки. Отказ доступа сам не
+ * повторяется — повтор по нажатию «Проверить».
+ *
+ * Проба (`test`) — запись на {@link TEST_SECONDS} с, и сразу же она звучит в выбранных динамиках и
+ * пропадает: прежде под строкой оставался проигрыватель записи, убрать который было нечем (R141).
+ * Нажатие во время записи или прослушивания пробу обрывает.
  */
-export function useDeviceCheck(preferences: Preferences) {
+export function useDeviceCheck(preferences: Preferences, { auto = false }: { auto?: boolean } = {}) {
   const video = useRef<HTMLVideoElement>(null);
-  const playback = useRef<HTMLAudioElement>(null);
   const audioTrack = useRef<LocalAudioTrack | null>(null);
   const videoTrack = useRef<LocalVideoTrack | null>(null);
   const context = useRef<AudioContext | null>(null);
   const meterTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const recordTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const recordTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const recorder = useRef<MediaRecorder | null>(null);
-  const revision = useRef(0);
+  const player = useRef<HTMLAudioElement | null>(null);
   const recordUrl = useRef('');
-  const [recording, setRecording] = useState(false);
-  const [recorded, setRecorded] = useState('');
+  const owner = useRef<MicOwner | null>(null);
+  /** Микрофон уже включается: второй вызов ждёт того же, а не открывает второй захват. */
+  const starting = useRef<Promise<boolean> | null>(null);
+  const revision = useRef(0);
+  const [test, setTest] = useState<MicTest>('idle');
+  const [seconds, setSeconds] = useState(TEST_SECONDS);
   const [mic, setMic] = useState(false);
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState<'microphone' | 'camera' | null>(null);
@@ -41,20 +60,43 @@ export function useDeviceCheck(preferences: Preferences) {
     null,
   );
   const fail = (kind: 'microphone' | 'camera' | 'speaker', text: string) => setFailure({ kind, text });
-  const stop = () => {
-    revision.current++;
-    clearInterval(meterTimer.current);
-    clearTimeout(recordTimer.current);
-    if (recorder.current?.state === 'recording') recorder.current.stop();
+  /** Оборвать пробу: запись — без прослушивания, прослушивание — и забыть запись. */
+  const endTest = () => {
+    clearInterval(recordTimer.current);
+    const rec = recorder.current;
     recorder.current = null;
-    audioTrack.current?.stop();
-    videoTrack.current?.stop();
-    audioTrack.current = null;
-    videoTrack.current = null;
-    if (context.current?.state !== 'closed') void context.current?.close();
-    context.current = null;
+    if (rec?.state === 'recording') {
+      rec.onstop = null;
+      rec.stop();
+    }
+    if (player.current) {
+      player.current.onended = null;
+      player.current.onerror = null;
+      player.current.pause();
+      player.current.removeAttribute('src');
+      player.current = null;
+    }
     if (recordUrl.current) URL.revokeObjectURL(recordUrl.current);
     recordUrl.current = '';
+    setTest('idle');
+    setSeconds(TEST_SECONDS);
+  };
+  const stopMic = () => {
+    endTest();
+    audioTrack.current?.stop();
+    audioTrack.current = null;
+    owner.current = null;
+    clearInterval(meterTimer.current);
+    setMic(false);
+    setLevel(0);
+    if (context.current?.state !== 'closed') void context.current?.close();
+    context.current = null;
+  };
+  const stop = () => {
+    revision.current++;
+    stopMic();
+    videoTrack.current?.stop();
+    videoTrack.current = null;
   };
   // Обработка звука сравнивается по значению: запись настроек отдаёт новый объект на каждую правку,
   // и проверка микрофона обрывалась бы от любого соседнего ползунка.
@@ -64,91 +106,113 @@ export function useDeviceCheck(preferences: Preferences) {
     setCamera(false);
     setLevel(0);
     setBusy(null);
-    setRecorded('');
-    setRecording(false);
+    // Другое устройство — новая попытка: отказ прежнего к нему не относится.
+    setFailure(null);
     return stop;
   }, [preferences.devices.microphone, preferences.devices.camera, audioKey]);
+  /** Включить микрофон проверки; `true` — слушается. */
+  const startMic = (by: MicOwner): Promise<boolean> => {
+    if (audioTrack.current) return Promise.resolve(true);
+    starting.current ??= acquireMic(by).finally(() => {
+      starting.current = null;
+    });
+    return starting.current;
+  };
+  const acquireMic = async (by: MicOwner): Promise<boolean> => {
+    const operation = revision.current;
+    setBusy('microphone');
+    let acquired: LocalAudioTrack | undefined;
+    try {
+      const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+      context.current = ctx;
+      await ctx.resume();
+      const track = await createLocalAudioTrack(
+        audioCapture(preferences.audio, preferences.devices.microphone),
+      );
+      acquired = track;
+      if (operation !== revision.current) {
+        track.stop();
+        return false;
+      }
+      audioTrack.current = track;
+      owner.current = by;
+      track.setAudioContext(ctx);
+      if (needsAudioProcessor(preferences.audio))
+        await track.setProcessor(new CordAudioProcessor(preferences.audio));
+      if (operation !== revision.current) {
+        track.stop();
+        return false;
+      }
+      const source = ctx.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      const data = new Float32Array(analyser.fftSize);
+      meterTimer.current = setInterval(() => {
+        analyser.getFloatTimeDomainData(data);
+        const rms = Math.sqrt(data.reduce((sum, value) => sum + value * value, 0) / data.length);
+        const db = 20 * Math.log10(Math.max(rms, 0.000001));
+        setLevel(Math.round(Math.max(0, Math.min(100, ((db + 60) / 60) * 100))));
+      }, 100);
+      setMic(true);
+      return true;
+    } catch (e) {
+      acquired?.stop();
+      if (audioTrack.current === acquired) audioTrack.current = null;
+      if (operation === revision.current)
+        fail(
+          'microphone',
+          e instanceof DOMException && e.name === 'NotAllowedError'
+            ? t(($) => $.settings.voice.micDenied)
+            : e instanceof Error && e.message
+              ? e.message
+              : t(($) => $.settings.voice.deviceFailed),
+        );
+      return false;
+    } finally {
+      if (operation === revision.current) setBusy(null);
+    }
+  };
+  // Полоса уровня сама (R141): раздел открыт — микрофон слушается; отказ ждёт нажатия «Проверить».
   useEffect(() => {
-    const element = playback.current;
-    if (element && 'setSinkId' in element)
-      void (element as HTMLAudioElement & { setSinkId(id: string): Promise<void> })
-        .setSinkId(preferences.devices.speaker ?? '')
-        .catch(() => {});
-  }, [recorded, preferences.devices.speaker]);
+    if (auto && !mic && !busy && !failure) void startMic('auto');
+    // Встреча включила свой микрофон — шкала берёт его уровень, а свой захват уходит.
+    if (!auto && mic && owner.current === 'auto' && test === 'idle') stopMic();
+  });
   const toggle = async (kind: 'microphone' | 'camera') => {
     if (busy) return;
     setFailure(null);
-    if (kind === 'microphone' && mic) {
-      if (recorder.current?.state === 'recording') recorder.current.stop();
-      audioTrack.current?.stop();
-      audioTrack.current = null;
-      clearInterval(meterTimer.current);
-      setMic(false);
-      setLevel(0);
-      if (context.current?.state !== 'closed') void context.current?.close();
-      context.current = null;
+    if (kind === 'microphone') {
+      if (mic) stopMic();
+      else await startMic('manual');
       return;
     }
-    if (kind === 'camera' && camera) {
+    if (camera) {
       videoTrack.current?.stop();
       videoTrack.current = null;
       setCamera(false);
       return;
     }
     const operation = revision.current;
-    setBusy(kind);
-    let acquired: LocalAudioTrack | LocalVideoTrack | undefined;
+    setBusy('camera');
+    let acquired: LocalVideoTrack | undefined;
     try {
-      if (kind === 'microphone') {
-        const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
-        context.current = ctx;
-        await ctx.resume();
-        const track = await createLocalAudioTrack(
-          audioCapture(preferences.audio, preferences.devices.microphone),
-        );
-        acquired = track;
-        if (operation !== revision.current) {
-          track.stop();
-          return;
-        }
-        audioTrack.current = track;
-        track.setAudioContext(ctx);
-        if (needsAudioProcessor(preferences.audio))
-          await track.setProcessor(new CordAudioProcessor(preferences.audio));
-        if (operation !== revision.current) {
-          track.stop();
-          return;
-        }
-        const source = ctx.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 512;
-        source.connect(analyser);
-        const data = new Float32Array(analyser.fftSize);
-        meterTimer.current = setInterval(() => {
-          analyser.getFloatTimeDomainData(data);
-          const rms = Math.sqrt(data.reduce((sum, value) => sum + value * value, 0) / data.length);
-          const db = 20 * Math.log10(Math.max(rms, 0.000001));
-          setLevel(Math.round(Math.max(0, Math.min(100, ((db + 60) / 60) * 100))));
-        }, 100);
-        setMic(true);
-      } else {
-        const track = await createLocalVideoTrack({
-          // Проверка — тоже включение камеры: на телефоне фронтальная, а не запомненная (Р-35).
-          ...(touchFirst() ? { facingMode: 'user' } : { deviceId: preferences.devices.camera || undefined }),
-          resolution: { width: 1280, height: 720 },
-        });
-        acquired = track;
-        if (operation !== revision.current) {
-          track.stop();
-          return;
-        }
-        videoTrack.current = track;
-        setCamera(true);
+      const track = await createLocalVideoTrack({
+        // Проверка — тоже включение камеры: на телефоне фронтальная, а не запомненная (Р-35).
+        ...(touchFirst() ? { facingMode: 'user' } : { deviceId: preferences.devices.camera || undefined }),
+        resolution: { width: 1280, height: 720 },
+      });
+      acquired = track;
+      if (operation !== revision.current) {
+        track.stop();
+        return;
       }
+      videoTrack.current = track;
+      setCamera(true);
     } catch (e) {
       acquired?.stop();
       if (operation === revision.current)
-        fail(kind, e instanceof Error ? e.message : t(($) => $.settings.voice.deviceFailed));
+        fail('camera', e instanceof Error ? e.message : t(($) => $.settings.voice.deviceFailed));
     } finally {
       if (operation === revision.current) setBusy(null);
     }
@@ -167,10 +231,39 @@ export function useDeviceCheck(preferences: Preferences) {
       track.detach(element);
     };
   }, [camera]);
-  const record = () => {
-    const track = audioTrack.current;
-    if (!track || recording) return;
+  /** Проба закончилась: микрофон, включённый только ради неё, выключается. */
+  const finishTest = () => {
+    const temporary = owner.current === 'test';
+    endTest();
+    if (temporary) stopMic();
+  };
+  /** Прослушать запись в выбранных динамиках и сразу забыть её. */
+  const play = (url: string) => {
+    const audio = new Audio(url);
+    player.current = audio;
+    setTest('playing');
+    audio.onended = finishTest;
+    audio.onerror = finishTest;
+    const sink = preferences.devices.speaker;
+    const routed =
+      sink && 'setSinkId' in audio
+        ? (audio as HTMLAudioElement & { setSinkId(id: string): Promise<void> })
+            .setSinkId(sink)
+            .catch(() => {})
+        : Promise.resolve();
+    void routed.then(() => (player.current === audio ? audio.play() : undefined)).catch(finishTest);
+  };
+  /** «Проверить» у микрофона: записать пробу и послушать её; повторное нажатие — оборвать. */
+  const runTest = async () => {
+    if (test !== 'idle') {
+      finishTest();
+      return;
+    }
+    if (busy) return;
     setFailure(null);
+    if (!(await startMic('test'))) return;
+    const track = audioTrack.current;
+    if (!track) return;
     const operation = revision.current;
     const chunks: Blob[] = [];
     try {
@@ -180,19 +273,23 @@ export function useDeviceCheck(preferences: Preferences) {
         if (event.data.size) chunks.push(event.data);
       };
       rec.onstop = () => {
-        clearTimeout(recordTimer.current);
+        clearInterval(recordTimer.current);
+        recorder.current = null;
         if (operation !== revision.current) return;
-        setRecording(false);
-        if (recordUrl.current) URL.revokeObjectURL(recordUrl.current);
         recordUrl.current = URL.createObjectURL(new Blob(chunks, { type: rec.mimeType }));
-        setRecorded(recordUrl.current);
+        play(recordUrl.current);
       };
       rec.start();
-      setRecording(true);
-      recordTimer.current = setTimeout(() => {
-        if (rec.state === 'recording') rec.stop();
-      }, 5000);
+      setTest('recording');
+      setSeconds(TEST_SECONDS);
+      let left = TEST_SECONDS;
+      recordTimer.current = setInterval(() => {
+        left -= 1;
+        setSeconds(Math.max(left, 0));
+        if (left <= 0 && rec.state === 'recording') rec.stop();
+      }, 1000);
     } catch {
+      finishTest();
       fail(
         'microphone',
         t(($) => $.settings.voice.recordUnsupported),
@@ -229,17 +326,17 @@ export function useDeviceCheck(preferences: Preferences) {
   };
   return {
     video,
-    playback,
     mic,
     camera,
     busy,
     level,
-    recording,
-    recorded,
+    /** Проба микрофона: что идёт сейчас и сколько секунд записи осталось. */
+    test,
+    seconds,
     /** Что не получилось и у какого устройства: ошибка показывается под его строкой. */
     failure,
     toggle,
-    record,
+    runTest,
     speaker,
   };
 }

@@ -246,20 +246,10 @@
         "hint": "Apri Cord e il microfono accanto all’orologio",
         "keywords": "area di notifica"
       },
-      "desktop-thumbar": {
-        "label": "Pulsanti sulla miniatura",
-        "hint": "Microfono, fotocamera ed esci nella barra delle applicazioni",
-        "keywords": "barra delle applicazioni miniatura pulsanti"
-      },
-      "desktop-badge": {
-        "label": "Badge sull’icona",
-        "hint": "Microfono in riunione e messaggi non letti",
-        "keywords": "barra delle applicazioni badge indicatore"
-      },
       "desktop-flash": {
-        "label": "Lampeggio del pulsante della finestra",
-        "hint": "Quando vieni menzionato e Cord è in background",
-        "keywords": "lampeggiare menzione attenzione"
+        "label": "Lampeggiare nella barra delle applicazioni",
+        "hint": "Menzione o richiesta di accesso con Cord in background",
+        "keywords": "lampeggiare menzione attenzione barra"
       },
       "desktop-sleep": {
         "label": "Non andare in sospensione durante la riunione",
@@ -442,8 +432,8 @@
       "connection": "Connessione",
       "leaveFirst": "Prima esci dalla riunione",
       "change": "Cambia server",
-      "disconnect": "Disconnetti",
-      "forget": "Dimentica la password"
+      "forget": "Dimentica la password",
+      "here": "Sei qui"
     },
     "sounds": {
       "cues": "Segnali",
@@ -472,19 +462,16 @@
       "defaultDevice": "Predefinito",
       "device": "Dispositivo {{number}}",
       "micInMeeting": "Ecco come ti sentono ora in riunione",
-      "recording": "La tua registrazione di prova",
       "micLevel": "Livello del microfono",
-      "recordingLabel": "Registrazione di una prova del microfono",
-      "recordLabel": "Registra 5 s di prova del microfono",
-      "recordingNow": "Registrazione…",
-      "record": "Registra 5 s",
+      "recordingNow": "Parla… {{seconds}}",
+      "playing": "Riproduzione…",
       "stopMicLabel": "Interrompi il test del microfono",
-      "checkMicLabel": "Prova il microfono",
-      "stop": "Interrompi",
+      "checkMicLabel": "Registra 5 secondi e ascolta",
       "check": "Prova",
       "checkSpeakersLabel": "Prova gli altoparlanti",
       "previewLabel": "Anteprima della videocamera, visibile solo a te",
       "deviceFailed": "Impossibile attivare il dispositivo",
+      "micDenied": "Nessun accesso al microfono: consentilo per Cord",
       "recordUnsupported": "Questo browser non supporta la registrazione di prova. La barra del livello funziona.",
       "toneFailed": "Impossibile riprodurre il suono di prova"
     },
@@ -2153,9 +2140,9 @@
       "cameraStart": "Prova la videocamera",
       "speakers": "Prova gli altoparlanti",
       "micLevel": "Livello del microfono",
-      "recording": "Registrazione di 5 secondi…",
+      "recording": "Parla… {{seconds}}",
+      "playing": "Riproduzione…",
       "record": "Registra 5 secondi e ascolta",
-      "recorded": "La tua registrazione di prova",
       "cameraPreview": "Test della videocamera, visibile solo a te",
       "startingCamera": "Accensione della videocamera…",
       "startingMic": "Attivazione del microfono…",

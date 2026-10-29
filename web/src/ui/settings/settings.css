@@ -385,6 +385,26 @@ input.settings-search__input {
   background: var(--settings-card-bg);
   box-shadow: var(--shadow-1);
 }
+/*
+  Тёмная карточка — цвета `--surface-2`, того же, что подложка обычной кнопки, кнопок «Прослушать» и
+  дорожка ползунка. На ней они теряли край и выглядели голым текстом: видимый край «Проверить» стоял
+  на поле кнопки левее переключателей, «Прослушать» отступали от подписей, ползунок «Громкости
+  микрофона» казался короче соседних (R134). На карточке им — ступенью светлее.
+*/
+.settings-content__body[data-layout='cards'] {
+  --settings-card-control: light-dark(var(--surface-2), var(--surface-3));
+}
+.settings-content__body[data-layout='cards'] .ui-button--secondary {
+  --button-bg: var(--settings-card-control);
+  --button-hover: color-mix(in srgb, var(--settings-card-control), var(--text) 6%);
+  --button-active: color-mix(in srgb, var(--settings-card-control), var(--text) 12%);
+}
+.settings-content__body[data-layout='cards'] .setting-chip {
+  background: var(--settings-card-control);
+}
+.settings-content__body[data-layout='cards'] .ui-slider {
+  --slider-track: light-dark(var(--surface-2), var(--line-strong));
+}
 
 /* ---------- группы и строки (и в окне настроек, и на предпросмотре) ---------- */
 .setting-group {
@@ -425,13 +445,12 @@ input.settings-search__input {
   font-size: var(--text-sm);
 }
 /*
-  Строка — сетка: подпись в первой линии, пояснение — сразу под ней, действие справа — по центру линии
-  подписи, «ниже» — во всю ширину (R127, как у Discord). Прежде действие стояло по центру всего блока
-  «подпись + пояснение»: у строки с пояснением «Shift ` · Изменить» висело между подписью и пояснением,
-  а со стороны — между строками. Блок текста раскрывается в ячейки сетки (`display: contents`). У
-  строки с пояснением действие занимает обе линии, прижато к верху и сдвинуто на полвысоты к центру
-  линии подписи (`translate` от своей высоты) — пояснение не отъезжает от подписи, будь действие
-  переключателем 24 или кнопкой 36.
+  Строка — сетка: подпись в первой линии, пояснение — сразу под ней, действие справа — по центру
+  строки, «ниже» — во всю ширину под ними. Блок текста раскрывается в ячейки сетки (`display:
+  contents`), действие занимает обе его линии и стоит посередине (R134): до этого оно стояло на линии
+  подписи (R127) — кнопка 36 и поле 40 упирались в волосок строки выше, а снизу оставалась пустота, и
+  правый столбец выглядел съехавшим. Середина считается только по подписи и пояснению, а не по «ниже»:
+  превью и предупреждение под строкой действие не утаскивают.
 */
 .setting-row {
   --setting-line: 20px;
@@ -464,11 +483,10 @@ input.settings-search__input {
 .setting-row:has(> .setting-row__text > .setting-row__hint):not([data-wide], .setting-row--wide)
   > .setting-row__control {
   grid-row: 1 / span 2;
-  align-self: start;
-  translate: 0 calc(var(--setting-line) / 2 - 50%);
+  align-self: center;
 }
-/* Действие выступает над линией подписи на полразницы высот: строке с пояснением поле сверху не
-   меньше 8 px и в низком окне — кнопка не ложится на волосок строки выше. */
+/* Строке с пояснением поле сверху не меньше 8 px и в низком окне — действие не ложится на волосок
+   строки выше. */
 .setting-row:has(> .setting-row__text > .setting-row__hint) {
   padding-top: var(--space-2);
 }
@@ -490,10 +508,12 @@ input.settings-search__input {
   gap: var(--space-2) var(--space-3);
   min-width: 0;
 }
+/* Список устройства тянется до «Проверить» (R134): кнопка стоит у правого края, как действия
+   соседних строк, а не посреди строки за списком в 440 px. */
 .setting-device__select.setting-select {
   flex: 1 1 240px;
   width: auto;
-  max-width: 440px;
+  max-width: none;
 }
 .setting-row::before {
   content: '';
@@ -722,15 +742,121 @@ input.settings-search__input {
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
-.setting-avatar {
+/*
+  «Профиль» (R140): карточка сверху — кружок 72, имя так, как его видят во встрече, и «Выбрать
+  картинку» под ним; поле имени — обычной строкой ниже. Кружок — тоже кнопка выбора: при наведении
+  на нём проступает значок камеры, как у Discord и Телеграма.
+*/
+.profile-card {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) 0 var(--space-4);
+  box-shadow: inset 0 calc(var(--hairline) * -1) 0 var(--line);
+}
+.profile-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 calc(var(--space-3) * -1);
+  z-index: -1;
+  border-radius: var(--radius-2);
+  background: var(--accent-soft);
+  opacity: 0;
+  pointer-events: none;
+}
+.profile-card[data-flash]::before {
+  animation: setting-flash 1600ms var(--ease-standard);
+}
+.profile-card__top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+}
+.profile-card__avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  cursor: pointer;
+}
+.profile-card__avatar > .avatar {
+  width: 72px;
+  min-width: 72px;
+  height: 72px;
+  font-size: var(--text-2xl);
+}
+.profile-card__avatar:focus {
+  outline: none;
+}
+.profile-card__avatar:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.profile-card__avatar:disabled {
+  cursor: default;
+}
+.profile-card__badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--accent-fill);
+  box-shadow: 0 0 0 var(--hairline-strong) var(--settings-card-bg);
+  color: var(--on-accent);
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.profile-card__badge > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+.profile-card__avatar:hover:not(:disabled) .profile-card__badge {
+  transform: scale(1.08);
+}
+.profile-card__text {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+.profile-card__name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-card__name[data-empty] {
+  color: var(--muted);
+  font-weight: var(--weight-medium);
+}
+.profile-card__hint {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.profile-card__actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
   gap: var(--space-2);
+  margin-top: var(--space-2);
 }
-.setting-avatar > .avatar {
-  margin-inline-end: var(--space-1);
+@media (prefers-reduced-motion: reduce) {
+  .profile-card[data-flash]::before {
+    animation: none;
+    opacity: 1;
+  }
 }
 /* Видео (R100): превью камеры слева, строки справа; на узком — превью над строками. */
 .setting-camera {
@@ -979,8 +1105,12 @@ input.theme-option__input {
   .setting-row[data-stack] .setting-row__control {
     justify-content: stretch;
   }
-  /* Действие — своей линией под подписью и пояснением. */
-  .setting-row[data-stack]:not([data-wide]) > .setting-row__control {
+  /* Действие — своей линией под подписью и пояснением. Второй селектор — для строки с пояснением:
+     правило «по центру обеих линий» весит больше (`:has`), и без него поле имени ложилось на
+     подпись «Имя» в узком окне (R134). */
+  .setting-row[data-stack]:not([data-wide]) > .setting-row__control,
+  .setting-row[data-stack]:has(> .setting-row__text > .setting-row__hint):not([data-wide])
+    > .setting-row__control {
     grid-column: 1;
     grid-row: auto;
     align-self: auto;
@@ -1144,7 +1274,7 @@ input.theme-option__input {
 .overlay-game:last-child {
   box-shadow: none;
 }
-/* В списке игр — та же сетка, что у строк настроек (R127): переключатель и «…» на линии имени игры,
+/* В списке игр — та же сетка, что у строк настроек (R134): переключатель и «…» по центру строки,
    «Последний запуск …» — сразу под именем. */
 .overlay-games > .overlay-game {
   --setting-line: 24px;
@@ -1168,8 +1298,7 @@ input.theme-option__input {
 }
 .overlay-games > .overlay-game > :not(.overlay-game__text) {
   grid-row: 1 / span 2;
-  align-self: start;
-  translate: 0 calc(var(--setting-line) / 2 - 50%);
+  align-self: center;
 }
 .overlay-game--now {
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1191,9 +1320,12 @@ input.theme-option__input {
   display: grid;
   min-width: 0;
 }
+/* Имя игры — подпись строки, а не заголовок: кегль и вес как у `.setting-row__label` (R134). */
 .overlay-game__name {
   overflow: hidden;
-  font-weight: var(--weight-semibold);
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

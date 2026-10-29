@@ -182,8 +182,6 @@ export const ROWS = {
   'hotkey-ptt': { section: 'hotkeys', only: 'desktop', feature: 'ptt' },
   'hotkey-other': { section: 'hotkeys' },
   'desktop-tray': { section: 'desktop', only: 'desktop', feature: 'tray' },
-  'desktop-thumbar': { section: 'desktop', only: 'desktop', feature: 'thumbar' },
-  'desktop-badge': { section: 'desktop', only: 'desktop', feature: 'badge' },
   'desktop-flash': { section: 'desktop', only: 'desktop', feature: 'attention' },
   'desktop-sleep': { section: 'desktop', only: 'desktop', feature: 'sleep' },
   'desktop-mini': { section: 'desktop', only: 'desktop', feature: 'mini' },
@@ -218,7 +216,8 @@ export const ROWS = {
   'account-yandex-music': { section: 'accounts' },
   'account-telegram': { section: 'accounts' },
   'server-current': { section: 'server' },
-  'server-autoconnect': { section: 'server' },
+  // Только в приложении (R135): в браузере подключение к своему серверу всегда само.
+  'server-autoconnect': { section: 'server', only: 'desktop' },
   'server-password': { section: 'server' },
   'server-ping': { section: 'server' },
   'about-version': { section: 'about' },

@@ -151,7 +151,6 @@ export class DesktopNotifier {
   private joins: string[] = [];
   private joinTimer?: ReturnType<typeof setTimeout>;
   private joinContext: (() => NotifyContext) | null = null;
-  private badgeCount = 0;
 
   constructor(
     private readonly t: Translate,
@@ -175,21 +174,10 @@ export class DesktopNotifier {
     this.post(decided);
   }
 
-  /** Значок поверх иконки — непрочитанные, пока окно не в фокусе; в фокусе — ноль. */
-  badge(unread: number, state: WindowState) {
-    if (!this.has('badge')) return;
-    const count = state.focused && state.visible ? 0 : unread;
-    if (count === this.badgeCount) return;
-    this.badgeCount = count;
-    this.send('badge', { count });
-  }
-
   dispose() {
     clearTimeout(this.joinTimer);
     this.joinTimer = undefined;
     this.joins = [];
-    if (this.badgeCount && this.has('badge')) this.send('badge', { count: 0 });
-    this.badgeCount = 0;
   }
 
   private flushJoins() {

@@ -246,20 +246,10 @@
         "hint": "Ouvrir Cord et le micro à côté de l’horloge",
         "keywords": "zone de notification"
       },
-      "desktop-thumbar": {
-        "label": "Boutons de la miniature",
-        "hint": "Micro, caméra et quitter dans la barre des tâches",
-        "keywords": "barre des tâches miniature boutons"
-      },
-      "desktop-badge": {
-        "label": "Badge sur l’icône",
-        "hint": "Micro en réunion et messages non lus",
-        "keywords": "barre des tâches badge indicateur"
-      },
       "desktop-flash": {
-        "label": "Faire clignoter le bouton de la fenêtre",
-        "hint": "Quand on vous mentionne et que Cord est en arrière-plan",
-        "keywords": "clignoter mention attention"
+        "label": "Clignoter dans la barre des tâches",
+        "hint": "Mention ou demande d’entrée, Cord en arrière-plan",
+        "keywords": "clignoter mention attention barre des tâches"
       },
       "desktop-sleep": {
         "label": "Ne pas mettre en veille pendant la réunion",
@@ -442,8 +432,8 @@
       "connection": "Connexion",
       "leaveFirst": "Quittez d'abord la réunion",
       "change": "Changer de serveur",
-      "disconnect": "Se déconnecter",
-      "forget": "Oublier le mot de passe"
+      "forget": "Oublier le mot de passe",
+      "here": "Vous êtes ici"
     },
     "sounds": {
       "cues": "Signaux",
@@ -472,19 +462,16 @@
       "defaultDevice": "Par défaut",
       "device": "Périphérique {{number}}",
       "micInMeeting": "Voici comment on vous entend en réunion",
-      "recording": "Votre enregistrement de test",
       "micLevel": "Niveau du micro",
-      "recordingLabel": "Enregistrement d'un test du micro",
-      "recordLabel": "Enregistrer 5 s de test du micro",
-      "recordingNow": "Enregistrement…",
-      "record": "Enregistrer 5 s",
+      "recordingNow": "Parlez… {{seconds}}",
+      "playing": "Lecture…",
       "stopMicLabel": "Arrêter le test du micro",
-      "checkMicLabel": "Tester le micro",
-      "stop": "Arrêter",
+      "checkMicLabel": "Enregistrer 5 secondes et écouter",
       "check": "Tester",
       "checkSpeakersLabel": "Tester les haut-parleurs",
       "previewLabel": "Aperçu de la caméra, visible par vous seul",
       "deviceFailed": "Impossible d'activer le périphérique",
+      "micDenied": "Pas d'accès au micro — autorisez-le pour Cord",
       "recordUnsupported": "Ce navigateur ne permet pas d'enregistrer un test. La barre de niveau fonctionne.",
       "toneFailed": "Impossible de lire le son de test"
     },
@@ -2153,9 +2140,9 @@
       "cameraStart": "Tester la caméra",
       "speakers": "Tester les haut-parleurs",
       "micLevel": "Niveau du micro",
-      "recording": "Enregistrement de 5 secondes…",
+      "recording": "Parlez… {{seconds}}",
+      "playing": "Lecture…",
       "record": "Enregistrer 5 secondes et écouter",
-      "recorded": "Votre enregistrement de test",
       "cameraPreview": "Test de la caméra, visible par vous seul",
       "startingCamera": "Activation de la caméra…",
       "startingMic": "Activation du micro…",

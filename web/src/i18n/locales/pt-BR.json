@@ -246,20 +246,10 @@
         "hint": "Abrir o Cord e o microfone ao lado do relógio",
         "keywords": "bandeja área de notificação"
       },
-      "desktop-thumbar": {
-        "label": "Botões na miniatura",
-        "hint": "Microfone, câmera e sair na barra de tarefas",
-        "keywords": "barra de tarefas miniatura botões"
-      },
-      "desktop-badge": {
-        "label": "Selo no ícone",
-        "hint": "Microfone na reunião e mensagens não lidas",
-        "keywords": "barra de tarefas selo indicador"
-      },
       "desktop-flash": {
-        "label": "Piscar o botão da janela",
-        "hint": "Quando você é mencionado e o Cord está em segundo plano",
-        "keywords": "piscar menção atenção"
+        "label": "Piscar na barra de tarefas",
+        "hint": "Menção ou pedido de entrada com o Cord em segundo plano",
+        "keywords": "piscar menção atenção barra de tarefas"
       },
       "desktop-sleep": {
         "label": "Não suspender durante a reunião",
@@ -442,8 +432,8 @@
       "connection": "Conexão",
       "leaveFirst": "Saia da reunião primeiro",
       "change": "Trocar de servidor",
-      "disconnect": "Desconectar",
-      "forget": "Esquecer senha"
+      "forget": "Esquecer senha",
+      "here": "Você está aqui"
     },
     "sounds": {
       "cues": "Alertas",
@@ -472,19 +462,16 @@
       "defaultDevice": "Padrão",
       "device": "Dispositivo {{number}}",
       "micInMeeting": "É assim que ouvem você na reunião agora",
-      "recording": "Sua gravação de teste",
       "micLevel": "Nível do microfone",
-      "recordingLabel": "Gravando um teste do microfone",
-      "recordLabel": "Gravar 5 s de teste do microfone",
-      "recordingNow": "Gravando…",
-      "record": "Gravar 5 s",
+      "recordingNow": "Fale… {{seconds}}",
+      "playing": "Reproduzindo…",
       "stopMicLabel": "Parar o teste do microfone",
-      "checkMicLabel": "Testar o microfone",
-      "stop": "Parar",
+      "checkMicLabel": "Gravar 5 segundos e ouvir",
       "check": "Testar",
       "checkSpeakersLabel": "Testar os alto-falantes",
       "previewLabel": "Pré-visualização da câmera, só para você",
       "deviceFailed": "Não foi possível ativar o dispositivo",
+      "micDenied": "Sem acesso ao microfone — permita para o Cord",
       "recordUnsupported": "Este navegador não grava o teste. A barra de nível funciona.",
       "toneFailed": "Não foi possível tocar o som de teste"
     },
@@ -2153,9 +2140,9 @@
       "cameraStart": "Testar a câmera",
       "speakers": "Testar os alto-falantes",
       "micLevel": "Nível do microfone",
-      "recording": "Gravando 5 segundos…",
+      "recording": "Fale… {{seconds}}",
+      "playing": "Reproduzindo…",
       "record": "Gravar 5 segundos e ouvir",
-      "recorded": "Sua gravação de teste",
       "cameraPreview": "Teste da câmera, só para você",
       "startingCamera": "Ligando a câmera…",
       "startingMic": "Ligando o microfone…",

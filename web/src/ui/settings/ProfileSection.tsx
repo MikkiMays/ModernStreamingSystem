@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImageUp, Trash2 } from 'lucide-react';
+import { Camera, ImageUp, Trash2 } from 'lucide-react';
 import type { Preferences } from '../../core/preferences';
 import { openPicture } from '../../core/avatar';
 import { AvatarCropper } from '../AvatarCropper';
 import { Avatar } from '../primitives';
 import { Button } from '../kit';
-import { SettingGroup, SettingRow } from './Row';
+import { SettingGroup, SettingRow, useRowFlash } from './Row';
+import { rowDomId, rowText } from './sections';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
 
@@ -21,8 +22,9 @@ type Change = (patch: Partial<Preferences>) => Promise<void>;
  * Выбор доступен и на телефоне: неудобно было кадрирование, а не выбор, и кадрирование давно
  * работает пальцем; телефон же — ровно то место, где лежат все фотографии человека.
  */
-function AvatarRow({ preferences, change }: { preferences: Preferences; change: Change }) {
+function ProfileCard({ preferences, change }: { preferences: Preferences; change: Change }) {
   const { t } = useTranslation();
+  const flash = useRowFlash('profile-avatar');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   // Выбранная картинка до того, как выбран кадр: пока она здесь, открыто окно кадрирования.
@@ -46,31 +48,46 @@ function AvatarRow({ preferences, change }: { preferences: Preferences; change: 
       setBusy(false);
     }
   };
+  const pick = () => file.current?.click();
+  const name = preferences.name.trim();
   return (
-    <SettingRow
-      id="profile-avatar"
-      below={
-        <>
-          {error && (
-            <p className="setting-note" data-tone="danger" role="alert">
-              {error}
-            </p>
-          )}
-          {chosen && (
-            <AvatarCropper
-              bitmap={chosen}
-              onCancel={forget}
-              onSave={(avatar) => {
-                void apply(avatar);
-                forget();
-              }}
-            />
-          )}
-        </>
-      }
-    >
-      <div className="setting-avatar">
-        <Avatar name={preferences.name || t(($) => $.settings.you)} src={preferences.avatar || null} />
+    <div className="profile-card" id={rowDomId('profile-avatar')} data-flash={flash || undefined}>
+      <div className="profile-card__top">
+        {/* Сам кружок — тоже «выбрать картинку»: так меняют фото у Discord и Телеграма. */}
+        <button
+          type="button"
+          className="profile-card__avatar"
+          disabled={busy}
+          aria-label={t(($) => $.settings.profile.pickLabel)}
+          onClick={pick}
+        >
+          <Avatar name={name || t(($) => $.settings.you)} src={preferences.avatar || null} />
+          <span className="profile-card__badge" aria-hidden="true">
+            <Camera />
+          </span>
+        </button>
+        <div className="profile-card__text">
+          <span className="profile-card__name" data-empty={!name || undefined}>
+            {name || t(($) => $.settings.profile.namePlaceholder)}
+          </span>
+          <span className="profile-card__hint">{rowText(t, 'profile-avatar').hint}</span>
+          <div className="profile-card__actions">
+            <Button size="sm" icon={<ImageUp />} loading={busy} onClick={pick}>
+              {preferences.avatar ? t(($) => $.settings.profile.replace) : t(($) => $.settings.profile.pick)}
+            </Button>
+            {preferences.avatar && (
+              <Button
+                size="sm"
+                variant="quiet"
+                icon={<Trash2 />}
+                disabled={busy}
+                onClick={() => void apply('')}
+              >
+                {t(($) => $.settings.profile.remove)}
+              </Button>
+            )}
+          </div>
+        </div>
         <input
           ref={file}
           type="file"
@@ -94,24 +111,38 @@ function AvatarRow({ preferences, change }: { preferences: Preferences; change: 
             }
           }}
         />
-        <Button size="sm" icon={<ImageUp />} loading={busy} onClick={() => file.current?.click()}>
-          {preferences.avatar ? t(($) => $.settings.profile.replace) : t(($) => $.settings.profile.pick)}
-        </Button>
-        {preferences.avatar && (
-          <Button size="sm" variant="quiet" icon={<Trash2 />} disabled={busy} onClick={() => void apply('')}>
-            {t(($) => $.settings.profile.remove)}
-          </Button>
-        )}
       </div>
-    </SettingRow>
+      {error && (
+        <p className="setting-note" data-tone="danger" role="alert">
+          {error}
+        </p>
+      )}
+      {chosen && (
+        <AvatarCropper
+          bitmap={chosen}
+          onCancel={forget}
+          onSave={(avatar) => {
+            void apply(avatar);
+            forget();
+          }}
+        />
+      )}
+    </div>
   );
 }
 
-/** «Профиль» устройства: учётных записей в Cord нет, имя и картинка живут здесь. */
+/**
+ * «Профиль» устройства: учётных записей в Cord нет, имя и картинка живут здесь.
+ *
+ * Сверху — карточка (R140): крупный кружок, имя так, как его видят во встрече, и «Выбрать
+ * картинку» рядом; ниже — поле имени обычной строкой. Поля те же, что и прежде, — переделан вид:
+ * прежде кружок 40 px стоял в правом столбце строки и упирался в волосок соседней.
+ */
 export function ProfileSection({ preferences, change }: { preferences: Preferences; change: Change }) {
   const { t } = useTranslation();
   return (
     <SettingGroup title={t(($) => $.settings.profile.about)}>
+      <ProfileCard preferences={preferences} change={change} />
       <SettingRow id="profile-name" stack>
         {(a11y) => (
           <input
@@ -125,7 +156,6 @@ export function ProfileSection({ preferences, change }: { preferences: Preferenc
           />
         )}
       </SettingRow>
-      <AvatarRow preferences={preferences} change={change} />
     </SettingGroup>
   );
 }
