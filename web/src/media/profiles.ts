@@ -218,7 +218,24 @@ export function forcedCameraConstraints(
  * Битрейт берётся из той же таблицы, что и у экрана: одно и то же число в двух местах рано или
  * поздно расходится.
  */
-export function cameraOptions(profile: ScreenProfile, codec: VideoCodec = 'vp8'): TrackPublishOptions {
+/**
+ * Пространственные слои камеры — только у десктопа (Р-36, 29.10.2026).
+ *
+ * Р-32 убрал подпорки, потому что сервер выбирал слой по высоте плитки и ронял портрет телефона
+ * в 360p. Но тот баг — про ИЗДАТЕЛЯ-телефон: десктоп держат горизонтально, у него мощная машина и
+ * хороший канал (как у Discord). Поэтому пространственные слои включаем только когда камеру
+ * публикует десктоп: слабый или мелкий зритель берёт нижний слой, а крупная плитка на хорошем
+ * канале — верхний (решает `adaptiveStream` по размеру плитки, не сервер вслепую). Телефон и веб
+ * по-прежнему публикуют одним слоём `L1T3` — у них Р-32 в силе. У VP9/AV1 это K-SVC `L3T3_KEY`
+ * (переключение слоёв без ключевого кадра — SFU меняет слой зрителю без PLI-шторма), у H.264 — обычный
+ * simulcast. Отдача за это не растёт у издателя пропорционально числу зрителей — её режет SFU.
+ */
+export const cameraSpatialScalability = 'L3T3_KEY' as const;
+export function cameraOptions(
+  profile: ScreenProfile,
+  codec: VideoCodec = 'vp8',
+  spatial = false,
+): TrackPublishOptions {
   const svc = codec === 'vp9' || codec === 'av1';
   return {
     videoCodec: codec,
@@ -226,8 +243,8 @@ export function cameraOptions(profile: ScreenProfile, codec: VideoCodec = 'vp8')
     backupCodec: svc ? ({ codec: 'h264' } as const) : (false as const),
     videoEncoding: { maxBitrate: targetBitrate(profile), maxFramerate: profile.fps },
     degradationPreference: 'maintain-resolution',
-    simulcast: false,
-    ...(svc ? { scalabilityMode: screenScalability } : {}),
+    simulcast: !svc && spatial,
+    ...(svc ? { scalabilityMode: spatial ? cameraSpatialScalability : screenScalability } : {}),
   };
 }
 /** Слой simulcast так, как он был опубликован: короткая сторона кадра, битрейт и частота. */

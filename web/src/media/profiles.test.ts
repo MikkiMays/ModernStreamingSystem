@@ -88,6 +88,21 @@ describe('screen profiles', () => {
     expect(svc.backupCodec).toEqual({ codec: 'h264' });
   });
 
+  it('десктоп публикует камеру пространственными слоями, телефон и веб — одним (Р-36)', () => {
+    // По умолчанию (не десктоп) — один слой, как в Р-32.
+    const web = cameraOptions({ resolution: 720, fps: 30 }, 'vp9');
+    expect(web.scalabilityMode).toBe('L1T3');
+    expect(web.simulcast).toBe(false);
+    // Десктоп + VP9 — K-SVC L3T3_KEY, simulcast выключен (слои внутри одного потока).
+    const vp9 = cameraOptions({ resolution: 720, fps: 30 }, 'vp9', true);
+    expect(vp9.scalabilityMode).toBe('L3T3_KEY');
+    expect(vp9.simulcast).toBe(false);
+    // Десктоп + H.264 — обычный simulcast, scalabilityMode не ставим.
+    const h264 = cameraOptions({ resolution: 720, fps: 30 }, 'h264', true);
+    expect(h264.simulcast).toBe(true);
+    expect(h264.scalabilityMode).toBeUndefined();
+  });
+
   /** «Авто» нет: любой уровень — выбранный, и держит размер кадра, а не торгуется им. */
   it('публикует выбранное сразу и держит кадр у экрана и у камеры', () => {
     const screen = screenOptions({ resolution: 720, fps: 30 }, 'vp8');

@@ -19,6 +19,7 @@ import {
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from '../core/store';
 import { RecoveryWindow } from '../core/recovery';
+import { isDesktop } from '../core/desktop';
 import {
   chooseCodec,
   chooseCameraCodec,
@@ -413,6 +414,8 @@ export class MediaSession {
   /** То же для показа: выбранный кодек и флаг отступа (общий сторож — `EncoderHealth`). */
   private screenPreferredCodec?: VideoCodec;
   private screenFellBack = false;
+  /** Десктоп публикует камеру пространственными слоями (Р-36); телефон и веб — одним (Р-32). */
+  private readonly spatialCamera = isDesktop();
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
   /** Звук показа от оболочки (E01-B3) — у идущего показа и у кончившегося, что ждёт опоздавшую дорожку. */
@@ -493,7 +496,7 @@ export class MediaSession {
         deviceId: this.preferences.get().devices.microphone || undefined,
       },
       audioOutput: { deviceId: this.preferences.get().devices.speaker || undefined },
-      publishDefaults: cameraOptions(this.cameraProfile),
+      publishDefaults: cameraOptions(this.cameraProfile, 'vp8', this.spatialCamera),
       reconnectPolicy: { nextRetryDelayInMs: ({ retryCount }) => this.recovery.delay(retryCount) },
     });
     this.room
@@ -865,7 +868,7 @@ export class MediaSession {
     return cameraCapture(this.cameraProfile, this.cameraCapabilities());
   }
   private cameraOptionsNow() {
-    return cameraOptions(this.cameraProfile, this.cameraCodec);
+    return cameraOptions(this.cameraProfile, this.cameraCodec, this.spatialCamera);
   }
   /** Подсказать кодировщику, что в этом кадре важнее — движение или резкость. */
   private applyCameraHint() {
