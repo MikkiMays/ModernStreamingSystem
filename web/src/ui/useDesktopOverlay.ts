@@ -28,6 +28,14 @@ import type { Panel } from './Sidebar';
  * настройки, выход) и `golive {id, name}` — «Показать игру»: показ окна игры с тем же качеством, что
  * выбрано в окне показа, в режиме «Плавность» и со звуком игры. Жест для `getDisplayMedia` оболочка
  * дала странице сама, поэтому показ начинается без окна выбора.
+ *
+ * Мини-окно не должно «замерзать» (R137, оболочка 1.0.11):
+ * - нажатие несёт нужное состояние (`want`: включить или выключить, а не «переключить») — два быстрых
+ *   нажатия до нового состояния не отменяют друг друга; без `want` (оболочка до 1.0.11) — переключение;
+ * - на нажатие с номером (`seq`) встреча отвечает `mini.ack {seq, result, reason?}`: сделано (или уже
+ *   так) либо нет и почему — мини-окно снимает с кнопки «ожидание»;
+ * - `mini.state` несёт номер (растёт при изменении) и повторяется раз в 5 с и по `mini.resync` — вместе
+ *   с составом: пропавшее сообщение не оставляет мини-окно со старым состоянием навсегда.
  */
 export interface DesktopOverlayActions {
   setPanel: (panel: Panel) => void;
@@ -41,6 +49,16 @@ export const shareRequests = new Store(0);
 /** Предел виджета — как у оболочки (`ROSTER_SIZE` в `messages.ts`). */
 const ROSTER_SIZE = 25;
 const AVATAR_LIMIT = 4096;
+/** Как часто повторять состояние мини-окна, даже если ничего не менялось (R137). */
+export const MINI_REPEAT_MS = 5000;
+
+/** Ответ на нажатие мини-окна: сделано (или уже так) либо нет — и код причины. */
+type MiniResult = { result: 'ok' } | { result: 'ignored'; reason: 'link' | 'busy' | 'failed' | 'unknown' };
+const ok: MiniResult = { result: 'ok' };
+const ignored = (reason: 'link' | 'busy' | 'failed' | 'unknown'): MiniResult => ({
+  result: 'ignored',
+  reason,
+});
 
 export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: DesktopOverlayActions) {
   const latest = useRef(actions);
@@ -95,6 +113,11 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
       meeting.media.tracks.subscribe(roster),
       meeting.media.state.subscribe(roster),
       meeting.media.levels.watchAll(levels),
+      // Мини-окно не дождалось ответа (R137): состав — заново, даже если он не менялся.
+      onDesktopEvent('mini.resync', () => {
+        sent = '';
+        roster();
+      }),
     ];
     roster();
     return () => {
@@ -107,7 +130,9 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
   useEffect(() => {
     if (ended || !hasFeature('mini')) return;
     let sent = '';
-    const publish = () => {
+    let seq = 0;
+    /** `again` — повторить последнее с тем же номером, даже если ничего не менялось. */
+    const publish = (again = false) => {
       const media = meeting.media.state.get();
       const state = {
         room: meeting.admission.snapshot.title.slice(0, 80),
@@ -121,48 +146,86 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
         remaining: media.status === 'recovering' ? Math.max(0, Math.ceil(media.remaining)) : 0,
       };
       const next = JSON.stringify(state);
-      if (next === sent) return;
+      if (next === sent && !again) return;
+      if (next !== sent) seq += 1;
       sent = next;
-      notifyDesktop('mini.state', state);
+      notifyDesktop('mini.state', { ...state, seq });
     };
+    const changed = () => publish();
     const stops = [
-      meeting.media.state.subscribe(publish),
-      meeting.unread.subscribe(publish),
-      meeting.snapshot.subscribe(publish),
+      meeting.media.state.subscribe(changed),
+      meeting.unread.subscribe(changed),
+      meeting.snapshot.subscribe(changed),
+      onDesktopEvent('mini.resync', () => publish(true)),
     ];
     publish();
-    return () => stops.forEach((stop) => stop());
+    const repeat = setInterval(() => publish(true), MINI_REPEAT_MS);
+    return () => {
+      clearInterval(repeat);
+      stops.forEach((stop) => stop());
+    };
   }, [meeting, ended]);
 
   // Нажатия в мини-окне и «Показать игру».
   useEffect(() => {
     if (ended) return;
     const live = () => !meeting.ended.get() && meeting.media.state.get().status === 'connected';
+    /**
+     * Нажатие мини-окна. `want` — нужное состояние: уже так — ничего не делать; нет — переключиться
+     * один раз и сказать, вышло ли. Без `want` — переключить, как оболочка до 1.0.11.
+     */
+    const run = async (id: unknown, want: boolean | undefined): Promise<MiniResult> => {
+      const media = meeting.media.state.get();
+      switch (id) {
+        case 'mic':
+          if (!live()) return ignored('link');
+          if (want === undefined) {
+            await meeting.media.toggle('microphone');
+            return ok;
+          }
+          if (media.microphone === want) return ok;
+          // Цель, а не переключение: если микрофон сейчас переключается, она дождётся его (≤ 5 с).
+          await meeting.media.setMicrophone(want);
+          return meeting.media.state.get().microphone === want ? ok : ignored('failed');
+        case 'camera':
+          if (!live()) return ignored('link');
+          if (want === undefined) {
+            await meeting.media.toggle('camera');
+            return ok;
+          }
+          if (media.camera === want) return ok;
+          await meeting.media.toggle('camera');
+          // Камера ещё переключалась от прежнего нажатия — это не исполнено, мини-окно покажет как есть.
+          return meeting.media.state.get().camera === want ? ok : ignored('busy');
+        case 'screen':
+          if (!live()) return ignored('link');
+          if (want !== undefined && media.screen === want) return ok;
+          if (media.screen) void meeting.media.stopScreen();
+          else shareRequests.update((count) => count + 1);
+          return ok;
+        case 'people':
+        case 'chat':
+          latest.current.setPanel(id);
+          return ok;
+        case 'settings':
+          latest.current.openSettings();
+          return ok;
+        case 'leave':
+          latest.current.leave();
+          return ok;
+        default:
+          return ignored('unknown');
+      }
+    };
     const stops = [
-      onDesktopEvent('mini.action', ({ id }) => {
-        switch (id) {
-          case 'mic':
-            if (live()) void meeting.media.toggle('microphone');
-            return;
-          case 'camera':
-            if (live()) void meeting.media.toggle('camera');
-            return;
-          case 'screen':
-            if (!live()) return;
-            if (meeting.media.state.get().screen) void meeting.media.stopScreen();
-            else shareRequests.update((count) => count + 1);
-            return;
-          case 'people':
-          case 'chat':
-            latest.current.setPanel(id);
-            return;
-          case 'settings':
-            latest.current.openSettings();
-            return;
-          case 'leave':
-            latest.current.leave();
-            return;
-        }
+      onDesktopEvent('mini.action', ({ id, want, seq }) => {
+        const target = typeof want === 'boolean' ? want : undefined;
+        const answer = (result: MiniResult) => {
+          // Ответ — только оболочке 1.0.11+: она шлёт номер; прежняя его не ждёт.
+          if (typeof seq === 'number' && Number.isInteger(seq) && seq >= 0)
+            notifyDesktop('mini.ack', { seq, ...result });
+        };
+        void run(id, target).then(answer, () => answer(ignored('failed')));
       }),
       onDesktopEvent('golive', ({ id }) => {
         if (

@@ -72,6 +72,7 @@ function fakeMeeting() {
       levels: { state: levels, watchAll: (listener: () => void) => levels.subscribe(listener) },
       preferences: new Store({ screen: { resolution: 1080, fps: 30, mode: 'sharp', audio: 'system' } }),
       toggle: vi.fn(async () => {}),
+      setMicrophone: vi.fn(async () => {}),
       stopScreen: vi.fn(async () => {}),
       share: vi.fn(),
     },
@@ -128,7 +129,7 @@ describe('окна оболочки поверх других программ (
     });
   });
 
-  it('мини-окно: состояние встречи сразу, как поменялось, и без повторов', () => {
+  it('мини-окно: состояние встречи сразу, как поменялось, и без повторов; номер растёт с каждым изменением', () => {
     const api = fakeDesktop(['overlay', 'mini']);
     const { meeting } = fakeMeeting();
     renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
@@ -143,12 +144,35 @@ describe('окна оболочки поверх других программ (
         count: 2,
         status: 'connected',
         remaining: 0,
+        seq: 1,
       },
     ]);
     act(() => meeting.unread.set(3));
     act(() => meeting.unread.set(3));
     expect(sent(api, 'mini.state')).toHaveLength(2);
-    expect(sent(api, 'mini.state').at(-1)).toMatchObject({ unread: 3 });
+    expect(sent(api, 'mini.state').at(-1)).toMatchObject({ unread: 3, seq: 2 });
+  });
+
+  it('R137: состояние повторяется раз в 5 с с тем же номером и сразу по mini.resync — вместе с составом', () => {
+    vi.useFakeTimers();
+    try {
+      const api = fakeDesktop(['overlay', 'overlay.widget', 'mini']);
+      const { meeting } = fakeMeeting();
+      renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+      expect(sent(api, 'mini.state')).toHaveLength(1);
+      act(() => void vi.advanceTimersByTime(4900));
+      expect(sent(api, 'mini.state'), 'раньше 5 с — не повторяется').toHaveLength(1);
+      act(() => void vi.advanceTimersByTime(200));
+      expect(sent(api, 'mini.state')).toHaveLength(2);
+      expect(sent(api, 'mini.state').at(-1)).toEqual(sent(api, 'mini.state')[0]);
+      const rosters = sent(api, 'overlay.roster').length;
+      act(() => api.emit('mini.resync'));
+      expect(sent(api, 'mini.state')).toHaveLength(3);
+      expect(sent(api, 'mini.state').at(-1)).toMatchObject({ seq: 1 });
+      expect(sent(api, 'overlay.roster'), 'состав — тоже заново').toHaveLength(rosters + 1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('мини-окно знает о восстановлении связи: состояние и секунды; нажатия до связи не исполняются', () => {
@@ -190,6 +214,95 @@ describe('окна оболочки поверх других программ (
     expect(meeting.media.stopScreen).toHaveBeenCalled();
     api.emit('mini.action', { id: 'leave' });
     expect(handlers.leave).toHaveBeenCalled();
+  });
+
+  it('R137: нажатие с нужным состоянием — микрофон ставится, а не переключается; ответ mini.ack с номером', async () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    meeting.media.setMicrophone.mockImplementation(async (...args: unknown[]) => {
+      const on = args[0] as boolean;
+      meeting.media.state.set({ ...meeting.media.state.get(), microphone: on });
+    });
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    api.emit('mini.action', { id: 'mic', want: false, seq: 7 });
+    await act(async () => {});
+    expect(meeting.media.setMicrophone).toHaveBeenCalledWith(false);
+    expect(meeting.media.toggle).not.toHaveBeenCalled();
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 7, result: 'ok' });
+    // То же нажатие ещё раз (мини-окно не успело увидеть новое состояние) — уже так, ничего не делается.
+    api.emit('mini.action', { id: 'mic', want: false, seq: 8 });
+    await act(async () => {});
+    expect(meeting.media.setMicrophone).toHaveBeenCalledTimes(1);
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 8, result: 'ok' });
+  });
+
+  it('R137: микрофон не встал (нет доступа) — mini.ack ignored, мини-окно перестаёт ждать', async () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    api.emit('mini.action', { id: 'mic', want: false, seq: 3 });
+    await act(async () => {});
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 3, result: 'ignored', reason: 'failed' });
+  });
+
+  it('R137: камера — нужное состояние; уже так — без переключения; не переключилась (занята) — ignored busy', async () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    api.emit('mini.action', { id: 'camera', want: false, seq: 1 });
+    await act(async () => {});
+    expect(meeting.media.toggle).not.toHaveBeenCalled();
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 1, result: 'ok' });
+    api.emit('mini.action', { id: 'camera', want: true, seq: 2 });
+    await act(async () => {});
+    expect(meeting.media.toggle).toHaveBeenCalledWith('camera');
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 2, result: 'ignored', reason: 'busy' });
+    meeting.media.toggle.mockImplementation(async () => {
+      meeting.media.state.set({ ...meeting.media.state.get(), camera: true });
+    });
+    api.emit('mini.action', { id: 'camera', want: true, seq: 3 });
+    await act(async () => {});
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 3, result: 'ok' });
+  });
+
+  it('R137: без связи — ignored link; показ: «остановить» при показе останавливает, «начать» при показе — уже так', async () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    const handlers = actions();
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, handlers));
+    const connected = meeting.media.state.get();
+    meeting.media.state.set({ ...connected, status: 'recovering' });
+    api.emit('mini.action', { id: 'mic', want: false, seq: 1 });
+    await act(async () => {});
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 1, result: 'ignored', reason: 'link' });
+    expect(meeting.media.setMicrophone).not.toHaveBeenCalled();
+    meeting.media.state.set({ ...connected, screen: true });
+    api.emit('mini.action', { id: 'screen', want: true, seq: 2 });
+    await act(async () => {});
+    expect(meeting.media.stopScreen).not.toHaveBeenCalled();
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 2, result: 'ok' });
+    api.emit('mini.action', { id: 'screen', want: false, seq: 3 });
+    await act(async () => {});
+    expect(meeting.media.stopScreen).toHaveBeenCalled();
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 3, result: 'ok' });
+    api.emit('mini.action', { id: 'leave', seq: 4 });
+    await act(async () => {});
+    expect(handlers.leave).toHaveBeenCalled();
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 4, result: 'ok' });
+    api.emit('mini.action', { id: 'record', seq: 5 });
+    await act(async () => {});
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 5, result: 'ignored', reason: 'unknown' });
+  });
+
+  it('R137: оболочка до 1.0.11 — нажатие без want и seq переключает, как раньше, и ответа не ждёт', async () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    api.emit('mini.action', { id: 'mic' });
+    await act(async () => {});
+    expect(meeting.media.toggle).toHaveBeenCalledWith('microphone');
+    expect(meeting.media.setMicrophone).not.toHaveBeenCalled();
+    expect(sent(api, 'mini.ack')).toEqual([]);
   });
 
   it('«Показать игру» (R104): окно игры — «Плавность», 60 fps и звук игры, без окна выбора', async () => {
