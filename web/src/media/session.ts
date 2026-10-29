@@ -867,6 +867,29 @@ export class MediaSession {
   private cameraCaptureNow() {
     return cameraCapture(this.cameraProfile, this.cameraCapabilities());
   }
+  /**
+   * Чем перезапускать работающую камеру (`restartTrack`) — тем же, но без зума.
+   *
+   * LiveKit при перезапуске отдаёт захвату только устройство и сторону, а кадр докладывает через
+   * `applyConstraints` — и Chromium не терпит там зум (R36) рядом с кадром: «Mixing ImageCapture and
+   * non-ImageCapture constraints is not currently supported». На Android переворот, смена камеры и
+   * качества падали, а старую дорожку LiveKit к тому времени уже остановил — камера гасла.
+   */
+  private cameraRestartNow() {
+    const capture: { zoom?: boolean } & ReturnType<typeof cameraCapture> = this.cameraCaptureNow();
+    delete capture.zoom;
+    return capture;
+  }
+  /**
+   * Забыть зум в памяти LiveKit о захвате: включение после выключения и смена камеры перезапускают
+   * дорожку по ней (`cameraRestartNow`), и на Android камера второй раз не включалась. Зум нужен
+   * только в первом захвате — без него Chromium на Android не отдаёт `getCapabilities().zoom`.
+   */
+  private forgetZoom() {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    const remembered = track instanceof LocalVideoTrack ? (track.constraints as { zoom?: unknown }) : null;
+    if (remembered) delete remembered.zoom;
+  }
   private cameraOptionsNow() {
     return cameraOptions(this.cameraProfile, this.cameraCodec, this.spatialDesktop);
   }
@@ -1401,13 +1424,14 @@ export class MediaSession {
             ...(source === Track.Source.Camera ? this.cameraOptionsNow() : microphoneOptions()),
             source,
           });
-        else if (source === Track.Source.Camera)
+        else if (source === Track.Source.Camera) {
           await this.room.localParticipant.setCameraEnabled(
             true,
             this.cameraCaptureNow(),
             this.cameraOptionsNow(),
           );
-        else {
+          this.forgetZoom();
+        } else {
           await this.room.localParticipant.setMicrophoneEnabled(
             true,
             audioCapture(this.preferences.get().audio, this.preferences.get().devices.microphone),
@@ -1534,6 +1558,7 @@ export class MediaSession {
         this.applyCameraHint();
         if (this.room.localParticipant.isCameraEnabled) {
           this.cameraStarted = true;
+          this.forgetZoom();
           if (front) this.rememberCamera();
         }
       }
@@ -1678,7 +1703,7 @@ export class MediaSession {
       const currentFacing = track.mediaStreamTrack.getSettings().facingMode;
       const next = devices[(devices.findIndex((d) => d.deviceId === previous) + 1) % devices.length];
       await track.restartTrack({
-        ...this.cameraCaptureNow(),
+        ...this.cameraRestartNow(),
         deviceId: currentFacing ? undefined : next?.deviceId,
         facingMode: currentFacing ? (currentFacing === 'environment' ? 'user' : 'environment') : undefined,
       });
@@ -1687,7 +1712,7 @@ export class MediaSession {
       this.refreshTracks();
     } catch (error) {
       if (track instanceof LocalVideoTrack)
-        await track.restartTrack({ ...this.cameraCaptureNow(), deviceId: previous }).catch(() => {});
+        await track.restartTrack({ ...this.cameraRestartNow(), deviceId: previous }).catch(() => {});
       this.report(error);
     } finally {
       this.deviceBusy.delete('camera');
@@ -2055,7 +2080,7 @@ export class MediaSession {
           return;
         }
         await track.restartTrack({
-          ...this.cameraCaptureNow(),
+          ...this.cameraRestartNow(),
           deviceId: this.preferences.get().devices.camera || undefined,
         });
         if (this.disposed) return;

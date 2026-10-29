@@ -1166,3 +1166,68 @@ describe('первое включение камеры', () => {
     }
   });
 });
+
+/*
+  Зум (R36) просится у телефона в самом захвате (`zoom: true`). Chromium не терпит его в
+  `applyConstraints` рядом с кадром: «Mixing ImageCapture and non-ImageCapture constraints is not
+  currently supported». А LiveKit применяет захват именно так — после перезапуска дорожки: при
+  включении камеры после выключения, перевороте, смене камеры и качества. На Android камера после
+  выключения больше не включалась, а переворот гасил её совсем.
+*/
+describe('зум и перезапуск камеры на телефоне', () => {
+  function phone() {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(pointer: coarse)' }));
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('включили — дорожка не помнит зум: включение после выключения и смена камеры не падают', async () => {
+    phone();
+    const { media } = fixture();
+    const local = media.room.localParticipant as unknown as {
+      trackPublications: Map<Track.Source, { track?: unknown }>;
+      isCameraEnabled: boolean;
+      setCameraEnabled: unknown;
+    };
+    const camera = fakeCameraTrack();
+    Object.assign(camera.track, { _constraints: { width: 854, height: 480, frameRate: 30, zoom: true } });
+    local.setCameraEnabled = vi.fn(async () => {
+      local.isCameraEnabled = true;
+      local.trackPublications.set(Track.Source.Camera, { track: camera.track });
+    });
+    try {
+      await media.toggle('camera');
+      expect(camera.track.constraints).toEqual({ width: 854, height: 480, frameRate: 30 });
+    } finally {
+      media.dispose();
+      localStorage.clear();
+    }
+  });
+
+  it('перевернуть — перезапуск без зума', async () => {
+    phone();
+    const { media } = fixture();
+    const local = media.room.localParticipant as unknown as {
+      trackPublications: Map<Track.Source, { track?: unknown }>;
+    };
+    const camera = fakeCameraTrack();
+    Object.assign(camera.settings, { deviceId: 'front-camera', facingMode: 'user' });
+    const restartTrack = vi.fn(async (_options?: Record<string, unknown>) => {});
+    Object.assign(camera.track, { restartTrack });
+    local.trackPublications.set(Track.Source.Camera, { track: camera.track });
+    media.state.set({ ...media.state.get(), camera: true });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { enumerateDevices: async () => [] },
+    });
+    try {
+      await media.flipCamera();
+      expect(restartTrack).toHaveBeenCalledTimes(1);
+      expect(restartTrack.mock.calls[0]![0]).toMatchObject({ facingMode: 'environment' });
+      expect(restartTrack.mock.calls[0]![0]).not.toHaveProperty('zoom');
+    } finally {
+      media.dispose();
+      localStorage.clear();
+      delete (navigator as { mediaDevices?: unknown }).mediaDevices;
+    }
+  });
+});
