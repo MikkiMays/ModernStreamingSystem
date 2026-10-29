@@ -104,7 +104,8 @@ export function screenOptions(profile: ScreenProfile, codec: VideoCodec): TrackP
   const svc = codec === 'vp9' || codec === 'av1';
   return {
     videoCodec: codec,
-    backupCodec: svc ? ({ codec: 'vp8' } as const) : (false as const),
+    // Запасной кодек для зрителей без декодера VP9/AV1 — H.264 (аппаратный почти везде), не VP8.
+    backupCodec: svc ? ({ codec: 'h264' } as const) : (false as const),
     screenShareEncoding: {
       maxBitrate: targetBitrate(profile),
       maxFramerate: profile.fps,
@@ -221,7 +222,8 @@ export function cameraOptions(profile: ScreenProfile, codec: VideoCodec = 'vp8')
   const svc = codec === 'vp9' || codec === 'av1';
   return {
     videoCodec: codec,
-    backupCodec: svc ? ({ codec: 'vp8' } as const) : (false as const),
+    // Запасной кодек для зрителей без декодера VP9/AV1 — H.264 (аппаратный почти везде), не VP8.
+    backupCodec: svc ? ({ codec: 'h264' } as const) : (false as const),
     videoEncoding: { maxBitrate: targetBitrate(profile), maxFramerate: profile.fps },
     degradationPreference: 'maintain-resolution',
     simulcast: false,
@@ -340,24 +342,29 @@ export async function chooseCodec(profile: ScreenProfile): Promise<VideoCodec> {
   return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
 }
 /**
- * Каким кодеком отдавать камеру.
+ * Каким кодеком отдавать камеру: VP9, когда машина кодирует его аппаратно, иначе H.264.
  *
- * Здесь годами стоял жёсткий VP8 — и это и есть ответ на «заявлено 60 fps, идёт 40». VP8
- * почти нигде не кодируется и не декодируется железом: на 1080p60 кодировщик упирается в
- * процессор и роняет частоту, а у того, кто смотрит, то же самое происходит с декодером.
- *
- * `powerEfficient` — единственный признак аппаратного пути, который браузер вообще сообщает.
- * H.264 идёт первым намеренно: у него аппаратный кодировщик есть почти везде, тогда как
- * VP9/AV1 в железе встречаются реже и их отказ обходится дороже. VP8 остаётся последним —
- * тем, что работает всегда.
+ * VP9 первым (Р-35, 29.10.2026): при той же полосе картинка чище, а временные слои `L1T3` дают
+ * слабому зрителю меньше кадров того же размера, не трогая остальных. Но — только аппаратный:
+ * `powerEfficient` единственный признак железного пути, который сообщает браузер. Программный
+ * VP9 на 1080p упирается в процессор и роняет частоту (то самое «заявлено 60, идёт 40», ответом
+ * на которое здесь годами стоял жёсткий VP8), поэтому без аппаратного VP9 сразу H.264: у него
+ * кодировщик в железе почти везде. H.264 — ещё и `backupCodec` у VP9: зрителю, чей браузер VP9 не
+ * декодирует, SFU сам отдаёт H.264-копию. А если VP9 упрётся в процессор уже в работе — сторож
+ * (`sampleUpstream` → `EncoderHealth`) переключит на H.264 и вернёт обратно, когда отпустит. VP8
+ * остаётся последним — тем, что кодируется всегда.
  */
 export async function chooseCameraCodec(profile: ScreenProfile): Promise<VideoCodec> {
   for (const [codec, contentType] of [
-    ['h264', 'video/H264'],
     ['vp9', 'video/VP9'],
-    ['av1', 'video/AV1'],
+    ['h264', 'video/H264'],
   ] as const)
     if (await powerEfficient(contentType, profile)) return codec;
+  const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
+  return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
+}
+/** Совместимый кодек, на который сторож отступает с VP9/AV1: H.264 аппаратный почти везде, иначе VP8. */
+export function fallbackCodec(): VideoCodec {
   const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
   return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
 }

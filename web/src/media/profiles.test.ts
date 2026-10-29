@@ -28,7 +28,7 @@ describe('screen profiles', () => {
     expect(options.screenShareEncoding?.maxBitrate).toBe(16000000);
     expect(options.screenShareEncoding?.maxFramerate).toBe(60);
     expect(options.screenShareEncoding?.priority).toBe('high');
-    expect(options.backupCodec).toEqual({ codec: 'vp8' });
+    expect(options.backupCodec).toEqual({ codec: 'h264' });
     expect(options.simulcast).toBe(false);
     expect(options.screenShareSimulcastLayers).toBeUndefined();
     expect(options.degradationPreference).toBe('maintain-resolution');
@@ -85,7 +85,7 @@ describe('screen profiles', () => {
     expect(camera.videoEncoding).toEqual({ maxBitrate: 10000000, maxFramerate: 60 });
     const svc = cameraOptions({ resolution: 720, fps: 30 }, 'vp9');
     expect(svc.scalabilityMode).toBe('L1T3');
-    expect(svc.backupCodec).toEqual({ codec: 'vp8' });
+    expect(svc.backupCodec).toEqual({ codec: 'h264' });
   });
 
   /** «Авто» нет: любой уровень — выбранный, и держит размер кадра, а не торгуется им. */

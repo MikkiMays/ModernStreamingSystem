@@ -22,6 +22,7 @@ import { RecoveryWindow } from '../core/recovery';
 import {
   chooseCodec,
   chooseCameraCodec,
+  fallbackCodec,
   cameraHint,
   fitSource,
   screenHint,
@@ -405,6 +406,13 @@ export class MediaSession {
    */
   private cameraCodec: VideoCodec = 'vp8';
   private cameraCodecChosen?: Promise<VideoCodec>;
+  /** Основной кодек камеры, выбранный по силам машины (`chooseCameraCodec`): на него сторож возвращает. */
+  private cameraPreferredCodec?: VideoCodec;
+  /** Камера сейчас на запасном H.264 после отступа сторожа, а не по изначальному выбору. */
+  private cameraFellBack = false;
+  /** То же для показа: выбранный кодек и флаг отступа (общий сторож — `EncoderHealth`). */
+  private screenPreferredCodec?: VideoCodec;
+  private screenFellBack = false;
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
   /** Звук показа от оболочки (E01-B3) — у идущего показа и у кончившегося, что ждёт опоздавшую дорожку. */
@@ -838,6 +846,8 @@ export class MediaSession {
     this.cameraCodecChosen ??= chooseCameraCodec(this.cameraProfile)
       .then((codec) => {
         this.cameraCodec = codec;
+        this.cameraPreferredCodec = codec;
+        this.cameraFellBack = false;
         return codec;
       })
       .catch(() => this.cameraCodec);
@@ -1853,6 +1863,8 @@ export class MediaSession {
       // quality scaler — при нехватке полосы сбрасывает кадры, а не чёткость.
       video.contentHint = screenHint;
       this.codec = await chooseCodec(profile);
+      this.screenPreferredCodec = this.codec;
+      this.screenFellBack = false;
       this.profile = profile;
       if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
       const reservation = await this.api.screen(true);
@@ -2040,6 +2052,38 @@ export class MediaSession {
     return this.cameraChange;
   }
   /**
+   * Сменить кодек камеры на лету: переопубликовать дорожку без перезахвата.
+   *
+   * `setCameraProfile` для смены кодека не годится — он сначала пробует подстроить слои на месте
+   * (`retuneCamera`), а на месте кодек не меняется. Здесь дорожка та же (`unpublishTrack(..., false)`
+   * её не останавливает), меняются только параметры публикации: у зрителя плитка на миг моргает и
+   * продолжает тем же кодеком. Очередь общая с `setCameraProfile` (`cameraChange`), чтобы смена
+   * кодека и смена уровня не наложились.
+   */
+  private switchCameraCodec() {
+    this.cameraChange = this.cameraChange.then(async () => {
+      if (this.disposed || !this.wanted.camera) return;
+      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      if (!(track instanceof LocalVideoTrack)) return;
+      this.deviceBusy.add('camera');
+      try {
+        await this.room.localParticipant.unpublishTrack(track, false);
+        if (this.disposed) return;
+        await this.room.localParticipant.publishTrack(track, {
+          ...this.cameraOptionsNow(),
+          source: Track.Source.Camera,
+        });
+        this.applyCameraHint();
+        this.refreshTracks();
+      } catch (error) {
+        this.report(error);
+      } finally {
+        this.deviceBusy.delete('camera');
+      }
+    });
+    return this.cameraChange;
+  }
+  /**
    * Ступень удержания для показа — тем же способом, что у камеры: на месте.
    *
    * Отличие от `setProfile` одно, и оно главное. `setProfile` зовут, когда человек выбрал
@@ -2155,24 +2199,44 @@ export class MediaSession {
           dormant,
           settling: performance.now() - this.videoChangedAt[leading.source] < this.settleMs,
         });
-      // Новые кодеки красивее, но стоят дороже. Три жалобы подряд на процессор означают, что
-      // этот обмен не удался, и совместимый кодек лучше испорченной картинки.
-      const advanced =
-        leading.source === 'screen'
-          ? this.codec === 'av1' || this.codec === 'vp9'
-          : this.cameraCodec === 'av1' || this.cameraCodec === 'vp9';
-      if (this.encoderHealth.observe(limitation, advanced)) {
-        if (leading.source === 'screen') {
-          this.codec = 'vp8';
+      // Новые кодеки (VP9/AV1) красивее и экономят канал, но кодируются дороже. Сторож
+      // (`EncoderHealth`) держит их, пока процессор тянет, отступает на H.264 после трёх жалоб
+      // `cpu` подряд и возвращает обратно, когда процессор устойчиво освободился: хороший канал —
+      // не повод отступать (R91/X10), а один всплеск нагрузки — не повод застрять на запасном.
+      const onScreen = leading.source === 'screen';
+      const current = onScreen ? this.codec : this.cameraCodec;
+      const advanced = current === 'av1' || current === 'vp9';
+      const fellBack = onScreen ? this.screenFellBack : this.cameraFellBack;
+      const move = this.encoderHealth.observe(limitation, advanced, fellBack);
+      if (move === 'fallback') {
+        const safe = fallbackCodec();
+        if (onScreen) {
+          this.screenPreferredCodec ??= this.codec;
+          this.codec = safe;
+          this.screenFellBack = true;
           void this.setProfile(this.profile);
           this.report(new Error(t(($) => $.media.encoder.screen)));
         } else {
-          this.cameraCodec = 'vp8';
-          this.cameraCodecChosen = Promise.resolve('vp8' as VideoCodec);
-          void this.setCameraProfile(this.cameraProfile);
+          this.cameraPreferredCodec ??= this.cameraCodec;
+          this.cameraCodec = safe;
+          this.cameraCodecChosen = Promise.resolve(safe);
+          this.cameraFellBack = true;
+          void this.switchCameraCodec();
           this.report(new Error(t(($) => $.media.encoder.camera)));
         }
-        return;
+      } else if (move === 'restore') {
+        // Процессор отпустил — тихо возвращаем основной кодек: качество растёт, пугать нечем.
+        if (onScreen) {
+          this.codec = this.screenPreferredCodec ?? this.codec;
+          this.screenFellBack = false;
+          void this.setProfile(this.profile);
+        } else {
+          const back = this.cameraPreferredCodec ?? this.cameraCodec;
+          this.cameraCodec = back;
+          this.cameraCodecChosen = Promise.resolve(back);
+          this.cameraFellBack = false;
+          void this.switchCameraCodec();
+        }
       }
       // Жалобы кодировщика (`bandwidth`/`cpu`) ничего не понижают (R91/X10): выбранные
       // разрешение и частота — нижняя граница, они видны в плашке отдачи и остаются.
