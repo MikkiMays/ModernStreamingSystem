@@ -36,7 +36,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await host.getByRole('radio', { name: 'С подтверждения', exact: true }).check();
     await host.getByRole('button', { name: 'Настройки предпросмотра' }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toBeVisible();
-    // «Авто» больше нет (E05, П2): уровень по умолчанию — с сервера, 720p30.
+    // «Авто» больше нет (E05, П2): камера по умолчанию — 480p30 (Р-35).
     await expect(level(host, 'Камера: частота кадров', '30 fps')).toBeChecked();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toHaveCount(0);
@@ -72,11 +72,13 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     // Настройки открываются на «Микрофоне» (R114); камера и показ — в соседнем разделе «Видео» (R100).
     await expect(host.locator('.settings-content__title')).toHaveText('Микрофон');
     await openVideo(host);
-    await expect(level(host, 'Камера: качество', '720p')).toBeChecked();
+    // Камера — 480 / 720 / 1080, умолчание 480p, 1080p виден, но недоступен (Р-35).
+    await expect(level(host, 'Камера: качество', '480p')).toBeChecked();
+    await expect(level(host, 'Камера: качество', '1080p')).toBeDisabled();
     await expect(level(host, 'Экран: качество', '720p')).toBeChecked();
     // Потолок сервера — 1080p60: 1440p виден, но недоступен (R78).
     await expect(level(host, 'Экран: качество', '1440p')).toBeDisabled();
-    await level(host, 'Камера: качество', '1080p').click();
+    await level(host, 'Камера: качество', '720p').click();
     await level(host, 'Камера: частота кадров', '60 fps').click();
     await level(host, 'Экран: качество', '1080p').click();
     await level(host, 'Экран: частота кадров', '60 fps').click();
@@ -140,7 +142,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
     await openVideo(host);
-    await expect(level(host, 'Камера: качество', '1080p')).toBeChecked();
+    await expect(level(host, 'Камера: качество', '720p')).toBeChecked();
     await expect(level(host, 'Камера: частота кадров', '30 fps')).toBeChecked();
     await expect(level(host, 'Экран: качество', '1080p')).toBeChecked();
     await expect(level(host, 'Экран: частота кадров', '60 fps')).toBeChecked();
