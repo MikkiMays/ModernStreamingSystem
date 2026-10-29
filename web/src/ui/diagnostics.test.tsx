@@ -131,7 +131,12 @@ describe('«Диагностика»', () => {
         onReport={vi.fn()}
       />,
     );
-    await screen.findByRole('heading', { name: 'Аня Петрова · Аудио · Получение', level: 4 });
+    // Карточки рождаются из опроса статистики — на занятом раннере CI дольше секунды по умолчанию.
+    await screen.findByRole(
+      'heading',
+      { name: 'Аня Петрова · Аудио · Получение', level: 4 },
+      { timeout: 5000 },
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Скопировать отчёт о звонке' }));
     expect(await screen.findByText('Отчёт скопирован — его можно вставить в обращение')).toBeVisible();
     const text = writeText.mock.calls[0]![0];
