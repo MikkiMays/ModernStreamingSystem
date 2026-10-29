@@ -57,7 +57,7 @@ export function DeviceSelect({
   className?: string;
   shown?: string;
   /** Устройство выбрали в списке руками. */
-  onPick?: () => void;
+  onPick?: (deviceId: string) => void;
 }) {
   const { t } = useTranslation();
   const key = DEVICE_KEY[kind];
@@ -70,7 +70,7 @@ export function DeviceSelect({
       disabled={unsupported}
       title={unsupported ? t(($) => $.settings.voice.systemOutputOnly) : undefined}
       onChange={(e) => {
-        onPick?.();
+        onPick?.(e.target.value);
         if (meeting) void meeting.media.switchDevice(kind, e.target.value);
         else void change({ devices: { ...preferences.devices, [key]: e.target.value } });
       }}

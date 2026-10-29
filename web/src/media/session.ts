@@ -397,8 +397,12 @@ export class MediaSession {
   /** Медиа застряло на TCP или в узком канале — когда пробовать путь лучше (`path-retry.ts`). */
   private pathRetry = new PathRetry();
   private localNetworks = new LocalNetworks();
-  /** Включали ли камеру в этой встрече: первое включение на телефоне — всегда фронтальная. */
-  private cameraStarted = false;
+  /**
+   * Камеру в этой встрече уже включали или выбирали руками (переворот, список, предвход). Пока нет —
+   * включение на телефоне берёт фронтальную, а не запомненную с прошлых встреч (Р-35); дальше — какую
+   * выбрали. Хранилище, а не поле: превью камеры в настройках показывает ту же камеру, что включится.
+   */
+  readonly cameraChosen = new Store(false);
   private codec: VideoCodec = 'vp8';
   /**
    * Кодек камеры. Здесь годами стоял жёсткий VP8, который почти нигде не кодируется железом —
@@ -1521,6 +1525,8 @@ export class MediaSession {
     try {
       const reusedCamera =
         kind === 'camera' && !!this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      // Устройство передают явно только с включённого предвхода: там Р-35 уже применён.
+      const brought = !!deviceId;
       deviceId ||= this.preferences.get().devices[kind] || undefined;
       if (kind === 'microphone') {
         await this.room.localParticipant.setMicrophoneEnabled(
@@ -1537,8 +1543,8 @@ export class MediaSession {
         }
         // Первое включение на телефоне — фронтальная камера, а не та, что запомнилась (владелец,
         // 27.10.2026): после «перевернуть» в прошлой встрече следующая начиналась с задней. Дальше
-        // во встрече — какую выбрали.
-        const front = !this.cameraStarted && touchFirst();
+        // во встрече — какую выбрали (`cameraChosen`).
+        const front = !this.cameraChosen.get() && !brought && touchFirst();
         // LiveKit дописывает к захвату `deviceId` из умолчаний комнаты и делает его точным
         // требованием (`{ exact }`): запомненная задняя перебивала `facingMode`, и встреча
         // начиналась с неё — даже после фронтальной на предвходе. У фронтальной запомненного нет.
@@ -1557,7 +1563,7 @@ export class MediaSession {
         this.videoChangedAt.camera = performance.now();
         this.applyCameraHint();
         if (this.room.localParticipant.isCameraEnabled) {
-          this.cameraStarted = true;
+          this.cameraChosen.set(true);
           this.forgetZoom();
           if (front) this.rememberCamera();
         }
@@ -1657,7 +1663,11 @@ export class MediaSession {
         : undefined);
     try {
       await this.room.switchActiveDevice(kind, id);
-      if (kind === 'videoinput') await this.reapplyCameraLevel();
+      if (kind === 'videoinput') {
+        // Выбрали руками — включение возьмёт её, а не фронтальную (Р-35 — про запомненную).
+        this.cameraChosen.set(true);
+        await this.reapplyCameraLevel();
+      }
       const devices = {
         ...this.preferences.get().devices,
         [kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker']: id,

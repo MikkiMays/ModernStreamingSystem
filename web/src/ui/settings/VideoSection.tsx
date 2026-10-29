@@ -15,6 +15,7 @@ import { QualityRows } from './media-fields';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
 const noTiles = new Store<MediaTile[]>([]);
+const notChosen = new Store(false);
 
 /**
  * «Видео» (R100): сверху — превью камеры, как у Телемоста (n09), рядом — выбор камеры и её
@@ -39,19 +40,22 @@ export function VideoSection({
   const live = camera?.track.mediaStreamTrack;
   /*
     Превью — тоже включение камеры: на телефоне оно открывается фронтальной (Р-35), как встреча и
-    предвход, а не запомненной после «перевернуть». Выбрали камеру в списке — превью показывает её.
-    Список держит ту камеру, что в превью, пока выбора руками не было.
+    предвход, а не запомненной после «перевернуть». Во встрече, где камеру уже включали или выбирали,
+    — ту, что включится (`cameraChosen`). Выбрали камеру в списке — превью сразу на ней, не дожидаясь
+    записи настроек (во встрече это `switchDevice`, он асинхронный). Список говорит то же, что превью.
   */
   const coarse = useMediaQuery('(pointer: coarse)');
-  const [picked, setPicked] = useState(false);
+  const chosen = useStore(meeting?.media.cameraChosen ?? notChosen);
+  const [picked, setPicked] = useState<string>();
   const [shown, setShown] = useState<string>();
+  const front = coarse && !picked && !chosen;
   return (
     <>
       <SettingGroup title={t(($) => $.settings.anchors.camera)} anchor="camera">
         <div className="setting-camera">
           <CameraPreview
-            deviceId={preferences.devices.camera}
-            front={coarse && !picked}
+            deviceId={picked ?? preferences.devices.camera}
+            front={front}
             profile={preferences.camera}
             live={live?.readyState === 'live' ? live : null}
             onDevice={setShown}
@@ -65,8 +69,8 @@ export function VideoSection({
                 preferences={preferences}
                 change={change}
                 meeting={meeting}
-                shown={picked ? undefined : shown}
-                onPick={() => setPicked(true)}
+                shown={front ? shown : picked}
+                onPick={setPicked}
               />
             </SettingRow>
             <QualityRows

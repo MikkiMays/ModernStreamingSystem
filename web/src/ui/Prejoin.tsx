@@ -61,6 +61,8 @@ export function Prejoin({
   const accessId = useId();
   const preview = useRef<HTMLVideoElement>(null);
   const cameraUsed = useRef(false);
+  /** Камеру выбрали в списке руками — включение берёт её, а не фронтальную (как в настройках). */
+  const cameraPicked = useRef(false);
   const stream = useRef(new MediaStream());
   const commandId = useRef(crypto.randomUUID());
   const mounted = useRef(true);
@@ -232,7 +234,7 @@ export function Prejoin({
           });
       } else {
         // Первое включение на телефоне — фронтальная, как и во встрече (`MediaSession.toggle`).
-        const front = kind === 'video' && touchFirst() && !cameraUsed.current;
+        const front = kind === 'video' && touchFirst() && !cameraUsed.current && !cameraPicked.current;
         const acquired = await navigator.mediaDevices.getUserMedia(
           kind === 'video'
             ? {
@@ -253,9 +255,12 @@ export function Prejoin({
           return;
         }
         // Фронтальную просили стороной — какое это устройство, видно только теперь. Его покажет список
-        // камер, и с ним же войдём во встречу, а не с запомненной после «перевернуть».
-        const shot = front ? acquired.getVideoTracks()[0]?.getSettings().deviceId : undefined;
-        if (shot) setChoices((current) => ({ ...current, camera: shot }));
+        // камер, и с ним же войдём во встречу, а не с запомненной после «перевернуть». Не сказала —
+        // «по умолчанию»: встреча тогда сама попросит фронтальную.
+        if (front) {
+          const shot = acquired.getVideoTracks()[0]?.getSettings().deviceId ?? '';
+          setChoices((current) => ({ ...current, camera: shot }));
+        }
         acquired.getTracks().forEach((t) => stream.current.addTrack(t));
       }
       if (kind === 'video') {
@@ -509,6 +514,7 @@ export function Prejoin({
                           : !('setSinkId' in HTMLMediaElement.prototype)
                     }
                     onChange={(e) => {
+                      if (kind === 'videoinput') cameraPicked.current = true;
                       const next = { ...choices, [key]: e.target.value };
                       setChoices(next);
                       savePreferences({ devices: next });

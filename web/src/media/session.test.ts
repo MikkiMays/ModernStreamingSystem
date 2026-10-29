@@ -1089,32 +1089,84 @@ describe('первое включение камеры', () => {
   }
   afterEach(() => vi.unstubAllGlobals());
 
-  it('на телефоне — фронтальная; повторное включение — уже выбранная камера', async () => {
+  it('на телефоне — фронтальная, хотя запомнена задняя; повторное включение — уже выбранная камера', async () => {
     phone(true);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'back-camera' } }));
     const { media, setCameraEnabled } = mount();
     try {
-      await media.toggle('camera', 'back-camera');
+      expect(media.cameraChosen.get()).toBe(false);
+      await media.toggle('camera');
       expect(setCameraEnabled.mock.calls[0]![1]).toMatchObject({ facingMode: 'user' });
       expect(setCameraEnabled.mock.calls[0]![1]).not.toHaveProperty('deviceId');
+      expect(media.cameraChosen.get()).toBe(true);
       media.state.set({ ...media.state.get(), camera: true });
       await media.toggle('camera');
       media.state.set({ ...media.state.get(), camera: false });
-      await media.toggle('camera', 'back-camera');
+      await media.toggle('camera');
       expect(setCameraEnabled.mock.calls[2]![1]).toMatchObject({ deviceId: 'back-camera' });
+      expect(setCameraEnabled.mock.calls[2]![1]).not.toHaveProperty('facingMode');
     } finally {
       media.dispose();
+      localStorage.clear();
     }
   });
 
-  it('на компьютере — выбранная в настройках камера', async () => {
+  it('на компьютере — выбранная в настройках камера, умолчания комнаты не трогаются', async () => {
     phone(false);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'usb-camera' } }));
+    const { media, room, setCameraEnabled } = mount();
+    try {
+      await media.toggle('camera');
+      expect(setCameraEnabled.mock.calls[0]![1]).toMatchObject({ deviceId: 'usb-camera' });
+      expect(setCameraEnabled.mock.calls[0]![1]).not.toHaveProperty('facingMode');
+      expect(room.options.videoCaptureDefaults?.deviceId).toBe('usb-camera');
+    } finally {
+      media.dispose();
+      localStorage.clear();
+    }
+  });
+
+  /*
+    Р-35 — про запомненную с прошлых встреч камеру, а не про выбор в этой. Камеру с включённого предвхода
+    (там Р-35 уже применён) и камеру, выбранную во встрече до первого включения — переворотом при
+    выключенной камере или списком в настройках, — включение берёт как есть.
+  */
+  it('камеру принесли с предвхода — включается она, а не фронтальная', async () => {
+    phone(true);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'back-camera' } }));
     const { media, setCameraEnabled } = mount();
     try {
-      await media.toggle('camera', 'usb-camera');
-      expect(setCameraEnabled.mock.calls[0]![1]).toMatchObject({ deviceId: 'usb-camera' });
+      await media.toggle('camera', 'prejoin-camera');
+      expect(setCameraEnabled.mock.calls[0]![1]).toMatchObject({ deviceId: 'prejoin-camera' });
       expect(setCameraEnabled.mock.calls[0]![1]).not.toHaveProperty('facingMode');
     } finally {
       media.dispose();
+      localStorage.clear();
+    }
+  });
+
+  it('камеру выбрали во встрече до первого включения — включается она', async () => {
+    phone(true);
+    const { media, room, setCameraEnabled } = mount();
+    Object.assign(room, {
+      switchActiveDevice: vi.fn(async (_kind: string, id: string) => {
+        room.options.videoCaptureDefaults = { ...room.options.videoCaptureDefaults, deviceId: { exact: id } };
+      }),
+    });
+    let remembered: unknown;
+    setCameraEnabled.mockImplementationOnce(async () => {
+      remembered = room.options.videoCaptureDefaults?.deviceId;
+    });
+    try {
+      await media.switchDevice('videoinput', 'back-camera');
+      expect(media.cameraChosen.get()).toBe(true);
+      await media.toggle('camera');
+      expect(setCameraEnabled.mock.calls[0]![1]).toMatchObject({ deviceId: 'back-camera' });
+      expect(setCameraEnabled.mock.calls[0]![1]).not.toHaveProperty('facingMode');
+      expect(remembered).toEqual({ exact: 'back-camera' });
+    } finally {
+      media.dispose();
+      localStorage.clear();
     }
   });
 
@@ -1132,7 +1184,7 @@ describe('первое включение камеры', () => {
       remembered = room.options.videoCaptureDefaults?.deviceId;
     });
     try {
-      await media.toggle('camera', 'back-camera');
+      await media.toggle('camera');
       expect(setCameraEnabled.mock.calls[0]![1]).toMatchObject({ facingMode: 'user' });
       expect(remembered).toBeUndefined();
     } finally {
@@ -1156,7 +1208,7 @@ describe('первое включение камеры', () => {
       local.trackPublications.set(Track.Source.Camera, { track: camera.track });
     });
     try {
-      await media.toggle('camera', 'back-camera');
+      await media.toggle('camera');
       expect(media.preferences.get().devices.camera).toBe('front-camera');
       expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).devices.camera).toBe('front-camera');
       expect(room.options.videoCaptureDefaults?.deviceId).toBe('front-camera');
