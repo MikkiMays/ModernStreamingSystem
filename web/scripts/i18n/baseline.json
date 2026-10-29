@@ -1,7 +1,7 @@
 {
   "core/meeting.ts": 1,
   "media/cameras.ts": 3,
-  "media/session.ts": 2,
+  "media/session.ts": 5,
   "ui/IntegrationsSample.tsx": 24,
   "ui/kit/Showcase.tsx": 140,
   "ui/PokerTable.tsx": 5,
