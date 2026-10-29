@@ -81,12 +81,15 @@ function VideoTrack({
 
       Размер известен только после метаданных и меняется на смену камеры, поэтому не
       считается один раз.
+
+      Плитку находим сейчас, пока `<video>` в ней: уборка этого эффекта идёт уже после того,
+      как React вынул видео из документа, и `closest` оттуда не находит ничего — портрет
+      оставался на аватаре выключившего камеру.
     */
+    const owner = screen ? null : element.closest<HTMLElement>('.person-tile');
     const fit = () => {
-      if (screen || !element.videoWidth || !element.videoHeight) return;
-      element
-        .closest<HTMLElement>('.person-tile')
-        ?.style.setProperty('--tile-aspect', `${element.videoWidth} / ${element.videoHeight}`);
+      if (!owner || !element.videoWidth || !element.videoHeight) return;
+      owner.style.setProperty('--tile-aspect', `${element.videoWidth} / ${element.videoHeight}`);
     };
     fit();
     element.addEventListener('loadedmetadata', fit);
@@ -101,7 +104,7 @@ function VideoTrack({
       tile.track.off(TrackEvent.Restarted, mirror);
       tile.track.detach(element);
       // Дорожка ушла — пропорции вместе с ней: иначе аватар унаследует форму чужого кадра.
-      element.closest<HTMLElement>('.person-tile')?.style.removeProperty('--tile-aspect');
+      owner?.style.removeProperty('--tile-aspect');
     };
   }, [tile.track, tile.local, screen]);
   return (
