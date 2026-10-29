@@ -127,9 +127,9 @@ for service in "${order[@]}"; do
   wait_healthy "$service"
 done
 
-# Коммит вшит в бандл веба (`__CORD_BUILD__`, web/vite.config.ts) — его же печатает «О программе».
+# Коммит вшит в страницу (`<meta name="cord-build">`, web/vite.config.ts); человеку он не показывается.
 if [[ " $* " == *" gateway "* ]]; then
-  if docker compose exec -T gateway sh -c "grep -qr '$head' /srv/assets"; then
+  if docker compose exec -T gateway sh -c "grep -q 'name=\"cord-build\" content=\"$head\"' /srv/index.html"; then
     echo "== gateway: бандл собран из $head"
   else
     echo "== gateway: в бандле нет $head — образ не из HEAD" >&2; exit 1

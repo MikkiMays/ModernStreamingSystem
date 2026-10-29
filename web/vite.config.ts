@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
@@ -13,6 +14,9 @@ import { version } from './package.json' with { type: 'json' };
  * ли уже то, что починили. В образ репозиторий не попадает (`.dockerignore` исключает `.git`),
  * поэтому там коммит передаётся переменной окружения. Нет ни того, ни другого — просто нет
  * коммита; сборка из архива остаётся сборкой.
+ *
+ * Человеку коммит не показывается (владелец, 29.10.2026): он живёт в `<meta name="cord-build">`
+ * страницы (`buildMeta`), и сверяет его выкатка (`backlog/bin/deploy.sh`).
  */
 function commit() {
   if (process.env.CORD_BUILD) return process.env.CORD_BUILD.trim().slice(0, 12);
@@ -39,12 +43,21 @@ const proxy = {
   '/uploads': { target: process.env.CORD_DEV_UPLOADS ?? 'http://127.0.0.1:1081' },
 };
 
+/** Коммит сборки — в `<head>` обеих страниц (приложение и Mini App), не в интерфейсе. */
+function buildMeta(): Plugin {
+  const build = commit();
+  return {
+    name: 'cord-build-meta',
+    transformIndexHtml: () =>
+      build ? [{ tag: 'meta', attrs: { name: 'cord-build', content: build }, injectTo: 'head' }] : [],
+  };
+}
+
 export default defineConfig({
   define: {
     __CORD_VERSION__: JSON.stringify(version),
-    __CORD_BUILD__: JSON.stringify(commit()),
   },
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss(), buildMeta()],
   server: { proxy },
   preview: { proxy },
   /*

@@ -30,7 +30,8 @@ backlog/bin/deploy.sh gateway core          # встречи → flock → build
 
 ## После выкатки
 
-1. `deploy.sh` проверяет, что коммит HEAD вшит в бандл; «О программе» показывает тот же коммит.
+1. `deploy.sh` проверяет, что коммит HEAD вшит в страницу (`<meta name="cord-build">`, снаружи —
+   `curl -s https://<домен>/ | grep cord-build`). Человеку коммит не показывается нигде (владелец, 29.10.2026).
 2. `curl -fsS https://cord.nikg.tech/api/v1/ping` и e2e по тронутым сценариям:
    `cd web && PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/<спек>.ts`
    (без переменной конфиг поднимает пустой dev-сервер — «всё падает»).

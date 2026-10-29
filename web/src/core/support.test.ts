@@ -111,7 +111,8 @@ describe('diagnostics', () => {
       ['20:01:02 403 PROOF_INVALID'],
     );
     expect(text.split('\n')).toEqual([
-      expect.stringMatching(/^cord: \d+\.\d+\.\d+/),
+      // Только версия: коммит человеку не показываем — он видит этот текст в «Что будет отправлено».
+      expect.stringMatching(/^cord: \d+\.\d+\.\d+$/),
       'client: web',
       'browser: Chrome 141',
       'os: Android',

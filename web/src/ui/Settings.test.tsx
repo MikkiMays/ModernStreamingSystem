@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPreferences } from '../core/preferences';
+import { appVersion } from '../core/version';
 import { applyLanguage } from '../i18n';
 import { Settings } from './Settings';
 
@@ -463,6 +464,9 @@ describe('«О программе»', () => {
     expect(within(body as HTMLElement).queryByRole('link', { name: /Telegram/ })).toBeNull();
     for (const label of ['Версия', 'Приложение для Windows'])
       expect(within(body as HTMLElement).getByText(label)).toBeInTheDocument();
+    // Версия — без коммита: человеку он не нужен (владелец, 29.10.2026).
+    expect(within(body as HTMLElement).getByText(`Cord ${appVersion}`)).toBeInTheDocument();
+    expect(body).not.toHaveTextContent(/·\s*[0-9a-f]{7}/);
     expect(within(body as HTMLElement).queryByText('Помощь и поддержка')).toBeNull();
     expect(within(nav()).getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
   });

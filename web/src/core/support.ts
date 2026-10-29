@@ -1,5 +1,5 @@
 import type { CallReport } from '../media/call-quality';
-import { appLabel } from './version';
+import { appVersion } from './version';
 
 /**
  * Поддержка (E13, T36): темы обращения, «Сообщить о проблеме» (R79) и диагностика, которую человек
@@ -203,7 +203,7 @@ export function systemName(userAgent: string): string {
  */
 export function diagnosticsText(env: Environment = environment(), log: readonly string[] = errors): string {
   const lines = [
-    `cord: ${appLabel}`,
+    `cord: ${appVersion}`,
     `client: ${env.desktop ? `windows ${env.desktop}` : 'web'}`,
     `browser: ${browserName(env.userAgent)}`,
     `os: ${systemName(env.userAgent)}`,

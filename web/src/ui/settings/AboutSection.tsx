@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Compass, Download, RefreshCw, TriangleAlert } from 'lucide-react';
 import { windowsRelease, type WindowsRelease } from '../../core/download';
 import { desktopUpdate, desktopVersion, notifyDesktop, isDesktop } from '../../core/desktop';
-import { appLabel } from '../../core/version';
+import { appVersion } from '../../core/version';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
@@ -68,7 +68,7 @@ export function AboutSection({ onTour }: { onTour?: () => void }) {
           hint={desktop ? t(($) => $.settings.about.desktop) : t(($) => $.settings.about.webUpdates)}
         >
           <span className="setting-value setting-value--strong">
-            Cord {desktop ? desktopVersion(shell) || '…' : appLabel}
+            Cord {desktop ? desktopVersion(shell) || '…' : appVersion}
           </span>
         </SettingRow>
         {desktop ? (
