@@ -47,8 +47,12 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
   const player = useRef<HTMLAudioElement | null>(null);
   const recordUrl = useRef('');
   const owner = useRef<MicOwner | null>(null);
-  /** Микрофон уже включается: второй вызов ждёт того же, а не открывает второй захват. */
-  const starting = useRef<Promise<boolean> | null>(null);
+  /**
+   * Микрофон уже включается: второй вызов ждёт того же, а не открывает второй захват. Включение
+   * для прежнего устройства (ревизия сменилась, пока ждали `getUserMedia`) не годится — его ждут до
+   * конца и включают заново, иначе шкала молча осталась бы пустой.
+   */
+  const starting = useRef<{ operation: number; promise: Promise<boolean> } | null>(null);
   const revision = useRef(0);
   const [test, setTest] = useState<MicTest>('idle');
   const [seconds, setSeconds] = useState(TEST_SECONDS);
@@ -65,10 +69,9 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
     clearInterval(recordTimer.current);
     const rec = recorder.current;
     recorder.current = null;
-    if (rec?.state === 'recording') {
-      rec.onstop = null;
-      rec.stop();
-    }
+    // Обработчик снимается и у уже остановленной записи: событие `stop` могло ещё стоять в очереди.
+    if (rec) rec.onstop = null;
+    if (rec?.state === 'recording') rec.stop();
     if (player.current) {
       player.current.onended = null;
       player.current.onerror = null;
@@ -113,17 +116,25 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
   /** Включить микрофон проверки; `true` — слушается. */
   const startMic = (by: MicOwner): Promise<boolean> => {
     if (audioTrack.current) return Promise.resolve(true);
-    starting.current ??= acquireMic(by).finally(() => {
-      starting.current = null;
+    const pending = starting.current;
+    if (pending)
+      return pending.operation === revision.current
+        ? pending.promise
+        : pending.promise.then(() => startMic(by));
+    const entry = { operation: revision.current, promise: acquireMic(by) };
+    starting.current = entry;
+    void entry.promise.finally(() => {
+      if (starting.current === entry) starting.current = null;
     });
-    return starting.current;
+    return entry.promise;
   };
   const acquireMic = async (by: MicOwner): Promise<boolean> => {
     const operation = revision.current;
     setBusy('microphone');
     let acquired: LocalAudioTrack | undefined;
+    let ctx: AudioContext | undefined;
     try {
-      const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+      ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
       context.current = ctx;
       await ctx.resume();
       const track = await createLocalAudioTrack(
@@ -159,6 +170,9 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
     } catch (e) {
       acquired?.stop();
       if (audioTrack.current === acquired) audioTrack.current = null;
+      // Контекст отказавшего захвата — закрыть: иначе каждый повтор после отказа оставлял бы ещё один.
+      if (context.current === ctx) context.current = null;
+      if (ctx && ctx.state !== 'closed') void ctx.close();
       if (operation === revision.current)
         fail(
           'microphone',

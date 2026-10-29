@@ -19,10 +19,13 @@ const capture = vi.hoisted(() => ({
     setProcessor: vi.fn(async () => {}),
   },
   denied: false,
+  /** Захват «висит» (окно разрешения, медленное устройство), пока его не отпустят. */
+  hold: null as Promise<void> | null,
 }));
 vi.mock('livekit-client', async (original) => ({
   ...(await original<typeof import('livekit-client')>()),
   createLocalAudioTrack: vi.fn(async () => {
+    if (capture.hold) await capture.hold;
     if (capture.denied) throw new DOMException('denied', 'NotAllowedError');
     return capture.track;
   }),
@@ -34,6 +37,10 @@ vi.mock('../../media/audio', async (original) => ({
 vi.mock('../useMicLevel', () => ({ useMicLevel: () => 37 }));
 
 class FakeContext {
+  static all: FakeContext[] = [];
+  constructor() {
+    FakeContext.all.push(this);
+  }
   state = 'running';
   resume = async () => {};
   close = async () => {
@@ -77,6 +84,8 @@ const revoked: string[] = [];
 beforeEach(() => {
   localStorage.clear();
   capture.denied = false;
+  capture.hold = null;
+  FakeContext.all = [];
   capture.track.stop.mockClear();
   revoked.length = 0;
   FakeAudio.last = null;
@@ -106,8 +115,8 @@ afterEach(() => {
 const meter = () => screen.getByRole('meter', { name: 'Уровень микрофона' });
 const settle = () => act(async () => {});
 
-function section(meeting?: Meeting) {
-  return render(<AudioSection preferences={readPreferences()} change={async () => {}} meeting={meeting} />);
+function section(meeting?: Meeting, preferences = readPreferences()) {
+  return render(<AudioSection preferences={preferences} change={async () => {}} meeting={meeting} />);
 }
 
 describe('«Микрофон»: уровень сам и проба без проигрывателя (R141)', () => {
@@ -163,10 +172,43 @@ describe('«Микрофон»: уровень сам и проба без пр�
     expect(screen.getByRole('alert')).toHaveTextContent('Нет доступа к микрофону — разрешите его для Cord');
     await act(async () => vi.advanceTimersByTime(1000));
     capture.denied = false;
+    capture.hold = null;
+    FakeContext.all = [];
     fireEvent.click(screen.getByRole('button', { name: 'Записать 5 секунд и послушать' }));
     await settle();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole('status')).toHaveTextContent('Говорите… 5');
+  });
+
+  it('сменили устройство, пока микрофон ещё включался, — шкала поднимается на новом', async () => {
+    let release = () => {};
+    capture.hold = new Promise<void>((resolve) => (release = resolve));
+    const preferences = readPreferences();
+    const { rerender } = section(undefined, preferences);
+    await settle();
+    const { createLocalAudioTrack } = await import('livekit-client');
+    expect(createLocalAudioTrack).toHaveBeenCalledTimes(1);
+    const next = { ...preferences, devices: { ...preferences.devices, microphone: 'usb-mic' } };
+    rerender(<AudioSection preferences={next} change={async () => {}} />);
+    await settle();
+    capture.hold = null;
+    release();
+    await settle();
+    await settle();
+    // Старый захват отброшен, новый открыт сам — без нажатия «Проверить».
+    expect(createLocalAudioTrack).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTime(150));
+    expect(Number(meter().getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+  });
+
+  it('отказ доступа не оставляет открытых AudioContext — и после повтора тоже', async () => {
+    capture.denied = true;
+    section();
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Записать 5 секунд и послушать' }));
+    await settle();
+    expect(FakeContext.all.length).toBe(2);
+    expect(FakeContext.all.every((context) => context.state === 'closed')).toBe(true);
   });
 
   it('во встрече с включённым микрофоном — уровень комнаты и без своего захвата', async () => {

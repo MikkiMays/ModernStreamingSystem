@@ -433,7 +433,7 @@
       "leaveFirst": "Verlasse zuerst das Meeting",
       "change": "Server wechseln",
       "forget": "Passwort vergessen",
-      "here": "Sie sind hier"
+      "here": "Du bist hier"
     },
     "sounds": {
       "cues": "Signale",
@@ -463,7 +463,7 @@
       "device": "Gerät {{number}}",
       "micInMeeting": "So hört man dich gerade im Meeting",
       "micLevel": "Mikrofonpegel",
-      "recordingNow": "Sprechen Sie… {{seconds}}",
+      "recordingNow": "Sprich… {{seconds}}",
       "playing": "Wiedergabe…",
       "stopMicLabel": "Mikrofontest beenden",
       "checkMicLabel": "5 Sekunden aufnehmen und anhören",
@@ -2115,7 +2115,7 @@
       "cameraStart": "Kamera testen",
       "speakers": "Lautsprecher testen",
       "micLevel": "Mikrofonpegel",
-      "recording": "Sprechen Sie… {{seconds}}",
+      "recording": "Sprich… {{seconds}}",
       "playing": "Wiedergabe…",
       "record": "5 Sekunden aufnehmen und anhören",
       "cameraPreview": "Kameratest, nur für dich",
