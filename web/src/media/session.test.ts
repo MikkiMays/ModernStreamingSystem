@@ -1085,7 +1085,7 @@ describe('первое включение камеры', () => {
       local.isCameraEnabled = enabled;
     });
     local.setCameraEnabled = setCameraEnabled;
-    return { media, setCameraEnabled };
+    return { media, room, setCameraEnabled };
   }
   afterEach(() => vi.unstubAllGlobals());
 
@@ -1115,6 +1115,54 @@ describe('первое включение камеры', () => {
       expect(setCameraEnabled.mock.calls[0]![1]).not.toHaveProperty('facingMode');
     } finally {
       media.dispose();
+    }
+  });
+
+  /*
+    LiveKit дописывает к захвату `deviceId` из умолчаний комнаты (`videoCaptureDefaults`) и делает строку
+    точным требованием (`{ exact }`): запомненная после «перевернуть» задняя перебивала `facingMode: 'user'`,
+    и встреча начиналась с задней камеры — даже после фронтальной на предвходе.
+  */
+  it('на телефоне запомненная задняя не попадает в захват фронтальной', async () => {
+    phone(true);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'back-camera' } }));
+    const { media, room, setCameraEnabled } = mount();
+    let remembered: unknown = 'не звали';
+    setCameraEnabled.mockImplementationOnce(async () => {
+      remembered = room.options.videoCaptureDefaults?.deviceId;
+    });
+    try {
+      await media.toggle('camera', 'back-camera');
+      expect(setCameraEnabled.mock.calls[0]![1]).toMatchObject({ facingMode: 'user' });
+      expect(remembered).toBeUndefined();
+    } finally {
+      media.dispose();
+      localStorage.clear();
+    }
+  });
+
+  it('включилась фронтальная — она и запоминается: настройки, смена качества и восстановление берут её', async () => {
+    phone(true);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'back-camera' } }));
+    const { media, room, setCameraEnabled } = mount();
+    const camera = fakeCameraTrack();
+    Object.assign(camera.settings, { deviceId: 'front-camera', facingMode: 'user' });
+    const local = media.room.localParticipant as unknown as {
+      trackPublications: Map<Track.Source, { track?: unknown }>;
+      isCameraEnabled: boolean;
+    };
+    setCameraEnabled.mockImplementationOnce(async () => {
+      local.isCameraEnabled = true;
+      local.trackPublications.set(Track.Source.Camera, { track: camera.track });
+    });
+    try {
+      await media.toggle('camera', 'back-camera');
+      expect(media.preferences.get().devices.camera).toBe('front-camera');
+      expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).devices.camera).toBe('front-camera');
+      expect(room.options.videoCaptureDefaults?.deviceId).toBe('front-camera');
+    } finally {
+      media.dispose();
+      localStorage.clear();
     }
   });
 });

@@ -723,3 +723,74 @@ describe('телефон: список разделов → раздел сво�
     expect(window).toHaveAttribute('data-view', 'list');
   });
 });
+
+/*
+  Превью «Видео» — тоже включение камеры: на телефоне оно открывается фронтальной, как встреча и
+  предвход (Р-35), а не запомненной после «перевернуть». Список камер показывает ту, что в превью;
+  выбрали в нём другую — превью показывает её.
+*/
+describe('превью камеры: какая камера', () => {
+  /** Две камеры телефона; захват отдаёт ту, которую попросили, — по стороне или по устройству. */
+  function phoneCameras() {
+    const getUserMedia = vi.fn(async (constraints: MediaStreamConstraints) => {
+      const video = constraints.video as MediaTrackConstraints;
+      const deviceId = video.facingMode === 'user' ? 'front-camera' : String(video.deviceId);
+      const track = {
+        kind: 'video',
+        stop: vi.fn(),
+        applyConstraints: vi.fn(async () => {}),
+        getSettings: () => ({ deviceId, width: 640, height: 480, frameRate: 30 }),
+      };
+      return { getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream;
+    });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia,
+        enumerateDevices: async () => [
+          { kind: 'videoinput', deviceId: 'front-camera', label: 'Передняя камера', groupId: '' },
+          { kind: 'videoinput', deviceId: 'back-camera', label: 'Задняя камера', groupId: '' },
+        ],
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        getSupportedConstraints: () => ({}),
+      },
+    });
+    return getUserMedia;
+  }
+  const touch = (coarse: boolean) =>
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: coarse && query === '(pointer: coarse)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  const asked = (getUserMedia: ReturnType<typeof phoneCameras>, call: number) =>
+    getUserMedia.mock.calls[call]![0].video as MediaTrackConstraints;
+
+  it('на телефоне — фронтальная, хотя запомнена задняя; выбрали заднюю в списке — превью на ней', async () => {
+    touch(true);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'back-camera' } }));
+    const getUserMedia = phoneCameras();
+    render(<Settings open section="video" onOpenChange={vi.fn()} />);
+    await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
+    expect(asked(getUserMedia, 0)).toMatchObject({ facingMode: 'user' });
+    expect(asked(getUserMedia, 0).deviceId).toBeUndefined();
+    const select = screen.getByRole('combobox', { name: 'Камера' });
+    await vi.waitFor(() => expect(select).toHaveValue('front-camera'));
+    fireEvent.change(select, { target: { value: 'back-camera' } });
+    await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+    expect(asked(getUserMedia, 1)).toMatchObject({ deviceId: 'back-camera' });
+    expect(asked(getUserMedia, 1).facingMode).toBeUndefined();
+    expect(select).toHaveValue('back-camera');
+  });
+
+  it('на компьютере — выбранная в настройках камера', async () => {
+    touch(false);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'back-camera' } }));
+    const getUserMedia = phoneCameras();
+    render(<Settings open section="video" onOpenChange={vi.fn()} />);
+    await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
+    expect(asked(getUserMedia, 0)).toMatchObject({ deviceId: 'back-camera' });
+    expect(asked(getUserMedia, 0).facingMode).toBeUndefined();
+  });
+});

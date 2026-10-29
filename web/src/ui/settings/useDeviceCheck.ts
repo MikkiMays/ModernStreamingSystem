@@ -8,6 +8,7 @@ import {
 import type { Preferences } from '../../core/preferences';
 import { t } from '../../i18n';
 import { audioCapture, CordAudioProcessor, needsAudioProcessor } from '../../media/audio';
+import { touchFirst } from '../../media/profiles';
 
 /**
  * Проверка устройств только для себя: микрофон с полосой уровня и записью пробы, камера в
@@ -132,7 +133,8 @@ export function useDeviceCheck(preferences: Preferences) {
         setMic(true);
       } else {
         const track = await createLocalVideoTrack({
-          deviceId: preferences.devices.camera || undefined,
+          // Проверка — тоже включение камеры: на телефоне фронтальная, а не запомненная (Р-35).
+          ...(touchFirst() ? { facingMode: 'user' } : { deviceId: preferences.devices.camera || undefined }),
           resolution: { width: 1280, height: 720 },
         });
         acquired = track;

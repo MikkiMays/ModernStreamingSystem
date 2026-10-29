@@ -231,14 +231,13 @@ export function Prejoin({
             stream.current.removeTrack(t);
           });
       } else {
+        // Первое включение на телефоне — фронтальная, как и во встрече (`MediaSession.toggle`).
+        const front = kind === 'video' && touchFirst() && !cameraUsed.current;
         const acquired = await navigator.mediaDevices.getUserMedia(
           kind === 'video'
             ? {
                 video: {
-                  // Первое включение на телефоне — фронтальная, как и во встрече (`MediaSession.toggle`).
-                  ...(touchFirst() && !cameraUsed.current
-                    ? { facingMode: 'user' }
-                    : { deviceId: choices.camera || undefined }),
+                  ...(front ? { facingMode: 'user' } : { deviceId: choices.camera || undefined }),
                   // Под выбранное качество: превью показывает тот кадр, с которым камера войдёт во встречу.
                   ...previewConstraints(preferences.camera),
                 },
@@ -253,6 +252,10 @@ export function Prejoin({
           acquired.getTracks().forEach((t) => t.stop());
           return;
         }
+        // Фронтальную просили стороной — какое это устройство, видно только теперь. Его покажет список
+        // камер, и с ним же войдём во встречу, а не с запомненной после «перевернуть».
+        const shot = front ? acquired.getVideoTracks()[0]?.getSettings().deviceId : undefined;
+        if (shot) setChoices((current) => ({ ...current, camera: shot }));
         acquired.getTracks().forEach((t) => stream.current.addTrack(t));
       }
       if (kind === 'video') {

@@ -13,7 +13,15 @@ export function frameLabel(track: MediaStreamTrack | null | undefined): string |
   return `${Math.min(width, height)}p${frameRate ? ` · ${Math.round(frameRate)} fps` : ''}`;
 }
 
-function show(element: HTMLVideoElement | null, stream: MediaStream, track: MediaStreamTrack) {
+function show(
+  element: HTMLVideoElement | null,
+  stream: MediaStream,
+  track: MediaStreamTrack,
+  onDevice?: (deviceId: string) => void,
+) {
+  // Какая камера на самом деле снимает: фронтальную просят стороной, а не устройством.
+  const { deviceId } = track.getSettings();
+  if (deviceId) onDevice?.(deviceId);
   if (!element) return;
   element.srcObject = stream;
   // Тот же признак, что в разговоре и на предпросмотре: задняя камера не зеркалится.
@@ -32,16 +40,26 @@ function show(element: HTMLVideoElement | null, stream: MediaStream, track: Medi
  * же захват меняет кадр и частоту (`applyConstraints`), без перезапуска и чёрного кадра; сменили
  * камеру — захват перезапускается с новой. Камера держится ровно столько, сколько раздел на экране.
  * Отказ в доступе — не пустой чёрный прямоугольник, а объяснение. В углу — что камера отдаёт сейчас.
+ *
+ * Открыть превью — тоже включить камеру: на телефоне это фронтальная (`front`, Р-35), как во встрече и
+ * на предвходе, а не запомненная после «перевернуть». Какая камера вышла, превью сообщает (`onDevice`) —
+ * список камер рядом показывает её.
  */
 export function CameraPreview({
   deviceId,
+  front = false,
   profile,
   live,
+  onDevice,
 }: {
   deviceId?: string;
+  /** Просить фронтальную камеру, а не `deviceId`. */
+  front?: boolean;
   profile: ScreenProfile;
   /** Живая дорожка камеры встречи; нет — превью захватывает камеру само. */
   live?: MediaStreamTrack | null;
+  /** Какая камера показана — устройство дорожки, когда оно известно. */
+  onDevice?: (deviceId: string) => void;
 }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
@@ -49,15 +67,19 @@ export function CameraPreview({
   // Уровень для захвата читается при запуске, а не держит его: смена уровня — `applyConstraints`.
   const level = useRef(profile);
   level.current = profile;
+  const reported = useRef(onDevice);
+  reported.current = onDevice;
+  // Что просим у камеры: фронтальную или выбранное устройство (пусто — какое даст система).
+  const source = front ? 'front' : (deviceId ?? '');
   // Для какой камеры и чем закончился захват; другая камера в списке — снова «включается».
-  const [result, setResult] = useState<{ deviceId?: string; state: State } | null>(null);
+  const [result, setResult] = useState<{ source: string; state: State } | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
-  const state: State = live ? 'live' : result && result.deviceId === deviceId ? result.state : 'starting';
+  const state: State = live ? 'live' : result && result.source === source ? result.state : 'starting';
 
   useEffect(() => {
     if (!live) return;
     const element = video.current;
-    show(element, new MediaStream([live]), live);
+    show(element, new MediaStream([live]), live, reported.current);
     return () => {
       if (element) element.srcObject = null;
     };
@@ -71,7 +93,7 @@ export function CameraPreview({
     const element = video.current;
     const media = navigator.mediaDevices;
     const finish = (next: State) => {
-      if (!cancelled) setResult({ deviceId, state: next });
+      if (!cancelled) setResult({ source, state: next });
     };
     if (!media?.getUserMedia) {
       finish('failed');
@@ -81,7 +103,10 @@ export function CameraPreview({
       .getUserMedia({
         audio: false,
         // Выбранная камера — пожеланием, а не требованием: вынутая камера не оставляет превью пустым.
-        video: { deviceId: deviceId || undefined, ...previewConstraints(level.current) },
+        video: {
+          ...(source === 'front' ? { facingMode: 'user' } : { deviceId: source || undefined }),
+          ...previewConstraints(level.current),
+        },
       })
       .then((captured) => {
         if (cancelled) {
@@ -90,7 +115,7 @@ export function CameraPreview({
         }
         track = captured.getVideoTracks()[0] ?? null;
         own.current = track;
-        if (track) show(element, captured, track);
+        if (track) show(element, captured, track, reported.current);
         finish('live');
       })
       .catch((error: unknown) => {
@@ -103,7 +128,7 @@ export function CameraPreview({
       own.current = null;
       if (element) element.srcObject = null;
     };
-  }, [deviceId, capturing]);
+  }, [source, capturing]);
 
   const { resolution, fps } = profile;
   useEffect(() => {

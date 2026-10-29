@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Track } from 'livekit-client';
 import type { Meeting } from '../../core/meeting';
 import { Store } from '../../core/store';
 import type { MediaTile } from '../../media/session';
-import { useStore } from '../primitives';
+import { useMediaQuery, useStore } from '../primitives';
 import type { Preferences } from '../../core/preferences';
 import { Switch } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
@@ -36,14 +37,24 @@ export function VideoSection({
   const tiles = useStore(meeting?.media.tracks ?? noTiles);
   const camera = tiles.find((tile) => tile.local && tile.source === Track.Source.Camera && !tile.muted);
   const live = camera?.track.mediaStreamTrack;
+  /*
+    Превью — тоже включение камеры: на телефоне оно открывается фронтальной (Р-35), как встреча и
+    предвход, а не запомненной после «перевернуть». Выбрали камеру в списке — превью показывает её.
+    Список держит ту камеру, что в превью, пока выбора руками не было.
+  */
+  const coarse = useMediaQuery('(pointer: coarse)');
+  const [picked, setPicked] = useState(false);
+  const [shown, setShown] = useState<string>();
   return (
     <>
       <SettingGroup title={t(($) => $.settings.anchors.camera)} anchor="camera">
         <div className="setting-camera">
           <CameraPreview
             deviceId={preferences.devices.camera}
+            front={coarse && !picked}
             profile={preferences.camera}
             live={live?.readyState === 'live' ? live : null}
+            onDevice={setShown}
           />
           <div className="setting-camera__rows">
             <SettingRow id="camera-device" stack>
@@ -54,6 +65,8 @@ export function VideoSection({
                 preferences={preferences}
                 change={change}
                 meeting={meeting}
+                shown={picked ? undefined : shown}
+                onPick={() => setPicked(true)}
               />
             </SettingRow>
             <QualityRows

@@ -122,6 +122,46 @@ describe('предвход', () => {
     expect(within(alert).getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
   });
 
+  it('телефон: превью — фронтальная, хотя запомнена задняя; её и показывает список, и берёт встреча (Р-35)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(pointer: coarse)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'back-camera' } }));
+    const front = {
+      kind: 'video',
+      stop: vi.fn(),
+      getSettings: () => ({ deviceId: 'front-camera', facingMode: 'user' }),
+    };
+    const getUserMedia = vi.mocked(navigator.mediaDevices.getUserMedia);
+    getUserMedia.mockResolvedValue({ getTracks: () => [front], getVideoTracks: () => [front] } as never);
+    vi.mocked(navigator.mediaDevices.enumerateDevices).mockResolvedValue([
+      { kind: 'videoinput', deviceId: 'front-camera', label: 'Передняя камера', groupId: '' },
+      { kind: 'videoinput', deviceId: 'back-camera', label: 'Задняя камера', groupId: '' },
+    ] as never);
+    vi.mocked(publicApi.create).mockResolvedValue({ roomId: 'r' } as never);
+    const onJoin = show();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Включить камеру' }));
+    });
+    const asked = getUserMedia.mock.calls[0]![0]!.video as MediaTrackConstraints;
+    expect(asked).toMatchObject({ facingMode: 'user' });
+    expect(asked.deviceId).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки предпросмотра' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Перед разговором' }, { timeout: 5000 });
+    expect(within(dialog).getByRole('combobox', { name: 'Камера' })).toHaveValue('front-camera');
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Начать встречу' }));
+    });
+    expect(onJoin).toHaveBeenCalledWith(
+      { roomId: 'r' },
+      expect.objectContaining({ cameraOn: true, camera: 'front-camera' }),
+    );
+  });
+
   it('«Перед разговором» — окно набора; качество камеры по умолчанию 480p · 30 сегментами (R72, R78)', async () => {
     show();
     fireEvent.click(screen.getByRole('button', { name: 'Настройки предпросмотра' }));

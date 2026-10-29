@@ -33,6 +33,9 @@ const DEVICE_KEY = { audioinput: 'microphone', videoinput: 'camera', audiooutput
  * Выбор устройства. Во встрече — сразу переключение захвата (`switchDevice`), вне встречи — запись
  * в профиль устройства. Вывод звука в браузере без `setSinkId` выбрать нельзя — список выключен и
  * объясняет почему.
+ *
+ * `shown` — устройство, которое работает на самом деле, если оно не то, что записано: превью камеры на
+ * телефоне открывается фронтальной, а не запомненной (Р-35), и список не должен говорить другое.
  */
 export function DeviceSelect({
   kind,
@@ -42,6 +45,8 @@ export function DeviceSelect({
   change,
   meeting,
   className,
+  shown,
+  onPick,
 }: {
   kind: MediaDeviceKind;
   label: string;
@@ -50,6 +55,9 @@ export function DeviceSelect({
   change: Change;
   meeting?: Meeting;
   className?: string;
+  shown?: string;
+  /** Устройство выбрали в списке руками. */
+  onPick?: () => void;
 }) {
   const { t } = useTranslation();
   const key = DEVICE_KEY[kind];
@@ -58,10 +66,11 @@ export function DeviceSelect({
     <select
       className={`ui-input ui-select setting-select${className ? ` ${className}` : ''}`}
       aria-label={label}
-      value={preferences.devices[key] ?? ''}
+      value={shown ?? preferences.devices[key] ?? ''}
       disabled={unsupported}
       title={unsupported ? t(($) => $.settings.voice.systemOutputOnly) : undefined}
       onChange={(e) => {
+        onPick?.();
         if (meeting) void meeting.media.switchDevice(kind, e.target.value);
         else void change({ devices: { ...preferences.devices, [key]: e.target.value } });
       }}

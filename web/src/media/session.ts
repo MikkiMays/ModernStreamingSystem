@@ -1515,6 +1515,14 @@ export class MediaSession {
         // 27.10.2026): после «перевернуть» в прошлой встрече следующая начиналась с задней. Дальше
         // во встрече — какую выбрали.
         const front = !this.cameraStarted && touchFirst();
+        // LiveKit дописывает к захвату `deviceId` из умолчаний комнаты и делает его точным
+        // требованием (`{ exact }`): запомненная задняя перебивала `facingMode`, и встреча
+        // начиналась с неё — даже после фронтальной на предвходе. У фронтальной запомненного нет.
+        if (front)
+          this.room.options.videoCaptureDefaults = {
+            ...this.room.options.videoCaptureDefaults,
+            deviceId: undefined,
+          };
         await this.room.localParticipant.setCameraEnabled(
           !this.state.get().camera,
           front
@@ -1524,7 +1532,10 @@ export class MediaSession {
         );
         this.videoChangedAt.camera = performance.now();
         this.applyCameraHint();
-        if (this.room.localParticipant.isCameraEnabled) this.cameraStarted = true;
+        if (this.room.localParticipant.isCameraEnabled) {
+          this.cameraStarted = true;
+          if (front) this.rememberCamera();
+        }
       }
       this.wanted[kind] =
         kind === 'microphone'
@@ -1633,6 +1644,19 @@ export class MediaSession {
       this.report(error);
     }
   }
+  /**
+   * Запомнить камеру, которая снимает сейчас: её покажет выбор камеры в настройках, её возьмут смена
+   * качества (`setCameraProfile`) и восстановление после обрыва (умолчания комнаты, `restoreTracks`).
+   * Фронтальная и переворот просят сторону, а не устройство, — какое это устройство, известно только
+   * после захвата.
+   */
+  private rememberCamera() {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    const id = track instanceof LocalVideoTrack ? track.mediaStreamTrack.getSettings().deviceId : undefined;
+    if (!id) return;
+    this.room.options.videoCaptureDefaults = { ...this.room.options.videoCaptureDefaults, deviceId: id };
+    this.saveSettings({ devices: { ...this.preferences.get().devices, camera: id } });
+  }
   async flipCamera() {
     if (this.deviceBusy.has('camera') || this.disposed) return;
     this.deviceBusy.add('camera');
@@ -1659,8 +1683,7 @@ export class MediaSession {
         facingMode: currentFacing ? (currentFacing === 'environment' ? 'user' : 'environment') : undefined,
       });
       await this.reapplyCameraLevel();
-      const id = track.mediaStreamTrack.getSettings().deviceId;
-      if (id) this.saveSettings({ devices: { ...this.preferences.get().devices, camera: id } });
+      this.rememberCamera();
       this.refreshTracks();
     } catch (error) {
       if (track instanceof LocalVideoTrack)
