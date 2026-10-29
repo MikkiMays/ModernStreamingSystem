@@ -100,7 +100,11 @@ export function fitSource(width: number, height: number, resolution: Resolution)
 export const screenHint = 'detail' as const;
 /** Временные слои одного разрешения: зритель, которому не хватает, получает 30 или 15 из 60 кадров. */
 export const screenScalability = 'L1T3' as const;
-export function screenOptions(profile: ScreenProfile, codec: VideoCodec): TrackPublishOptions {
+export function screenOptions(
+  profile: ScreenProfile,
+  codec: VideoCodec,
+  spatial = false,
+): TrackPublishOptions {
   const svc = codec === 'vp9' || codec === 'av1';
   return {
     videoCodec: codec,
@@ -111,9 +115,12 @@ export function screenOptions(profile: ScreenProfile, codec: VideoCodec): TrackP
       maxFramerate: profile.fps,
       priority: 'high',
     },
+    // `maintain-resolution` держит разрешение У ИЗДАТЕЛЯ (X10): он роняет кадры, не чёткость.
+    // Пространственные слои — только у десктопа (Р-36): слабому ЗРИТЕЛЮ «Go Live» SFU отдаёт версию
+    // поменьше вместо фриза — сознательно ослабляем X10 для приёмника, не для издателя.
     degradationPreference: 'maintain-resolution',
-    simulcast: false,
-    ...(svc ? { scalabilityMode: screenScalability } : {}),
+    simulcast: !svc && spatial,
+    ...(svc ? { scalabilityMode: spatial ? cameraSpatialScalability : screenScalability } : {}),
   };
 }
 /**

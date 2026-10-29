@@ -414,8 +414,8 @@ export class MediaSession {
   /** То же для показа: выбранный кодек и флаг отступа (общий сторож — `EncoderHealth`). */
   private screenPreferredCodec?: VideoCodec;
   private screenFellBack = false;
-  /** Десктоп публикует камеру пространственными слоями (Р-36); телефон и веб — одним (Р-32). */
-  private readonly spatialCamera = isDesktop();
+  /** Десктоп публикует камеру и показ пространственными слоями (Р-36); телефон и веб — одним (Р-32). */
+  private readonly spatialDesktop = isDesktop();
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
   /** Звук показа от оболочки (E01-B3) — у идущего показа и у кончившегося, что ждёт опоздавшую дорожку. */
@@ -496,7 +496,7 @@ export class MediaSession {
         deviceId: this.preferences.get().devices.microphone || undefined,
       },
       audioOutput: { deviceId: this.preferences.get().devices.speaker || undefined },
-      publishDefaults: cameraOptions(this.cameraProfile, 'vp8', this.spatialCamera),
+      publishDefaults: cameraOptions(this.cameraProfile, 'vp8', this.spatialDesktop),
       reconnectPolicy: { nextRetryDelayInMs: ({ retryCount }) => this.recovery.delay(retryCount) },
     });
     this.room
@@ -868,7 +868,7 @@ export class MediaSession {
     return cameraCapture(this.cameraProfile, this.cameraCapabilities());
   }
   private cameraOptionsNow() {
-    return cameraOptions(this.cameraProfile, this.cameraCodec, this.spatialCamera);
+    return cameraOptions(this.cameraProfile, this.cameraCodec, this.spatialDesktop);
   }
   /** Подсказать кодировщику, что в этом кадре важнее — движение или резкость. */
   private applyCameraHint() {
@@ -1441,7 +1441,7 @@ export class MediaSession {
         )
           continue;
         await this.room.localParticipant.publishTrack(track, {
-          ...screenOptions(this.profile, this.codec),
+          ...screenOptions(this.profile, this.codec, this.spatialDesktop),
           source: track.source,
           ...(track.kind === Track.Kind.Audio
             ? { audioPreset: { maxBitrate: 128000 }, forceStereo: true, dtx: false }
@@ -1779,7 +1779,7 @@ export class MediaSession {
       await waitForPublishPermissions(this.room, [Track.Source.ScreenShareAudio], link.abort.signal);
       if (stale()) return;
       const publication = await this.room.localParticipant.publishTrack(track, {
-        ...screenOptions(this.profile, this.codec),
+        ...screenOptions(this.profile, this.codec, this.spatialDesktop),
         source: Track.Source.ScreenShareAudio,
         audioPreset: { maxBitrate: 128000 },
         forceStereo: true,
@@ -1884,7 +1884,7 @@ export class MediaSession {
       if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
       for (const track of stream.getTracks()) {
         const publication = await this.room.localParticipant.publishTrack(track, {
-          ...screenOptions(profile, this.codec),
+          ...screenOptions(profile, this.codec, this.spatialDesktop),
           source: track.kind === 'video' ? Track.Source.ScreenShare : Track.Source.ScreenShareAudio,
           ...(track.kind === 'audio'
             ? { audioPreset: { maxBitrate: 128000 }, forceStereo: true, dtx: false }
@@ -2112,7 +2112,7 @@ export class MediaSession {
       await this.room.localParticipant.unpublishTrack(track, false);
       if (this.disposed || generation !== this.screenGeneration) return;
       await this.room.localParticipant.publishTrack(track, {
-        ...screenOptions(profile, this.codec),
+        ...screenOptions(profile, this.codec, this.spatialDesktop),
         source: Track.Source.ScreenShare,
       });
       if (this.disposed || generation !== this.screenGeneration) {

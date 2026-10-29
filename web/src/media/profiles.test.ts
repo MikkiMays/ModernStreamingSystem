@@ -103,6 +103,14 @@ describe('screen profiles', () => {
     expect(h264.scalabilityMode).toBeUndefined();
   });
 
+  it('десктоп даёт и показу пространственные слои, по умолчанию — один (X10/Р-36)', () => {
+    expect(screenOptions({ resolution: 1080, fps: 30 }, 'vp9').scalabilityMode).toBe('L1T3');
+    const vp9 = screenOptions({ resolution: 1080, fps: 30 }, 'vp9', true);
+    expect(vp9.scalabilityMode).toBe('L3T3_KEY');
+    expect(vp9.simulcast).toBe(false);
+    expect(screenOptions({ resolution: 1080, fps: 30 }, 'h264', true).simulcast).toBe(true);
+  });
+
   /** «Авто» нет: любой уровень — выбранный, и держит размер кадра, а не торгуется им. */
   it('публикует выбранное сразу и держит кадр у экрана и у камеры', () => {
     const screen = screenOptions({ resolution: 720, fps: 30 }, 'vp8');
