@@ -86,6 +86,8 @@ export default function Diagnostics({
   // Паузы видео от SFU (R117): их причина — всегда наш собственный канал приёма, поэтому и сказать
   // о них место здесь, в «Сети», а не у собеседника.
   const pausedNow = useStore(meeting.media.videoPaused);
+  // Задержка доски (R159): от штриха соседа до этого экрана, пока доска на сцене.
+  const board = useStore(meeting.boardLatency);
   const pauses = useStore(meeting.media.videoPauseCount);
   useEffect(() => {
     let disposed = false;
@@ -137,6 +139,7 @@ export default function Diagnostics({
       callReportText(meeting.media.callReport()),
       ...targets.map((target) => `playout: ${target.kind} ${target.targetMs} ms`),
       ...(pauses ? [`video paused by sfu: ${pauses}`] : []),
+      ...(board ? [`board latency: p50 ${board.p50} ms, p95 ${board.p95} ms (${board.count})`] : []),
       ...samples.map(sampleLine),
     ].join('\n');
     try {
@@ -210,6 +213,11 @@ export default function Diagnostics({
                     .join(' · ')
                 : t(($) => $.diagnostics.buffer.none)}
             </Metric>
+            {board && (
+              <Metric label={t(($) => $.diagnostics.board.label)}>
+                {t(($) => $.diagnostics.board.value, { p50: board.p50, p95: board.p95 })}
+              </Metric>
+            )}
           </dl>
           {link.ordered && (
             <p className="diagnostics-card__note" data-tone="warning" role="status">
