@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Publish a verified GitHub release artifact; download.json changes only after all files exist.
+"""Publish a verified Electron release (tag desktop-vX.Y.Z); download.json changes only after all files exist.
 
-Two kinds of release (ADR 0001 §5):
-- WinUI (default): `Cord-Setup-X.Y.Z-x64.exe` + portable ZIP into `vX.Y.Z/`.
-- Electron (`--desktop`): `Cord-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml` and `latest.yml.sig` into
-  `desktop/` — the electron-updater channel. The manifest is written last; `--keep 2` keeps the previous
-  installer for blockmap deltas. `download.json` then points the /download page at `desktop/`.
+`Cord-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml` and `latest.yml.sig` go into `desktop/` — the electron-updater
+channel (ADR 0001 §5). The manifest is written last; `--keep 2` keeps the previous installer for blockmap deltas.
+`download.json` then points the /download page at `desktop/`. The WinUI client and its `vX.Y.Z/` releases are
+gone (01.11.2026); `--desktop` is still accepted so older commands keep working.
 """
 import argparse
 import hashlib
@@ -19,31 +18,27 @@ import tempfile
 REPOSITORY = "MikkiMays/ModernStreamingSystem.Windows"
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("metadata", type=Path, help="GitHub releases/tags/vX.Y.Z API JSON")
-parser.add_argument("artifacts", type=Path, help="Extracted Cord-win-x64 workflow artifact")
+parser.add_argument("artifacts", type=Path, help="Directory with the downloaded release files")
 parser.add_argument("--destination", type=Path, default=Path(".local/windows-releases"))
 # Сколько выпусков остаётся на сервере. Наружу отдаётся ровно один — тот, что в download.json:
 # страница /download и обновлялка клиента спрашивают только его, а старые каталоги лежали
 # мёртвым грузом по 400 МБ каждый. Второй остаётся не для раздачи, а для человека: вернуть
 # вчерашний установщик, не ходя на GitHub. Ноль означает «не убирать ничего».
 parser.add_argument("--keep", type=int, default=2, help="How many releases stay on disk (0 keeps all)")
-parser.add_argument("--desktop", action="store_true", help="Electron release (tag desktop-vX.Y.Z) into the desktop/ channel")
+parser.add_argument("--desktop", action="store_true", help="Accepted for compatibility: every release is Electron")
 args = parser.parse_args()
 release = json.loads(args.metadata.read_text())
 tag = release["tag_name"]
-prefix = "desktop-v" if args.desktop else "v"
+prefix = "desktop-v"
 if release["draft"] or release["prerelease"] or not re.fullmatch(re.escape(prefix) + r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", tag):
     raise SystemExit("Only stable version tags are accepted")
 version = tag[len(prefix):]
 if release["html_url"] != f"https://github.com/{REPOSITORY}/releases/tag/{tag}":
     raise SystemExit("Unexpected upstream repository")
-if args.desktop:
-    installer = f"Cord-Setup-{version}.exe"
-    names = {installer, installer + ".blockmap"}
-    names |= {name + ".sha256" for name in names}
-    names |= {"latest.yml", "latest.yml.sig"}
-else:
-    names = {f"Cord-Setup-{version}-x64.exe", "Cord-win-x64.zip"}
-    names |= {name + ".sha256" for name in names}
+installer = f"Cord-Setup-{version}.exe"
+names = {installer, installer + ".blockmap"}
+names |= {name + ".sha256" for name in names}
+names |= {"latest.yml", "latest.yml.sig"}
 assets = {asset["name"]: asset for asset in release["assets"]}
 for name in names:
     asset = assets[name]
@@ -55,14 +50,13 @@ for name in names:
         raise SystemExit("Release checksum or size mismatch: " + name)
     if not name.endswith(".sha256") and (name + ".sha256") in names and (args.artifacts / (name + ".sha256")).read_text().split()[0].lower() != digest:
         raise SystemExit("Sidecar checksum mismatch: " + name)
-if args.desktop:
-    # The signed manifest must describe exactly this installer: version, name and size. The
-    # signature itself is checked by the client against its embedded keys; here only the shape.
-    manifest = (args.artifacts / "latest.yml").read_text()
-    if f"version: {version}\n" not in manifest or f"url: {installer}\n" not in manifest:
-        raise SystemExit("latest.yml does not describe " + installer)
-    if not re.fullmatch(r"[A-Za-z0-9+/=]{86,90}\s*", (args.artifacts / "latest.yml.sig").read_text()):
-        raise SystemExit("latest.yml.sig is not an Ed25519 signature")
+# The signed manifest must describe exactly this installer: version, name and size. The
+# signature itself is checked by the client against its embedded keys; here only the shape.
+manifest = (args.artifacts / "latest.yml").read_text()
+if f"version: {version}\n" not in manifest or f"url: {installer}\n" not in manifest:
+    raise SystemExit("latest.yml does not describe " + installer)
+if not re.fullmatch(r"[A-Za-z0-9+/=]{86,90}\s*", (args.artifacts / "latest.yml.sig").read_text()):
+    raise SystemExit("latest.yml.sig is not an Ed25519 signature")
 args.destination.mkdir(parents=True, exist_ok=True)
 current = args.destination / "download.json"
 if current.exists():
@@ -70,39 +64,25 @@ if current.exists():
     if tuple(map(int, previous.split("."))) > tuple(map(int, version.split("."))):
         raise SystemExit("Refusing to downgrade the published release")
 with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as folder:
-    if args.desktop:
-        # One channel directory for all desktop releases: the installer and blockmap of the previous
-        # version stay (deltas), and latest.yml is replaced atomically, last of all.
-        channel = args.destination / "desktop"
-        channel.mkdir(exist_ok=True)
-        for name in sorted(names, key=lambda item: item.startswith("latest")):
-            if name.startswith("latest"):
-                continue
-            if (channel / name).exists() and hashlib.file_digest((channel / name).open("rb"), "sha256").hexdigest() != assets[name]["digest"][7:]:
-                raise SystemExit("Refusing to replace a published file: " + name)
-            staged = Path(folder) / name
-            shutil.copyfile(args.artifacts / name, staged)
-            os.chmod(staged, 0o644)
-            os.replace(staged, channel / name)
-        for name in ("latest.yml.sig", "latest.yml"):
-            staged = Path(folder) / name
-            shutil.copyfile(args.artifacts / name, staged)
-            os.chmod(staged, 0o644)
-            os.replace(staged, channel / name)
-        target = channel
-    else:
-        stage = Path(folder) / tag
-        stage.mkdir()
-        for name in names:
-            shutil.copyfile(args.artifacts / name, stage / name)
-            os.chmod(stage / name, 0o644)
-        target = args.destination / tag
-        if target.exists():
-            for name in names:
-                if hashlib.file_digest((target / name).open("rb"), "sha256").hexdigest() != assets[name]["digest"][7:]:
-                    raise SystemExit("Refusing to replace a published release: " + name)
-        else:
-            os.rename(stage, target)
+    # One channel directory for all desktop releases: the installer and blockmap of the previous
+    # version stay (deltas), and latest.yml is replaced atomically, last of all.
+    channel = args.destination / "desktop"
+    channel.mkdir(exist_ok=True)
+    for name in sorted(names, key=lambda item: item.startswith("latest")):
+        if name.startswith("latest"):
+            continue
+        if (channel / name).exists() and hashlib.file_digest((channel / name).open("rb"), "sha256").hexdigest() != assets[name]["digest"][7:]:
+            raise SystemExit("Refusing to replace a published file: " + name)
+        staged = Path(folder) / name
+        shutil.copyfile(args.artifacts / name, staged)
+        os.chmod(staged, 0o644)
+        os.replace(staged, channel / name)
+    for name in ("latest.yml.sig", "latest.yml"):
+        staged = Path(folder) / name
+        shutil.copyfile(args.artifacts / name, staged)
+        os.chmod(staged, 0o644)
+        os.replace(staged, channel / name)
+
     # The one public description of the release, for the download page and the client's update
     # splash alike: version and files with sizes and digests, nothing of the repository. The
     # whole GitHub record used to go out as `latest.json` for clients before 0.7.8; there are no
@@ -120,10 +100,10 @@ with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as fo
                 "kind": "installer" if name.endswith(".exe") else "portable",
                 "size": assets[name]["size"],
                 "sha256": assets[name]["digest"][7:],
-                **({"path": "desktop/"} if args.desktop else {}),
+                "path": "desktop/",
             }
             for name in sorted(names)
-            if name.endswith(".exe") or name.endswith(".zip")
+            if name.endswith(".exe")
         ],
     }
     catalogue = Path(folder) / "download.json"
@@ -137,7 +117,7 @@ with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as fo
 # раздаёт прежний каталог, и убрать его значило бы отдать 404 тому, кто нажал «Скачать» в
 # эту секунду. Провалившаяся выкладка сюда не доходит вовсе — и ничего не удаляет.
 removed = []
-if args.desktop and args.keep > 0:
+if args.keep > 0:
     # The channel keeps the current installer and `--keep - 1` previous ones for blockmap deltas.
     installers = sorted(
         (path for path in (args.destination / "desktop").glob("Cord-Setup-*.exe") if re.fullmatch(r"Cord-Setup-\d+\.\d+\.\d+\.exe", path.name)),
@@ -150,22 +130,6 @@ if args.desktop and args.keep > 0:
         for stale in (path, Path(str(path) + ".blockmap"), Path(str(path) + ".sha256"), Path(str(path) + ".blockmap.sha256")):
             if stale.exists():
                 stale.unlink()
-        removed.append(path.name)
-elif args.keep > 0:
-    # Тот же образец, что и у принимаемых меток: каталог, который не выглядит выпуском,
-    # уборке не принадлежит — она его не сортирует и не удаляет.
-    order = sorted(
-        (path for path in args.destination.glob("v*") if path.is_dir() and re.fullmatch(r"v\d+\.\d+\.\d+", path.name)),
-        key=lambda path: tuple(int(part) for part in path.name[1:].split(".")),
-        reverse=True,
-    )
-    for path in order[args.keep:]:
-        # Отдаваемый выпуск защищён отдельно от счёта: если --keep когда-нибудь поставят в
-        # единицу на половине выкладки, счёт не должен унести файл, на который уже ссылается
-        # страница. Проверка дешёвая, а ошибка стоила бы раздачи.
-        if path.name == tag:
-            continue
-        shutil.rmtree(path)
         removed.append(path.name)
 print(
     f"Published {tag}: {len(names)} verified assets"
