@@ -1,46 +1,60 @@
 ---
 name: cord-deploy
-description: Use when Cord code changes must reach the running server (stand cord.nikg.tech or production), when "fixed but still broken" after a deploy, or when a Windows client release has to appear on /download.
+description: Use when Cord code changes must reach a running server (stand cord.nikg.tech or another server), when "fixed but still broken" after a deploy, when the SFU config must be refreshed, or when a Windows client release has to appear on /download.
 ---
 
 # Выкатка Cord
+
+Полный порядок — `docs/RELEASE.md` (версии, проверки, стенд, другие серверы, переход в `strict`, клиент Windows,
+APK, учёт, ловушки). Здесь — только быстрая памятка.
 
 ## Какая служба что везёт
 
 | Изменено | Служба |
 | --- | --- |
 | `web/**`, `infra/Dockerfile.web`, `infra/Caddyfile` | `gateway` (веб собирается **внутрь** него) |
-| `server/**`, `pom.xml`, `infra/Dockerfile.server` | `core` (проверки, права, комнаты — тоже здесь) |
+| `server/**`, `pom.xml`, `infra/Dockerfile.server` | `core` (проверки, права, комнаты, миграции Flyway) |
 | `services/**` (кинозал, музыка, Telegram) | `services` и, если `services/sniffer/**`, `sniffer` |
-| `compose.yaml`, `scripts/configure.mjs` | смотри `update.sh` — он сравнивает хэши конфигурации |
+| `scripts/configure.mjs`, `edge-config.mjs`, `turn-guard.mjs` | `node scripts/configure.mjs --refresh` + `docker compose restart livekit` (и `edge`) |
+| `compose.yaml` | служба с изменённой конфигурацией: `docker compose up -d --no-deps <служба>` |
+| `docs/**`, `backlog/**`, `mobile/**` | на сервере ничего |
 
 «Починил, а не работает» — чаще всего выкатили не ту службу (правило в `core`, а пересобран `gateway`).
 
-## Команда
+## Стенд cord.nikg.tech (эта машина, `strict`)
 
 ```bash
-cd "$CORD_ROOT/ModernStreamingSystem"
-backlog/bin/deploy.sh gateway core          # встречи → flock → build → up → health → коммит в бандле
+cd /opt/ModernStreamingSystem          # только отсюда: в worktree нет .env
+git status -sb && git pull --ff-only
+backlog/bin/active-meetings.sh         # 0 — пусто
+TAG=cord-rollback-$(date +%Y%m%d-%H%M%S); for s in core gateway; do docker tag modern-streaming-$s:latest $TAG-$s:latest; done
+backlog/bin/deploy.sh core gateway     # встречи → flock → build → up по одной → health → cord-build = HEAD
 ```
 
-- Скрипт сам зовёт `backlog/bin/active-meetings.sh` и откладывает выкатку, если идут встречи
-  (`CORD_DEPLOY_FORCE=1` — только для стенда без людей).
-- Сборка `services` и `core` долгая — запускать в фоне, не под `timeout`.
-- Никогда `docker compose down -v` (сносит базу и файлы).
+- Идут встречи — подождать или `backlog/bin/deploy.sh --drain <службы>` (нужен `ADMIN_PASSWORD`);
+  `CORD_DEPLOY_FORCE=1` — только если людей нет.
+- Сборка `core`/`services` долгая — в фоне, не под `timeout`.
+- `deploy.sh` LiveKit не перезапускает: после `--refresh` — `backlog/bin/active-meetings.sh && docker compose restart livekit`.
+- Никогда `docker compose down -v` и голый `docker compose up -d` (поднимет профиль `monitoring`).
 
-## После выкатки
+После: `curl -s https://cord.nikg.tech/ | grep -o 'name="cord-build" content="[^"]*"'` = `git rev-parse --short HEAD`,
+`curl -fsS https://cord.nikg.tech/api/v1/ping`, `node scripts/smoke.mjs`, e2e тронутого:
+`cd web && PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/<спек>.ts` — не больше 10 новых
+встреч в час с адреса. Откат — `docker tag $TAG-<служба>:latest modern-streaming-<служба>:latest` и
+`docker compose up -d --no-deps <служба>`.
 
-1. `deploy.sh` проверяет, что коммит HEAD вшит в страницу (`<meta name="cord-build">`, снаружи —
-   `curl -s https://<домен>/ | grep cord-build`). Человеку коммит не показывается нигде (владелец, 29.10.2026).
-2. `curl -fsS https://cord.nikg.tech/api/v1/ping` и e2e по тронутым сценариям:
-   `cd web && PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/<спек>.ts`
-   (без переменной конфиг поднимает пустой dev-сервер — «всё падает»).
-3. Изменения бэклога/доков выкатки не требуют.
+## Другие серверы
 
-## Релиз Windows
+Отсюда ssh нет — выкатывает тот, у кого он есть: `backlog/bin/active-meetings.sh`, `./update.sh --check`,
+`sudo ./update.sh` (встреч он не проверяет). Переход в `strict` — `docs/RELEASE.md` → «Переход в strict».
 
-Пуш в `main` репы Windows запускает CI, который **выкладывает релиз**. Второй пуш подряд убивает выкладку
-(останется черновик — удалить его через `gh api -X DELETE repos/MikkiMays/ModernStreamingSystem.Windows/releases/<id>`).
-Затем зеркало: `gh api repos/MikkiMays/ModernStreamingSystem.Windows/releases/tags/vX.Y.Z > release.json`,
-`gh release download vX.Y.Z -R MikkiMays/ModernStreamingSystem.Windows -D artifacts -p 'Cord-Setup-*' -p 'Cord-win-x64.zip*'`,
-`python3 scripts/publish-windows-release.py release.json artifacts/`. Без зеркала клиенты новую версию не увидят.
+## Клиент Windows (Electron)
+
+1. Репа Windows: номер в `desktop/package.json` (`npm version X.Y.Z --no-git-tag-version`) и
+   `docs/releases/desktop-X.Y.Z.md` — одним коммитом с правкой `desktop/`; пуш в `main` → `desktop.yml` выпускает
+   `desktop-vX.Y.Z`. Без нового номера — зелёный прогон и ничего нового.
+2. Зеркало: `backlog/bin/publish-windows.sh --desktop X.Y.Z` из `/opt/ModernStreamingSystem`. Без зеркала новую
+   версию не видят ни `/download`, ни клиенты.
+3. cordcam: `git merge --no-ff origin/main` в `deploy/cordcam` (worktree `--detach` от `origin/deploy/cordcam`),
+   `git push origin HEAD:deploy/cordcam` → предварительный релиз `cordcam-desktop-vX.Y.Z`; его зеркало — на
+   сервере cordcam.
