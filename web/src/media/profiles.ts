@@ -1,4 +1,5 @@
-import type { TrackPublishOptions, VideoCodec } from 'livekit-client';
+import { BackupCodecPolicy, type TrackPublishOptions } from 'livekit-client';
+import { BASELINE, type PolicyLevel, type PolicySource, type PublishShape } from './codec-policy';
 
 /** 480 — только у камеры (`CAMERA_RESOLUTIONS`); показ начинается с 720. */
 export type Resolution = 480 | 720 | 1080 | 1440;
@@ -98,29 +99,58 @@ export function fitSource(width: number, height: number, resolution: Resolution)
  * дележе полосы с камерой экран первый.
  */
 export const screenHint = 'detail' as const;
-/** Временные слои одного разрешения: зритель, которому не хватает, получает 30 или 15 из 60 кадров. */
-export const screenScalability = 'L1T3' as const;
-export function screenOptions(
-  profile: ScreenProfile,
-  codec: VideoCodec,
-  spatial = false,
-): TrackPublishOptions {
-  const svc = codec === 'vp9' || codec === 'av1';
+/**
+ * Запасной кодек — рядом, а не вместо (Р-47): `SIMULCAST` вместо умолчания LiveKit `PREFER_REGRESSION`,
+ * при котором один зритель без декодера VP9/AV1/H.265 переводил на H.264 всю комнату. Копию SFU
+ * просит у издателя только когда её действительно подписывает несовместимый зритель.
+ */
+function backupOptions(shape: PublishShape): Pick<TrackPublishOptions, 'backupCodec' | 'backupCodecPolicy'> {
+  return shape.backup
+    ? { backupCodec: { codec: shape.backup }, backupCodecPolicy: BackupCodecPolicy.SIMULCAST }
+    : { backupCodec: false };
+}
+/**
+ * Опции публикации показа из решения политики (`codec-policy.ts`): кодек, слои и запасной — оттуда,
+ * полоса и частота — из уровня. Без решения — VP8 одним слоем.
+ *
+ * `maintain-resolution` держит разрешение У ИЗДАТЕЛЯ (X10): он роняет кадры, не чёткость. Слоями
+ * (simulcast) публикует только клиент Windows (Р-36, Р-47): слабому зрителю «Go Live» SFU отдаёт версию
+ * поменьше вместо фриза — сознательно ослабляем X10 для приёмника, не для издателя.
+ */
+export function screenOptions(profile: ScreenProfile, shape: PublishShape = BASELINE): TrackPublishOptions {
   return {
-    videoCodec: codec,
-    // Запасной кодек для зрителей без декодера VP9/AV1 — H.264 (аппаратный почти везде), не VP8.
-    backupCodec: svc ? ({ codec: 'h264' } as const) : (false as const),
+    videoCodec: shape.codec,
+    ...backupOptions(shape),
     screenShareEncoding: {
       maxBitrate: targetBitrate(profile),
       maxFramerate: profile.fps,
       priority: 'high',
     },
-    // `maintain-resolution` держит разрешение У ИЗДАТЕЛЯ (X10): он роняет кадры, не чёткость.
-    // Пространственные слои — только у десктопа (Р-36): слабому ЗРИТЕЛЮ «Go Live» SFU отдаёт версию
-    // поменьше вместо фриза — сознательно ослабляем X10 для приёмника, не для издателя.
     degradationPreference: 'maintain-resolution',
-    simulcast: !svc && spatial,
-    ...(svc ? { scalabilityMode: spatial ? cameraSpatialScalability : screenScalability } : {}),
+    simulcast: shape.simulcast,
+    ...(shape.scalabilityMode ? { scalabilityMode: shape.scalabilityMode } : {}),
+  };
+}
+/** Источник политики: камера или показ в своём режиме. */
+export const policySourceOf = (
+  kind: 'camera' | 'screen',
+  profile: Pick<ScreenProfile, 'mode'>,
+): PolicySource =>
+  kind === 'camera' ? 'camera' : modeOf(profile) === 'sharp' ? 'screen-sharp' : 'screen-smooth';
+/**
+ * Под что спрашивать кодировщик (`encodingInfo`): тот кадр, частота и битрейт, что пойдут в сеть. Кадр
+ * камеры — как его просит `cameraCapture`, экрана — 16:9 выбранной высоты.
+ */
+export function policyLevel(kind: 'camera' | 'screen', profile: ScreenProfile): PolicyLevel {
+  const width =
+    kind === 'camera'
+      ? cameraCapture(profile).resolution.width
+      : Math.round((profile.resolution * 8) / 9) * 2;
+  return {
+    width,
+    height: profile.resolution,
+    fps: profile.fps,
+    bitrate: targetBitrate(kind === 'camera' ? { ...profile, mode: 'smooth' } : profile),
   };
 }
 /**
@@ -224,34 +254,24 @@ export function forcedCameraConstraints(
  *
  * Битрейт берётся из той же таблицы, что и у экрана: одно и то же число в двух местах рано или
  * поздно расходится.
- */
-/**
- * Пространственные слои камеры — только у десктопа (Р-36, 29.10.2026).
  *
- * Р-32 убрал подпорки, потому что сервер выбирал слой по высоте плитки и ронял портрет телефона
- * в 360p. Но тот баг — про ИЗДАТЕЛЯ-телефон: десктоп держат горизонтально, у него мощная машина и
- * хороший канал (как у Discord). Поэтому пространственные слои включаем только когда камеру
- * публикует десктоп: слабый или мелкий зритель берёт нижний слой, а крупная плитка на хорошем
- * канале — верхний (решает `adaptiveStream` по размеру плитки, не сервер вслепую). Телефон и веб
- * по-прежнему публикуют одним слоём `L1T3` — у них Р-32 в силе. У VP9/AV1 это K-SVC `L3T3_KEY`
- * (переключение слоёв без ключевого кадра — SFU меняет слой зрителю без PLI-шторма), у H.264 — обычный
- * simulcast. Отдача за это не растёт у издателя пропорционально числу зрителей — её режет SFU.
+ * СЛОИ (Р-36 → Р-47). Р-32 убрал подпорки, потому что сервер выбирал слой по высоте плитки и
+ * ронял портрет телефона в 360p. Тот баг — про ИЗДАТЕЛЯ-телефон: десктоп держат горизонтально, у него
+ * мощная машина и хороший канал (как у Discord). Поэтому слоями публикует только клиент Windows, и с
+ * 31.10.2026 это simulcast из слоёв `L1T3`/`L1T1`, каждый — отдельная аппаратная сессия, а не K-SVC
+ * `L3T3_KEY`: пространственных слоёв Media Foundation не кодирует вовсе («MediaFoundation does not
+ * support spatial layer encoding»), и `L3T3_KEY` молча уходил в libvpx → `cpu` → H.264. K-SVC остался
+ * только там, где кодирует и так процессор и ядер хватает. Телефон и веб — одним слоем (Р-32). Какую
+ * форму брать, решает `codec-policy.ts`; здесь — только опции LiveKit из неё.
  */
-export const cameraSpatialScalability = 'L3T3_KEY' as const;
-export function cameraOptions(
-  profile: ScreenProfile,
-  codec: VideoCodec = 'vp8',
-  spatial = false,
-): TrackPublishOptions {
-  const svc = codec === 'vp9' || codec === 'av1';
+export function cameraOptions(profile: ScreenProfile, shape: PublishShape = BASELINE): TrackPublishOptions {
   return {
-    videoCodec: codec,
-    // Запасной кодек для зрителей без декодера VP9/AV1 — H.264 (аппаратный почти везде), не VP8.
-    backupCodec: svc ? ({ codec: 'h264' } as const) : (false as const),
+    videoCodec: shape.codec,
+    ...backupOptions(shape),
     videoEncoding: { maxBitrate: targetBitrate(profile), maxFramerate: profile.fps },
     degradationPreference: 'maintain-resolution',
-    simulcast: !svc && spatial,
-    ...(svc ? { scalabilityMode: spatial ? cameraSpatialScalability : screenScalability } : {}),
+    simulcast: shape.simulcast,
+    ...(shape.scalabilityMode ? { scalabilityMode: shape.scalabilityMode } : {}),
   };
 }
 /** Слой simulcast так, как он был опубликован: короткая сторона кадра, битрейт и частота. */
@@ -318,77 +338,3 @@ export function layerTunes(
  * Что уступать при нехватке, задаёт не подсказка, а `degradationPreference` в `cameraOptions`.
  */
 export const cameraHint = 'motion' as const;
-/** Умеет ли эта машина кодировать такой поток аппаратно и без рывков. */
-async function powerEfficient(contentType: string, profile: ScreenProfile) {
-  if (!navigator.mediaCapabilities?.encodingInfo) return false;
-  const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
-  if (!available.some((c) => c.mimeType.toLowerCase() === contentType.toLowerCase())) return false;
-  try {
-    const capability = await navigator.mediaCapabilities.encodingInfo({
-      type: 'webrtc',
-      video: {
-        contentType,
-        width: Math.round((profile.resolution * 16) / 9),
-        height: profile.resolution,
-        bitrate: targetBitrate(profile),
-        framerate: profile.fps,
-      },
-    } as MediaEncodingConfiguration);
-    return !!(capability.supported && capability.smooth && capability.powerEfficient);
-  } catch {
-    /* Conservative baseline when WebRTC encoding information is unavailable. */
-    return false;
-  }
-}
-/**
- * Каким кодеком отдавать экран — по режиму (R95).
- *
- * «Чёткость»: AV1 и VP9 умеют screen content coding — текст в них заметно чище H.264 при той же
- * полосе, поэтому они первые, если аппаратные. «Плавность»: 60 кадров в секунду программно не
- * вытянуть, поэтому первым идёт то, что аппаратно есть почти везде, — H.264, — и только потом
- * AV1/VP9 с аппаратным кодером. VP8 — последний, он работает всегда.
- */
-export async function chooseCodec(profile: ScreenProfile): Promise<VideoCodec> {
-  const order: readonly (readonly [VideoCodec, string])[] =
-    modeOf(profile) === 'sharp'
-      ? [
-          ['av1', 'video/AV1'],
-          ['vp9', 'video/VP9'],
-          ['h264', 'video/H264'],
-        ]
-      : [
-          ['h264', 'video/H264'],
-          ['av1', 'video/AV1'],
-          ['vp9', 'video/VP9'],
-        ];
-  for (const [codec, contentType] of order) if (await powerEfficient(contentType, profile)) return codec;
-  const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
-  return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
-}
-/**
- * Каким кодеком отдавать камеру: VP9, когда машина кодирует его аппаратно, иначе H.264.
- *
- * VP9 первым (Р-35, 29.10.2026): при той же полосе картинка чище, а временные слои `L1T3` дают
- * слабому зрителю меньше кадров того же размера, не трогая остальных. Но — только аппаратный:
- * `powerEfficient` единственный признак железного пути, который сообщает браузер. Программный
- * VP9 на 1080p упирается в процессор и роняет частоту (то самое «заявлено 60, идёт 40», ответом
- * на которое здесь годами стоял жёсткий VP8), поэтому без аппаратного VP9 сразу H.264: у него
- * кодировщик в железе почти везде. H.264 — ещё и `backupCodec` у VP9: зрителю, чей браузер VP9 не
- * декодирует, SFU сам отдаёт H.264-копию. А если VP9 упрётся в процессор уже в работе — сторож
- * (`sampleUpstream` → `EncoderHealth`) переключит на H.264 и вернёт обратно, когда отпустит. VP8
- * остаётся последним — тем, что кодируется всегда.
- */
-export async function chooseCameraCodec(profile: ScreenProfile): Promise<VideoCodec> {
-  for (const [codec, contentType] of [
-    ['vp9', 'video/VP9'],
-    ['h264', 'video/H264'],
-  ] as const)
-    if (await powerEfficient(contentType, profile)) return codec;
-  const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
-  return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
-}
-/** Совместимый кодек, на который сторож отступает с VP9/AV1: H.264 аппаратный почти везде, иначе VP8. */
-export function fallbackCodec(): VideoCodec {
-  const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
-  return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
-}

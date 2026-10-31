@@ -22,21 +22,22 @@ function fakeApi() {
       interval: 5,
       status: 'pending' as const,
     })),
-    poll: vi.fn(() => new Promise<never>(() => {})),
+    // Ответ опроса — «ещё ждём» навсегда; тест входа в комнате подменяет его на `connected` с токеном.
+    poll: vi.fn((): Promise<{ status: string; token?: string; name?: string }> => new Promise(() => {})),
     cancel: vi.fn(async () => undefined),
     connectToken: vi.fn(async () => ({ connected: true, name: 'Гость Яндекса' })),
     disconnect: vi.fn(),
   };
 }
 
-function mount(api: ReturnType<typeof fakeApi>, onStoredTokenChange = vi.fn()) {
+function mount(api: ReturnType<typeof fakeApi>, onStoredTokenChange = vi.fn(), storedToken = '') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
       <YandexIntegration
         api={api as unknown as YandexApi}
         roomId="room"
-        storedToken=""
+        storedToken={storedToken}
         onStoredTokenChange={onStoredTokenChange}
       />
     </QueryClientProvider>,
@@ -63,5 +64,45 @@ describe('Яндекс Музыка: подключение', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Отменить вход' })).toBeNull());
     expect(stored).toHaveBeenCalledWith(token);
     expect(screen.getByText('Гость Яндекса')).toBeInTheDocument();
+  });
+});
+
+describe('токен не отваливается после перезахода (R157)', () => {
+  it('вход по QR в комнате кладёт токен и на устройство', async () => {
+    const api = fakeApi();
+    // Опрос без паузы: ждать пять секунд интервала Яндекса тесту незачем.
+    api.start.mockImplementation(async () => ({
+      id: 'code-1',
+      userCode: 'ABCD-EFGH',
+      verificationUrl: 'https://ya.ru/device',
+      expiresAt: Date.now() + 300000,
+      interval: 0,
+      status: 'pending' as const,
+    }));
+    api.poll.mockImplementation(async () => ({
+      status: 'connected',
+      token: 'y0_from_qr',
+      name: 'Слушатель',
+    }));
+    const stored = mount(api);
+    fireEvent.click(await screen.findByRole('button', { name: 'Подключить' }));
+    await waitFor(() => expect(stored).toHaveBeenCalledWith('y0_from_qr'), { timeout: 20000 });
+  });
+
+  it('сохранённый токен подключается к новой комнате сам, один раз', async () => {
+    const api = fakeApi();
+    mount(api, vi.fn(), 'y0_saved_token');
+    await waitFor(() => expect(api.connectToken).toHaveBeenCalledWith('y0_saved_token'));
+    expect(await screen.findByText('Гость Яндекса')).toBeInTheDocument();
+    expect(api.connectToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('без права или с протухшим токеном — тихо, «Подключить» остаётся', async () => {
+    const api = fakeApi();
+    api.connectToken.mockRejectedValue(new Error('403'));
+    mount(api, vi.fn(), 'y0_saved_token');
+    await waitFor(() => expect(api.connectToken).toHaveBeenCalled());
+    expect(await screen.findByRole('button', { name: 'Подключить' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

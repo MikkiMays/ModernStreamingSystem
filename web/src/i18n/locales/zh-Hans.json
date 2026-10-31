@@ -315,6 +315,16 @@
         "label": "共享预览",
         "hint": "观看者无需打开即可看到缩略图",
         "keywords": "预览 缩略图 屏幕共享 直播"
+      },
+      "hotkey-deafen": {
+        "label": "会议声音",
+        "hint": "关闭或打开——连同麦克风",
+        "keywords": "耳机 静音 听不到 声音"
+      },
+      "camera-background": {
+        "label": "背景",
+        "hint": "模糊或身后的图片",
+        "keywords": "背景 模糊 虚拟"
       }
     },
     "title": "设置",
@@ -394,7 +404,11 @@
         "taken": "其他程序已占用此快捷键：在 Cord 窗口中可以使用，如需在后台使用请换一个。",
         "duplicate": "此快捷键已分配给 Cord 的其他操作。",
         "windowOnly": "此快捷键目前只在 Cord 窗口中有效。"
-      }
+      },
+      "deafenTaken": "麦克风已使用此快捷键，请另选一个。",
+      "deafenChangeLabel": "更改会议声音快捷键",
+      "deafenAssignLabel": "设置会议声音快捷键",
+      "deafenResetLabel": "重置会议声音快捷键"
     },
     "media": {
       "kind": {
@@ -433,7 +447,8 @@
       "leaveFirst": "请先离开会议",
       "change": "更换服务器",
       "forget": "忘记密码",
-      "here": "当前所在"
+      "here": "当前所在",
+      "shared": "设置在所有服务器上通用。房间、收藏和最近的会议在每台服务器上各自独立。"
     },
     "sounds": {
       "cues": "提示音",
@@ -629,6 +644,9 @@
       "done": "会议链接已复制",
       "failed": "无法复制会议链接",
       "copy": "复制"
+    },
+    "deafened": {
+      "title": "会议声音已关闭——你听不到任何人"
     }
   },
   "chess": {
@@ -1328,7 +1346,8 @@
     },
     "encoder": {
       "screen": "编码器负载过高。正在将屏幕切换为兼容的编解码器。",
-      "camera": "编码器负载过高。正在将摄像头切换为兼容的编解码器。"
+      "camera": "编码器负载过高。正在将摄像头切换为兼容的编解码器。",
+      "cpuHint": "处理器来不及编码视频。我们不会降低画质：请关闭占用资源较多的程序，或在设置中选择较低的画质。"
     },
     "link": {
       "paths": {
@@ -2089,15 +2108,15 @@
       "toStart": "为所有人回到开头",
       "sync": "与房间同步",
       "skip": {
-        "intro": "为所有人跳过 85 秒",
         "ad": "为所有人跳过广告",
         "adShort": "跳过广告",
-        "adLabel": "流中的广告"
+        "adLabel": "流中的广告",
+        "intro": "为所有人跳过 85 秒"
       },
       "adSkipped": "已为所有人跳过广告",
       "exitFullscreen": "退出全屏",
       "fullscreen": "展开播放器",
-      "unmute": "开启视频声音",
+      "unmute": "打开声音",
       "mute": "关闭视频声音",
       "volume": "视频音量",
       "buffering": "正在加载",
@@ -2129,7 +2148,8 @@
         "streamFailed": "视频流无法打开。请换一个视频",
         "openFailed": "无法打开视频",
         "renewFailed": "无法刷新视频流"
-      }
+      },
+      "liveAd": "平台正在播放广告 · {{time}}"
     },
     "keys": {
       "locked": "主持人仅允许自己使用遥控——暂停和快进由主持人控制",
@@ -2246,7 +2266,8 @@
       "muteForAll": "为所有人关闭麦克风",
       "remove": "移出会议",
       "actions": "操作：{{name}}"
-    }
+    },
+    "deafened": "会议声音已关闭"
   },
   "dock": {
     "media": "麦克风和摄像头",
@@ -2281,7 +2302,8 @@
       }
     },
     "pip": "画中画",
-    "pipClose": "退出画中画"
+    "pipClose": "退出画中画",
+    "sound": "会议声音"
   },
   "invite": {
     "dialog": {
@@ -2322,7 +2344,20 @@
   },
   "kit": {
     "toasts": "通知",
-    "soon": "即将推出"
+    "soon": "即将推出",
+    "load": {
+      "label": "服务器负载：{{value}}",
+      "levels": {
+        "1": "低",
+        "2": "中",
+        "3": "高",
+        "4": "很高"
+      },
+      "full": "已满",
+      "maintenance": "正在更新",
+      "closed": "不接受新会议",
+      "unknown": "未知"
+    }
   },
   "connect": {
     "failure": {
@@ -2500,7 +2535,8 @@
     "attachment": {
       "list": "消息附件",
       "remove": "移除 {{name}}"
-    }
+    },
+    "deafened": "会议声音已关闭"
   },
   "home": {
     "entry": {
@@ -2530,6 +2566,31 @@
       "privacy": "无需账号。会议不会被录制。",
       "about": "关于",
       "help": "帮助"
+    },
+    "recent": {
+      "title": "最近",
+      "clear": "清除",
+      "clearTitle": "清除最近的会议？",
+      "clearText": "将删除此设备上的最近会议列表。会议本身和收藏不会改变。",
+      "clearConfirm": "清除",
+      "cancel": "取消",
+      "rejoin": "返回",
+      "again": "再次创建",
+      "byCode": "用会议码加入",
+      "ended": "已结束",
+      "people_other": "{{count}} 人",
+      "today": "今天 {{time}}",
+      "yesterday": "昨天 {{time}}",
+      "more": "显示全部（{{count}}）",
+      "less": "收起",
+      "menu": "操作：{{title}}",
+      "copyCode": "复制会议码",
+      "copied": "会议码已复制",
+      "copyFailed": "无法复制会议码",
+      "favorite": "加入收藏",
+      "favorited": "会议已加入收藏",
+      "forget": "从最近中移除",
+      "failed": "无法返回会议"
     }
   },
   "prejoin": {
@@ -2737,10 +2798,6 @@
         "name": "音乐",
         "hint": "全体共享的播放队列"
       },
-      "any-game": {
-        "name": "任意游戏",
-        "hint": "全会议一起玩网页游戏"
-      },
       "standup": {
         "name": "脱口秀舞台",
         "hint": "一人表演，其他人观看并互动"
@@ -2751,6 +2808,10 @@
       },
       "telegram": {
         "hint": "从你的 Telegram 群聊发起会议和音乐"
+      },
+      "any-game": {
+        "name": "任意游戏",
+        "hint": "全会议一起玩网页游戏"
       }
     },
     "music": {
@@ -2893,10 +2954,18 @@
     "rtt": "到媒体服务器的 RTT",
     "ms": "{{value}} 毫秒",
     "codec": "编解码器",
+    "profile": "编解码器配置",
+    "layers": "分层",
+    "singleLayer": "单层",
     "bufferRx": "接收缓冲",
     "encode": "单帧编码",
     "decode": "单帧解码",
     "implementation": "视频引擎",
+    "engine": {
+      "hw": "硬件",
+      "sw": "软件",
+      "unknown": "未公开"
+    },
     "limitation": "限制因素",
     "limits": {
       "none": "未发现",
@@ -2904,6 +2973,17 @@
       "bandwidth": "网络带宽",
       "unknown": "发送方无数据"
     },
+    "choice": {
+      "label": "为何选择此编解码器",
+      "hardware": "本机最佳的硬件编解码器",
+      "software": "没有硬件编码器，由处理器编码",
+      "viewers": "有观众无法解码更高一级的编解码器",
+      "fallback": "监控已从更高一级的编解码器回退",
+      "baseline": "编码器未响应，使用兼容的默认值",
+      "backup": "并为不支持此编解码器的观众附带 {{codec}}"
+    },
+    "fallbacks": "编解码器切换",
+    "fallbacksValue": "监控回退：{{fallbacks}} 次 · 共切换：{{switches}} 次",
     "stuck": {
       "title": "画面或声音卡住了？",
       "text": "我们会刷新其他参与者轨道的接收，可能会短暂停顿。",
@@ -3416,6 +3496,10 @@
         "network": {
           "q": "连接中断，视频出现马赛克",
           "a": "暂停同一网络上的下载和直播；使用网线或靠近路由器的 Wi‑Fi 会稳定得多。\nVPN 和公司网络有时会妨碍直连——不用它们，声音和视频的延迟会更低。\n在会议中打开“设置和操作 → 诊断”：可以看到线路、丢包和延迟——可以附在反馈中。"
+        },
+        "micBadge": {
+          "q": "游戏和窗口上方浮着一个红色麦克风图标",
+          "a": "这个图标不是 Cord 画的，而是显卡软件或 Windows 的——可以关掉。\nNVIDIA App / GeForce Experience：Alt+Z → 设置 → HUD 布局 →「状态指示器」→ 关闭。\nAMD Software：Alt+R → 设置 → 常规 →「叠加」——关闭录制和麦克风指示器。\nXbox Game Bar：Win+G → 设置 → 常规——取消「显示录制指示器」。\nCord 自己置顶的只有说话者小组件（叠加：「设置 → 叠加」）和右下角的通话小窗口（「设置 → Windows」）。"
         }
       }
     },
@@ -3515,5 +3599,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "最高 {{fps}} fps",
     "share": "共享"
+  },
+  "background": {
+    "title": "背景",
+    "none": "无背景",
+    "blurLight": "轻度模糊",
+    "blurStrong": "强度模糊",
+    "builtin": {
+      "graphite": "石墨",
+      "mist": "薄雾",
+      "dawn": "晨曦",
+      "forest": "森林",
+      "sea": "大海",
+      "sand": "沙滩"
+    },
+    "custom": "自己的照片",
+    "upload": "上传自己的照片",
+    "replace": "更换照片",
+    "uploadFailed": "无法打开这张照片",
+    "notHere": "此设备不支持背景——摄像头保持原样"
   }
 }

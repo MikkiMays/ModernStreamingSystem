@@ -1,5 +1,6 @@
 package dev.mikki.stream.room;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +33,24 @@ public final class Contracts {
   public record Rejoin(@NotNull UUID commandId, @NotBlank @Size(max = 40) String name) {}
 
   /**
+   * Недавние встречи главной (R148): что с ними сейчас — одним запросом на весь список.
+   *
+   * <p>Список живёт на устройстве, и у каждой строки свой пропуск — тот, с которым человек был во
+   * встрече. По нему ядро и отвечает: чужой пропуск не даёт о комнате ни слова, а имён участников в
+   * ответе нет вовсе — только «идёт или нет» и сколько людей на связи.
+   */
+  public record PresenceQuery(@NotNull @Size(max = 20) List<@Valid PresenceRoom> rooms) {}
+
+  public record PresenceRoom(@NotNull UUID roomId, @NotBlank @Size(max = 300) String credential) {}
+
+  /**
+   * {@code state}: {@code live} — на связи есть люди, {@code open} — встреча открыта, но пуста,
+   * {@code closed} — завершена (сохранённую можно открыть заново из избранного), {@code gone} —
+   * встречи больше нет. У {@code gone} нет ни названия, ни кода.
+   */
+  public record Presence(String roomId, String state, int people, String title, String code) {}
+
+  /**
    * Что ведущий может поменять во встрече, которая уже идёт.
    *
    * <p>Название и режим входа записывались ровно один раз, при создании, и поменять их потом было
@@ -55,7 +74,7 @@ public final class Contracts {
    * разобранным на имена.
    */
   public static final String COMMAND_TYPES =
-      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|screen\\.preview|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm|board\\.open|board\\.close|board\\.settings|board\\.clear";
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|screen\\.preview|view\\.open|view\\.close|view\\.playing|microphone\\.mute|media\\.decode|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm|self\\.deafen|board\\.open|board\\.close|board\\.settings|board\\.clear";
 
   /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
   private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
@@ -223,7 +242,17 @@ public final class Contracts {
       String service,
       String screenId,
       boolean screenStarted,
-      String viewingScreenId) {}
+      String viewingScreenId,
+      /**
+       * Что этот участник декодирует (R152): {@code av1}, {@code h265}, {@code vp9}, {@code h264},
+       * {@code vp8} — по команде {@code media.decode}. Издатель берёт основной кодек, только если
+       * его декодируют все, иначе держит H.264 рядом. {@code null} — ещё не сообщил, и поля в
+       * снимке нет.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          List<String> decodes,
+      boolean deafened) {}
 
   /**
    * Что комната смотрит вместе. {@code positionMs} верна в момент {@code anchorAt} по часам

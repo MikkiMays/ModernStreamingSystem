@@ -5,12 +5,13 @@ import type { LinkPath, LinkState } from './link-quality';
  *
  * ЧТО УХОДИТ. Только числа и слова из перечислений: секунды звонка, медиана оборота, средние потери и
  * джиттер приёма, средний битрейт приёма, замирания картинки, путь связи и кодек картинки, которую
- * человек смотрел дольше всего. Ни имён, ни адресов, ни номеров участников и дорожек — ядро и не примет
- * ничего, кроме этих полей (`ClientQuality.Report`).
+ * человек смотрел дольше всего, и кодек своей отдачи (R152). Ни имён, ни адресов, ни номеров участников
+ * и дорожек — ядро и не примет ничего, кроме этих полей (`ClientQuality.Report`).
  *
  * ОТКУДА. Из того же опроса статистики, что раз в две секунды решает запас буфера
  * (`PlayoutController.tick`): путь, оборот, потери и джиттер — `LinkState`, байты, кодек и замирания —
- * `inbound-rtp` тех же отчётов. Своего опроса getStats здесь нет.
+ * `inbound-rtp` тех же отчётов. Своего опроса getStats здесь нет; кодек отдачи приносит опрос
+ * отдачи (`notePublished`).
  */
 export type VideoCodec = 'vp8' | 'vp9' | 'h264' | 'h265' | 'av1' | 'other';
 
@@ -26,6 +27,11 @@ export interface CallReport {
   lossySeconds: number;
   path: LinkPath;
   codec: VideoCodec | null;
+  /**
+   * Кодек своей отдачи — тот, которым ушло больше всего байт (R152); `null` — видео не публиковали.
+   * Старое ядро поле пропускает.
+   */
+  publishCodec?: VideoCodec | null;
 }
 
 /** Короче этого — не звонок, а заглянул и ушёл: итог не шлётся. */
@@ -62,7 +68,13 @@ export class CallQuality {
   private received = 0;
   private freezes = new Map<string, { count: number; seconds: number }>();
   private codecs = new Map<VideoCodec, number>();
+  private sent = new Map<VideoCodec, number>();
   private paths = new Map<LinkPath, number>();
+
+  /** Своя отдача за интервал: кодек и байты (`MediaSession.sampleUpstream`). */
+  notePublished(codec: VideoCodec, bytes: number) {
+    if (bytes > 0) this.sent.set(codec, (this.sent.get(codec) ?? 0) + bytes);
+  }
 
   /** Один опрос: состояние канала и отчёты getStats подписанных дорожек. */
   observe(link: LinkState, reports: readonly RTCStatsReport[], now: number) {
@@ -139,6 +151,7 @@ export class CallQuality {
       lossySeconds: Math.min(seconds, Math.round(this.lossy)),
       path: most(this.paths) ?? 'unknown',
       codec: most(this.codecs),
+      publishCodec: most(this.sent),
     };
   }
 }

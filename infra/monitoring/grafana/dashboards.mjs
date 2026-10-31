@@ -33,6 +33,13 @@ const series = (title, targets, unit = 'short', options = {}) => ({
   stack: options.stack ?? false,
 });
 
+/** Доля времени отдачи источника с условием (`hw="hw"`, `codec=~"av1|h265"`) за час. */
+const publishShare = (source, match) =>
+  `sum(rate(cord_client_publish_seconds_total{source="${source}",${match}}[1h])) / sum(rate(cord_client_publish_seconds_total{source="${source}"}[1h]))`;
+/** Доля каждого кодека во времени отдачи источника. */
+const codecShare = (source) =>
+  `sum by (codec) (rate(cord_client_publish_seconds_total{source="${source}"}[10m])) / ignoring(codec) group_left sum(rate(cord_client_publish_seconds_total{source="${source}"}[10m]))`;
+
 function dashboard(uid, title, description, panels) {
   let x = 0;
   let y = 0;
@@ -143,7 +150,7 @@ const dashboards = [
     ]),
     series('Переподключения клиентов (ядро)', [['sum(increase(cord_joins_total{door="rejoin"}[1h]))', 'возвраты за час']]),
   ]),
-  dashboard('cord-media', 'Cord — медиа', 'Куратор через SFU, что слышат люди (сводки приёма), сторож музыки, площадки. W1b, docs/observability.md §4–5.', [
+  dashboard('cord-media', 'Cord — медиа', 'Куратор через SFU, что слышат люди (сводки приёма), сторож музыки, площадки, кодеки отдачи (R152). W1b, docs/observability.md §4–5, docs/codecs.md.', [
     stat('Куратор: потери вниз', 'max(cord_probe_loss_ratio{leg="down"})', 'percentunit'),
     stat('Куратор: оборот', 'max(cord_probe_rtt_ms)', 'ms'),
     stat('Куратор: джиттер', 'max(cord_probe_jitter_ms{leg="down"})', 'ms'),
@@ -180,6 +187,29 @@ const dashboards = [
       ['max(cord_platform_lanes_busy)', 'полос занято сейчас'],
     ]),
     series('Хост: замирания (soft lockup) за сутки', [['max(cord_host_soft_lockups_day)', 'за сутки']]),
+    // Кодеки отдачи (R152): работает ли гибкий кодек — из 10-секундных сводок браузеров (`RxQuality.java`).
+    stat('Камера в железе, доля за час', publishShare('camera', 'hw="hw"'), 'percentunit'),
+    stat('Показ в железе, доля за час', publishShare('screen', 'hw="hw"'), 'percentunit'),
+    stat('Показ на AV1/H.265, доля за час', publishShare('screen', 'codec=~"av1|h265"'), 'percentunit'),
+    stat('Смен кодека за час', 'sum(increase(cord_client_codec_switch_total[1h]))'),
+    series('Кодек камеры, доля времени отдачи', [[codecShare('camera'), '{{codec}}']], 'percentunit', { stack: true }),
+    series('Кодек показа, доля времени отдачи', [[codecShare('screen'), '{{codec}}']], 'percentunit', { stack: true }),
+    series('В железе или процессором, доля по источнику', [
+      [
+        'sum by (source, hw) (rate(cord_client_publish_seconds_total[10m])) / ignoring(hw) group_left sum by (source) (rate(cord_client_publish_seconds_total[10m]))',
+        '{{source}}: {{hw}}',
+      ],
+    ], 'percentunit'),
+    series('Что ограничивает кодировщик отдачи, доля времени', [
+      [
+        'sum by (source, reason) (rate(cord_client_tx_limited_seconds_total[10m])) / ignoring(reason) group_left sum by (source) (rate(cord_client_publish_seconds_total[10m]))',
+        '{{source}}: {{reason}}',
+      ],
+    ], 'percentunit'),
+    series('Смены кодека за час по причине', [['sum by (reason) (increase(cord_client_codec_switch_total[1h]))', '{{reason}}']], 'short', { stack: true }),
+    series('Смены кодека за час: откуда и куда', [
+      ['sum by (source, from, to) (increase(cord_client_codec_switch_total[1h]))', '{{source}}: {{from}} → {{to}}'],
+    ]),
   ]),
   dashboard('cord-server', 'Cord — сервер', 'Машина, база, Redis, шлюз и сам мониторинг. Steal — время, которое отнял гипервизор.', [
     stat('ЦП занят', '1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))', 'percentunit'),
@@ -187,6 +217,8 @@ const dashboards = [
     stat('Память свободна', 'node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes', 'percentunit'),
     stat('Диск свободен', 'node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}', 'percentunit'),
     stat('Нагрузка (1 мин)', 'node_load1'),
+    // Та же ступень, что люди видят палочками рядом с пингом (R143): 1 — свободно, 4 — мест нет.
+    stat('Загрузка для людей (1–4)', 'max(cord_server_load_level)'),
     stat('Запросов к шлюзу', 'sum(rate(caddy_http_requests_total[5m]))', 'reqps'),
     series('ЦП по видам', [['sum by (mode) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) / scalar(count(node_cpu_seconds_total{mode="idle"}))', '{{mode}}']], 'percentunit', { stack: true }),
     series('Память', [

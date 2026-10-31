@@ -1,7 +1,7 @@
 {
   "name": "@modern-streaming/web",
   "private": true,
-  "version": "0.7.0",
+  "version": "1.1.0",
   "author": "@nikgers (https://t.me/nikgers)",
   "type": "module",
   "scripts": {
@@ -18,6 +18,7 @@
     "@base-ui/react": "1.8.0",
     "@excalidraw/excalidraw": "0.18.1",
     "@fontsource-variable/inter": "5.2.8",
+    "@livekit/track-processors": "0.8.2",
     "@sapphi-red/web-noise-suppressor": "0.3.5",
     "@tanstack/react-query": "5.102.8",
     "@tma.js/sdk": "3.3.0",

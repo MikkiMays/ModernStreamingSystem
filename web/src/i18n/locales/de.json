@@ -315,6 +315,16 @@
         "label": "Vorschau der Freigabe",
         "hint": "Zuschauer sehen ein Vorschaubild, ohne sie zu öffnen",
         "keywords": "Vorschau Miniatur Bildschirmfreigabe Stream"
+      },
+      "hotkey-deafen": {
+        "label": "Meeting-Ton",
+        "hint": "Aus- oder einschalten – zusammen mit dem Mikrofon",
+        "keywords": "Kopfhörer stumm deafen Ton"
+      },
+      "camera-background": {
+        "label": "Hintergrund",
+        "hint": "Weichzeichnen oder ein Bild hinter Ihnen",
+        "keywords": "Hintergrund weichzeichnen virtuell"
       }
     },
     "title": "Einstellungen",
@@ -394,7 +404,11 @@
         "taken": "Ein anderes Programm nutzt dieses Tastenkürzel bereits: Im Cord-Fenster funktioniert es, für den Hintergrund wähle ein anderes.",
         "duplicate": "Dieses Tastenkürzel ist bereits einer anderen Cord-Aktion zugewiesen.",
         "windowOnly": "Dieses Tastenkürzel funktioniert gerade nur im Cord-Fenster."
-      }
+      },
+      "deafenTaken": "Dieses Tastenkürzel nutzt bereits das Mikrofon – wählen Sie ein anderes.",
+      "deafenChangeLabel": "Tastenkürzel für Meeting-Ton ändern",
+      "deafenAssignLabel": "Tastenkürzel für Meeting-Ton zuweisen",
+      "deafenResetLabel": "Tastenkürzel für Meeting-Ton zurücksetzen"
     },
     "media": {
       "kind": {
@@ -433,7 +447,8 @@
       "leaveFirst": "Verlasse zuerst das Meeting",
       "change": "Server wechseln",
       "forget": "Passwort vergessen",
-      "here": "Du bist hier"
+      "here": "Du bist hier",
+      "shared": "Die Einstellungen gelten für alle Server. Räume, Favoriten und letzte Meetings hat jeder Server für sich."
     },
     "sounds": {
       "cues": "Signale",
@@ -630,6 +645,9 @@
       "done": "Link zum Meeting kopiert",
       "failed": "Link zum Meeting konnte nicht kopiert werden",
       "copy": "Kopieren"
+    },
+    "deafened": {
+      "title": "Meeting-Ton ist aus – Sie hören niemanden"
     }
   },
   "chess": {
@@ -1342,7 +1360,8 @@
     },
     "encoder": {
       "screen": "Der Encoder ist überlastet. Der Bildschirm wechselt zu einem kompatiblen Codec.",
-      "camera": "Der Encoder ist überlastet. Die Kamera wechselt zu einem kompatiblen Codec."
+      "camera": "Der Encoder ist überlastet. Die Kamera wechselt zu einem kompatiblen Codec.",
+      "cpuHint": "Der Prozessor kommt mit dem Kodieren des Videos nicht hinterher. Wir senken die Qualität nicht: Schließe aufwendige Programme oder wähle in den Einstellungen eine niedrigere Qualität."
     },
     "link": {
       "paths": {
@@ -2114,15 +2133,15 @@
       "toStart": "Für alle an den Anfang",
       "sync": "Mit dem Raum synchronisieren",
       "skip": {
-        "intro": "85 Sekunden für alle überspringen",
         "ad": "Werbung für alle überspringen",
         "adShort": "Werbung überspringen",
-        "adLabel": "Werbung im Stream"
+        "adLabel": "Werbung im Stream",
+        "intro": "85 Sekunden für alle überspringen"
       },
       "adSkipped": "Werbung für alle übersprungen",
       "exitFullscreen": "Vollbild beenden",
       "fullscreen": "Player vergrößern",
-      "unmute": "Videoton einschalten",
+      "unmute": "Ton einschalten",
       "mute": "Videoton ausschalten",
       "volume": "Videolautstärke",
       "buffering": "Wird geladen",
@@ -2154,7 +2173,8 @@
         "streamFailed": "Der Stream ließ sich nicht öffnen. Versuch ein anderes Video",
         "openFailed": "Video konnte nicht geöffnet werden",
         "renewFailed": "Stream konnte nicht aktualisiert werden"
-      }
+      },
+      "liveAd": "Werbepause der Plattform · {{time}}"
     },
     "keys": {
       "locked": "Die Fernbedienung hat sich der Host vorbehalten – Pause und Spulen liegen bei ihm",
@@ -2273,7 +2293,8 @@
       "muteForAll": "Mikrofon für alle stummschalten",
       "remove": "Aus dem Meeting entfernen",
       "actions": "Aktionen: {{name}}"
-    }
+    },
+    "deafened": "Meeting-Ton aus"
   },
   "dock": {
     "media": "Mikrofon und Kamera",
@@ -2309,7 +2330,8 @@
       }
     },
     "pip": "Bild-im-Bild",
-    "pipClose": "Bild-im-Bild beenden"
+    "pipClose": "Bild-im-Bild beenden",
+    "sound": "Meeting-Ton"
   },
   "invite": {
     "dialog": {
@@ -2350,7 +2372,20 @@
   },
   "kit": {
     "toasts": "Benachrichtigungen",
-    "soon": "Bald"
+    "soon": "Bald",
+    "load": {
+      "label": "Serverauslastung: {{value}}",
+      "levels": {
+        "1": "niedrig",
+        "2": "mittel",
+        "3": "hoch",
+        "4": "sehr hoch"
+      },
+      "full": "kein Platz",
+      "maintenance": "wird aktualisiert",
+      "closed": "für neue Meetings geschlossen",
+      "unknown": "unbekannt"
+    }
   },
   "connect": {
     "failure": {
@@ -2529,7 +2564,8 @@
     "attachment": {
       "list": "Anhänge der Nachricht",
       "remove": "{{name}} entfernen"
-    }
+    },
+    "deafened": "Meeting-Ton aus"
   },
   "home": {
     "entry": {
@@ -2559,6 +2595,32 @@
       "privacy": "Ohne Konto. Meetings werden nicht aufgezeichnet.",
       "about": "Über Cord",
       "help": "Hilfe"
+    },
+    "recent": {
+      "title": "Zuletzt",
+      "clear": "Leeren",
+      "clearTitle": "Letzte Meetings leeren?",
+      "clearText": "Die Liste der letzten Meetings auf diesem Gerät wird gelöscht. Die Meetings selbst und Ihre Favoriten bleiben unverändert.",
+      "clearConfirm": "Leeren",
+      "cancel": "Abbrechen",
+      "rejoin": "Zurückkehren",
+      "again": "Neu starten",
+      "byCode": "Mit Code beitreten",
+      "ended": "beendet",
+      "people_one": "{{count}} Person",
+      "people_other": "{{count}} Personen",
+      "today": "heute, {{time}}",
+      "yesterday": "gestern, {{time}}",
+      "more": "Alle anzeigen ({{count}})",
+      "less": "Weniger anzeigen",
+      "menu": "Aktionen: {{title}}",
+      "copyCode": "Code kopieren",
+      "copied": "Code kopiert",
+      "copyFailed": "Code konnte nicht kopiert werden",
+      "favorite": "Zu Favoriten",
+      "favorited": "Meeting in den Favoriten",
+      "forget": "Aus „Zuletzt“ entfernen",
+      "failed": "Zurückkehren ins Meeting fehlgeschlagen"
     }
   },
   "prejoin": {
@@ -2767,10 +2829,6 @@
         "name": "Musik",
         "hint": "Eine gemeinsame Warteschlange für das ganze Meeting"
       },
-      "any-game": {
-        "name": "Beliebiges Spiel",
-        "hint": "Browserspiele für das ganze Meeting"
-      },
       "standup": {
         "name": "Stand-up-Bühne",
         "hint": "Einer tritt auf, die anderen schauen zu und reagieren"
@@ -2781,6 +2839,10 @@
       },
       "telegram": {
         "hint": "Meetings und Musik aus deinem Telegram-Chat"
+      },
+      "any-game": {
+        "name": "Beliebiges Spiel",
+        "hint": "Browserspiele für das ganze Meeting"
       }
     },
     "music": {
@@ -2925,10 +2987,18 @@
     "rtt": "RTT zum Medienserver",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Codec-Profil",
+    "layers": "Ebenen",
+    "singleLayer": "Eine Ebene",
     "bufferRx": "Empfangspuffer",
     "encode": "Kodierung pro Bild",
     "decode": "Dekodierung pro Bild",
     "implementation": "Video-Engine",
+    "engine": {
+      "hw": "Hardware",
+      "sw": "Software",
+      "unknown": "nicht angegeben"
+    },
     "limitation": "Begrenzung",
     "limits": {
       "none": "Keine erkannt",
@@ -2936,6 +3006,17 @@
       "bandwidth": "Bandbreite",
       "unknown": "Keine Daten vom Sender"
     },
+    "choice": {
+      "label": "Warum dieser Codec",
+      "hardware": "Bester Hardware-Codec auf diesem Gerät",
+      "software": "Kein Hardware-Encoder — der Prozessor kodiert",
+      "viewers": "Ein Zuschauer kann den höheren Codec nicht dekodieren",
+      "fallback": "Der Wächter ist vom höheren Codec zurückgegangen",
+      "baseline": "Der Encoder hat nicht geantwortet — kompatibler Standard",
+      "backup": "zusätzlich {{codec}} für Zuschauer ohne diesen Codec"
+    },
+    "fallbacks": "Codec-Wechsel",
+    "fallbacksValue": "Rückfälle des Wächters: {{fallbacks}} · Wechsel insgesamt: {{switches}}",
     "stuck": {
       "title": "Bild oder Ton hängt?",
       "text": "Wir aktualisieren den Empfang der Spuren der anderen Teilnehmer. Eine kurze Pause ist möglich.",
@@ -3455,6 +3536,10 @@
         "network": {
           "q": "Die Verbindung bricht ab, das Video ist pixelig",
           "a": "Pausier Downloads und Streams über dieselbe Verbindung; ein Kabel oder WLAN nah am Router ist deutlich stabiler.\nVPNs und Firmennetze stören manchmal die direkte Verbindung — ohne sie kommen Ton und Video mit weniger Verzögerung.\nÖffne im Meeting „Einstellungen und Aktionen → Diagnose“: Dort siehst du Weg, Verluste und Verzögerung — du kannst sie deiner Anfrage beifügen."
+        },
+        "micBadge": {
+          "q": "Über Spielen und Fenstern schwebt ein rotes Mikrofonsymbol",
+          "a": "Dieses Symbol zeichnet nicht Cord, sondern die Grafikkartensoftware oder Windows – Sie können es ausschalten.\nNVIDIA App / GeForce Experience: Alt+Z → Einstellungen → HUD-Layout → „Statusanzeige“ → aus.\nAMD Software: Alt+R → Einstellungen → Allgemein → „Overlay“ – Aufnahme- und Mikrofonanzeigen ausschalten.\nXbox Game Bar: Win+G → Einstellungen → Allgemein – „Aufnahmeanzeige anzeigen“ deaktivieren.\nVon Cord liegen nur das Sprecher-Widget (Overlay: „Einstellungen → Overlay“) und das Mini-Anruffenster unten rechts („Einstellungen → Windows“) über anderen Fenstern."
         }
       }
     },
@@ -3554,5 +3639,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "bis {{fps}} fps",
     "share": "Teilen"
+  },
+  "background": {
+    "title": "Hintergrund",
+    "none": "Kein Hintergrund",
+    "blurLight": "Leicht weichzeichnen",
+    "blurStrong": "Stark weichzeichnen",
+    "builtin": {
+      "graphite": "Graphit",
+      "mist": "Nebel",
+      "dawn": "Morgenrot",
+      "forest": "Wald",
+      "sea": "Meer",
+      "sand": "Sand"
+    },
+    "custom": "Eigenes Foto",
+    "upload": "Eigenes Foto hochladen",
+    "replace": "Foto ersetzen",
+    "uploadFailed": "Dieses Foto lässt sich nicht öffnen",
+    "notHere": "Hintergründe sind auf diesem Gerät nicht verfügbar – die Kamera bleibt, wie sie ist"
   }
 }

@@ -430,7 +430,7 @@ test('речь на плохом канале: без слышимых обры�
     await speakerContext.addInitScript((suppression) => {
       const key = 'cord:preferences:v1';
       const data = JSON.parse(localStorage.getItem(key) ?? '{}');
-      data.audio = { ...(data.audio ?? {}), suppression };
+      data.audio = { ...(data.audio ?? {}), suppression, suppressionChosen: true };
       localStorage.setItem(key, JSON.stringify(data));
     }, SUPPRESSION);
   await serveDist(speakerContext, origin);

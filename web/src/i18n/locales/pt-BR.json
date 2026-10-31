@@ -315,6 +315,16 @@
         "label": "Prévia do compartilhamento",
         "hint": "Quem assiste vê uma miniatura sem abrir",
         "keywords": "prévia miniatura compartilhamento de tela stream"
+      },
+      "hotkey-deafen": {
+        "label": "Som da reunião",
+        "hint": "Desligar ou ligar, junto com o microfone",
+        "keywords": "fones ensurdecer silenciar som"
+      },
+      "camera-background": {
+        "label": "Fundo",
+        "hint": "Desfoque ou uma imagem atrás de você",
+        "keywords": "fundo desfoque virtual"
       }
     },
     "title": "Configurações",
@@ -394,7 +404,11 @@
         "taken": "Outro programa já usa este atalho: ele funciona na janela do Cord, mas escolha outro para o segundo plano.",
         "duplicate": "Este atalho já está atribuído a outra ação do Cord.",
         "windowOnly": "Por enquanto este atalho só funciona na janela do Cord."
-      }
+      },
+      "deafenTaken": "O microfone já usa este atalho — escolha outro.",
+      "deafenChangeLabel": "Alterar o atalho do som da reunião",
+      "deafenAssignLabel": "Atribuir atalho ao som da reunião",
+      "deafenResetLabel": "Redefinir o atalho do som da reunião"
     },
     "media": {
       "kind": {
@@ -433,7 +447,8 @@
       "leaveFirst": "Saia da reunião primeiro",
       "change": "Trocar de servidor",
       "forget": "Esquecer senha",
-      "here": "Você está aqui"
+      "here": "Você está aqui",
+      "shared": "As configurações valem para todos os servidores. Salas, favoritos e reuniões recentes são separados em cada servidor."
     },
     "sounds": {
       "cues": "Alertas",
@@ -631,6 +646,9 @@
       "done": "Link da reunião copiado",
       "failed": "Não foi possível copiar o link da reunião",
       "copy": "Copiar"
+    },
+    "deafened": {
+      "title": "O som da reunião está desligado: você não ouve ninguém"
     }
   },
   "chess": {
@@ -1356,7 +1374,8 @@
     },
     "encoder": {
       "screen": "O codificador está sobrecarregado. Mudando a tela para um codec compatível.",
-      "camera": "O codificador está sobrecarregado. Mudando a câmera para um codec compatível."
+      "camera": "O codificador está sobrecarregado. Mudando a câmera para um codec compatível.",
+      "cpuHint": "O processador não está dando conta de codificar o vídeo. Não reduzimos a qualidade: feche programas pesados ou escolha uma qualidade menor nas configurações."
     },
     "link": {
       "paths": {
@@ -2139,15 +2158,15 @@
       "toStart": "Ir ao início para todos",
       "sync": "Sincronizar com a sala",
       "skip": {
-        "intro": "Pular 85 segundos para todos",
         "ad": "Pular o anúncio para todos",
         "adShort": "Pular anúncio",
-        "adLabel": "Anúncio na transmissão"
+        "adLabel": "Anúncio na transmissão",
+        "intro": "Pular 85 segundos para todos"
       },
       "adSkipped": "Anúncio pulado para todos",
       "exitFullscreen": "Sair da tela cheia",
       "fullscreen": "Expandir o player",
-      "unmute": "Ativar o som do vídeo",
+      "unmute": "Ativar o som",
       "mute": "Silenciar o vídeo",
       "volume": "Volume do vídeo",
       "buffering": "Carregando",
@@ -2179,7 +2198,8 @@
         "streamFailed": "A transmissão não abriu. Tente outro vídeo",
         "openFailed": "Não foi possível abrir o vídeo",
         "renewFailed": "Não foi possível atualizar a transmissão"
-      }
+      },
+      "liveAd": "Intervalo comercial da plataforma · {{time}}"
     },
     "keys": {
       "locked": "O anfitrião reservou o controle para si — pausa e avanço são com ele",
@@ -2300,7 +2320,8 @@
       "muteForAll": "Desligar o microfone para todos",
       "remove": "Remover da reunião",
       "actions": "Ações: {{name}}"
-    }
+    },
+    "deafened": "Som da reunião desligado"
   },
   "dock": {
     "media": "Microfone e câmera",
@@ -2337,7 +2358,8 @@
       }
     },
     "pip": "Abrir em janela flutuante",
-    "pipClose": "Sair da janela flutuante"
+    "pipClose": "Sair da janela flutuante",
+    "sound": "Som da reunião"
   },
   "invite": {
     "dialog": {
@@ -2378,7 +2400,20 @@
   },
   "kit": {
     "toasts": "Notificações",
-    "soon": "Em breve"
+    "soon": "Em breve",
+    "load": {
+      "label": "Carga do servidor: {{value}}",
+      "levels": {
+        "1": "baixa",
+        "2": "média",
+        "3": "alta",
+        "4": "muito alta"
+      },
+      "full": "sem vagas",
+      "maintenance": "atualizando",
+      "closed": "fechado para novas reuniões",
+      "unknown": "desconhecida"
+    }
   },
   "connect": {
     "failure": {
@@ -2558,7 +2593,8 @@
     "attachment": {
       "list": "Anexos da mensagem",
       "remove": "Remover {{name}}"
-    }
+    },
+    "deafened": "Som da reunião desligado"
   },
   "home": {
     "entry": {
@@ -2588,6 +2624,33 @@
       "privacy": "Sem conta. As reuniões não são gravadas.",
       "about": "Sobre",
       "help": "Ajuda"
+    },
+    "recent": {
+      "title": "Recentes",
+      "clear": "Limpar",
+      "clearTitle": "Limpar as reuniões recentes?",
+      "clearText": "A lista de reuniões recentes deste dispositivo será apagada. As reuniões e seus favoritos continuam iguais.",
+      "clearConfirm": "Limpar",
+      "cancel": "Cancelar",
+      "rejoin": "Voltar",
+      "again": "Criar de novo",
+      "byCode": "Entrar com código",
+      "ended": "encerrada",
+      "people_one": "{{count}} pessoa",
+      "people_many": "{{count}} pessoas",
+      "people_other": "{{count}} pessoas",
+      "today": "hoje, {{time}}",
+      "yesterday": "ontem, {{time}}",
+      "more": "Mostrar todas ({{count}})",
+      "less": "Mostrar menos",
+      "menu": "Ações: {{title}}",
+      "copyCode": "Copiar código",
+      "copied": "Código copiado",
+      "copyFailed": "Não foi possível copiar o código",
+      "favorite": "Adicionar aos favoritos",
+      "favorited": "Reunião adicionada aos favoritos",
+      "forget": "Remover das recentes",
+      "failed": "Não foi possível voltar à reunião"
     }
   },
   "prejoin": {
@@ -2797,10 +2860,6 @@
         "name": "Música",
         "hint": "Uma fila compartilhada para a reunião toda"
       },
-      "any-game": {
-        "name": "Qualquer jogo",
-        "hint": "Jogos de navegador para a reunião toda"
-      },
       "standup": {
         "name": "Palco de stand-up",
         "hint": "Um se apresenta, os outros assistem e reagem"
@@ -2811,6 +2870,10 @@
       },
       "telegram": {
         "hint": "Reuniões e música a partir da sua conversa no Telegram"
+      },
+      "any-game": {
+        "name": "Qualquer jogo",
+        "hint": "Jogos de navegador para a reunião toda"
       }
     },
     "music": {
@@ -2957,10 +3020,18 @@
     "rtt": "RTT até o servidor de mídia",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Perfil do codec",
+    "layers": "Camadas",
+    "singleLayer": "Camada única",
     "bufferRx": "Buffer de recepção",
     "encode": "Codificação do quadro",
     "decode": "Decodificação do quadro",
     "implementation": "Motor de vídeo",
+    "engine": {
+      "hw": "por hardware",
+      "sw": "por software",
+      "unknown": "não informado"
+    },
     "limitation": "Limitação",
     "limits": {
       "none": "Nenhuma detectada",
@@ -2968,6 +3039,17 @@
       "bandwidth": "Banda",
       "unknown": "Sem dados do remetente"
     },
+    "choice": {
+      "label": "Por que este codec",
+      "hardware": "O melhor codec por hardware desta máquina",
+      "software": "Sem codificador por hardware — o processador codifica",
+      "viewers": "Algum espectador não decodifica o codec acima",
+      "fallback": "O vigia recuou do codec acima",
+      "baseline": "O codificador não respondeu — padrão compatível",
+      "backup": "mais {{codec}} para quem não tem este codec"
+    },
+    "fallbacks": "Trocas de codec",
+    "fallbacksValue": "Recuos do vigia: {{fallbacks}} · trocas no total: {{switches}}",
     "stuck": {
       "title": "Imagem ou som travados?",
       "text": "Vamos atualizar o recebimento das faixas dos outros participantes. Pode haver uma pausa curta.",
@@ -3494,6 +3576,10 @@
         "network": {
           "q": "A conexão cai, o vídeo fica quadriculado",
           "a": "Pause downloads e transmissões na mesma conexão; um cabo ou o Wi‑Fi perto do roteador é bem mais estável.\nVPNs e redes corporativas às vezes atrapalham a conexão direta — sem elas, som e vídeo chegam com menos atraso.\nNa reunião, abra “Configurações e ações → Diagnóstico”: lá aparecem o caminho, as perdas e o atraso — dá para anexá-los à solicitação."
+        },
+        "micBadge": {
+          "q": "Um ícone vermelho de microfone aparece sobre jogos e janelas",
+          "a": "Esse ícone não é do Cord, e sim do programa da placa de vídeo ou do Windows — dá para desligá-lo.\nNVIDIA App / GeForce Experience: Alt+Z → Configurações → Layout do HUD → “Indicador de status” → desligado.\nAMD Software: Alt+R → Configurações → Geral → “Sobreposição” — desligue os indicadores de gravação e microfone.\nXbox Game Bar: Win+G → Configurações → Geral — desmarque “Mostrar indicador de gravação”.\nDo Cord, só ficam por cima o widget de quem fala (sobreposição: “Configurações → Sobreposição”) e a minijanela da chamada no canto inferior direito (“Configurações → Windows”)."
         }
       }
     },
@@ -3593,5 +3679,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "até {{fps}} fps",
     "share": "Compartilhar"
+  },
+  "background": {
+    "title": "Fundo",
+    "none": "Sem fundo",
+    "blurLight": "Desfoque leve",
+    "blurStrong": "Desfoque forte",
+    "builtin": {
+      "graphite": "Grafite",
+      "mist": "Névoa",
+      "dawn": "Aurora",
+      "forest": "Floresta",
+      "sea": "Mar",
+      "sand": "Areia"
+    },
+    "custom": "Sua foto",
+    "upload": "Enviar sua foto",
+    "replace": "Trocar foto",
+    "uploadFailed": "Não foi possível abrir esta foto",
+    "notHere": "Fundos não estão disponíveis neste dispositivo — a câmera segue como está"
   }
 }

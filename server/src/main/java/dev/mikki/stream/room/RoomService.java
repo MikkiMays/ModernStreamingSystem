@@ -822,6 +822,26 @@ public class RoomService {
       throw new Problem(410, "SESSION_ENDED", "Сессия завершена. Войдите в комнату снова");
   }
 
+  /**
+   * Кодеки, которые знает {@code media.decode}, — в порядке лестницы издателя ({@code
+   * codec-policy.ts}).
+   */
+  static final List<String> DECODE_CODECS = List.of("av1", "h265", "vp9", "h264", "vp8");
+
+  /**
+   * Набор кодеков из {@code option} команды {@code media.decode}: слова через дефис, только из
+   * {@link #DECODE_CODECS}, без повторов, по порядку лестницы. Пусто или незнакомое слово —
+   * некорректная команда: в снимок кладётся только то, что издатель поймёт.
+   */
+  static List<String> decodes(String option) {
+    if (option == null || option.isBlank())
+      throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+    var named = List.of(option.split("-"));
+    if (!DECODE_CODECS.containsAll(named))
+      throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+    return DECODE_CODECS.stream().filter(named::contains).toList();
+  }
+
   public void requireOpen(RoomState room) {
     if (room.closedAt != null) throw new Problem(410, "ROOM_CLOSED", "Встреча завершена");
   }
@@ -864,7 +884,9 @@ public class RoomService {
                         m.service,
                         m.screenId,
                         m.screenStarted,
-                        m.viewingScreenId))
+                        m.viewingScreenId,
+                        m.decodes,
+                        Boolean.TRUE.equals(m.deafened)))
             .toList();
     var messages =
         rooms
@@ -965,6 +987,38 @@ public class RoomService {
             watch.revision);
   }
 
+  /**
+   * Что с недавними встречами человека (R148). Комнату, которой нет, или историю, которая уже
+   * удалена, ядро называет {@code gone}; на чужой или отозванный пропуск не отвечает ничего — так
+   * пачка пропусков не становится способом узнать о чужих встречах. Ушедший участник годится: его
+   * пропуск и есть тот, с которым возвращаются ({@code rejoin}).
+   */
+  public List<Contracts.Presence> presence(List<Contracts.PresenceRoom> query) {
+    var answers = new ArrayList<Contracts.Presence>();
+    for (var item : query) {
+      var id = item.roomId().toString();
+      try {
+        var room = read(id);
+        authenticate(room, item.credential(), true);
+        var people =
+            (int)
+                room.members.values().stream()
+                    .filter(
+                        m ->
+                            m.human()
+                                && (m.status == RoomState.Status.CONNECTED
+                                    || m.status == RoomState.Status.RECOVERING))
+                    .count();
+        var state = room.closedAt != null ? "closed" : people > 0 ? "live" : "open";
+        answers.add(new Contracts.Presence(id, state, people, room.title, room.code));
+      } catch (Problem refused) {
+        if (refused.status() == 404 || refused.status() == 410)
+          answers.add(new Contracts.Presence(id, "gone", 0, null, null));
+      }
+    }
+    return answers;
+  }
+
   public Snapshot snapshot(String roomId, String credential) {
     var room = read(roomId);
     return snapshotFor(room, authenticate(room, credential));
@@ -1038,6 +1092,15 @@ public class RoomService {
               member.avatar = avatar(command.text());
               emit(room, "room.changed", EventPayload.changed());
             }
+            // «Звук встречи» (R156): человек выключил или включил у себя звук встречи. Ни прав,
+            // ни правил — это его собственное состояние; остальные видят наушники на плитке.
+            case "self.deafen" -> {
+              var deafened = "true".equals(command.text()) ? Boolean.TRUE : null;
+              if (!java.util.Objects.equals(member.deafened, deafened)) {
+                member.deafened = deafened;
+                emit(room, "room.changed", EventPayload.changed());
+              }
+            }
             case "close" -> {
               Permissions.require(room, member, Action.ROOM_CLOSE);
               close(room, "host");
@@ -1085,6 +1148,19 @@ public class RoomService {
               } else if (target.status == WAITING) {
                 admitWaiting(room, target);
               }
+            }
+            /*
+             Что декодирует браузер участника (R152): набор кодеков словом в option —
+             «av1-h265-vp9-h264-vp8». Издатели по нему выбирают основной кодек, поэтому смена
+             набора — изменение комнаты; тот же набор повторно (после переподключения) — тишина.
+            */
+            case "media.decode" -> {
+              requireActive(room, member);
+              var decodes = decodes(command.option());
+              // Тот же набор (после переподключения) — не изменение комнаты: ни события, ни записи.
+              if (decodes.equals(member.decodes))
+                return new Ack(command.commandId(), true, room.sequence, null);
+              member.decodes = decodes;
             }
             case "screen.preview" -> {
               requireActive(room, member);

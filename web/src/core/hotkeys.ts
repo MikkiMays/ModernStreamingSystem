@@ -8,6 +8,8 @@ export interface Hotkey {
   meta: boolean;
 }
 export const defaultMicHotkey: Hotkey = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
+/** «Звук встречи» (R156): `Ctrl + Shift + D`, как «Отключить звук» у Discord. */
+export const defaultDeafenHotkey: Hotkey = { code: 'KeyD', ctrl: true, alt: false, shift: true, meta: false };
 /**
  * Разблокировать оверлей в игре (R63): `Shift + \``, как у Discord. Клавиша «`» (`Backquote`) уходит
  * оболочке только при флаге `overlay.widget` — прежняя оболочка такой клавиши не знает и отбросила бы

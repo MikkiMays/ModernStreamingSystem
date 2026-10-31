@@ -30,9 +30,30 @@ const music: Sample = {
   implementation: '',
   at: 0,
 };
+/** Своя камера (R152): AV1 в железе, `L1T3`, профиль и время кадра. */
+const camera: Sample = {
+  ...music,
+  kind: 'video',
+  outbound: true,
+  direction: 'Передача',
+  width: 1280,
+  height: 720,
+  fps: 30,
+  mbps: 2.4,
+  loss: null,
+  codec: 'video/AV1',
+  processingMs: 3.2,
+  bufferMs: null,
+  silentSource: false,
+  concealmentEvents: 0,
+  implementation: 'MediaFoundationVideoEncodeAccelerator (NVIDIA AV1 Encoder MFT)',
+  powerEfficient: true,
+  fmtp: 'level-idx=5;profile=0;tier=0',
+  scalabilityMode: 'L1T3',
+};
 vi.mock('../media/diagnostics', () => ({
   StatsSampler: class {
-    sample = async () => [music];
+    sample = async (track: { video?: boolean }) => [track?.video ? camera : music];
   },
 }));
 
@@ -51,6 +72,25 @@ function fakeMeeting(tracks: unknown[] = []) {
       videoPauseCount: new Store(0),
       playoutTargets: () => [{ kind: 'media', targetMs: 600 }],
       returnToLive: vi.fn(),
+      codecInfo: (source: string) =>
+        source === 'camera'
+          ? {
+              decision: {
+                source: 'camera',
+                codec: 'av1',
+                hw: true,
+                scalabilityMode: 'L1T3',
+                simulcast: false,
+                backup: 'h264',
+                backupActive: true,
+                reason: 'hardware',
+                skipped: [],
+              },
+              fallbacks: 1,
+              switches: 2,
+              pending: false,
+            }
+          : null,
       callReport: () => ({
         seconds: 312,
         rttMs: 57,
@@ -182,5 +222,42 @@ describe('«Диагностика»', () => {
     expect(onHelp).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Сообщить о проблеме' }));
     expect(onReport).toHaveBeenCalledTimes(1);
+  });
+  it('своя камера (R152): профиль, слои, железо и почему этот кодек — в карточке и в отчёте', async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(
+      <Diagnostics
+        meeting={fakeMeeting([{ name: 'Я', track: { video: true }, source: 'camera', local: true }])}
+        onClose={vi.fn()}
+        onHelp={vi.fn()}
+        onReport={vi.fn()}
+      />,
+    );
+    const track = await screen.findByRole(
+      'heading',
+      { name: 'Я · Видео · Передача', level: 4 },
+      { timeout: 5000 },
+    );
+    const card = within(track.closest('article')!);
+    expect(card.getByText('level-idx=5;profile=0;tier=0')).toBeVisible();
+    expect(card.getByText('L1T3')).toBeVisible();
+    expect(
+      card.getByText('аппаратный · MediaFoundationVideoEncodeAccelerator (NVIDIA AV1 Encoder MFT)'),
+    ).toBeVisible();
+    expect(
+      card.getByText('Лучший аппаратный на этой машине · рядом H.264 для зрителей без этого кодека'),
+    ).toBeVisible();
+    expect(card.getByText('Отступов сторожа: 1 · всего смен: 2')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать отчёт о звонке' }));
+    await screen.findByText('Отчёт скопирован — его можно вставить в обращение');
+    const text = writeText.mock.calls[0]![0];
+    expect(text).toContain(
+      'codec camera: av1 hw · L1T3 · single · backup h264 active · reason hardware · fallbacks 1 · switches 2',
+    );
+    expect(text).toContain(
+      'video/AV1 · level-idx=5;profile=0;tier=0 · L1T3 · hw · MediaFoundationVideoEncodeAccelerator',
+    );
+    expect(text).toContain('encode 3.2 ms');
   });
 });

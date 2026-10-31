@@ -13,7 +13,15 @@ export const SUPPORT_TOPICS = ['camera', 'sound', 'screen', 'network', 'windows'
 export type SupportTopic = (typeof SUPPORT_TOPICS)[number];
 
 /** Частые вопросы страницы «Помощь» — по порядку; тексты — `support.faq.items.<id>`. */
-export const FAQ = ['camera', 'microphone', 'silent', 'screen', 'smartscreen', 'network'] as const;
+export const FAQ = [
+  'camera',
+  'microphone',
+  'silent',
+  'screen',
+  'smartscreen',
+  'network',
+  'micBadge',
+] as const;
 export type FaqId = (typeof FAQ)[number];
 
 /**
@@ -112,6 +120,7 @@ export function callReportText(report: CallReport | null): string {
     `lossy: ${report.lossySeconds} s`,
     `freezes: ${report.freezes} (${report.freezeSeconds} s)`,
     `codec: ${report.codec ?? 'n/a'}`,
+    `publish codec: ${report.publishCodec ?? 'n/a'}`,
   ].join('\n');
 }
 

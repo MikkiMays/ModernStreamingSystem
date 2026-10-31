@@ -40,11 +40,6 @@ import { qualities } from './watch-levels';
  */
 const SKIP_MS = 15000;
 /**
- * Ручной пропуск заставки или рекламы (T17), миллисекунды: восемьдесят пять секунд — длина обычной
- * заставки сериала. Общий, как вся перемотка.
- */
-const INTRO_MS = 85_000;
-/**
  * Отставание, которое для эфира нормально.
  *
  * У края эфира есть запас — три сегмента, — и это не задержка, а цена устойчивости: без него
@@ -277,16 +272,6 @@ export function Chrome({
             остаётся, и смысл у неё другой: встать туда, где комната.
           */}
           {!live && <SyncButton behind={behind} onSync={resync} />}
-          {!live && (
-            <IconButton
-              label={t(($) => $.cinema.theater.skip.intro)}
-              className="watch-intro"
-              disabled={!canControl || !duration}
-              onClick={() => skip(INTRO_MS)}
-            >
-              <b aria-hidden="true">+85</b>
-            </IconButton>
-          )}
           {ad &&
             (canControl ? (
               <button

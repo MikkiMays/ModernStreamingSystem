@@ -78,6 +78,65 @@ class RoomServiceTest {
   }
 
   @Test
+  void presenceTellsRecentMeetingsApartWithoutAnsweringForeignCredentials() {
+    var host = host();
+    var guest = guest(host);
+    connected(guest);
+    var other = host();
+    var query =
+        List.of(
+            new PresenceRoom(UUID.fromString(host.roomId()), guest.credential()),
+            new PresenceRoom(UUID.fromString(other.roomId()), guest.credential()),
+            new PresenceRoom(UUID.randomUUID(), guest.credential()));
+    var answers = rooms.presence(query);
+    // Чужой пропуск к другой встрече — ни слова о ней; несуществующая — «gone».
+    assertThat(answers)
+        .extracting(Presence::roomId)
+        .containsExactly(host.roomId(), query.get(2).roomId().toString());
+    assertThat(answers.get(0))
+        .extracting(Presence::state, Presence::people, Presence::title)
+        .containsExactly("live", 1, "Тестовая встреча");
+    assertThat(answers.get(1).state()).isEqualTo("gone");
+    assertThat(answers.get(1).title()).isNull();
+
+    // Ушедший участник видит, что встреча идёт без него: с этим пропуском и возвращаются.
+    command(guest, "leave", null, 0);
+    assertThat(rooms.presence(query.subList(0, 1)).getFirst().state()).isEqualTo("open");
+    command(host, "close", null, 0);
+    assertThat(rooms.presence(query.subList(0, 1)).getFirst().state()).isIn("closed", "gone");
+  }
+
+  @Test
+  void deafenedIsOwnStateEveryoneSeesAndOnlyTrueMeansDeafened() {
+    var host = host();
+    var guest = guest(host);
+    rooms.command(
+        guest.roomId(),
+        guest.credential(),
+        new Command(UUID.randomUUID(), "self.deafen", "true", null, 0));
+    var seen = rooms.snapshot(host.roomId(), host.credential()).participants();
+    assertThat(seen)
+        .filteredOn(p -> p.id().equals(guest.participantId()))
+        .singleElement()
+        .extracting(Participant::deafened)
+        .isEqualTo(true);
+    assertThat(seen)
+        .filteredOn(p -> p.id().equals(host.participantId()))
+        .singleElement()
+        .extracting(Participant::deafened)
+        .isEqualTo(false);
+    rooms.command(
+        guest.roomId(),
+        guest.credential(),
+        new Command(UUID.randomUUID(), "self.deafen", "нет", null, 0));
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).participants())
+        .filteredOn(p -> p.id().equals(guest.participantId()))
+        .singleElement()
+        .extracting(Participant::deafened)
+        .isEqualTo(false);
+  }
+
+  @Test
   void olderPublishersAreDiscoveredOnceWithoutReplayingStartOnReconnect() {
     var host = host();
     connected(host);
@@ -1919,6 +1978,68 @@ class RoomServiceTest {
         .isZero();
     // Пустой кадр — некорректная команда.
     assertThatThrownBy(() -> rooms.command(host.roomId(), host.credential(), preview.apply("")))
+        .isInstanceOf(Problem.class);
+  }
+
+  /**
+   * Что декодирует браузер (R152): набор кодеков из {@code media.decode} ложится в поле участника
+   * снимка по порядку лестницы; тот же набор повторно комнату не меняет; незнакомое слово — отказ.
+   * Кто не сообщал, у того поля нет ни в снимке, ни в записи комнаты — откат образа их не заметит.
+   */
+  @Test
+  void decodableCodecsBecomeAParticipantFieldOfTheSnapshot() {
+    var host = host();
+    var guest = guest(host);
+    connected(host);
+    connected(guest);
+    java.util.function.Function<String, Command> decode =
+        option ->
+            new Command(
+                UUID.randomUUID(),
+                "media.decode",
+                null,
+                null,
+                0,
+                null,
+                null,
+                null,
+                null,
+                option,
+                null,
+                null);
+    assertThat(dev.mikki.stream.shared.Json.write(rooms.read(host.roomId())))
+        .doesNotContain("decodes");
+    assertThat(dev.mikki.stream.shared.Json.write(rooms.snapshot(rooms.read(host.roomId()))))
+        .doesNotContain("decodes");
+    long before = rooms.read(host.roomId()).sequence;
+    rooms.command(guest.roomId(), guest.credential(), decode.apply("vp8-h264-vp9-av1"));
+    var snapshot = rooms.snapshot(rooms.read(host.roomId()));
+    var mine =
+        snapshot.participants().stream()
+            .filter(p -> p.id().equals(guest.participantId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(mine.decodes()).containsExactly("av1", "vp9", "h264", "vp8");
+    assertThat(
+            snapshot.participants().stream()
+                .filter(p -> p.id().equals(host.participantId()))
+                .findFirst()
+                .orElseThrow()
+                .decodes())
+        .isNull();
+    long after = rooms.read(host.roomId()).sequence;
+    assertThat(after).isGreaterThan(before);
+    // Тот же набор после переподключения — не событие комнаты.
+    rooms.command(guest.roomId(), guest.credential(), decode.apply("av1-vp9-h264-vp8"));
+    assertThat(rooms.read(host.roomId()).sequence).isEqualTo(after);
+    rooms.command(guest.roomId(), guest.credential(), decode.apply("h265-h264-vp8"));
+    assertThat(rooms.read(host.roomId()).members.get(guest.participantId()).decodes)
+        .containsExactly("h265", "h264", "vp8");
+    for (var bad : new String[] {"", "av1-hevc", "AV1", "av1--vp8"})
+      assertThatThrownBy(() -> rooms.command(guest.roomId(), guest.credential(), decode.apply(bad)))
+          .as("набор %s", bad)
+          .isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> rooms.command(guest.roomId(), guest.credential(), decode.apply(null)))
         .isInstanceOf(Problem.class);
   }
 }

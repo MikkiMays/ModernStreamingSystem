@@ -55,6 +55,7 @@ test('three groups on a desktop, nothing overflows, and «Интеграции»
   try {
     await startMeeting(page);
     expect(await groups(page)).toEqual([
+      { name: 'Звук встречи', buttons: 1 },
       { name: 'Микрофон и камера', buttons: 3 },
       { name: 'Встреча', buttons: 2 },
       { name: 'Чат и интеграции', buttons: 3 },
@@ -91,7 +92,9 @@ test('three groups on a desktop, nothing overflows, and «Интеграции»
   }
 });
 
-test('a phone gets two groups in one row from 320 px, the rest is in «ещё»', async ({ browser }) => {
+test('a phone: «звук встречи» alone at 390, in the mic group below 375, flip in «ещё» below 360 (R156)', async ({
+  browser,
+}) => {
   const context = await browser.newContext({
     permissions: ['camera', 'microphone'],
     viewport: { width: 390, height: 844 },
@@ -101,20 +104,36 @@ test('a phone gets two groups in one row from 320 px, the rest is in «ещё»'
   const page = await context.newPage();
   try {
     await startMeeting(page);
+    // «Звук встречи» — своя одинокая плашка слева от микрофона (R156).
     expect(await groups(page)).toEqual([
+      { name: 'Звук встречи', buttons: 1 },
       { name: 'Микрофон и камера', buttons: 3 },
       { name: 'Встреча', buttons: 2 },
     ]);
     // Третья слева на касании — смена камеры, а не показ экрана.
     await expect(page.getByRole('button', { name: 'Сменить камеру', exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 360, height: 844 });
+    // Раскладка пульта меняется по media query — после перерисовки, а не в ту же миллисекунду.
+    await expect
+      .poll(() => groups(page))
+      .toEqual([
+        { name: 'Микрофон и камера', buttons: 4 },
+        { name: 'Встреча', buttons: 2 },
+      ]);
+    await page.setViewportSize({ width: 320, height: 844 });
+    await expect
+      .poll(() => groups(page))
+      .toEqual([
+        { name: 'Микрофон и камера', buttons: 3 },
+        { name: 'Встреча', buttons: 2 },
+      ]);
+    await page.setViewportSize({ width: 390, height: 844 });
     for (const width of [320, 360, 390, 430, 700]) {
       await page.setViewportSize({ width, height: 844 });
-      expect(await measure(page), `телефон ${width}px`).toMatchObject({
-        rows: 1,
-        outside: false,
-        stage: 0,
-        page: 0,
-      });
+      // Где стоит «звук встречи», решает media query в React (R156) — замер после перерисовки.
+      await expect
+        .poll(() => measure(page), { message: `телефон ${width}px` })
+        .toMatchObject({ rows: 1, outside: false, stage: 0, page: 0 });
     }
     await page.getByRole('button', { name: 'Настройки и действия' }).click();
     for (const item of ['Чат и файлы', 'Участники', 'Интеграции', 'Показать экран', 'Полноэкранный режим'])

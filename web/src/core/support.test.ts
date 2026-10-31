@@ -79,6 +79,7 @@ describe('problem report (R79)', () => {
         lossySeconds: 0,
         path: 'relay-tcp',
         codec: null,
+        publishCodec: 'h265',
       }).split('\n'),
     ).toEqual([
       'call: 312 s',
@@ -90,6 +91,7 @@ describe('problem report (R79)', () => {
       'lossy: 0 s',
       'freezes: 1 (2 s)',
       'codec: n/a',
+      'publish codec: h265',
     ]);
     expect(callReportText(null)).toBe('call: none');
   });

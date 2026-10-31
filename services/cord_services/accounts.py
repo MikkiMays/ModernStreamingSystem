@@ -70,5 +70,12 @@ class Vault:
             (provider, scope, self.seal(value)),
         )
 
+    def scopes(self, provider: str) -> list[str]:
+        """Все области, где у службы есть сохранённый вход, — для уборки, без расшифровки."""
+        rows = self.db.execute(
+            "SELECT scope FROM integrations WHERE provider=?", (provider,)
+        ).fetchall()
+        return [row[0] for row in rows]
+
     def delete(self, provider: str, scope: str) -> None:
         self.db.execute("DELETE FROM integrations WHERE provider=? AND scope=?", (provider, scope))

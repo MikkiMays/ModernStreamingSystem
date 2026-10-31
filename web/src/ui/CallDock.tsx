@@ -15,6 +15,7 @@ import {
   PictureInPicture2,
   Puzzle,
   Settings2,
+  SwitchCamera,
   Users,
   Video,
   VideoOff,
@@ -93,6 +94,8 @@ export function CallDock({
   const { t } = useTranslation();
   const media = useStore(meeting.media.state);
   const deafened = useStore(meeting.media.deafened);
+  const narrow = useMediaQuery('(max-width: 374px)');
+  const tiny = useMediaQuery('(max-width: 359px)');
   const outbound = useStore(meeting.media.outbound);
   const preferences = useStore(meeting.media.preferences);
   const profile = preferences.screen;
@@ -145,10 +148,33 @@ export function CallDock({
     outbound && outbound.width > 0
       ? `${Math.min(outbound.width, outbound.height)}p · ${outbound.fps} fps`
       : null;
+  /*
+    «Звук встречи» — своя одинокая плашка слева от микрофона (R156, владелец 31.10), как наушники у
+    Discord. Пульт телефона и так занимает 282 из 304 px на 320: уже 375 px плашка встаёт первой
+    кнопкой в группу микрофона, уже 360 — туда же, а «перевернуть камеру» уходит в «ещё».
+  */
+  const deafenButton = (
+    <IconButton
+      tone="stage"
+      size="lg"
+      className="dock-button"
+      label={deafened ? t(($) => $.dock.undeafen) : t(($) => $.dock.deafen)}
+      aria-pressed={!deafened}
+      onClick={() => void meeting.media.setDeafened(!deafened)}
+    >
+      {deafened ? <HeadphoneOff size={24} /> : <Headphones size={24} />}
+    </IconButton>
+  );
   return (
     <footer id="meeting-controls" className="call-footer media-stage" data-compact={compact || undefined}>
       <div className="call-dock">
+        {!narrow && (
+          <div className="dock-group dock-group--solo" role="group" aria-label={t(($) => $.dock.sound)}>
+            {deafenButton}
+          </div>
+        )}
         <div className="dock-group" role="group" aria-label={t(($) => $.dock.media)}>
+          {narrow && deafenButton}
           <IconButton
             tone="stage"
             size="lg"
@@ -172,7 +198,7 @@ export function CallDock({
             {media.camera ? <Video size={24} /> : <VideoOff size={24} />}
           </IconButton>
           {coarse ? (
-            <CameraFlip meeting={meeting} disabled={!!ended} />
+            !tiny && <CameraFlip meeting={meeting} disabled={!!ended} />
           ) : media.screen ? (
             /* Идёт показ — красная кнопка с крестиком (R77): остановить видно издалека, нажатие
                снимает показ сразу и у всех (R81). */
@@ -212,12 +238,15 @@ export function CallDock({
               }
             />
             <MenuContent side="top" align="center" sideOffset={12} className="dock-menu">
-              <MenuItem
-                icon={deafened ? <Headphones /> : <HeadphoneOff />}
-                onClick={() => meeting.media.deafened.set(!deafened)}
-              >
-                {deafened ? t(($) => $.dock.undeafen) : t(($) => $.dock.deafen)}
-              </MenuItem>
+              {coarse && tiny && (
+                <MenuItem
+                  icon={<SwitchCamera />}
+                  disabled={!!ended}
+                  onClick={() => void meeting.media.flipCamera()}
+                >
+                  {t(($) => $.devices.camera.flip)}
+                </MenuItem>
+              )}
               {coarse && (
                 <MenuItem icon={<MonitorUp />} disabled={!live} onClick={share}>
                   {media.screen ? t(($) => $.dock.unshare) : t(($) => $.dock.share)}

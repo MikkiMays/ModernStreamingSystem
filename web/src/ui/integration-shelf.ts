@@ -1,4 +1,4 @@
-import { Gamepad2, Joystick, MicVocal, Music2, Presentation, Send, Tv, type LucideIcon } from 'lucide-react';
+import { Gamepad2, MicVocal, Music2, Presentation, Send, Tv, type LucideIcon } from 'lucide-react';
 import { musicSourceName, type MusicSource } from '../core/services';
 import type { Translate } from '../i18n';
 import type { BrandId } from './brands';
@@ -7,9 +7,10 @@ import type { BrandId } from './brands';
  * Витрина интеграций — одним списком, в том порядке, в каком её видит человек (E06-B).
  *
  * ПОРЯДОК — РЕШЕНИЕ ВЛАДЕЛЬЦА. Сверху то, что включают чаще всего и что занимает встречу: игры,
- * кинозал, музыка. Под ними — обещанное («Скоро»): любая игра (T08), сцена стендап (T12); доска
- * рисования (T13) стала готовой (R159) и встала к ним. И в самом низу, за чертой, Telegram (T30): он не «ещё одна интеграция во
- * встрече», а связь комнаты с беседой снаружи, и подключает его только создатель встречи.
+ * кинозал, музыка. Под ними — обещанное («Скоро»): сцена стендап (T12); доска рисования (T13) стала
+ * готовой (R159) и встала к ним. «Любую игру» (T08) владелец снял 31.10.2026 (R158). И в самом низу, за
+ * чертой, Telegram (T30): он не «ещё одна интеграция во встрече», а связь комнаты с беседой снаружи, и
+ * подключает его только создатель встречи.
  *
  * Карточка «Скоро» не нажимается: у неё нет действия, есть одна строка о том, что это будет.
  * Telegram откроет E09 — когда служба скажет `catalog.telegram.webapp` (П5); до тех пор он здесь
@@ -18,7 +19,7 @@ import type { BrandId } from './brands';
  * Здесь — только устройство витрины; имя и строка карточки — в каталоге (`integrations.shelf.<id>`):
  * {@link shelfName} и {@link shelfHint}.
  */
-export type ShelfId = 'games' | 'cinema' | 'music' | 'any-game' | 'standup' | 'board' | 'telegram';
+export type ShelfId = 'games' | 'cinema' | 'music' | 'standup' | 'board' | 'telegram';
 
 export interface ShelfItem {
   readonly id: ShelfId;
@@ -34,7 +35,6 @@ export const SHELF: readonly ShelfItem[] = [
   { id: 'games', icon: Gamepad2, soon: false, brand: 'games' },
   { id: 'cinema', icon: Tv, soon: false, brand: 'cinema' },
   { id: 'music', icon: Music2, soon: false, brand: 'music' },
-  { id: 'any-game', icon: Joystick, soon: true },
   { id: 'standup', icon: MicVocal, soon: true },
   // Доска (R159) — готова: открывается на сцене, как кинозал и игры.
   { id: 'board', icon: Presentation, soon: false, brand: 'board' },

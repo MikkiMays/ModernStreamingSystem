@@ -1,3 +1,5 @@
+import { useServerLoad } from '../../core/server-load';
+import { LoadBars } from '../kit/LoadBars';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plug } from 'lucide-react';
@@ -12,8 +14,9 @@ import { rowText } from './sections';
 
 /**
  * С каким сервером говорит этот клиент — другой вопрос, чем «кто вы на нём», поэтому не в
- * «Профиле». Смена сервера заканчивает визит: избранное, имя и устройства принадлежат серверу и
- * с ним не переезжают. Адреса руками здесь нет и не будет (П4).
+ * «Профиле». Настройки общие для всех серверов (R146, Р-39): имя, язык, устройства, звук,
+ * сочетания, качество — с человеком и при смене сервера; комнаты, избранное и недавние у каждого
+ * сервера свои — это и сказано под заголовком. Адреса руками здесь нет и не будет (П4).
  *
  * В приложении список серверов — родной (`servers.open`), и там же выбор, подключаться ли само при
  * запуске. В браузере сервер — это сайт: «Сменить сервер» показывает серверы из каталога установки
@@ -33,11 +36,23 @@ export function ServerSection({
   const desktop = isDesktop();
   const current = useStore(session);
   const [saved, setSaved] = useState(thisServer);
+  const load = useServerLoad();
   return (
-    <SettingGroup title={t(($) => $.settings.server.connection)}>
+    <SettingGroup title={t(($) => $.settings.server.connection)} note={t(($) => $.settings.server.shared)}>
       <SettingRow
         id="server-current"
-        hint={`${current?.name || serverLabel(saved)} · ${new URL(currentServerUrl()).host}`}
+        hint={
+          <>
+            {`${current?.name || serverLabel(saved)} · ${new URL(currentServerUrl()).host}`}
+            {/* Загрузка этого сервера словами и палочками (R143). */}
+            {load && (
+              <>
+                {' · '}
+                <LoadBars level={load.level} state={load.state} withText />
+              </>
+            )}
+          </>
+        }
       >
         {desktop ? (
           <Button

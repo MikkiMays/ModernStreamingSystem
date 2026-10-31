@@ -108,16 +108,24 @@ class YandexTests(Fixture):
         self.fake.poll_device_token.return_value = SimpleNamespace(
             access_token="PRIVATE_OAUTH_TOKEN", expires_in=3600
         )
+        # Чужой вход другой участник той же комнаты не опрашивает (R157).
+        stranger = await self.client.post(
+            self.url(tail="/auth/" + identifier), headers=self.headers(HOST)
+        )
+        self.assertEqual(stranger.status_code, 410)
+        self.assertEqual(self.fake.poll_device_token.await_count, 0)
         finished = await self.client.post(
             self.url(tail="/auth/" + identifier), headers=self.headers(GUEST)
         )
         self.assertEqual(finished.json()["status"], "connected")
-        self.assertNotIn("PRIVATE_OAUTH_TOKEN", finished.text)
+        # Токен — устройству начавшего вход, один раз (Р-43): иначе новая встреча снова просит QR.
+        self.assertEqual(finished.json()["token"], "PRIVATE_OAUTH_TOKEN")
         self.assertEqual(self.fake.poll_device_token.await_count, 1)
         retry = await self.client.post(
             self.url(tail="/auth/" + identifier), headers=self.headers(GUEST)
         )
         self.assertEqual(retry.json()["status"], "connected")
+        self.assertNotIn("PRIVATE_OAUTH_TOKEN", retry.text)
         new = (
             await self.client.post(self.url(tail="/auth"), headers=self.headers(GUEST))
         ).json()["id"]
@@ -125,6 +133,18 @@ class YandexTests(Fixture):
             self.url(tail="/auth/" + new), headers=self.headers(GUEST)
         )
         self.assertIsNone(self.store.claim(new))
+
+    async def test_room_vault_goes_with_the_room_music_but_a_fresh_one_waits_a_day(self):
+        alive, gone, fresh = (str(uuid.uuid4()) for _ in range(3))
+        self.yandex.vault.put("yandex", "room:" + alive, {"token": "a", "savedAt": 0})
+        self.yandex.vault.put("yandex", "room:" + gone, {"token": "b", "savedAt": 0})
+        self.yandex.vault.put("yandex", "room:" + fresh, {"token": "c", "savedAt": now()})
+        self.yandex.vault.put("yandex", "device:x", {"token": "d"})
+        self.assertEqual(self.yandex.sweep_rooms({alive}), 1)
+        self.assertIsNotNone(self.yandex.vault.get("yandex", "room:" + alive))
+        self.assertIsNone(self.yandex.vault.get("yandex", "room:" + gone))
+        self.assertIsNotNone(self.yandex.vault.get("yandex", "room:" + fresh))
+        self.assertIsNotNone(self.yandex.vault.get("yandex", "device:x"))
 
     async def test_host_can_disable_guest_integrations_after_connecting(self):
         await self.client.post(

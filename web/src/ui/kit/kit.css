@@ -1172,6 +1172,38 @@
 }
 
 /* ---------- бейдж ---------- */
+/*
+  Загрузка сервера (R143, Р-37): четыре палочки одной высоты 3×12, зазор 2 — шкала «теснее», а не
+  сила сигнала. Залитые — цветом ступени, пустые — приглушённые.
+*/
+.ui-load {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  vertical-align: middle;
+}
+.ui-load__bars {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0-5);
+}
+.ui-load__bar {
+  width: 3px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+}
+.ui-load[data-tone='success'] .ui-load__bar[data-on] {
+  background: var(--success);
+}
+.ui-load[data-tone='warning'] .ui-load__bar[data-on] {
+  background: var(--warning);
+}
+.ui-load[data-tone='danger'] .ui-load__bar[data-on] {
+  background: var(--danger);
+}
 .ui-badge {
   display: inline-flex;
   align-items: center;

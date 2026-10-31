@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPreferences, savePreferences } from './preferences';
 beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
@@ -252,4 +252,84 @@ it('показ помнит звук окна показа (R60): старая �
     JSON.stringify({ screen: { resolution: 1080, fps: 30, audio: 'loud' } }),
   );
   expect(readPreferences().screen.audio).toBe('none');
+});
+
+describe('шумоподавление по умолчанию — «Усиленное», выбор человека не трогается (R145)', () => {
+  const key = 'cord:preferences:v1';
+  const worklet = () => vi.stubGlobal('AudioWorkletNode', class {});
+  const phone = (coarse: boolean) =>
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: coarse && query === '(pointer: coarse)' }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('новый человек на компьютере — «Усиленное», без отметки выбора', () => {
+    worklet();
+    phone(false);
+    expect(readPreferences().audio).toMatchObject({ suppression: 'rnnoise', suppressionChosen: false });
+  });
+
+  it('без AudioWorklet и на телефоне — «Стандартное» (R147)', () => {
+    phone(false);
+    expect(readPreferences().audio.suppression).toBe('browser');
+    worklet();
+    phone(true);
+    expect(readPreferences().audio.suppression).toBe('browser');
+  });
+
+  it('прежняя запись, целиком равная старому умолчанию, — «не выбирал»: получает новое умолчание', () => {
+    worklet();
+    phone(false);
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        audio: { suppression: 'browser', echoCancellation: true, autoGainControl: true, gain: 1 },
+      }),
+    );
+    expect(readPreferences().audio).toMatchObject({ suppression: 'rnnoise', suppressionChosen: false });
+  });
+
+  it('прежняя запись с любым отличием — выбор человека: остаётся как есть', () => {
+    worklet();
+    phone(false);
+    localStorage.setItem(key, JSON.stringify({ audio: { suppression: 'off' } }));
+    expect(readPreferences().audio).toMatchObject({ suppression: 'off', suppressionChosen: true });
+    localStorage.setItem(key, JSON.stringify({ audio: { suppression: 'browser', gain: 1.4 } }));
+    expect(readPreferences().audio).toMatchObject({
+      suppression: 'browser',
+      suppressionChosen: true,
+      gain: 1.4,
+    });
+  });
+
+  it('выбранное «Стандартное» с отметкой переживает и сохранение других настроек', () => {
+    worklet();
+    phone(false);
+    savePreferences({
+      audio: { ...readPreferences().audio, suppression: 'browser', suppressionChosen: true },
+    });
+    savePreferences({ outputVolume: 40 });
+    expect(readPreferences().audio).toMatchObject({ suppression: 'browser', suppressionChosen: true });
+  });
+
+  it('невыбранное умолчание не застывает в записи: сохранение других настроек его не закрепляет', () => {
+    worklet();
+    phone(false);
+    savePreferences({ outputVolume: 40 });
+    expect(JSON.parse(localStorage.getItem(key)!).audio.suppressionChosen).toBe(false);
+    phone(true);
+    expect(readPreferences().audio.suppression).toBe('browser');
+  });
+});
+
+it('«звук встречи»: по умолчанию включён, сочетание — Ctrl+Shift+D, снятое сочетание помнится (R156)', () => {
+  expect(readPreferences()).toMatchObject({
+    deafened: false,
+    deafenHotkey: { code: 'KeyD', ctrl: true, shift: true, alt: false, meta: false },
+  });
+  savePreferences({ deafened: true, deafenHotkey: null });
+  expect(readPreferences()).toMatchObject({ deafened: true, deafenHotkey: null });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ deafened: 'yes', deafenHotkey: { code: 'Escape' } }),
+  );
+  expect(readPreferences()).toMatchObject({ deafened: false, deafenHotkey: { code: 'KeyD' } });
 });

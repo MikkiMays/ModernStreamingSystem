@@ -46,6 +46,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Смена сети и VPN видна странице (`navigator.connection`, R147, R149): без этого WebView не
+         сообщает о ней, и путь медиа не пересобирается после включения VPN или смены Wi-Fi. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Звонок: голос, камера и звук разговора (Chromium в WebView меняет режим аудио для WebRTC). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />

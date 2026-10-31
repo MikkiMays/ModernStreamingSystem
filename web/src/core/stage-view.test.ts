@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Snapshot } from '../api/types';
-import { awayAfter, stageOccupant, stageView, type StageOccupant } from './stage-view';
+import { awayAfter, newFilm, stageOccupant, stageView, type StageOccupant } from './stage-view';
 
 /*
   Выход из интеграции к участникам (R121): что занимает сцену, какой вид у зрителя и что остаётся от его
@@ -18,7 +18,8 @@ const room = (extra: Partial<Record<keyof Room, unknown>> = {}) =>
     board: null,
     ...extra,
   }) as unknown as Room;
-const film: StageOccupant = { kind: 'cinema', film: true };
+const film: StageOccupant = { kind: 'cinema', film: true, content: 'youtube:abc' };
+const other: StageOccupant = { kind: 'cinema', film: true, content: 'ivi:42' };
 const catalog: StageOccupant = { kind: 'cinema', film: false };
 const poker: StageOccupant = { kind: 'poker', film: false };
 
@@ -44,8 +45,9 @@ describe('что занимает сцену', () => {
   });
 
   it('кинозал — фильм комнаты или свой открытый каталог', () => {
-    expect(stageOccupant(room({ watch: {} }), false)).toEqual(film);
-    expect(stageOccupant(room({ watch: {} }), true)).toEqual(film);
+    const watch = { provider: 'youtube', contentId: 'abc' };
+    expect(stageOccupant(room({ watch }), false)).toEqual(film);
+    expect(stageOccupant(room({ watch }), true)).toEqual(film);
     expect(stageOccupant(room(), true)).toEqual(catalog);
   });
 });
@@ -85,8 +87,17 @@ describe('уход после смены сцены', () => {
     expect(awayAfter('cinema', catalog, film)).toBeNull();
   });
 
-  it('следующая серия, пауза или другой фильм в идущем кинозале ухода не сбрасывают', () => {
+  it('пауза и перемотка той же записи ухода не сбрасывают', () => {
     expect(awayAfter('cinema', film, film)).toBe('cinema');
+  });
+
+  it('другая запись в идущем кинозале — новый фильм для всех, и у ушедшего (R150)', () => {
+    expect(awayAfter('cinema', film, other)).toBeNull();
+    expect(newFilm(film, other)).toBe(true);
+    expect(newFilm(catalog, film)).toBe(true);
+    expect(newFilm(null, film)).toBe(true);
+    expect(newFilm(film, film)).toBe(false);
+    expect(newFilm(film, catalog)).toBe(false);
   });
 
   it('фильм закрыли, а свой каталог остался открытым — ушедший остаётся с людьми', () => {

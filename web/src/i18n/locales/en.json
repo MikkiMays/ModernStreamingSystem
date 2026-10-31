@@ -315,6 +315,16 @@
         "label": "Share preview",
         "hint": "Viewers see a thumbnail without opening the share",
         "keywords": "preview thumbnail screen share stream"
+      },
+      "hotkey-deafen": {
+        "label": "Meeting sound",
+        "hint": "Turn off or on — together with the microphone",
+        "keywords": "headphones deafen mute sound"
+      },
+      "camera-background": {
+        "label": "Background",
+        "hint": "Blur or a picture behind you",
+        "keywords": "background blur virtual backdrop"
       }
     },
     "title": "Settings",
@@ -394,7 +404,11 @@
         "taken": "Another program already uses this shortcut: it works in the Cord window, but pick another one for the background.",
         "duplicate": "This shortcut is already assigned to another Cord action.",
         "windowOnly": "Right now this shortcut works only in the Cord window."
-      }
+      },
+      "deafenTaken": "The microphone already uses this shortcut — choose another one.",
+      "deafenChangeLabel": "Change meeting sound shortcut",
+      "deafenAssignLabel": "Assign meeting sound shortcut",
+      "deafenResetLabel": "Reset meeting sound shortcut"
     },
     "media": {
       "kind": {
@@ -433,7 +447,8 @@
       "leaveFirst": "Leave the meeting first",
       "change": "Change server",
       "forget": "Forget password",
-      "here": "You’re here"
+      "here": "You’re here",
+      "shared": "Settings are shared by all servers. Rooms, Favorites and recent meetings are separate on each server."
     },
     "sounds": {
       "cues": "Alerts",
@@ -630,6 +645,9 @@
       "done": "Meeting link copied",
       "failed": "Couldn't copy the meeting link",
       "copy": "Copy"
+    },
+    "deafened": {
+      "title": "Meeting sound is off — you can't hear anyone"
     }
   },
   "chess": {
@@ -1342,7 +1360,8 @@
     },
     "encoder": {
       "screen": "The encoder is overloaded. Switching your screen to a compatible codec.",
-      "camera": "The encoder is overloaded. Switching your camera to a compatible codec."
+      "camera": "The encoder is overloaded. Switching your camera to a compatible codec.",
+      "cpuHint": "Your processor cannot keep up with encoding the video. We do not lower the quality: close heavy apps or pick a lower quality in settings."
     },
     "link": {
       "paths": {
@@ -2114,15 +2133,15 @@
       "toStart": "Back to the start for everyone",
       "sync": "Sync to the room",
       "skip": {
-        "intro": "Skip 85 seconds for everyone",
         "ad": "Skip the ad for everyone",
         "adShort": "Skip ad",
-        "adLabel": "Ad in the stream"
+        "adLabel": "Ad in the stream",
+        "intro": "Skip 85 seconds for everyone"
       },
       "adSkipped": "Ad skipped for everyone",
       "exitFullscreen": "Exit full screen",
       "fullscreen": "Expand player",
-      "unmute": "Unmute the video",
+      "unmute": "Turn on sound",
       "mute": "Mute the video",
       "volume": "Video volume",
       "buffering": "Loading",
@@ -2154,7 +2173,8 @@
         "streamFailed": "The stream didn't open. Try another video",
         "openFailed": "Couldn't open the video",
         "renewFailed": "Couldn't refresh the stream"
-      }
+      },
+      "liveAd": "Ad break on the platform · {{time}}"
     },
     "keys": {
       "locked": "The host has kept the remote to themselves — pause and seeking are theirs",
@@ -2273,7 +2293,8 @@
       "muteForAll": "Mute microphone for everyone",
       "remove": "Remove from meeting",
       "actions": "Actions: {{name}}"
-    }
+    },
+    "deafened": "Meeting sound off"
   },
   "dock": {
     "media": "Microphone and camera",
@@ -2309,7 +2330,8 @@
       }
     },
     "pip": "Pop out",
-    "pipClose": "Pop back in"
+    "pipClose": "Pop back in",
+    "sound": "Meeting sound"
   },
   "invite": {
     "dialog": {
@@ -2350,7 +2372,20 @@
   },
   "kit": {
     "toasts": "Notifications",
-    "soon": "Soon"
+    "soon": "Soon",
+    "load": {
+      "label": "Server load: {{value}}",
+      "levels": {
+        "1": "low",
+        "2": "medium",
+        "3": "high",
+        "4": "very high"
+      },
+      "full": "no room",
+      "maintenance": "updating",
+      "closed": "closed to new meetings",
+      "unknown": "unknown"
+    }
   },
   "connect": {
     "failure": {
@@ -2529,7 +2564,8 @@
     "attachment": {
       "list": "Message attachments",
       "remove": "Remove {{name}}"
-    }
+    },
+    "deafened": "Meeting sound off"
   },
   "home": {
     "entry": {
@@ -2559,6 +2595,32 @@
       "privacy": "No account. Meetings aren’t recorded.",
       "about": "About",
       "help": "Help"
+    },
+    "recent": {
+      "title": "Recent",
+      "clear": "Clear",
+      "clearTitle": "Clear recent meetings?",
+      "clearText": "The list of recent meetings on this device will be removed. The meetings themselves and your favorites stay as they are.",
+      "clearConfirm": "Clear",
+      "cancel": "Cancel",
+      "rejoin": "Rejoin",
+      "again": "Start again",
+      "byCode": "Join with code",
+      "ended": "ended",
+      "people_one": "{{count}} person",
+      "people_other": "{{count}} people",
+      "today": "today, {{time}}",
+      "yesterday": "yesterday, {{time}}",
+      "more": "Show all ({{count}})",
+      "less": "Show less",
+      "menu": "Actions: {{title}}",
+      "copyCode": "Copy code",
+      "copied": "Code copied",
+      "copyFailed": "Couldn't copy the code",
+      "favorite": "Add to favorites",
+      "favorited": "Meeting added to favorites",
+      "forget": "Remove from recent",
+      "failed": "Couldn't rejoin the meeting"
     }
   },
   "prejoin": {
@@ -2767,10 +2829,6 @@
         "name": "Music",
         "hint": "One shared queue for the whole meeting"
       },
-      "any-game": {
-        "name": "Any game",
-        "hint": "Browser games for the whole meeting"
-      },
       "standup": {
         "name": "Stand-up stage",
         "hint": "One performs, everyone else watches and reacts"
@@ -2781,6 +2839,10 @@
       },
       "telegram": {
         "hint": "Meetings and music from your Telegram chat"
+      },
+      "any-game": {
+        "name": "Any game",
+        "hint": "Browser games for the whole meeting"
       }
     },
     "music": {
@@ -2925,10 +2987,18 @@
     "rtt": "RTT to the media server",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Codec profile",
+    "layers": "Layers",
+    "singleLayer": "Single layer",
     "bufferRx": "Receive buffer",
     "encode": "Frame encoding",
     "decode": "Frame decoding",
     "implementation": "Video engine",
+    "engine": {
+      "hw": "hardware",
+      "sw": "software",
+      "unknown": "not disclosed"
+    },
     "limitation": "Limitation",
     "limits": {
       "none": "None detected",
@@ -2936,6 +3006,17 @@
       "bandwidth": "Bandwidth",
       "unknown": "No data from the sender"
     },
+    "choice": {
+      "label": "Why this codec",
+      "hardware": "Best hardware codec on this machine",
+      "software": "No hardware encoder — the CPU encodes",
+      "viewers": "A viewer cannot decode the codec above",
+      "fallback": "The watchdog stepped down from the codec above",
+      "baseline": "The encoder did not answer — compatible default",
+      "backup": "plus {{codec}} for viewers without this codec"
+    },
+    "fallbacks": "Codec switches",
+    "fallbacksValue": "Watchdog fallbacks: {{fallbacks}} · switches in total: {{switches}}",
     "stuck": {
       "title": "Picture or sound frozen?",
       "text": "We'll refresh the tracks you receive from other participants. There may be a short pause.",
@@ -3455,6 +3536,10 @@
         "network": {
           "q": "The connection drops, video looks blocky",
           "a": "Pause downloads and streams on the same connection; a cable or Wi‑Fi close to the router is noticeably steadier.\nVPNs and corporate networks sometimes get in the way of a direct connection — without them, sound and video lag less.\nIn the meeting, open “Settings and actions → Diagnostics”: it shows the path, loss and delay — you can attach them to your request."
+        },
+        "micBadge": {
+          "q": "A red microphone icon floats over games and windows",
+          "a": "This icon isn't drawn by Cord but by your graphics card software or Windows — you can turn it off.\nNVIDIA App / GeForce Experience: Alt+Z → Settings → HUD layout → “Status indicator” → off.\nAMD Software: Alt+R → Settings → General → “Overlay” — turn off the recording and microphone indicators.\nXbox Game Bar: Win+G → Settings → General — clear “Show recording indicator”.\nCord's own on-top items are only the speaking widget (overlay: “Settings → Overlay”) and the call mini window at the bottom right (“Settings → Windows”)."
         }
       }
     },
@@ -3554,5 +3639,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "up to {{fps}} fps",
     "share": "Share"
+  },
+  "background": {
+    "title": "Background",
+    "none": "No background",
+    "blurLight": "Light blur",
+    "blurStrong": "Strong blur",
+    "builtin": {
+      "graphite": "Graphite",
+      "mist": "Mist",
+      "dawn": "Dawn",
+      "forest": "Forest",
+      "sea": "Sea",
+      "sand": "Sand"
+    },
+    "custom": "Your photo",
+    "upload": "Upload your photo",
+    "replace": "Replace photo",
+    "uploadFailed": "Couldn't open this photo",
+    "notHere": "Backgrounds aren't available on this device — the camera goes as is"
   }
 }

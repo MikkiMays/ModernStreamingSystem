@@ -1,10 +1,12 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
+import { Track } from 'livekit-client';
 import { ClipboardCopy, Headset, MessageSquareWarning, RotateCcw, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { publicApi } from '../api/client';
 import { callReportText, diagnosticsText } from '../core/support';
 import { StatsSampler, type Sample } from '../media/diagnostics';
+import type { CodecInfo, PublishSource } from '../media/codec-planner';
 import { gradeName, pathName } from '../media/link-quality';
 import { useStore } from './primitives';
 import { Button, Dialog } from './kit';
@@ -16,6 +18,10 @@ const LIMITS = ['none', 'cpu', 'bandwidth', 'unknown'] as const;
 type Limit = (typeof LIMITS)[number];
 const isLimit = (value: string): value is Limit => (LIMITS as readonly string[]).includes(value);
 
+/** Железо или процессор — словом из каталога (`diagnostics.engine`). */
+const engineKey = (value: boolean | null | undefined) =>
+  value === true ? 'hw' : value === false ? 'sw' : 'unknown';
+
 /** Строка «подпись — значение» сводки: подпись слева приглушённо, значение справа. */
 function Metric({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -25,6 +31,9 @@ function Metric({ label, children }: { label: string; children: ReactNode }) {
     </div>
   );
 }
+
+const engineWord = (value: boolean | null | undefined) =>
+  value === true ? 'hw' : value === false ? 'sw' : 'hw?';
 
 /**
  * Дорожка строкой для «Скопировать отчёт о звонке» (R29, MEDIA-DIAGNOSIS §8): вид, направление и
@@ -44,8 +53,36 @@ export function sampleLine(sample: Sample): string {
         ? []
         : [`concealment ${sample.concealmentEvents}`, ...(sample.silentSource ? ['silent source'] : [])]),
     sample.codec,
+    // Кодек видео целиком (R152): профиль, слои, железо или процессор, мс на кадр.
+    ...(sample.kind === 'video'
+      ? [
+          ...(sample.fmtp ? [sample.fmtp] : []),
+          ...(sample.scalabilityMode ? [sample.scalabilityMode] : []),
+          engineWord(sample.powerEfficient),
+          sample.implementation,
+          `${sample.outbound ? 'encode' : 'decode'} ${sample.processingMs === null ? 'n/a' : `${sample.processingMs.toFixed(1)} ms`}`,
+        ]
+      : []),
   ].join(' · ');
 }
+
+/** Выбор кодека своей отдачи строкой для отчёта: кодек, железо, слои, причина, смены (R152). */
+export function codecLine(source: PublishSource, info: CodecInfo): string {
+  const { decision } = info;
+  return [
+    `codec ${source}: ${decision.codec} ${decision.hw ? 'hw' : 'sw'}`,
+    decision.scalabilityMode ?? 'L1T1',
+    decision.simulcast ? 'simulcast' : 'single',
+    `backup ${decision.backup || 'none'}${decision.backupActive ? ' active' : ''}`,
+    `reason ${decision.reason}`,
+    `fallbacks ${info.fallbacks}`,
+    `switches ${info.switches}`,
+  ].join(' · ');
+}
+
+/** Чья это дорожка отдачи — камера или показ; у остального выбора кодека нет. */
+const publishSourceOf = (source: Track.Source): PublishSource | null =>
+  source === Track.Source.Camera ? 'camera' : source === Track.Source.ScreenShare ? 'screen' : null;
 
 /**
  * «Диагностика» встречи: проверка своих устройств, сеть, подробности каждой дорожки и «зависло».
@@ -71,7 +108,10 @@ export default function Diagnostics({
 }) {
   const { t } = useTranslation();
   const id = useId();
-  const [samples, setSamples] = useState<(Sample & { name: string })[]>([]);
+  const [samples, setSamples] = useState<(Sample & { name: string; source: Track.Source; local: boolean })[]>(
+    [],
+  );
+  const [codecs, setCodecs] = useState<Partial<Record<PublishSource, CodecInfo>>>({});
   const [network, setNetwork] = useState<{ running: boolean; times: number[]; failures: number }>({
     running: false,
     times: [],
@@ -97,11 +137,17 @@ export default function Diagnostics({
       if (busy) return;
       busy = true;
       setTargets(meeting.media.playoutTargets());
+      setCodecs({
+        camera: meeting.media.codecInfo('camera') ?? undefined,
+        screen: meeting.media.codecInfo('screen') ?? undefined,
+      });
       void Promise.all(
         meeting.media.tracks.get().map(async (tile) =>
           (await sampler.sample(tile.track).catch(() => [])).map((sample) => ({
             ...sample,
             name: tile.name,
+            source: tile.source,
+            local: tile.local,
           })),
         ),
       )
@@ -139,6 +185,10 @@ export default function Diagnostics({
       callReportText(meeting.media.callReport()),
       ...targets.map((target) => `playout: ${target.kind} ${target.targetMs} ms`),
       ...(pauses ? [`video paused by sfu: ${pauses}`] : []),
+      ...(['camera', 'screen'] as const).flatMap((source) => {
+        const info = codecs[source];
+        return info ? [codecLine(source, info)] : [];
+      }),
       ...(board ? [`board latency: p50 ${board.p50} ms, p95 ${board.p95} ms (${board.count})`] : []),
       ...samples.map(sampleLine),
     ].join('\n');
@@ -289,6 +339,14 @@ export default function Diagnostics({
                     : t(($) => $.diagnostics.ms, { value: sample.rttMs.toFixed(0) })}
                 </Metric>
                 <Metric label={t(($) => $.diagnostics.codec)}>{sample.codec}</Metric>
+                {sample.kind === 'video' && sample.fmtp && (
+                  <Metric label={t(($) => $.diagnostics.profile)}>{sample.fmtp}</Metric>
+                )}
+                {sample.kind === 'video' && sample.outbound && (
+                  <Metric label={t(($) => $.diagnostics.layers)}>
+                    {sample.scalabilityMode ?? t(($) => $.diagnostics.singleLayer)}
+                  </Metric>
+                )}
                 <Metric label={t(($) => $.diagnostics.bufferRx)}>
                   {sample.bufferMs === null
                     ? t(($) => $.diagnostics.noData)
@@ -316,7 +374,10 @@ export default function Diagnostics({
                         ? t(($) => $.diagnostics.noData)
                         : t(($) => $.diagnostics.ms, { value: sample.processingMs.toFixed(1) })}
                     </Metric>
-                    <Metric label={t(($) => $.diagnostics.implementation)}>{sample.implementation}</Metric>
+                    <Metric label={t(($) => $.diagnostics.implementation)}>
+                      {t(($) => $.diagnostics.engine[engineKey(sample.powerEfficient)])} ·{' '}
+                      {sample.implementation}
+                    </Metric>
                     <Metric label={t(($) => $.diagnostics.limitation)}>
                       {isLimit(sample.limitation)
                         ? t(($) => $.diagnostics.limits[sample.limitation as Limit])
@@ -324,6 +385,31 @@ export default function Diagnostics({
                     </Metric>
                   </>
                 )}
+                {/* Почему этот кодек и сколько раз сторож отступал (R152) — у своей камеры и показа. */}
+                {sample.kind === 'video' &&
+                  sample.outbound &&
+                  sample.local &&
+                  (() => {
+                    const kind = publishSourceOf(sample.source);
+                    const info = kind ? codecs[kind] : undefined;
+                    if (!info) return null;
+                    return (
+                      <>
+                        <Metric label={t(($) => $.diagnostics.choice.label)}>
+                          {t(($) => $.diagnostics.choice[info.decision.reason])}
+                          {info.decision.backupActive && info.decision.backup
+                            ? ` · ${t(($) => $.diagnostics.choice.backup, { codec: info.decision.backup === 'h264' ? 'H.264' : 'VP8' })}`
+                            : ''}
+                        </Metric>
+                        <Metric label={t(($) => $.diagnostics.fallbacks)}>
+                          {t(($) => $.diagnostics.fallbacksValue, {
+                            fallbacks: info.fallbacks,
+                            switches: info.switches,
+                          })}
+                        </Metric>
+                      </>
+                    );
+                  })()}
               </dl>
             </article>
           ))}

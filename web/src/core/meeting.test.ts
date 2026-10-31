@@ -9,6 +9,8 @@ vi.mock('../media/session', async () => {
       state = new Store({ status: 'idle' });
       preferences = new Store(readPreferences());
       screenGone = new Store<{ identity: string; seq: number } | null>(null);
+      deafened = new Store(false);
+      holdMicrophoneUntilHeard = vi.fn();
       acceptPreview = vi.fn();
       constructor(
         _api: unknown,
@@ -19,6 +21,7 @@ vi.mock('../media/session', async () => {
       });
       holdMicrophone = vi.fn(async () => {});
       setServiceParticipants = vi.fn();
+      setViewerDecodes = vi.fn();
       rememberPeople = vi.fn();
       watchScreen = vi.fn();
       callReport = vi.fn(() => callReport.value);

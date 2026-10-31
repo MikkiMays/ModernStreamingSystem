@@ -339,6 +339,14 @@ public class RoomState {
     /** A small square image as a data URI, or null. Lives and dies with the room. */
     public String avatar;
 
+    /**
+     * «Звук встречи» выключен (R156): человек сейчас никого не слышит — остальные видят у него
+     * наушники. {@code NON_NULL}: у остальных поля нет вовсе, комната пишется как раньше (откат).
+     */
+    @com.fasterxml.jackson.annotation.JsonInclude(
+        com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    public Boolean deafened;
+
     public String secretHash;
     public boolean owner;
     public String service;
@@ -357,6 +365,17 @@ public class RoomState {
     public long joinedAt;
     public String mediaSid;
     public long observedAt;
+
+    /**
+     * Что декодирует браузер участника (R152, команда {@code media.decode}): кодеки по порядку
+     * лестницы — {@code av1 h265 vp9 h264 vp8}. Null — не сообщал (старый клиент, служба).
+     *
+     * <p>Поле участника, а не карта рядом: {@code Member} читается с {@code ignoreUnknown} с
+     * 19.10.2026 ({@code bcb6916}), откат на любой образ после него поле просто пропустит. {@code
+     * NON_NULL} — участник без него пишется как раньше.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public List<String> decodes;
 
     /**
      * Человек ли это. Боты — музыка и всё, что приходит от служб, — не люди: они не занимают мест,

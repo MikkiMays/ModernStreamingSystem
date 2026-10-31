@@ -315,6 +315,16 @@
         "label": "Vista previa al compartir",
         "hint": "Los demás ven una miniatura sin abrirla",
         "keywords": "vista previa miniatura compartir pantalla stream"
+      },
+      "hotkey-deafen": {
+        "label": "Sonido de la reunión",
+        "hint": "Apagar o encender, junto con el micrófono",
+        "keywords": "auriculares ensordecer silenciar sonido"
+      },
+      "camera-background": {
+        "label": "Fondo",
+        "hint": "Desenfoque o una imagen detrás de ti",
+        "keywords": "fondo desenfoque virtual"
       }
     },
     "title": "Ajustes",
@@ -394,7 +404,11 @@
         "taken": "Otro programa ya usa este atajo: funciona en la ventana de Cord, pero para segundo plano elige otro.",
         "duplicate": "Este atajo ya está asignado a otra acción de Cord.",
         "windowOnly": "Ahora mismo este atajo solo funciona en la ventana de Cord."
-      }
+      },
+      "deafenTaken": "El micrófono ya usa este atajo; elige otro.",
+      "deafenChangeLabel": "Cambiar el atajo del sonido de la reunión",
+      "deafenAssignLabel": "Asignar un atajo al sonido de la reunión",
+      "deafenResetLabel": "Restablecer el atajo del sonido de la reunión"
     },
     "media": {
       "kind": {
@@ -433,7 +447,8 @@
       "leaveFirst": "Primero sal de la reunión",
       "change": "Cambiar de servidor",
       "forget": "Olvidar contraseña",
-      "here": "Estás aquí"
+      "here": "Estás aquí",
+      "shared": "Los ajustes son comunes a todos los servidores. Las salas, los favoritos y las reuniones recientes son propios de cada servidor."
     },
     "sounds": {
       "cues": "Avisos",
@@ -631,6 +646,9 @@
       "done": "Enlace de la reunión copiado",
       "failed": "No se pudo copiar el enlace de la reunión",
       "copy": "Copiar"
+    },
+    "deafened": {
+      "title": "El sonido de la reunión está apagado: no oyes a nadie"
     }
   },
   "chess": {
@@ -1356,7 +1374,8 @@
     },
     "encoder": {
       "screen": "El codificador está saturado. Cambiamos la pantalla a un códec compatible.",
-      "camera": "El codificador está saturado. Cambiamos la cámara a un códec compatible."
+      "camera": "El codificador está saturado. Cambiamos la cámara a un códec compatible.",
+      "cpuHint": "El procesador no da abasto para codificar el vídeo. No bajamos la calidad: cierra programas pesados o elige una calidad menor en los ajustes."
     },
     "link": {
       "paths": {
@@ -2139,15 +2158,15 @@
       "toStart": "Al principio para todos",
       "sync": "Sincronizar con la sala",
       "skip": {
-        "intro": "Saltar 85 segundos para todos",
         "ad": "Saltar el anuncio para todos",
         "adShort": "Saltar anuncio",
-        "adLabel": "Anuncio en la emisión"
+        "adLabel": "Anuncio en la emisión",
+        "intro": "Saltar 85 segundos para todos"
       },
       "adSkipped": "Anuncio saltado para todos",
       "exitFullscreen": "Salir de pantalla completa",
       "fullscreen": "Ampliar el reproductor",
-      "unmute": "Activar el sonido del vídeo",
+      "unmute": "Activar el sonido",
       "mute": "Silenciar el vídeo",
       "volume": "Volumen del vídeo",
       "buffering": "Cargando",
@@ -2179,7 +2198,8 @@
         "streamFailed": "La emisión no se abrió. Prueba otro vídeo",
         "openFailed": "No se pudo abrir el vídeo",
         "renewFailed": "No se pudo actualizar la emisión"
-      }
+      },
+      "liveAd": "Pausa publicitaria de la plataforma · {{time}}"
     },
     "keys": {
       "locked": "El anfitrión se ha reservado el mando: la pausa y el avance son cosa suya",
@@ -2300,7 +2320,8 @@
       "muteForAll": "Silenciar el micrófono para todos",
       "remove": "Quitar de la reunión",
       "actions": "Acciones: {{name}}"
-    }
+    },
+    "deafened": "Sonido de la reunión apagado"
   },
   "dock": {
     "media": "Micrófono y cámara",
@@ -2337,7 +2358,8 @@
       }
     },
     "pip": "Ver en ventana flotante",
-    "pipClose": "Salir de la ventana flotante"
+    "pipClose": "Salir de la ventana flotante",
+    "sound": "Sonido de la reunión"
   },
   "invite": {
     "dialog": {
@@ -2378,7 +2400,20 @@
   },
   "kit": {
     "toasts": "Notificaciones",
-    "soon": "Próximamente"
+    "soon": "Próximamente",
+    "load": {
+      "label": "Carga del servidor: {{value}}",
+      "levels": {
+        "1": "baja",
+        "2": "media",
+        "3": "alta",
+        "4": "muy alta"
+      },
+      "full": "sin plazas",
+      "maintenance": "actualizándose",
+      "closed": "cerrado a nuevas reuniones",
+      "unknown": "desconocida"
+    }
   },
   "connect": {
     "failure": {
@@ -2558,7 +2593,8 @@
     "attachment": {
       "list": "Adjuntos del mensaje",
       "remove": "Quitar {{name}}"
-    }
+    },
+    "deafened": "Sonido de la reunión apagado"
   },
   "home": {
     "entry": {
@@ -2588,6 +2624,33 @@
       "privacy": "Sin cuenta. Las reuniones no se graban.",
       "about": "Acerca de",
       "help": "Ayuda"
+    },
+    "recent": {
+      "title": "Recientes",
+      "clear": "Borrar",
+      "clearTitle": "¿Borrar las reuniones recientes?",
+      "clearText": "Se eliminará la lista de reuniones recientes de este dispositivo. Las reuniones y tus favoritos no cambian.",
+      "clearConfirm": "Borrar",
+      "cancel": "Cancelar",
+      "rejoin": "Volver",
+      "again": "Crear de nuevo",
+      "byCode": "Entrar con código",
+      "ended": "finalizada",
+      "people_one": "{{count}} persona",
+      "people_many": "{{count}} personas",
+      "people_other": "{{count}} personas",
+      "today": "hoy, {{time}}",
+      "yesterday": "ayer, {{time}}",
+      "more": "Mostrar todas ({{count}})",
+      "less": "Mostrar menos",
+      "menu": "Acciones: {{title}}",
+      "copyCode": "Copiar código",
+      "copied": "Código copiado",
+      "copyFailed": "No se pudo copiar el código",
+      "favorite": "Añadir a favoritos",
+      "favorited": "Reunión añadida a favoritos",
+      "forget": "Quitar de recientes",
+      "failed": "No se pudo volver a la reunión"
     }
   },
   "prejoin": {
@@ -2797,10 +2860,6 @@
         "name": "Música",
         "hint": "Una cola compartida para toda la reunión"
       },
-      "any-game": {
-        "name": "Cualquier juego",
-        "hint": "Juegos de navegador para toda la reunión"
-      },
       "standup": {
         "name": "Escenario de stand-up",
         "hint": "Uno actúa; los demás miran y reaccionan"
@@ -2811,6 +2870,10 @@
       },
       "telegram": {
         "hint": "Reuniones y música desde tu chat de Telegram"
+      },
+      "any-game": {
+        "name": "Cualquier juego",
+        "hint": "Juegos de navegador para toda la reunión"
       }
     },
     "music": {
@@ -2957,10 +3020,18 @@
     "rtt": "RTT al servidor de medios",
     "ms": "{{value}} ms",
     "codec": "Códec",
+    "profile": "Perfil del códec",
+    "layers": "Capas",
+    "singleLayer": "Una capa",
     "bufferRx": "Búfer de recepción",
     "encode": "Codificación del fotograma",
     "decode": "Decodificación del fotograma",
     "implementation": "Motor de vídeo",
+    "engine": {
+      "hw": "por hardware",
+      "sw": "por software",
+      "unknown": "no revelado"
+    },
     "limitation": "Limitación",
     "limits": {
       "none": "No detectada",
@@ -2968,6 +3039,17 @@
       "bandwidth": "Ancho de banda",
       "unknown": "Sin datos del emisor"
     },
+    "choice": {
+      "label": "Por qué este códec",
+      "hardware": "El mejor códec por hardware de este equipo",
+      "software": "No hay codificador por hardware: codifica el procesador",
+      "viewers": "Algún espectador no decodifica el códec superior",
+      "fallback": "El vigilante bajó desde el códec superior",
+      "baseline": "El codificador no respondió: compatible por defecto",
+      "backup": "además {{codec}} para quien no tenga este códec"
+    },
+    "fallbacks": "Cambios de códec",
+    "fallbacksValue": "Retrocesos del vigilante: {{fallbacks}} · cambios en total: {{switches}}",
     "stuck": {
       "title": "¿Se congeló la imagen o el sonido?",
       "text": "Actualizaremos la recepción de pistas de los demás participantes. Puede haber una breve pausa.",
@@ -3494,6 +3576,10 @@
         "network": {
           "q": "La conexión se corta, el vídeo se ve pixelado",
           "a": "Pausa las descargas y transmisiones en la misma conexión; un cable o una Wi‑Fi cerca del router es mucho más estable.\nLas VPN y las redes de empresa a veces dificultan la conexión directa — sin ellas, el sonido y el vídeo llegan con menos retraso.\nEn la reunión, abre «Ajustes y acciones → Diagnóstico»: ahí se ven la ruta, las pérdidas y el retraso — puedes adjuntarlos a tu solicitud."
+        },
+        "micBadge": {
+          "q": "Un icono rojo de micrófono aparece sobre los juegos y ventanas",
+          "a": "Este icono no lo dibuja Cord, sino el programa de tu tarjeta gráfica o Windows: puedes desactivarlo.\nNVIDIA App / GeForce Experience: Alt+Z → Configuración → Diseño del HUD → «Indicador de estado» → desactivar.\nAMD Software: Alt+R → Configuración → General → «Superposición»: desactiva los indicadores de grabación y micrófono.\nXbox Game Bar: Win+G → Configuración → General: desmarca «Mostrar indicador de grabación».\nLo único de Cord que queda encima es el widget de quien habla (superposición: «Configuración → Superposición») y la miniventana de llamada abajo a la derecha («Configuración → Windows»)."
         }
       }
     },
@@ -3593,5 +3679,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "hasta {{fps}} fps",
     "share": "Compartir"
+  },
+  "background": {
+    "title": "Fondo",
+    "none": "Sin fondo",
+    "blurLight": "Desenfoque suave",
+    "blurStrong": "Desenfoque fuerte",
+    "builtin": {
+      "graphite": "Grafito",
+      "mist": "Niebla",
+      "dawn": "Amanecer",
+      "forest": "Bosque",
+      "sea": "Mar",
+      "sand": "Arena"
+    },
+    "custom": "Tu foto",
+    "upload": "Subir tu foto",
+    "replace": "Cambiar foto",
+    "uploadFailed": "No se pudo abrir esta foto",
+    "notHere": "Los fondos no están disponibles en este dispositivo: la cámara va tal cual"
   }
 }

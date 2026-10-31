@@ -7,6 +7,7 @@ import {
   Download,
   File,
   FileUp,
+  HeadphoneOff,
   MicOff,
   Paperclip,
   Pause,
@@ -333,6 +334,12 @@ export function Sidebar({
                         <UserX size={16} />
                       </IconButton>
                     </>
+                  ) : p.deafened ? (
+                    <HeadphoneOff
+                      className="participant-muted"
+                      size={16}
+                      aria-label={t(($) => $.sidebar.deafened)}
+                    />
                   ) : (
                     !tracks.some(
                       (t) => t.participantId === p.id && t.source === Track.Source.Microphone && !t.muted,

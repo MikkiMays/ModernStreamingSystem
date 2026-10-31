@@ -315,6 +315,16 @@
         "label": "Aperçu du partage",
         "hint": "Les spectateurs voient une miniature sans l'ouvrir",
         "keywords": "aperçu miniature partage d'écran stream"
+      },
+      "hotkey-deafen": {
+        "label": "Son de la réunion",
+        "hint": "Couper ou rétablir, avec le micro",
+        "keywords": "casque sourdine deafen son"
+      },
+      "camera-background": {
+        "label": "Arrière-plan",
+        "hint": "Flou ou image derrière vous",
+        "keywords": "arrière-plan flou virtuel fond"
       }
     },
     "title": "Paramètres",
@@ -394,7 +404,11 @@
         "taken": "Un autre programme utilise déjà ce raccourci : il fonctionne dans la fenêtre de Cord, mais choisissez-en un autre pour l'arrière-plan.",
         "duplicate": "Ce raccourci est déjà attribué à une autre action de Cord.",
         "windowOnly": "Pour l'instant, ce raccourci ne fonctionne que dans la fenêtre de Cord."
-      }
+      },
+      "deafenTaken": "Ce raccourci est déjà celui du micro — choisissez-en un autre.",
+      "deafenChangeLabel": "Modifier le raccourci du son de la réunion",
+      "deafenAssignLabel": "Attribuer un raccourci au son de la réunion",
+      "deafenResetLabel": "Réinitialiser le raccourci du son de la réunion"
     },
     "media": {
       "kind": {
@@ -433,7 +447,8 @@
       "leaveFirst": "Quittez d'abord la réunion",
       "change": "Changer de serveur",
       "forget": "Oublier le mot de passe",
-      "here": "Vous êtes ici"
+      "here": "Vous êtes ici",
+      "shared": "Les paramètres sont communs à tous les serveurs. Les salles, les favoris et les réunions récentes sont propres à chaque serveur."
     },
     "sounds": {
       "cues": "Signaux",
@@ -631,6 +646,9 @@
       "done": "Lien de la réunion copié",
       "failed": "Impossible de copier le lien de la réunion",
       "copy": "Copier"
+    },
+    "deafened": {
+      "title": "Le son de la réunion est coupé : vous n’entendez personne"
     }
   },
   "chess": {
@@ -1356,7 +1374,8 @@
     },
     "encoder": {
       "screen": "L'encodeur est surchargé. Passage de l'écran à un codec compatible.",
-      "camera": "L'encodeur est surchargé. Passage de la caméra à un codec compatible."
+      "camera": "L'encodeur est surchargé. Passage de la caméra à un codec compatible.",
+      "cpuHint": "Le processeur n’arrive pas à encoder la vidéo à temps. Nous ne baissons pas la qualité : fermez les programmes lourds ou choisissez une qualité inférieure dans les réglages."
     },
     "link": {
       "paths": {
@@ -2139,15 +2158,15 @@
       "toStart": "Au début pour tous",
       "sync": "Se caler sur la salle",
       "skip": {
-        "intro": "Passer 85 secondes pour tous",
         "ad": "Passer la pub pour tous",
         "adShort": "Passer la pub",
-        "adLabel": "Publicité dans le flux"
+        "adLabel": "Publicité dans le flux",
+        "intro": "Passer 85 secondes pour tous"
       },
       "adSkipped": "Pub passée pour tous",
       "exitFullscreen": "Quitter le plein écran",
       "fullscreen": "Agrandir le lecteur",
-      "unmute": "Activer le son de la vidéo",
+      "unmute": "Activer le son",
       "mute": "Couper le son de la vidéo",
       "volume": "Volume de la vidéo",
       "buffering": "Chargement",
@@ -2179,7 +2198,8 @@
         "streamFailed": "Le flux ne s'est pas ouvert. Essayez une autre vidéo",
         "openFailed": "Impossible d'ouvrir la vidéo",
         "renewFailed": "Impossible d'actualiser le flux"
-      }
+      },
+      "liveAd": "Pause publicitaire de la plateforme · {{time}}"
     },
     "keys": {
       "locked": "L'hôte s'est réservé la télécommande : pause et avance rapide sont à lui",
@@ -2300,7 +2320,8 @@
       "muteForAll": "Couper le micro pour tous",
       "remove": "Retirer de la réunion",
       "actions": "Actions : {{name}}"
-    }
+    },
+    "deafened": "Son de la réunion coupé"
   },
   "dock": {
     "media": "Micro et caméra",
@@ -2337,7 +2358,8 @@
       }
     },
     "pip": "Afficher en mini-fenêtre",
-    "pipClose": "Quitter la mini-fenêtre"
+    "pipClose": "Quitter la mini-fenêtre",
+    "sound": "Son de la réunion"
   },
   "invite": {
     "dialog": {
@@ -2378,7 +2400,20 @@
   },
   "kit": {
     "toasts": "Notifications",
-    "soon": "Bientôt"
+    "soon": "Bientôt",
+    "load": {
+      "label": "Charge du serveur : {{value}}",
+      "levels": {
+        "1": "faible",
+        "2": "moyenne",
+        "3": "élevée",
+        "4": "très élevée"
+      },
+      "full": "complet",
+      "maintenance": "mise à jour",
+      "closed": "fermé aux nouvelles réunions",
+      "unknown": "inconnue"
+    }
   },
   "connect": {
     "failure": {
@@ -2558,7 +2593,8 @@
     "attachment": {
       "list": "Pièces jointes du message",
       "remove": "Retirer {{name}}"
-    }
+    },
+    "deafened": "Son de la réunion coupé"
   },
   "home": {
     "entry": {
@@ -2588,6 +2624,33 @@
       "privacy": "Sans compte. Les réunions ne sont pas enregistrées.",
       "about": "À propos",
       "help": "Aide"
+    },
+    "recent": {
+      "title": "Récentes",
+      "clear": "Effacer",
+      "clearTitle": "Effacer les réunions récentes ?",
+      "clearText": "La liste des réunions récentes de cet appareil sera supprimée. Les réunions elles-mêmes et vos favoris ne changent pas.",
+      "clearConfirm": "Effacer",
+      "cancel": "Annuler",
+      "rejoin": "Revenir",
+      "again": "Recréer",
+      "byCode": "Rejoindre avec un code",
+      "ended": "terminée",
+      "people_one": "{{count}} personne",
+      "people_many": "{{count}} personnes",
+      "people_other": "{{count}} personnes",
+      "today": "aujourd’hui, {{time}}",
+      "yesterday": "hier, {{time}}",
+      "more": "Tout afficher ({{count}})",
+      "less": "Afficher moins",
+      "menu": "Actions : {{title}}",
+      "copyCode": "Copier le code",
+      "copied": "Code copié",
+      "copyFailed": "Impossible de copier le code",
+      "favorite": "Ajouter aux favoris",
+      "favorited": "Réunion ajoutée aux favoris",
+      "forget": "Retirer des récentes",
+      "failed": "Impossible de revenir dans la réunion"
     }
   },
   "prejoin": {
@@ -2797,10 +2860,6 @@
         "name": "Musique",
         "hint": "Une file d'attente commune à toute la réunion"
       },
-      "any-game": {
-        "name": "N'importe quel jeu",
-        "hint": "Jeux de navigateur pour toute la réunion"
-      },
       "standup": {
         "name": "Scène stand-up",
         "hint": "Un joueur se produit, les autres regardent et réagissent"
@@ -2811,6 +2870,10 @@
       },
       "telegram": {
         "hint": "Réunions et musique depuis votre discussion Telegram"
+      },
+      "any-game": {
+        "name": "N'importe quel jeu",
+        "hint": "Jeux de navigateur pour toute la réunion"
       }
     },
     "music": {
@@ -2957,10 +3020,18 @@
     "rtt": "RTT vers le serveur média",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Profil du codec",
+    "layers": "Couches",
+    "singleLayer": "Une seule couche",
     "bufferRx": "Tampon de réception",
     "encode": "Encodage d'une image",
     "decode": "Décodage d'une image",
     "implementation": "Moteur vidéo",
+    "engine": {
+      "hw": "matériel",
+      "sw": "logiciel",
+      "unknown": "non communiqué"
+    },
     "limitation": "Limitation",
     "limits": {
       "none": "Aucune détectée",
@@ -2968,6 +3039,17 @@
       "bandwidth": "Bande passante",
       "unknown": "Pas de données de l'émetteur"
     },
+    "choice": {
+      "label": "Pourquoi ce codec",
+      "hardware": "Le meilleur codec matériel de cette machine",
+      "software": "Pas d’encodeur matériel — le processeur encode",
+      "viewers": "Un spectateur ne décode pas le codec supérieur",
+      "fallback": "Le gardien a rétrogradé depuis le codec supérieur",
+      "baseline": "L’encodeur n’a pas répondu — codec compatible par défaut",
+      "backup": "plus {{codec}} pour les spectateurs sans ce codec"
+    },
+    "fallbacks": "Changements de codec",
+    "fallbacksValue": "Replis du gardien : {{fallbacks}} · changements au total : {{switches}}",
     "stuck": {
       "title": "Image ou son figés ?",
       "text": "Nous allons actualiser la réception des pistes des autres participants. Une courte pause est possible.",
@@ -3494,6 +3576,10 @@
         "network": {
           "q": "La connexion coupe, la vidéo est pixelisée",
           "a": "Mettez en pause les téléchargements et les flux sur la même connexion ; un câble ou un Wi‑Fi proche du routeur est nettement plus stable.\nLes VPN et les réseaux d'entreprise gênent parfois la connexion directe — sans eux, le son et la vidéo ont moins de retard.\nDans la réunion, ouvrez « Paramètres et actions → Diagnostic » : on y voit le trajet, les pertes et le retard — vous pouvez les joindre à votre demande."
+        },
+        "micBadge": {
+          "q": "Une icône de micro rouge flotte au-dessus des jeux et des fenêtres",
+          "a": "Cette icône n’est pas dessinée par Cord mais par le logiciel de votre carte graphique ou par Windows — vous pouvez la désactiver.\nNVIDIA App / GeForce Experience : Alt+Z → Paramètres → Disposition du HUD → « Indicateur d’état » → désactivé.\nAMD Software : Alt+R → Paramètres → Général → « Superposition » — désactivez les indicateurs d’enregistrement et de micro.\nXbox Game Bar : Win+G → Paramètres → Général — décochez « Afficher l’indicateur d’enregistrement ».\nCôté Cord, seuls le widget des intervenants (superposition : « Paramètres → Superposition ») et la mini-fenêtre d’appel en bas à droite (« Paramètres → Windows ») restent au premier plan."
         }
       }
     },
@@ -3593,5 +3679,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "jusqu’à {{fps}} fps",
     "share": "Partager"
+  },
+  "background": {
+    "title": "Arrière-plan",
+    "none": "Aucun arrière-plan",
+    "blurLight": "Flou léger",
+    "blurStrong": "Flou fort",
+    "builtin": {
+      "graphite": "Graphite",
+      "mist": "Brume",
+      "dawn": "Aurore",
+      "forest": "Forêt",
+      "sea": "Mer",
+      "sand": "Sable"
+    },
+    "custom": "Votre photo",
+    "upload": "Importer votre photo",
+    "replace": "Remplacer la photo",
+    "uploadFailed": "Impossible d’ouvrir cette photo",
+    "notHere": "Les arrière-plans ne sont pas disponibles sur cet appareil : la caméra reste telle quelle"
   }
 }

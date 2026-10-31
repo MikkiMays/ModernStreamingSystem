@@ -32,6 +32,14 @@ interface CordDesktop {
     autoConnect: boolean;
     /** Высота кнопок окна «— ⧉ ×» в DIP (`titleBarOverlay.height`, с 1.0.10); нет — 36 (`core/titlebar.ts`). */
     titlebarHeight?: number;
+    /**
+     * Общие для всех серверов настройки (R146, флаг `prefs.shared`): значения последней записи с любого
+     * сервера. Preload уже положил их в `cord:preferences:v1` до первого скрипта; `devices` — названия
+     * устройств, их сверяет `shared-preferences.ts`. Пусто — у оболочки общего ещё нет (перенос).
+     */
+    shared?: Record<string, unknown>;
+    /** Токен Яндекс Музыки (R157): только серверу каталога; null — нет; '' — отключён. */
+    yandexMusicToken?: string | null;
   };
   send(type: string, payload?: object): void;
   invoke(method: string, payload?: object): Promise<unknown>;
@@ -62,6 +70,15 @@ export function isDesktop(): boolean {
 }
 
 /**
+ * Какая оболочка: Electron (мост v2) или WinUI (WebView2, v1). Кодекам это важно (R152): ключи
+ * Chromium вроде аппаратного AV1 для WebRTC ставит только своя оболочка, WebView2 — обычный Edge.
+ */
+export function desktopShell(): 'electron' | 'webview' | null {
+  if (typeof window === 'undefined') return null;
+  return v2() ? 'electron' : window.chrome?.webview ? 'webview' : null;
+}
+
+/**
  * Возможности WinUI (v1), выраженные теми же флагами: сочетание, серверы, обновление, рукопожатие и
  * своя боковая панель с избранным (`sidebar`) — у Electron её нет, главную рисует веб целиком.
  */
@@ -75,6 +92,11 @@ export function desktopFeatures(): ReadonlySet<string> {
 
 export function hasFeature(name: string): boolean {
   return desktopFeatures().has(name);
+}
+
+/** Что оболочка v2 отдала странице до первой отрисовки; в v1 и в браузере — null. */
+export function desktopBootstrap(): CordDesktop['bootstrap'] | null {
+  return v2()?.bootstrap ?? null;
 }
 
 /**
@@ -134,12 +156,15 @@ const desktopHotkeys: {
   mic: Hotkey | null;
   overlay: Hotkey | null;
   lock: Hotkey | null;
+  /** «Звук встречи» (R156): действие `deafen` оболочка знает с E01-B2. */
+  deafen: Hotkey | null;
   paused: boolean;
   micMode: MicHotkeyMode;
 } = {
   mic: null,
   overlay: null,
   lock: null,
+  deafen: null,
   paused: false,
   micMode: 'toggle',
 };
@@ -148,6 +173,7 @@ function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
   if ('hotkey' in data) desktopHotkeys.mic = (data.hotkey as Hotkey | null | undefined) ?? null;
   if ('overlay' in data) desktopHotkeys.overlay = (data.overlay as Hotkey | null | undefined) ?? null;
   if ('lock' in data) desktopHotkeys.lock = (data.lock as Hotkey | null | undefined) ?? null;
+  if ('deafen' in data) desktopHotkeys.deafen = (data.deafen as Hotkey | null | undefined) ?? null;
   if ('paused' in data) desktopHotkeys.paused = data.paused === true;
   if ('mode' in data) desktopHotkeys.micMode = data.mode === 'hold' ? 'hold' : 'toggle';
   const widget = api.features.includes('overlay.widget');
@@ -156,6 +182,8 @@ function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
   const mic = known(desktopHotkeys.mic);
   const overlay = known(desktopHotkeys.overlay);
   const lock = widget ? desktopHotkeys.lock : null;
+  // Кнопок мыши у «звука встречи» нет — без Raw Input оболочка их не зарегистрирует.
+  const deafen = known(desktopHotkeys.deafen);
   const { paused, micMode } = desktopHotkeys;
   const hold = micMode === 'hold' && api.features.includes('ptt');
   api.send('hotkeys.configure', {
@@ -171,6 +199,7 @@ function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
             : []),
           ...(overlay ? [{ action: 'overlay.toggle', mode: 'toggle', key: overlay }] : []),
           ...(lock ? [{ action: 'overlay.lock', mode: 'toggle', key: lock }] : []),
+          ...(deafen ? [{ action: 'deafen', mode: 'toggle', key: deafen }] : []),
         ],
   });
 }
@@ -209,6 +238,7 @@ export interface DesktopCommand {
     | 'theme.changed'
     | 'microphone.toggle'
     | 'microphone.hold'
+    | 'deafen.toggle'
     | 'hotkey.status'
     | 'session.token'
     | 'settings.open'
@@ -326,6 +356,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
         if (data.action === 'mic.toggle' && data.phase !== 'up') relay({ type: 'microphone.toggle' });
         if (data.action === 'ptt' && (data.phase === 'down' || data.phase === 'up'))
           relay({ type: 'microphone.hold', phase: data.phase });
+        if (data.action === 'deafen' && data.phase !== 'up') relay({ type: 'deafen.toggle' });
       }),
       api.on('hotkeys.status', (data) => {
         // В наборе микрофон — одним из двух действий: переключение или «нажми и говори».

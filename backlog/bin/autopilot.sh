@@ -25,13 +25,14 @@ fi
 
 export CORD_ROOT=$ROOT
 mkdir -p "$BACKLOG/journal"
-prompt="Прочитай $BACKLOG/00-MASTER.md и работай по нему, начиная с $BACKLOG/STATUS.md. \
+WAVE=${CORD_WAVE:-release-1.1}
+prompt="Прочитай $BACKLOG/README.md и работай по волне $WAVE ($BACKLOG/$WAVE/PLAN.md, STATUS.md). \
 CORD_ROOT=$ROOT. Это неинтерактивный прогон автопилота: вопросов не задавай, блокирующее \
 записывай в $BACKLOG/OWNER-ACTIONS.md. Перед тем как закончить ответ, допиши журнал текущего \
 эпика, закоммить и запушь бэклог, чтобы следующий прогон продолжил без потерь."
 
 run=0
-while [[ ! -f $BACKLOG/journal/FINAL.md ]]; do
+while [[ ! -f $BACKLOG/$WAVE/FINAL.md ]]; do
   run=$((run + 1))
   echo "=== прогон $run, $(date -Is)" | tee -a "$LOG"
   cd "$ROOT"

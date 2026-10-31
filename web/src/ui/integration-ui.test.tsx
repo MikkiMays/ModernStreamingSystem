@@ -43,9 +43,10 @@ describe('витрина', () => {
       'Музыка',
       'Доска рисования',
     ]);
-    for (const name of ['Любая игра', 'Сцена стендап', 'Telegram'])
+    for (const name of ['Сцена стендап', 'Telegram'])
       expect(screen.getByText(name).closest('button')).toBeNull();
-    expect(screen.getAllByText('Скоро')).toHaveLength(3);
+    expect(screen.getAllByText('Скоро')).toHaveLength(2);
+    expect(screen.queryByText('Любая игра')).toBeNull();
     const items = screen.getAllByRole('listitem').map((li) => li.querySelector('b')?.textContent);
     expect(items.at(-1)).toBe('Telegram');
     fireEvent.click(screen.getByText('Музыка'));
@@ -65,14 +66,14 @@ describe('витрина', () => {
   it('Mini App включён: Telegram — без «Скоро», открывает его только создатель (E09, T30)', () => {
     const onOpen = vi.fn();
     const { rerender } = render(<IntegrationShelf canLinkTelegram telegramReady onOpen={onOpen} />);
-    expect(screen.getAllByText('Скоро')).toHaveLength(2);
+    expect(screen.getAllByText('Скоро')).toHaveLength(1);
     fireEvent.click(screen.getByText('Telegram'));
     expect(onOpen).toHaveBeenCalledWith('telegram');
     expect(screen.getByRole('group', { name: 'Связь с беседой' })).toBeInTheDocument();
     rerender(<IntegrationShelf canLinkTelegram={false} telegramReady onOpen={onOpen} />);
     expect(screen.getByText('Telegram').closest('button')).toBeNull();
     expect(screen.getByText('Подключит создатель встречи')).toBeInTheDocument();
-    expect(screen.getAllByText('Скоро')).toHaveLength(2);
+    expect(screen.getAllByText('Скоро')).toHaveLength(1);
   });
 
   it('занятую соседом группу не открыть, и видно, кем занята', () => {

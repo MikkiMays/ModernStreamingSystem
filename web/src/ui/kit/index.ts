@@ -34,6 +34,7 @@ export { Drawer, type DrawerProps } from './Drawer';
 export { useMediaQuery, PHONE_QUERY } from './useMediaQuery';
 export { ToastProvider, useToast } from './Toast';
 export { Badge, Soon, type BadgeProps } from './Badge';
+export { LoadBars, type LoadBarsProps, type LoadState } from './LoadBars';
 export { Card, type CardProps } from './Card';
 export { Separator } from './Separator';
 export { ResizeHandle, type ResizeHandleProps } from './ResizeHandle';

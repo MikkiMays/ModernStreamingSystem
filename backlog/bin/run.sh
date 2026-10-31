@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Запускает сессию Claude над бэклогом Cord в отдельном окне tmux.
 #
-#   backlog/bin/run.sh master          # большой прогон: весь бэклог по порядку волн
+#   backlog/bin/run.sh master          # большой прогон: текущая волна из README.md
 #   backlog/bin/run.sh E05             # один эпик отдельной сессией
 #   backlog/bin/run.sh resume master   # вернуться в последнюю сессию с этим именем
 #
@@ -32,12 +32,14 @@ if [[ $target == resume ]]; then
 fi
 
 if [[ $target == master ]]; then
-  prompt="Прочитай $BACKLOG/00-MASTER.md и работай по нему. Начни с $BACKLOG/STATUS.md. CORD_ROOT=$ROOT."
+  prompt="Прочитай $BACKLOG/README.md и работай по текущей волне, которую он называет (её PLAN.md и \
+STATUS.md), по $BACKLOG/PROTOCOL.md. CORD_ROOT=$ROOT."
 else
-  epic=$(ls "$BACKLOG"/epics/"$target"-*.md 2>/dev/null | head -1)
-  [[ -n $epic ]] || { echo "Нет эпика $target в $BACKLOG/epics" >&2; exit 1; }
+  # Эпики первой волны (T01–T59) закрыты и лежат в архиве; запуск по имени оставлен для повторов.
+  epic=$(ls "$BACKLOG"/archive/*/epics/"$target"-*.md 2>/dev/null | head -1)
+  [[ -n $epic ]] || { echo "Нет эпика $target в $BACKLOG/archive/*/epics" >&2; exit 1; }
   prompt="Ты делаешь один эпик бэклога Cord: $epic. CORD_ROOT=$ROOT. Сначала прочитай \
-$BACKLOG/00-MASTER.md (как устроен бэклог) и $BACKLOG/PROTOCOL.md, затем эпик. Другие эпики \
+$BACKLOG/README.md (как устроен бэклог) и $BACKLOG/PROTOCOL.md, затем эпик. Другие эпики \
 не начинай: закончив этот, обнови $BACKLOG/STATUS.md и журнал и остановись."
 fi
 

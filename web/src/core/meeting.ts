@@ -2,6 +2,8 @@ import { ConnectionQuality } from 'livekit-client';
 import type { Admission, Command, RoomEvent, Snapshot } from '../api/types';
 import { ApiError, RoomApi } from '../api/client';
 import { MediaSession, type DeviceChoice } from '../media/session';
+import { decodableCodecs, decodesOption, parseDecodes } from '../media/decode-caps';
+import { currentPlatform } from '../media/platform';
 import { ControlChannel } from './control';
 import { Store } from './store';
 import { Uploader } from './uploader';
@@ -14,7 +16,7 @@ import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
 import { allowed } from './permissions';
 import { knownProvider } from './cinema/link';
-import { awayAfter, stageOccupant, type StageKind, type StageOccupant } from './stage-view';
+import { awayAfter, newFilm, stageOccupant, type StageKind, type StageOccupant } from './stage-view';
 import type { LatencyStats } from './board/latency';
 import {
   DesktopNotifier,
@@ -155,6 +157,8 @@ export class Meeting {
       watchWindowState((state) => this.windowState.set(state)),
       this.windowState.subscribe(this.attend),
       this.chatOpen.subscribe(this.attend),
+      // «Звук встречи» (R156): остальные видят наушники — ядро узнаёт о каждом переключении.
+      this.media.deafened.subscribe(this.tellDeafened),
       // Показ, который мы смотрим, снят с публикации — просмотр закрывается сразу, не по снимку (R81).
       this.media.screenGone.subscribe(() => {
         const gone = this.media.screenGone.get();
@@ -173,7 +177,12 @@ export class Meeting {
           this.initialDevicesApplied = true;
           // Без сигнала: человек включил микрофон ещё на предпросмотре, а услышал только что
           // собственный вход — два звука подряд об одном и том же событии.
-          if (this.choices.micOn) void this.media.toggle('microphone', this.choices.microphone, false);
+          // Звук встречи выключен с прошлого раза (R156): микрофон ждёт, пока звук включат, а
+          // остальные сразу видят наушники.
+          if (this.media.deafened.get()) this.tellDeafened();
+          if (this.choices.micOn && this.media.deafened.get()) this.media.holdMicrophoneUntilHeard(true);
+          if (this.choices.micOn && !this.media.deafened.get())
+            void this.media.toggle('microphone', this.choices.microphone, false);
           // Телефон: микрофон захватывается и выключенным — иначе разговор в фоне не держит ничто
           // (W5, E12). На ПК `holdMicrophone` ничего не делает.
           else void this.media.holdMicrophone(this.choices.microphone);
@@ -286,6 +295,18 @@ export class Meeting {
     this.media.setServiceParticipants(
       snapshot.participants.filter((person) => person.service).map((person) => person.id),
     );
+    // Зрители своей камеры и показа — люди на связи, кроме себя; у кого `decodes` нет, тот ещё не
+    // сообщил (его прикроет запасной кодек).
+    this.media.setViewerDecodes(
+      snapshot.participants
+        .filter(
+          (person) =>
+            person.id !== this.admission.participantId &&
+            !person.service &&
+            ['JOINING', 'CONNECTED', 'RECOVERING'].includes(person.status),
+        )
+        .map((person) => parseDecodes(person.decodes)),
+    );
     // Громкость принадлежит встрече, а не сессии: вернувшегося и заново добавленную музыку
     // слышно так же, как их попросили звучать в прошлый раз. См. `core/volumes.ts`.
     this.media.rememberPeople(
@@ -306,12 +327,32 @@ export class Meeting {
       this.end(t(($) => $.meeting.end.left));
       return;
     }
+    this.reportDecodes(self);
     if (
       ['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status) &&
       this.media.state.get().status === 'idle'
     )
       void this.media.start();
   };
+  /** Набор кодеков уже ушёл (или ушёл бы) в этот вход — один раз на вход. */
+  private decodesReported = false;
+  /**
+   * Что декодирует этот браузер — чтобы издатели не брали кодек, которого он не покажет (R152). Один
+   * раз, когда вход допущен к медиа (ожидающему у двери ядро команду не примет), и только если ядро
+   * набора ещё не знает. Старое ядро команды не знает — отказ ничего не меняет: прикроет запасной кодек.
+   */
+  private reportDecodes(self: Snapshot['participants'][number]) {
+    if (this.decodesReported || self.decodes || !['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status))
+      return;
+    this.decodesReported = true;
+    void decodableCodecs(currentPlatform().mobile)
+      .then((codecs) =>
+        codecs.length
+          ? this.command('media.decode', undefined, undefined, { option: decodesOption(codecs) })
+          : null,
+      )
+      .catch(() => {});
+  }
   private resolveRevocation = () => {
     void this.resolveEnd(t(($) => $.meeting.end.revoked));
   };
@@ -528,6 +569,11 @@ export class Meeting {
   private settleStage() {
     const after = this.stageOccupant();
     this.stageAway.set(awayAfter(this.stageAway.get(), this.stageBefore, after));
+    // Новый фильм открывается у всех (R150, Р-42): и у того, кто смотрел чужой показ, — кроме того,
+    // кто сам сейчас показывает экран (он на сцене, его показ смотрят другие). Чужой показ остаётся
+    // доступен чёлкой и плиткой.
+    if (newFilm(this.stageBefore, after) && this.viewing.get() && !this.media.state.get().screen)
+      this.closeViewing();
     this.stageBefore = after;
   }
   screenPlaying(screenId: string) {
@@ -568,6 +614,12 @@ export class Meeting {
     if (provider) this.stageAway.set(null);
     this.settleStage();
   }
+  private tellDeafened = () => {
+    if (this.disposed) return;
+    void this.command('self.deafen', String(this.media.deafened.get())).catch(() => {
+      /* Ядро без R156 команды не знает — наушники просто не видны остальным. */
+    });
+  };
   async leave() {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     this.end(t(($) => $.meeting.end.left));

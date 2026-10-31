@@ -5,6 +5,11 @@ import { applyLanguage } from './i18n';
 import './app-styles';
 import App from './App';
 import { readPreferences } from './core/preferences';
+import {
+  acceptCarriedPreferences,
+  startSharedPreferences,
+  takePrefsFragment,
+} from './core/shared-preferences';
 import { isDesktop } from './core/desktop';
 import { unlockNotificationAudio } from './core/sounds';
 import { installInputModality } from './ui/input-modality';
@@ -34,9 +39,21 @@ if ('serviceWorker' in navigator && !isDesktop() && import.meta.env.PROD)
   });
 
 /*
+  Общие настройки (R146) — до первой отрисовки. Фрагмент `#cord-prefs=…` («Сменить сервер» в
+  браузере) стирается сразу, а принимается, только если переход был с сервера каталога; в клиенте
+  Windows — сверка устройств по названию и перенос со старой версии. Ни то ни другое не держит
+  страницу дольше полутора секунд.
+*/
+const carried = takePrefsFragment();
+const shared = Promise.all([
+  carried ? acceptCarriedPreferences(carried).catch(() => false) : false,
+  startSharedPreferences().catch(() => {}),
+]);
+const settled = Promise.race([shared, new Promise((resolve) => setTimeout(resolve, 1500))]);
+/*
   Первая отрисовка — уже на языке человека: выбор из настроек, иначе язык браузера. Русский встроен
   и ставится сразу; другой язык — один файл каталога, и интерфейс ждёт его, а не мигает русским.
 */
-void applyLanguage(readPreferences().language).then(() =>
-  createRoot(document.getElementById('root')!).render(<App />),
-);
+void settled
+  .then(() => applyLanguage(readPreferences().language))
+  .then(() => createRoot(document.getElementById('root')!).render(<App />));

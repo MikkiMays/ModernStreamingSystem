@@ -1,8 +1,16 @@
 import { notifyDesktop } from './desktop';
-import { defaultScreenMode, screenAudios, type ScreenAudio, type ScreenProfile } from '../media/profiles';
+import {
+  defaultScreenMode,
+  screenAudios,
+  touchFirst,
+  type ScreenAudio,
+  type ScreenProfile,
+} from '../media/profiles';
 import { cameraLevel, nearestLevel } from '../media/capabilities';
+import { backgroundChoice, type BackgroundChoice } from '../media/background-effect';
 import type { DeviceChoice } from '../media/session';
 import {
+  defaultDeafenHotkey,
   defaultMicHotkey,
   defaultOverlayLockHotkey,
   validHotkey,
@@ -28,6 +36,11 @@ export const stageLayouts: StageLayout[] = ['grid', 'speaker'];
 
 export interface AudioPreferences {
   suppression: 'off' | 'browser' | 'rnnoise' | 'voice';
+  /**
+   * Выбрал ли человек шумоподавление сам (R145). Пока нет — действует умолчание устройства
+   * ({@link defaultSuppression}), и оно может меняться от версии к версии; выбранное не трогается.
+   */
+  suppressionChosen?: boolean;
   echoCancellation: boolean;
   autoGainControl: boolean;
   gain: number;
@@ -38,6 +51,49 @@ export const defaultAudio: AudioPreferences = {
   autoGainControl: true,
   gain: 1,
 };
+
+/**
+ * Шумоподавление, пока человек не выбрал его сам (R145, владелец 31.10.2026: «автоматически должно
+ * быть включено усиленное шумоподавление у всех… если зритель сам менял свои настройки, то они так и
+ * сохраняются»).
+ *
+ * «Усиленное» (RNNoise) — там, где оно работает: нужен AudioWorklet и WebAssembly. На телефоне пока
+ * «Стандартное»: у Android в фоне второй контекст звука RNNoise засыпает, и микрофон молчит (R147) —
+ * включать его телефонам вместе с починкой фона, не раньше.
+ */
+export function defaultSuppression(): AudioPreferences['suppression'] {
+  if (typeof window === 'undefined' || !('AudioWorkletNode' in window) || typeof WebAssembly !== 'object')
+    return 'browser';
+  return touchFirst() ? 'browser' : 'rnnoise';
+}
+/**
+ * Запись звука от версий без {@link AudioPreferences.suppressionChosen}: выбирал ли человек сам.
+ * Отличить «выбрал „Стандартное“» от «ничего не трогал» по ней нельзя — `savePreferences` всегда
+ * писал весь объект. Поэтому запись, целиком равная прежнему умолчанию, считается невыбранной;
+ * любое отличие (шумодав, эхо, усиление, громкость) — выбором человека.
+ */
+function chosenBefore(audio: Partial<AudioPreferences>): boolean {
+  return !(
+    audio.suppression === 'browser' &&
+    audio.echoCancellation !== false &&
+    audio.autoGainControl !== false &&
+    (audio.gain ?? 1) === 1
+  );
+}
+
+function suppressionOf(
+  audio: Partial<AudioPreferences> | undefined,
+): Pick<AudioPreferences, 'suppression' | 'suppressionChosen'> {
+  const stored = ['off', 'browser', 'rnnoise', 'voice'].includes(audio?.suppression ?? '')
+    ? audio!.suppression!
+    : null;
+  const chosen =
+    stored !== null &&
+    (audio!.suppressionChosen === true || (audio!.suppressionChosen === undefined && chosenBefore(audio!)));
+  return chosen
+    ? { suppression: stored, suppressionChosen: true }
+    : { suppression: defaultSuppression(), suppressionChosen: false };
+}
 
 /** Игры, у которых есть свои звуки стола (T45). */
 export type GameKind = 'poker' | 'durak' | 'chess' | 'gartic';
@@ -70,6 +126,8 @@ export interface Preferences {
   audio: AudioPreferences;
   /** Как расставить участников на сцене. Принадлежит смотрящему, а не комнате. */
   layout: StageLayout;
+  /** Фон в видео (R153): без фона, размытие или картинка — своё у устройства. */
+  background: BackgroundChoice;
   /**
    * Громкость совместного просмотра, 0–100. Тоже своя у каждого: ролик звучит у всех из своего
    * плеера, и договариваться о громкости не с кем — как и о громкости собеседника.
@@ -121,6 +179,14 @@ export interface Preferences {
    */
   overlayLockHotkey: Hotkey | null;
   /**
+   * «Звук встречи» выключен (R156, Р-40): как «Отключить звук» у Discord — не слышно никого и
+   * ничего во встрече, и микрофон выключен. Помнится между встречами (своё у устройства, не у
+   * комнаты); вход с выключенным звуком встречи видно сразу — красная кнопка и тост.
+   */
+  deafened: boolean;
+  /** Сочетание «звука встречи» — по умолчанию `Ctrl + Shift + D`, как у Discord. */
+  deafenHotkey: Hotkey | null;
+  /**
    * Что показывать за карточным столом помимо самой игры.
    *
    * Своё у каждого, как громкость: одному нужна подсказка «что у меня собралось», другому она
@@ -162,6 +228,16 @@ export function readPreferences(): Preferences {
   } catch {
     /* Use defaults. */
   }
+  return parsePreferences(data, localStorage.getItem('cord:name'));
+}
+/**
+ * Запись настроек → настройки: всё по схеме, незнакомое и испорченное — умолчанием. Имя — из
+ * `storedName` (`cord:name`), а без него — из самой записи. Тем же разбором общие настройки
+ * (`shared-preferences.ts`) сводят пришедшее с другого сервера к допустимому здесь.
+ */
+export function parsePreferences(source: unknown, storedName: string | null = null): Preferences {
+  const data: Partial<Preferences> =
+    source && typeof source === 'object' && !Array.isArray(source) ? (source as Partial<Preferences>) : {};
   const devices: DeviceChoice = {};
   for (const kind of ['camera', 'microphone', 'speaker'] as const)
     if (typeof data.devices?.[kind] === 'string') devices[kind] = data.devices[kind];
@@ -190,9 +266,7 @@ export function readPreferences(): Preferences {
     camera: cameraLevel(data.camera),
     devices,
     audio: {
-      suppression: ['off', 'browser', 'rnnoise', 'voice'].includes(data.audio?.suppression ?? '')
-        ? data.audio!.suppression
-        : 'browser',
+      ...suppressionOf(data.audio),
       echoCancellation:
         typeof data.audio?.echoCancellation === 'boolean' ? data.audio.echoCancellation : true,
       autoGainControl: typeof data.audio?.autoGainControl === 'boolean' ? data.audio.autoGainControl : true,
@@ -202,6 +276,7 @@ export function readPreferences(): Preferences {
           : 1,
     },
     layout: stageLayouts.includes(data.layout as StageLayout) ? data.layout! : 'grid',
+    background: backgroundChoice(data.background),
     watchVolume:
       typeof data.watchVolume === 'number' && Number.isFinite(data.watchVolume)
         ? Math.max(0, Math.min(100, Math.round(data.watchVolume)))
@@ -222,10 +297,7 @@ export function readPreferences(): Preferences {
         return typeof id === 'string' && /^[a-z][a-z-]{0,31}$/.test(id) ? [[area, id]] : [];
       }),
     ),
-    name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
-      0,
-      40,
-    ),
+    name: (storedName ?? (typeof data.name === 'string' ? data.name : '')).slice(0, 40),
     // The server checks this again before showing it to anyone; this only keeps a corrupt
     // entry from being sent in the first place.
     avatar:
@@ -242,7 +314,44 @@ export function readPreferences(): Preferences {
         : validHotkey(data.overlayLockHotkey)
           ? data.overlayLockHotkey
           : { ...defaultOverlayLockHotkey },
+    deafened: data.deafened === true,
+    deafenHotkey:
+      data.deafenHotkey === null
+        ? null
+        : validHotkey(data.deafenHotkey)
+          ? data.deafenHotkey
+          : { ...defaultDeafenHotkey },
   };
+}
+/**
+ * Кто ещё узнаёт о сохранённом: общие для всех серверов настройки клиента Windows (R146,
+ * `shared-preferences.ts`), когда у оболочки есть флаг `prefs.shared`. Пока его нет — оболочке уходят
+ * только PING и сигналы, как раньше.
+ */
+type PreferencesSync = (before: Preferences, after: Preferences, patch: Partial<Preferences>) => void;
+let sync: PreferencesSync | null = null;
+export function setPreferencesSync(next: PreferencesSync | null) {
+  sync = next;
+}
+/**
+ * Записать в хранилище этого сервера, не сообщая оболочке: так ложится то, что пришло от неё самой
+ * (общие настройки с другого сервера) или найдено по названию устройства.
+ */
+export function writeLocalPreferences(patch: Record<string, unknown>) {
+  let data: Record<string, unknown> = {};
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(key) ?? '{}');
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) data = saved as Record<string, unknown>;
+  } catch {
+    /* Испорченная запись — собирается заново. */
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...data, ...patch }));
+    if (typeof patch.name === 'string') localStorage.setItem('cord:name', patch.name.trim().slice(0, 40));
+  } catch {
+    /* Хранилище недоступно — останется прежнее. */
+  }
+  window.dispatchEvent(new Event('cord:preferences'));
 }
 export function savePreferences(patch: Partial<Preferences>): Preferences {
   const current = readPreferences();
@@ -260,6 +369,11 @@ export function savePreferences(patch: Partial<Preferences>): Preferences {
     /* Still apply for this call. */
   }
   window.dispatchEvent(new Event('cord:preferences'));
+  // Общие настройки (R146): оболочке — изменившиеся общие ключи, пачкой и не на каждый шаг ползунка.
+  if (sync) {
+    sync(current, readPreferences(), patch);
+    return next;
+  }
   // Оболочке нужны только PING и сигналы — и только когда они поменялись: ползунок громкости
   // иначе слал бы IPC на каждый шаг перетаскивания (R14).
   if (next.showPing !== current.showPing || next.notificationSounds !== current.notificationSounds)

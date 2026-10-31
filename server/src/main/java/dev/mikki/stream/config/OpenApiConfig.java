@@ -95,7 +95,8 @@ public class OpenApiConfig {
       schemas
           .get("Participant")
           .getRequired()
-          .removeAll(List.of("screenId", "screenStarted", "viewingScreenId"));
+          .removeAll(
+              List.of("screenId", "screenStarted", "viewingScreenId", "decodes", "deafened"));
       schemas.get("EventPayload").getRequired().removeAll(List.of("screenId", "participantId"));
       schemas
           .get("Snapshot")

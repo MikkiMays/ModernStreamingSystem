@@ -271,6 +271,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalogLoad"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/favorites": {
         parameters: {
             query?: never;
@@ -392,6 +408,22 @@ export interface paths {
         };
         get?: never;
         put: operations["reorder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["load"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -719,6 +751,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["presence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -864,6 +912,14 @@ export interface components {
             attack: string;
             beat: string | null;
         };
+        CatalogLoad: {
+            /** Format: int64 */
+            at?: number;
+            /** Format: int32 */
+            level?: number;
+            state?: string;
+            url?: string;
+        };
         Challenge: {
             algorithm?: string;
             challenge?: string;
@@ -955,7 +1011,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "screen.preview" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal" | "presence.confirm" | "board.open" | "board.close" | "board.settings" | "board.clear";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "screen.preview" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "media.decode" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal" | "presence.confirm" | "self.deafen" | "board.open" | "board.close" | "board.settings" | "board.clear";
             under?: string;
         };
         Connect: {
@@ -1404,6 +1460,13 @@ export interface components {
             /** Format: int32 */
             waiting?: number;
         };
+        Load: {
+            /** Format: int32 */
+            level?: number;
+            state?: string;
+            /** Format: int64 */
+            updatedAt?: number;
+        };
         Login: {
             password?: string;
         };
@@ -1479,6 +1542,8 @@ export interface components {
         };
         Participant: {
             avatar: string;
+            deafened?: boolean;
+            decodes?: string[];
             /** Format: int64 */
             generation: number;
             id: string;
@@ -1546,6 +1611,22 @@ export interface components {
             /** Format: int64 */
             amount: number;
             seats: number[];
+        };
+        Presence: {
+            code?: string;
+            /** Format: int32 */
+            people?: number;
+            roomId?: string;
+            state?: string;
+            title?: string;
+        };
+        PresenceQuery: {
+            rooms: components["schemas"]["PresenceRoom"][];
+        };
+        PresenceRoom: {
+            credential: string;
+            /** Format: uuid */
+            roomId: string;
         };
         Quality: {
             /** Format: int32 */
@@ -1645,6 +1726,7 @@ export interface components {
             /** Format: int32 */
             lossySeconds?: number;
             path: string;
+            publishCodec?: string;
             /** Format: int32 */
             rttMs?: number;
             /** Format: int32 */
@@ -1689,7 +1771,9 @@ export interface components {
             presenceBy?: null | number;
         };
         RxSummary: {
+            switches?: components["schemas"]["TxSwitch"][];
             tracks: components["schemas"]["RxTrack"][];
+            tx?: components["schemas"]["TxTrack"][];
         };
         RxTrack: {
             /** Format: int64 */
@@ -1913,6 +1997,25 @@ export interface components {
             chat: string;
             /** @enum {string} */
             status: "NEW" | "OPEN" | "DONE";
+        };
+        TxSwitch: {
+            from: string;
+            reason: string;
+            source: string;
+            to: string;
+        };
+        TxTrack: {
+            /** Format: double */
+            bandwidthSeconds?: number;
+            codec: string;
+            /** Format: double */
+            cpuSeconds?: number;
+            hw: string;
+            /** Format: double */
+            otherSeconds?: number;
+            /** Format: double */
+            seconds?: number;
+            source: string;
         };
         Watch: {
             /** Format: int64 */
@@ -2411,6 +2514,26 @@ export interface operations {
             };
         };
     };
+    catalogLoad: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CatalogLoad"][];
+                };
+            };
+        };
+    };
     list: {
         parameters: {
             query?: never;
@@ -2650,6 +2773,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    load: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Load"];
+                };
             };
         };
     };
@@ -3210,6 +3353,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Admission"];
+                };
+            };
+        };
+    };
+    presence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresenceQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Presence"][];
                 };
             };
         };

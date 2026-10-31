@@ -34,6 +34,11 @@ export function attachHls(
     texts: (tracks: MediaTrack[]) => void;
     /** Рекламные отрезки, которые пометил сам поток (`ad-breaks.ts`), — у записи, не у эфира. */
     breaks?: (breaks: AdBreak[]) => void;
+    /**
+     * То же у эфира (R150): пропустить там нечего — у эфира нет общей позиции, — но площадка (Twitch)
+     * вставляет рекламу в сам поток, и плеер честно говорит, сколько её ждать.
+     */
+    liveBreaks?: (breaks: AdBreak[]) => void;
     /** Подпись протухла (403/410): `true` — адрес обновляется, лечить на месте не нужно. */
     expired: () => boolean;
     fail: (message: string) => void;
@@ -52,9 +57,18 @@ export function attachHls(
     // Запас назад нужен ровно для того, ради чего люди и жмут «назад»: отмотать
     // на минуту, не скачивая её заново с нашего же канала.
     backBufferLength: 120,
-    maxBufferLength: 30,
+    /*
+      «Вежливый» кинозал (R151). Фильм идёт во время звонка, и на Wi-Fi ноутбука первый набор буфера
+      полной скоростью забивал канал: SFU ставил камеры этого человека на паузу, сигнал опаздывал, у
+      всех — «Восстанавливаем связь». Вперёд — 20 с (раньше 30, потолок 30 вместо 60), а оценка канала —
+      с запасом (`abrBandWidthFactor`, `abrBandWidthUpFactor`): уровень выше выбирается, только если
+      его с лихвой хватает и на звонок рядом.
+    */
+    maxBufferLength: 20,
     // По умолчанию плеер тянет вперёд до 600 с через наш прокси — память и полоса сервера зря.
-    maxMaxBufferLength: 60,
+    maxMaxBufferLength: 30,
+    abrBandWidthFactor: 0.8,
+    abrBandWidthUpFactor: 0.6,
     // Замирание хоста на 20–35 с (MEDIA-DIAGNOSIS §6) — сегменты не отвечают; восемь попыток с
     // ростом паузы до четырёх секунд переживают его без MEDIA_ERROR и чёрного кадра.
     fragLoadingMaxRetry: 8,
@@ -144,8 +158,10 @@ export function attachHls(
   // Рекламу, которую помечает сам поток, ищем в каждом пришедшем списке записи: у эфира общей
   // позиции нет, и пропустить вставку всей комнатой там некуда.
   hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
-    if (!callbacks.alive() || !callbacks.breaks || data.details.live) return;
-    callbacks.breaks(adBreaks(data.details.fragments as unknown as AdFragment[]));
+    if (!callbacks.alive()) return;
+    const found = adBreaks(data.details.fragments as unknown as AdFragment[]);
+    if (data.details.live) callbacks.liveBreaks?.(found);
+    else callbacks.breaks?.(found);
   });
   hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_event, data) => {
     if (callbacks.alive()) callbacks.texts(data.subtitleTracks);

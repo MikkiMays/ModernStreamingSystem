@@ -6,6 +6,7 @@ import type { Admission } from '../api/types';
 import type { DeviceChoice } from '../media/session';
 import type { Destination } from './Home';
 import { Avatar, Logo } from './primitives';
+import { clearCreateTitle, readCreateTitle } from '../core/recent-meetings';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { autoJoinEnabled, favoriteApi } from '../core/favorites';
 import { servicesApi } from '../core/services';
@@ -37,7 +38,9 @@ export function Prejoin({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(localStorage.getItem('cord:name') ?? '');
-  const [title, setTitle] = useState(() => t(($) => $.prejoin.defaultTitle));
+  // «Создать снова» из недавних (R148) приносит прежнее название — один раз, на этот показ.
+  const [title, setTitle] = useState(() => readCreateTitle() ?? t(($) => $.prejoin.defaultTitle));
+  useEffect(() => clearCreateTitle(), []);
   const [settings, setSettings] = useState(false);
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [integrationsAllowed, setIntegrationsAllowed] = useState(true);
@@ -198,8 +201,8 @@ export function Prejoin({
       const admission = await admit(name.trim() || t(($) => $.prejoin.defaultName), leave);
       settle?.(inviteLink(admission));
       if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
-      localStorage.setItem('cord:name', name.trim());
-      savePreferences({ devices: choices });
+      // Имя — тоже общая настройка (R146): через savePreferences, чтобы его узнала оболочка.
+      savePreferences({ name: name.trim(), devices: choices });
       stream.current.getTracks().forEach((t) => t.stop());
       setElsewhere(null);
       onJoin(admission, { ...choices, micOn: mic, cameraOn: camera });
@@ -390,7 +393,7 @@ export function Prejoin({
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                localStorage.setItem('cord:name', e.target.value.trim());
+                savePreferences({ name: e.target.value.trim() });
                 commandId.current = crypto.randomUUID();
               }}
               maxLength={40}

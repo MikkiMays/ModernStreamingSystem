@@ -530,8 +530,16 @@
   object-fit: cover;
   font-size: calc(var(--seat-face) * 0.4);
 }
+/*
+  Камера лежит поверх лица, а не в его сетке (R155): кадр с телефона портретный, и в сетке его
+  собственная высота (1,78 ширины) растягивала лицо в вертикальный овал. Вне потока размер задаёт
+  только лицо, а кадр обрезается по кругу; точка кадра чуть выше середины — там лицо.
+*/
 .poker-camera {
+  position: absolute;
+  inset: 0;
   display: block;
+  object-position: 50% 35%;
   background: var(--surface-1);
 }
 .poker-seat[data-active] .poker-face {

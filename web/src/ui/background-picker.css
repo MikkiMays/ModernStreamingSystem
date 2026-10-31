@@ -1,0 +1,65 @@
+/*
+  Выбор фона в видео (R153): плитки 16:9 в одну-две строки — как в Телемосте. Выбранная — кольцом
+  акцента и галочкой в углу; встроенные фоны — своим градиентом (цвета — из `background-effect.ts`,
+  там же рисуется сама картинка).
+*/
+.background-picker {
+  display: grid;
+  gap: var(--space-2);
+}
+.background-picker__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.background-picker__tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 32px;
+  padding: 0;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface-2) center / cover no-repeat;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    box-shadow var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+.background-picker__tile:hover {
+  border-color: var(--line-strong);
+}
+.background-picker__tile[aria-checked='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 var(--hairline-strong) var(--accent);
+}
+.background-picker__tile[data-tile='blur'] {
+  background: var(--surface-3);
+}
+.background-picker__tile[data-strong] > svg {
+  color: var(--text);
+}
+.background-picker__check {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border-radius: var(--radius-full);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+.background-picker__replace {
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.background-picker__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
