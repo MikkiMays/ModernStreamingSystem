@@ -113,7 +113,13 @@ afterEach(() => {
 });
 
 const meter = () => screen.getByRole('meter', { name: 'Уровень микрофона' });
-const settle = () => act(async () => {});
+// SDK проверка берёт по требованию (`await import('livekit-client')`): дождаться того же модуля и отпустить
+// несколько микрозадач — захват, уровень и состояние успевают дойти до разметки.
+const settle = () =>
+  act(async () => {
+    await import('livekit-client');
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+  });
 
 function section(meeting?: Meeting, preferences = readPreferences()) {
   return render(<AudioSection preferences={preferences} change={async () => {}} meeting={meeting} />);

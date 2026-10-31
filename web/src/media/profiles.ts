@@ -1,4 +1,10 @@
-import { BackupCodecPolicy, type TrackPublishOptions } from 'livekit-client';
+import type { BackupCodecPolicy, TrackPublishOptions } from 'livekit-client';
+
+/**
+ * `BackupCodecPolicy.SIMULCAST` числом. Значение из SDK притянуло бы `livekit-client` (≈140 КБ) в загрузку
+ * главной: этот модуль читают настройки, а их — все экраны. Совпадение с SDK сверяет `profiles.test.ts`.
+ */
+export const SIMULCAST_BACKUP = 1 as BackupCodecPolicy;
 import { BASELINE, type PolicyLevel, type PolicySource, type PublishShape } from './codec-policy';
 
 /** 480 — только у камеры (`CAMERA_RESOLUTIONS`); показ начинается с 720. */
@@ -106,7 +112,7 @@ export const screenHint = 'detail' as const;
  */
 function backupOptions(shape: PublishShape): Pick<TrackPublishOptions, 'backupCodec' | 'backupCodecPolicy'> {
   return shape.backup
-    ? { backupCodec: { codec: shape.backup }, backupCodecPolicy: BackupCodecPolicy.SIMULCAST }
+    ? { backupCodec: { codec: shape.backup }, backupCodecPolicy: SIMULCAST_BACKUP }
     : { backupCodec: false };
 }
 /**

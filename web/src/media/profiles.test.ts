@@ -12,6 +12,7 @@ import {
   policySourceOf,
   screenHint,
   screenOptions,
+  SIMULCAST_BACKUP,
   targetBitrate,
 } from './profiles';
 
@@ -208,4 +209,9 @@ describe('cameraCapture — зум (R36)', () => {
     pointer(false);
     expect(cameraCapture(profile)).not.toHaveProperty('zoom');
   });
+});
+
+it('политика запасного кодека — то же число, что BackupCodecPolicy.SIMULCAST в SDK', () => {
+  // Своё число вместо значения из SDK держит livekit-client вне загрузки главной (profiles читают настройки).
+  expect(SIMULCAST_BACKUP).toBe(BackupCodecPolicy.SIMULCAST);
 });

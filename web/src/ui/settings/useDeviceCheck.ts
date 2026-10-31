@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  createLocalAudioTrack,
-  createLocalVideoTrack,
-  type LocalAudioTrack,
-  type LocalVideoTrack,
-} from 'livekit-client';
+import type { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import type { Preferences } from '../../core/preferences';
 import { t } from '../../i18n';
 import { audioCapture, CordAudioProcessor, needsAudioProcessor } from '../../media/audio';
@@ -137,6 +132,8 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
       ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
       context.current = ctx;
       await ctx.resume();
+      // SDK — по требованию: проверку зовут главная и прихожая, и тянуть его в их загрузку незачем.
+      const { createLocalAudioTrack } = await import('livekit-client');
       const track = await createLocalAudioTrack(
         audioCapture(preferences.audio, preferences.devices.microphone),
       );
@@ -211,6 +208,7 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
     setBusy('camera');
     let acquired: LocalVideoTrack | undefined;
     try {
+      const { createLocalVideoTrack } = await import('livekit-client');
       const track = await createLocalVideoTrack({
         // Проверка — тоже включение камеры: на телефоне фронтальная, а не запомненная (Р-35).
         ...(touchFirst() ? { facingMode: 'user' } : { deviceId: preferences.devices.camera || undefined }),

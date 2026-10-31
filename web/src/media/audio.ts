@@ -1,9 +1,9 @@
-import {
+import type {
+  AudioCaptureOptions,
+  AudioProcessorOptions,
   Track,
-  type AudioCaptureOptions,
-  type AudioProcessorOptions,
-  type TrackProcessor,
-  type TrackPublishOptions,
+  TrackProcessor,
+  TrackPublishOptions,
 } from 'livekit-client';
 import type { AudioPreferences } from '../core/preferences';
 

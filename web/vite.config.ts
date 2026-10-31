@@ -150,6 +150,55 @@ function mediapipeAssets(): Plugin {
   };
 }
 
+/**
+ * Что не должно попасть в первую загрузку (главная, прихожая, настройки): SDK звонка, доска, сегментация фона,
+ * плеер потоков. Они нужны только во встрече, а на телефоне их разбор держит главную секундами. Сборка
+ * обходит статические импорты входов (динамические — не в счёт: они грузятся по требованию) и падает, если
+ * такой модуль туда вернулся, — например, значением вместо `import type`.
+ */
+const NOT_AT_START = [
+  '/node_modules/livekit-client/',
+  '/node_modules/@excalidraw/',
+  '/node_modules/@mediapipe/',
+  '/node_modules/hls.js/',
+];
+
+function startupBudget(): Plugin {
+  return {
+    name: 'cord-startup-budget',
+    apply: 'build',
+    generateBundle(_, bundle) {
+      const chunks = new Map(
+        Object.values(bundle).flatMap((item) =>
+          item.type === 'chunk' ? [[item.fileName, item] as const] : [],
+        ),
+      );
+      // Откуда пришёл каждый чанк — чтобы в отказе была цепочка от входа, а не одно имя.
+      const from = new Map<string, string>();
+      const queue = [...chunks.values()].filter((chunk) => chunk.isEntry).map((chunk) => chunk.fileName);
+      for (const entry of queue) from.set(entry, '');
+      while (queue.length) {
+        const name = queue.shift()!;
+        const chunk = chunks.get(name);
+        if (!chunk) continue;
+        const heavy = (chunk.moduleIds ?? Object.keys(chunk.modules)).find((id) =>
+          NOT_AT_START.some((path) => id.replaceAll(sep, '/').includes(path)),
+        );
+        if (heavy) {
+          const path = [name];
+          for (let at = from.get(name); at; at = from.get(at)) path.unshift(at);
+          this.error(`первая загрузка тянет ${heavy}: ${path.join(' → ')} — импортируйте его по требованию`);
+        }
+        for (const next of chunk.imports)
+          if (!from.has(next)) {
+            from.set(next, name);
+            queue.push(next);
+          }
+      }
+    },
+  };
+}
+
 export default defineConfig({
   define: {
     __CORD_VERSION__: JSON.stringify(version),
@@ -162,6 +211,7 @@ export default defineConfig({
     buildMeta(),
     mediapipeAssets(),
     excalidrawFonts(),
+    startupBudget(),
   ],
   server: { proxy },
   preview: { proxy },

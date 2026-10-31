@@ -1,7 +1,7 @@
 import { BackgroundButton, useBackgroundSupport } from '../BackgroundPicker';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Track } from 'livekit-client';
+import type { Track } from 'livekit-client';
 import type { Meeting } from '../../core/meeting';
 import { Store } from '../../core/store';
 import type { MediaTile } from '../../media/session';
@@ -37,7 +37,9 @@ export function VideoSection({
   const devices = useMediaDevices();
   // Камера встречи, если она включена: превью показывает её, а не захватывает камеру второй раз.
   const tiles = useStore(meeting?.media.tracks ?? noTiles);
-  const camera = tiles.find((tile) => tile.local && tile.source === Track.Source.Camera && !tile.muted);
+  const camera = tiles.find(
+    (tile) => tile.local && tile.source === ('camera' satisfies `${Track.Source.Camera}`) && !tile.muted,
+  );
   const live = camera?.track.mediaStreamTrack;
   /*
     Превью — тоже включение камеры: на телефоне оно открывается фронтальной (Р-35), как встреча и
