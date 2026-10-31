@@ -45,19 +45,19 @@
    108.165.32.75; для `cordcam.ru` — `rtc.cordcam.ru` и `turn.cordcam.ru` → 157.22.241.114 (DNS only, без прокси).
    После записей стенд переводится в `strict` одной командой (`configure.mjs --refresh`) и перезапуском edge и SFU.
    Ответ:
-7a. **Подпись установщика Windows** — сертификат OV/EV или Azure Trusted Signing. Без него SmartScreen.
+8. **Подпись установщика Windows** — сертификат OV/EV или Azure Trusted Signing. Без него SmartScreen.
    Ответ:
-8. **Живые проверки, которых не сделать на сервере** — список релиза 1.1: `release-1.1/STATUS.md` →
+9. **Живые проверки, которых не сделать на сервере** — список релиза 1.1: `release-1.1/STATUS.md` →
    «Проверка владельцем» (захват показа 1080p60 с видеокарты и кодек в «Диагностике», микрофон Android в
    фоне, VPN в приложении, фон в видео на слабом ноутбуке, доска с телефона).
    Ответ:
-9. **Вычитка переводов носителями** — не блокирует. Больше всего выиграют правила игр, `download.warning.*`,
+10. **Вычитка переводов носителями** — не блокирует. Больше всего выиграют правила игр, `download.warning.*`,
    `errors`, китайский целиком (`web/src/i18n/locales/<язык>.json`, слова — `web/src/i18n/GLOSSARY.md`).
    Ответ:
-10. **Telegram Mini App** — код готов и выключен (`TELEGRAM_WEBAPP_ENABLED`). Включить: BotFather → Configure
+11. **Telegram Mini App** — код готов и выключен (`TELEGRAM_WEBAPP_ENABLED`). Включить: BotFather → Configure
     Mini App → `https://<домен>/tg`, затем флаг в `.local/telegram.env` и перезапуск `services`
     (`docs/deployment.md` → «Telegram Mini App»).
     Ответ:
-11. **Магазины приложений** — только если понадобятся: Apple Developer ($99/год) для TestFlight/iOS,
+12. **Магазины приложений** — только если понадобятся: Apple Developer ($99/год) для TestFlight/iOS,
     Google Play Console ($25) для публикации Android. Сейчас APK собирает CI.
     Ответ:
