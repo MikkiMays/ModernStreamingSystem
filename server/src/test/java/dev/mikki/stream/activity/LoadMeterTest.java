@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.Maintenance;
 import java.time.Clock;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,16 +33,7 @@ class LoadMeterTest {
     when(config.admissionOpen()).thenReturn(true);
     when(report.now())
         .thenAnswer(
-            _ ->
-                new ActivityReport.Now(
-                    now.get(),
-                    rooms,
-                    0,
-                    connected,
-                    connected,
-                    0,
-                    0,
-                    Collections.nCopies(rooms, (ActivityReport.LiveRoom) null)));
+            _ -> new ActivityReport.Now(now.get(), rooms, 0, connected, connected, 0, 0, rooms()));
     meter =
         new LoadMeter(
             report,
@@ -75,6 +65,19 @@ class LoadMeterTest {
     idle += Math.round(1000 * (1 - busy));
     sent += Math.round(mbps * 1_000_000 / 8 * 5);
     return meter.sample();
+  }
+
+  /** Занятые встречи (с человеком на связи) и одна пустая сохранённая — она сервер не занимает. */
+  List<ActivityReport.LiveRoom> rooms() {
+    var list = new java.util.ArrayList<ActivityReport.LiveRoom>();
+    for (int i = 0; i < rooms; i++)
+      list.add(
+          new ActivityReport.LiveRoom(
+              "r" + i, "000000000", 0, null, null, 1, 1, 0, 0, 0, List.of(), false, false));
+    list.add(
+        new ActivityReport.LiveRoom(
+            "idle", "000000001", 0, null, null, 0, 0, 0, 0, 0, List.of(), false, false));
+    return list;
   }
 
   @Test

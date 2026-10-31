@@ -2,6 +2,7 @@ package dev.mikki.stream.activity;
 
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.Maintenance;
+import dev.mikki.stream.room.RoomState;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
@@ -126,7 +127,13 @@ public class LoadMeter {
     readCpu();
     readNetwork(now);
     var snapshot = report.now();
-    var rooms = snapshot.rooms().size();
+    // Занятые встречи — как их считает `max-rooms` (RoomState.busy): человек на связи или встреча
+    // совсем новая. Пустые сохранённые комнаты из избранного не закрыты, но сервер не занимают.
+    var rooms =
+        (int)
+            snapshot.rooms().stream()
+                .filter(room -> room.connected() > 0 || now - room.createdAt() < RoomState.FRESH_MS)
+                .count();
     var maxRooms = Math.max(1, config.maxRooms());
     var share =
         Math.max(
