@@ -626,6 +626,11 @@
       "copyLink": "Copiar link",
       "copied": "Link copiado",
       "hide": "Ocultar a dica"
+    },
+    "inviteCopy": {
+      "done": "Link da reunião copiado",
+      "failed": "Não foi possível copiar o link da reunião",
+      "copy": "Copiar"
     }
   },
   "chess": {

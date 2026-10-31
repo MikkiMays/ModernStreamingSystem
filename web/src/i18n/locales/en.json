@@ -625,6 +625,11 @@
       "copyLink": "Copy link",
       "copied": "Link copied",
       "hide": "Hide tip"
+    },
+    "inviteCopy": {
+      "done": "Meeting link copied",
+      "failed": "Couldn't copy the meeting link",
+      "copy": "Copy"
     }
   },
   "chess": {

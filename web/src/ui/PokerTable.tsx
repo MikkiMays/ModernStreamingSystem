@@ -75,6 +75,7 @@ import { useVoiceTier } from './useVoice';
 import { TurnRing } from './TurnRing';
 import { tableStatus, type TableStatus } from './poker/table-status';
 import { useCardSounds, usePokerChipSounds, useTurnTicks } from './useGameSounds';
+import { modalOpen } from './modal';
 
 /**
  * Покерный стол на сцене встречи.
@@ -1182,7 +1183,7 @@ function Controls({
     if (!turn || !you || away) return;
     const keys = (event: KeyboardEvent) => {
       if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isTyping(event.target) || document.querySelector('[role="dialog"]')) return;
+      if (isTyping(event.target) || modalOpen()) return;
       const key = event.key.toLowerCase();
       if ((key === 'f' || key === 'а') && you.actions.includes('fold')) act('fold');
       else if ((key === 'c' || key === 'с') && you.actions.includes('check')) act('check');

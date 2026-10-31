@@ -624,6 +624,11 @@
       "copyLink": "复制链接",
       "copied": "链接已复制",
       "hide": "隐藏提示"
+    },
+    "inviteCopy": {
+      "done": "会议链接已复制",
+      "failed": "无法复制会议链接",
+      "copy": "复制"
     }
   },
   "chess": {

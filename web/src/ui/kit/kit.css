@@ -1103,6 +1103,11 @@
   gap: var(--space-2);
   pointer-events: none;
 }
+/* Во встрече — над пультом звонка (R142): верх пульта — его отступ от низа и высота (те же токены,
+   что `--dock-bottom` и `--dock-height` у `.meeting-page`), и ещё шаг зазора. */
+.ui-toast__viewport[data-place='meeting'] {
+  bottom: calc(var(--space-3) + var(--control-touch) + 2 * var(--space-1) + var(--space-2));
+}
 .ui-toast {
   --toast-stripe: var(--muted);
   pointer-events: auto;
