@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:cord:contracts:desktop-bridge.v2",
   "title": "Мост v2 клиента Windows (Electron) — window.cordDesktop",
-  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language, R103 — трей: state.language, chat.open, app.settings.notifications, коды hotkeys.status; R62 — игры: games.*, game.active; R63 — виджет говорящих: overlay.roster, overlay.levels, overlay.lock, значения виджета в app.settings; R93 — мини-окно звонка: mini.state, mini.action, app.settings.mini; R104 — golive; R137 — мини-окно 1.0.11: mini.action {want, seq}, ответ mini.ack, событие mini.resync, mini.state.seq; R138 — оболочка 1.0.11 не объявляет thumbar и badge, в app.settings они всегда false); остальные нагрузки — в messages.ts.",
+  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language, R103 — трей: state.language, chat.open, app.settings.notifications, коды hotkeys.status; R62 — игры: games.*, game.active; R63 — виджет говорящих: overlay.roster, overlay.levels, overlay.lock, значения виджета в app.settings; R93 — мини-окно звонка: mini.state, mini.action, app.settings.mini; R104 — golive; R137 — мини-окно 1.0.11: mini.action {want, seq}, ответ mini.ack, событие mini.resync, mini.state.seq; R138 — оболочка 1.0.11 не объявляет thumbar и badge, в app.settings они всегда false); R152 — кодеки: флаги app.gpu и codec.av1hw, запрос app.gpu с ответом appGpu; остальные нагрузки — в messages.ts.",
   "type": "object",
   "required": ["protocol", "features", "app", "bootstrap"],
   "properties": {
@@ -56,7 +56,9 @@
         "games",
         "overlay.widget",
         "mini",
-        "golive"
+        "golive",
+        "app.gpu",
+        "codec.av1hw"
       ]
     },
     "language": {
@@ -130,7 +132,8 @@
         "games.list",
         "games.set",
         "games.forget",
-        "games.pick"
+        "games.pick",
+        "app.gpu"
       ]
     },
     "hostMessage": {
@@ -438,6 +441,45 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z.-]{1,30}$" },
         "tag": { "type": "string", "maxLength": 60 }
+      }
+    },
+    "appGpu": {
+      "description": "Ответ invoke('app.gpu') (R152, флаг app.gpu): видеокарты из app.getGPUInfo; кодеки с аппаратными профилями кодирования (null — Chromium их не перечислил: в Electron по 44 включительно виден лишь последний профиль, electron#41829); ключ аппаратного AV1 для WebRTC — enabled: WebRtcAV1HWEncode включён в этом запуске (то же, что флаг codec.av1hw), allowed: видеокарта из белого списка (gpu.ts оболочки); allowed без enabled — включится со следующего запуска. Веб берёт отсюда поставщиков и признак AV1 для политики кодеков (media/codec-probe.ts).",
+      "type": "object",
+      "required": ["devices", "encoders", "av1hw"],
+      "additionalProperties": false,
+      "properties": {
+        "devices": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": ["vendorId", "deviceId", "name", "driver", "active"],
+            "additionalProperties": false,
+            "properties": {
+              "vendorId": { "type": "integer", "minimum": 0 },
+              "deviceId": { "type": "integer", "minimum": 0 },
+              "name": { "type": "string", "maxLength": 80 },
+              "driver": { "type": "string", "maxLength": 32 },
+              "active": { "type": "boolean" }
+            }
+          }
+        },
+        "encoders": {
+          "anyOf": [
+            { "type": "array", "uniqueItems": true, "items": { "enum": ["av1", "h264", "h265", "vp8", "vp9"] } },
+            { "type": "null" }
+          ]
+        },
+        "av1hw": {
+          "type": "object",
+          "required": ["enabled", "allowed"],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "allowed": { "type": "boolean" }
+          }
+        }
       }
     }
   }
