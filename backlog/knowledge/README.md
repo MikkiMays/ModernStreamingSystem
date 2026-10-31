@@ -45,7 +45,6 @@
 - [`cord-watch-together`](memory/cord-watch-together.md) — Кинозал Cord: видео тянет сервер и проксирует HLS, а не браузер — почему так и где грабли
 - [`cord-web-on-phone`](memory/cord-web-on-phone.md) — Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона
 - [`cord-window-controls-overlay`](memory/cord-window-controls-overlay.md) — Почему в клиенте Windows 1.0.8 кнопки окна ложились на шапку развёрнутого окна и почему веб больше не верит одной зоне Window Controls Overlay
-- [`cord-windows-update-helper`](memory/cord-windows-update-helper.md) — Почему «Обновить» в Cord для Windows перезапускал старую версию и что в помощнике обновления теперь иначе (0.7.5)
 - [`cord-worktree-kit-shots`](memory/cord-worktree-kit-shots.md) — Почему в worktree Cord dev-сервер рисует запасной шрифт и почему колонка другой темы на /kit врёт про поля
 - [`cord-youtube-audio-and-captions`](memory/cord-youtube-audio-and-captions.md) — Почему ролик YouTube в Cord говорил по-французски, и откуда там берутся субтитры
 - [`livekit-resume-on-network-change`](memory/livekit-resume-on-network-change.md) — Почему livekit-client не замечает смену сети (VPN) и как попросить у него бесшовный resume без полного connect
@@ -55,7 +54,6 @@
 - [`pricing-from-official-sources`](memory/pricing-from-official-sources.md) — Владелец требует официальные прайсы и первоисточники, а не пересказы из статей — особенно когда решение стоит денег
 - [`use-all-skills-and-mcp`](memory/use-all-skills-and-mcp.md) — Владелец требует максимально задействовать все доступные скиллы, MCP и плагины и разрешает ставить новые самостоятельно
 - [`vm-host-stalls`](memory/vm-host-stalls.md) — С 14.10.2026 ВМ старого прода замирала на 20–55 с пачками; виноват хост, не код Cord
-- [`windows-client-checks-on-linux`](memory/windows-client-checks-on-linux.md) — Как проверить C# клиента Cord на этой машине, хотя WinUI здесь не собирается
 
 ## Скиллы (`codex-skills/`, написаны для Codex — читать как справку)
 

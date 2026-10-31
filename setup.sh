@@ -133,7 +133,8 @@ if [[ "$MODE" == simple ]]; then
     note "rtc.$DOMAIN and turn.$DOMAIN point here — using strict mode (TURN over TLS on 443)."
   else
     note "Without rtc.$DOMAIN and turn.$DOMAIN there is no TURN over TLS on 443: networks that"
-    note "allow only 443 (VPN, offices) get no media. Add both A records and re-run to fix that."
+    note "allow only 443 (VPN, offices) get no media. Add both A records, then switch the installed"
+    note "server as docs/RELEASE.md «Переход в strict» says (re-running setup.sh keeps the .env)."
   fi
 fi
 

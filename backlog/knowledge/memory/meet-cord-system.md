@@ -11,19 +11,19 @@ metadata:
 
 - `ModernStreamingSystem` — ядро (Java 25 / Spring Boot), веб (React 19 / Vite), сервисы
   (Python, музыка и Telegram), инфраструктура. Прод: https://meet.nikg.tech
-- `ModernStreamingSystem.Windows` — клиент Cord (C# / .NET 10 / WinUI 3). Разговор идёт
-  внутри WebView2 через тот же веб-клиент, поэтому UI-правки едут с сайта, а не через EXE.
-
-Собрать и проверить клиента можно и здесь, не всё: [[windows-client-checks-on-linux]].
+- `ModernStreamingSystem.Windows` — клиент Cord на Electron (`desktop/`, с 1.0.0; прежний WinUI удалён
+  01.11.2026). Разговор — тот же веб-клиент с сервера, поэтому UI-правки едут с сайта, а не через EXE.
 
 Медиа — LiveKit SFU, host networking, всё поднимается одним `docker compose` из корня
 `ModernStreamingSystem`.
 
 **Три режима установки** (15.09.2026), выбираются `setup.sh`:
 
-- `simple` — одно DNS-имя. TURN/TLS на своём отдельном порту, сертификат держит сам LiveKit.
-- `strict` — три имени (app/rtc/turn), TURN поверх порта https по SNI. Прежнее поведение; прод
-  сейчас именно такой.
+- `simple` — одно DNS-имя. TURN/TLS нет (с 01.11.2026, Р-52): LiveKit объявляет его на 443, а там HTTPS;
+  только UDP 3478 и ICE/TCP 7881.
+- `strict` — три имени (app/rtc/turn), TURN поверх 443 по SNI — единственный путь для VPN и сетей «только
+  443». `setup.sh --domain` выбирает его сам, если `rtc.`/`turn.` уже указывают на машину; стенд
+  `cord.nikg.tech` — в strict с 01.11.2026.
 - `ip` — без DNS, самоподписанный сертификат с IP в SAN.
 
 Приложение и signaling разделены по путям (`/rtc` идёт на LiveKit), поэтому отдельное имя

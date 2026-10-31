@@ -19,8 +19,9 @@
  * Обёртка с одноразовым LiveKit в Docker — `scripts/turn-relay-check.sh` (её зовёт CI).
  *
  * Путь VPN и закрытых сетей (R149, Р-50): `--transport=tls --turn=turn.<домен>:443` — то же самое по
- * TURN/TLS через edge по SNI, как браузер, у которого открыт только TCP 443. Сигналинг — боевой
- * (`--signal=wss://<домен>`); вдобавок проверяется, что `join` объявляет `turns:<имя>:443`.
+ * TURN/TLS через edge по SNI, как браузер, у которого открыт только TCP 443. Сигналинг — сам LiveKit на
+ * сервере (`--signal=ws://127.0.0.1:7880`: публичный `/rtc` голый токен LiveKit не примет); вдобавок
+ * проверяется, что `join` объявляет `turns:<имя>:443`.
  */
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { createSocket } from 'node:dgram';

@@ -79,7 +79,7 @@ else
   # Плеер страниц кинозала собирается из services/ (охраняемый выход у него общий со службой).
   touched '^services/' && REBUILD+=(services sniffer)
 fi
-REGENERATE=0; touched '^scripts/(configure|edge-config)\.mjs' && REGENERATE=1
+REGENERATE=0; touched '^scripts/(configure|edge-config|turn-guard)\.mjs' && REGENERATE=1
 # Стена сети плеера страниц: скрипт и его единицы systemd. Скрипт единицы зовут по пути, и его правка доходит
 # сама, а вот файлы единиц (и новая единица — таймер) лежат копией в /etc/systemd/system, и раньше их ставили,
 # только если стены не было вовсе: правка единицы до работающего сервера не доезжала никогда. `--install`

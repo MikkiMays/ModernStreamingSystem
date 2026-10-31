@@ -4,7 +4,7 @@
 #
 #   backlog/bin/deploy.sh gateway core          # нужные службы
 #   CORD_DEPLOY_FORCE=1 backlog/bin/deploy.sh services   # выкатить, даже если идут встречи
-#   backlog/bin/deploy.sh --drain core services livekit  # дренаж: закрыть новые встречи, дождаться
+#   backlog/bin/deploy.sh --drain core services          # дренаж: закрыть новые встречи, дождаться
 #                                                        # конца идущих (до 15 мин), потом собрать
 #
 # Дренаж (W1b, docs/resilience.md): рычагом владельца (`POST /api/v1/admin/maintenance`, пароль

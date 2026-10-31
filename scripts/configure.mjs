@@ -335,7 +335,7 @@ const notes = {
   simple: `One DNS name. Point an A record for ${app} at ${ip}.
 Open TCP 80, TCP 443, TCP 7881, UDP 3478 and UDP 7882.
 TURN over TLS on 443 (VPN, networks that allow only 443) needs strict mode:
-add rtc.${app} and turn.${app} records and re-run with --app/--rtc/--turn.`,
+add rtc.${app} and turn.${app} records, then switch as docs/RELEASE.md «Переход в strict» says.`,
   strict: `Three DNS names. Point A records for ${app}, ${rtc} and ${turn} at ${ip}.
 Open TCP 80, TCP 443, TCP 7881, UDP 3478 and UDP 7882.`,
   ip: `No DNS. The certificate is self-signed and carries IP:${ip}.

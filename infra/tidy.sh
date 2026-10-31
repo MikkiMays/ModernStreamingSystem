@@ -74,9 +74,8 @@ fi
 
 # ── Сколько чего оставлять ───────────────────────────────────────────────────────
 #
-# KEEP_RELEASES=2. Наружу отдаётся ровно один выпуск — тот, что назван в `latest.json`:
-# и страница `/download`, и обновлялка клиента спрашивают только его. Второй остаётся не
-# для раздачи, а для человека: вернуть вчерашний установщик, не ходя на GitHub.
+# KEEP_RELEASES=2 — только для каталогов `v*` прежнего клиента на сервере, где Electron ещё не выкладывали
+# (см. tidy_releases); канал Electron `desktop/` держит сама выкладка.
 KEEP_RELEASES="${CORD_KEEP_RELEASES:-2}"
 
 # KEEP_HOURS=24. Столько живут безымянные слои и кэш сборки. Срок суточный, потому что
@@ -133,16 +132,19 @@ held() { grep -qx "$1" <<<"$BUSY" || grep -qx "$2" <<<"$BUSY"; }
 
 # ── 1. Выпуски клиента Windows ──────────────────────────────────────────────────
 #
-# Отдаваемый выпуск защищён отдельно от счёта: он берётся из `latest.json`, а не из
-# сортировки. Если счёт когда-нибудь поставят в единицу, а выкладка в этот момент окажется
-# наполовину сделанной, уборка не должна унести файл, на который уже ссылается страница.
+# С 01.11.2026 клиент Windows — только Electron: его выпуски лежат в канале `desktop/`, и сколько их держать,
+# решает сама выкладка (`publish-windows-release.py --keep 2`, прошлый нужен для дельт). Каталоги `v*` — прежнего
+# клиента WinUI, по 400 МБ: пока `download.json` ведёт в канал (`"path": "desktop/"`), уходят все. Сервер, где
+# Electron ещё не выкладывали, отдаёт выпуск `v*` — он и `keep` последних остаются, как раньше.
 tidy_releases() {
   local keep="$1" served="" kept=0
   [[ -d "$RELEASES" ]] || return 0
-  if [[ -f "$RELEASES/latest.json" ]]; then
-    served="$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RELEASES/latest.json" | head -1)"
+  if [[ -f "$RELEASES/download.json" ]] && grep -q '"path"[[:space:]]*:[[:space:]]*"desktop/"' "$RELEASES/download.json"; then
+    keep=0
+  elif [[ -f "$RELEASES/download.json" ]]; then
+    served="$(sed -n 's/.*"tag"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RELEASES/download.json" | head -1)"
   fi
-  say "выпуски Windows: оставляю ${keep}${served:+, отдаваемый сейчас $served}"
+  say "выпуски Windows (прежний клиент, v*): оставляю ${keep}${served:+, отдаваемый сейчас $served}"
   while read -r tag; do
     [[ -z "$tag" ]] && continue
     if [[ "$tag" == "$served" ]] || (( kept < keep )); then
