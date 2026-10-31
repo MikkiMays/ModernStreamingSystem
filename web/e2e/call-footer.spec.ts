@@ -113,15 +113,20 @@ test('a phone: «звук встречи» alone at 390, in the mic group below 
     // Третья слева на касании — смена камеры, а не показ экрана.
     await expect(page.getByRole('button', { name: 'Сменить камеру', exact: true })).toBeVisible();
     await page.setViewportSize({ width: 360, height: 844 });
-    expect(await groups(page)).toEqual([
-      { name: 'Микрофон и камера', buttons: 4 },
-      { name: 'Встреча', buttons: 2 },
-    ]);
+    // Раскладка пульта меняется по media query — после перерисовки, а не в ту же миллисекунду.
+    await expect
+      .poll(() => groups(page))
+      .toEqual([
+        { name: 'Микрофон и камера', buttons: 4 },
+        { name: 'Встреча', buttons: 2 },
+      ]);
     await page.setViewportSize({ width: 320, height: 844 });
-    expect(await groups(page)).toEqual([
-      { name: 'Микрофон и камера', buttons: 3 },
-      { name: 'Встреча', buttons: 2 },
-    ]);
+    await expect
+      .poll(() => groups(page))
+      .toEqual([
+        { name: 'Микрофон и камера', buttons: 3 },
+        { name: 'Встреча', buttons: 2 },
+      ]);
     await page.setViewportSize({ width: 390, height: 844 });
     for (const width of [320, 360, 390, 430, 700]) {
       await page.setViewportSize({ width, height: 844 });
