@@ -132,7 +132,7 @@
   height: 100%;
 }
 .board-canvas[data-drop] {
-  box-shadow: 0 0 0 2px var(--accent-fill);
+  box-shadow: 0 0 0 var(--hairline-strong) var(--accent-fill);
 }
 .board-drop {
   position: absolute;

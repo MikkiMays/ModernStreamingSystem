@@ -426,7 +426,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
           <div className="board-bar__heading">
             <h2>{t(($) => $.board.name)}</h2>
             <span className="board-bar__mode">
-              {viewOnly ? <Users size={14} aria-hidden="true" /> : <PenLine size={14} aria-hidden="true" />}
+              {viewOnly ? <Users size={12} aria-hidden="true" /> : <PenLine size={12} aria-hidden="true" />}
               {mode}
               {others > 0 && <span className="board-bar__peers"> · {others + 1}</span>}
             </span>
