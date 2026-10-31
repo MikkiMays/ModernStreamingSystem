@@ -283,19 +283,62 @@ export class RoomApi {
 
   /** То же для дурака: итоги партий вместе со счётом вечера на их момент. */
   durakGames = () => request<DurakGame[]>(`${this.base}/durak-games`, {}, this.credential);
+  /**
+   * Байты по адресу ядра с пропуском участника — для того, что не JSON: вложение чата и картинка доски.
+   * Отказ — словами ядра, как у `request`.
+   */
+  private async bytes(path: string, init: RequestInit = {}): Promise<Response> {
+    const response = await fetch(`/api/v1${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${this.credential}`,
+        ...(bearer ? { 'X-Cord-Session': bearer } : {}),
+        ...init.headers,
+      },
+    }).catch((error: unknown) => {
+      throw transportFailure(error, init.method ?? 'GET', path);
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { code?: string; detail?: unknown };
+      throw new ApiError(
+        response.status,
+        body.code ?? 'REQUEST_FAILED',
+        errorText(body.code, detailOf(body.detail)),
+        body && typeof body === 'object' ? (body as Record<string, unknown>) : {},
+      );
+    }
+    return response;
+  }
+  /** Картинка доски (R159): положить может рисующий, тип — PNG, JPEG, WebP или GIF. */
+  putBoardFile = async (fileId: string, blob: Blob) => {
+    await this.bytes(`${this.base}/board/files/${encodeURIComponent(fileId)}`, {
+      method: 'PUT',
+      body: blob,
+      headers: { 'Content-Type': blob.type || 'image/png' },
+      signal: AbortSignal.timeout(60_000),
+    });
+  };
+  /** Картинка доски, которую положил сосед. */
+  boardFile = async (fileId: string): Promise<Blob> =>
+    (
+      await this.bytes(`${this.base}/board/files/${encodeURIComponent(fileId)}`, {
+        signal: AbortSignal.timeout(30_000),
+      })
+    ).blob();
+  /** Вложение чата байтами — «Открыть на доске» (R154). */
+  attachment = async (file: Attachment): Promise<Blob> => {
+    try {
+      return await (await this.bytes(`/attachments/${file.id}/content`)).blob();
+    } catch {
+      throw new Error(t(($) => $.api.fileUnavailable));
+    }
+  };
   files = () => request<Attachment[]>(`${this.base}/attachments`, {}, this.credential);
   reserve = (name: string, size: number, commandId: string) =>
     request<Attachment>(`${this.base}/attachments`, post({ name, size, commandId }), this.credential);
   cancel = (id: string) => request<void>(`/attachments/${id}`, { method: 'DELETE' }, this.credential);
   async download(file: Attachment) {
-    const response = await fetch(`/api/v1/attachments/${file.id}/content`, {
-      headers: {
-        Authorization: `Bearer ${this.credential}`,
-        ...(bearer ? { 'X-Cord-Session': bearer } : {}),
-      },
-    });
-    if (!response.ok) throw new Error(t(($) => $.api.fileUnavailable));
-    const url = URL.createObjectURL(await response.blob());
+    const url = URL.createObjectURL(await this.attachment(file));
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = file.name;

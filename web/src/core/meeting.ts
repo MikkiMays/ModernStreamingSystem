@@ -15,6 +15,7 @@ import type { WatchProvider } from './watch';
 import { allowed } from './permissions';
 import { knownProvider } from './cinema/link';
 import { awayAfter, stageOccupant, type StageKind, type StageOccupant } from './stage-view';
+import type { LatencyStats } from './board/latency';
 import {
   DesktopNotifier,
   readWindowState,
@@ -61,6 +62,13 @@ export class Meeting {
   readonly stageAway = new Store<StageKind | null>(null);
   /** Что занимало сцену при прошлой проверке ухода — чтобы отличить новую интеграцию от той же. */
   private stageBefore: StageOccupant | null = null;
+  /**
+   * Файл, который открыть на доске (R154): «Открыть на доске» у вложения `.cord-board` в чате кладёт его
+   * сюда, а доска забирает, когда она на сцене, — и спрашивает, заменить доску или добавить.
+   */
+  readonly boardImport = new Store<File | null>(null);
+  /** Задержка доски у этого участника, p50/p95 (R159), — для «Диагностики»; без доски — `null`. */
+  readonly boardLatency = new Store<LatencyStats | null>(null);
   /**
    * Недописанное сообщение чата.
    *
