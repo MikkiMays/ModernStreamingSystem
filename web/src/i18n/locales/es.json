@@ -315,6 +315,11 @@
         "label": "Vista previa al compartir",
         "hint": "Los demás ven una miniatura sin abrirla",
         "keywords": "vista previa miniatura compartir pantalla stream"
+      },
+      "hotkey-deafen": {
+        "label": "Sonido de la reunión",
+        "hint": "Apagar o encender, junto con el micrófono",
+        "keywords": "auriculares ensordecer silenciar sonido"
       }
     },
     "title": "Ajustes",
@@ -394,7 +399,11 @@
         "taken": "Otro programa ya usa este atajo: funciona en la ventana de Cord, pero para segundo plano elige otro.",
         "duplicate": "Este atajo ya está asignado a otra acción de Cord.",
         "windowOnly": "Ahora mismo este atajo solo funciona en la ventana de Cord."
-      }
+      },
+      "deafenTaken": "El micrófono ya usa este atajo; elige otro.",
+      "deafenChangeLabel": "Cambiar el atajo del sonido de la reunión",
+      "deafenAssignLabel": "Asignar un atajo al sonido de la reunión",
+      "deafenResetLabel": "Restablecer el atajo del sonido de la reunión"
     },
     "media": {
       "kind": {
@@ -631,6 +640,9 @@
       "done": "Enlace de la reunión copiado",
       "failed": "No se pudo copiar el enlace de la reunión",
       "copy": "Copiar"
+    },
+    "deafened": {
+      "title": "El sonido de la reunión está apagado: no oyes a nadie"
     }
   },
   "chess": {
@@ -2227,7 +2239,8 @@
       "muteForAll": "Silenciar el micrófono para todos",
       "remove": "Quitar de la reunión",
       "actions": "Acciones: {{name}}"
-    }
+    },
+    "deafened": "Sonido de la reunión apagado"
   },
   "dock": {
     "media": "Micrófono y cámara",
@@ -2264,7 +2277,8 @@
       }
     },
     "pip": "Ver en ventana flotante",
-    "pipClose": "Salir de la ventana flotante"
+    "pipClose": "Salir de la ventana flotante",
+    "sound": "Sonido de la reunión"
   },
   "invite": {
     "dialog": {
@@ -2483,7 +2497,8 @@
     "attachment": {
       "list": "Adjuntos del mensaje",
       "remove": "Quitar {{name}}"
-    }
+    },
+    "deafened": "Sonido de la reunión apagado"
   },
   "home": {
     "entry": {

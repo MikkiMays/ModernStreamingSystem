@@ -315,6 +315,11 @@
         "label": "共享预览",
         "hint": "观看者无需打开即可看到缩略图",
         "keywords": "预览 缩略图 屏幕共享 直播"
+      },
+      "hotkey-deafen": {
+        "label": "会议声音",
+        "hint": "关闭或打开——连同麦克风",
+        "keywords": "耳机 静音 听不到 声音"
       }
     },
     "title": "设置",
@@ -394,7 +399,11 @@
         "taken": "其他程序已占用此快捷键：在 Cord 窗口中可以使用，如需在后台使用请换一个。",
         "duplicate": "此快捷键已分配给 Cord 的其他操作。",
         "windowOnly": "此快捷键目前只在 Cord 窗口中有效。"
-      }
+      },
+      "deafenTaken": "麦克风已使用此快捷键，请另选一个。",
+      "deafenChangeLabel": "更改会议声音快捷键",
+      "deafenAssignLabel": "设置会议声音快捷键",
+      "deafenResetLabel": "重置会议声音快捷键"
     },
     "media": {
       "kind": {
@@ -629,6 +638,9 @@
       "done": "会议链接已复制",
       "failed": "无法复制会议链接",
       "copy": "复制"
+    },
+    "deafened": {
+      "title": "会议声音已关闭——你听不到任何人"
     }
   },
   "chess": {
@@ -2173,7 +2185,8 @@
       "muteForAll": "为所有人关闭麦克风",
       "remove": "移出会议",
       "actions": "操作：{{name}}"
-    }
+    },
+    "deafened": "会议声音已关闭"
   },
   "dock": {
     "media": "麦克风和摄像头",
@@ -2208,7 +2221,8 @@
       }
     },
     "pip": "画中画",
-    "pipClose": "退出画中画"
+    "pipClose": "退出画中画",
+    "sound": "会议声音"
   },
   "invite": {
     "dialog": {
@@ -2425,7 +2439,8 @@
     "attachment": {
       "list": "消息附件",
       "remove": "移除 {{name}}"
-    }
+    },
+    "deafened": "会议声音已关闭"
   },
   "home": {
     "entry": {

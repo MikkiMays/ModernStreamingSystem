@@ -129,3 +129,13 @@ it('stays silent, and settled, when the browser never let audio start', async ()
   expect(() => sounds.play('join')).not.toThrow();
   await expect(sounds.settled()).resolves.toBeUndefined();
 });
+
+it('«звук встречи» выключен — молчат и сигналы, и звуки столов (R156)', async () => {
+  const { savePreferences } = await import('./preferences');
+  const { soundVolume } = await import('./sounds');
+  savePreferences({ soundVolume: 80, deafened: false });
+  expect(soundVolume()).toBe(0.8);
+  savePreferences({ deafened: true });
+  expect(soundVolume()).toBe(0);
+  savePreferences({ deafened: false });
+});

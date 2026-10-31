@@ -1,5 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { defaultMicHotkey, hotkeyNotes, type Hotkey, type MicHotkeyMode } from '../../core/hotkeys';
+import {
+  defaultDeafenHotkey,
+  defaultMicHotkey,
+  hotkeyNotes,
+  type Hotkey,
+  type MicHotkeyMode,
+} from '../../core/hotkeys';
 import {
   desktopHotkeyStatus,
   hasFeature,
@@ -70,9 +76,14 @@ export function HotkeysSection({
   overlay = null,
   mode = 'toggle',
   changeMode = () => {},
+  deafen = null,
+  changeDeafen = () => {},
 }: {
   value: Hotkey | null;
   change: (key: Hotkey | null) => void;
+  /** Сочетание «звука встречи» (R156): по умолчанию `Ctrl + Shift + D`. */
+  deafen?: Hotkey | null;
+  changeDeafen?: (key: Hotkey | null) => void;
   /** Сочетание оверлея (клиент на Electron): то же назначить микрофону нельзя. */
   overlay?: Hotkey | null;
   /** Как работает сочетание микрофона: переключение или удержание. */
@@ -110,6 +121,24 @@ export function HotkeysSection({
           hint={hold ? t(($) => $.settings.hotkeys.holdHint) : undefined}
           // Плашки «Работает поверх других программ…» нет (R22): только то, что мешает, — под строкой.
           status={desktop ? hotkeyStatusText(t, nativeStatus) : null}
+        />
+        <HotkeyField
+          id="hotkey-deafen"
+          value={deafen}
+          change={changeDeafen}
+          notes={(key) => hotkeyNotes(t, key, place)}
+          defaultValue={defaultDeafenHotkey}
+          taken={{ key: value, text: t(($) => $.settings.hotkeys.deafenTaken) }}
+          labels={{
+            change: t(($) => $.settings.hotkeys.deafenChangeLabel),
+            assign: t(($) => $.settings.hotkeys.deafenAssignLabel),
+            reset: t(($) => $.settings.hotkeys.deafenResetLabel),
+          }}
+          pause={{
+            start: () => notifyDesktop('hotkey.configure', { deafen: null, paused: true }),
+            end: (current) => notifyDesktop('hotkey.configure', { deafen: current, paused: false }),
+          }}
+          mouse={native}
         />
         {ptt && (
           <SettingRow id="hotkey-ptt">

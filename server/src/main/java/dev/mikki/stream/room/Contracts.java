@@ -74,7 +74,7 @@ public final class Contracts {
    * разобранным на имена.
    */
   public static final String COMMAND_TYPES =
-      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|screen\\.preview|view\\.open|view\\.close|view\\.playing|microphone\\.mute|media\\.decode|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm";
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|screen\\.preview|view\\.open|view\\.close|view\\.playing|microphone\\.mute|media\\.decode|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm|self\\.deafen";
 
   /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
   private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
@@ -251,7 +251,8 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          List<String> decodes) {}
+          List<String> decodes,
+      boolean deafened) {}
 
   /**
    * Что комната смотрит вместе. {@code positionMs} верна в момент {@code anchorAt} по часам

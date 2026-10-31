@@ -17,6 +17,7 @@ import { MeetingHeader } from './MeetingHeader';
 import { PresenceAsk, usePresence } from './abuse/Presence';
 import { Button, IconButton, ResizeHandle, ToastProvider, usePanelWidth } from './kit';
 import { InviteCopiedNotice } from './InviteCopiedNotice';
+import { DeafenedNotice } from './DeafenedNotice';
 import { humans } from '../core/people';
 import {
   hotkeyFromMouse,
@@ -217,10 +218,18 @@ export function MeetingView({
       },
     });
     const micKey = preferences.micHotkey;
+    const deafenKey = preferences.deafenHotkey;
+    // «Звук встречи» (R156): то же, что кнопка с наушниками в пульте.
+    const deafen = () => {
+      if (!meeting.ended.get()) void meeting.media.setDeafened(!meeting.media.deafened.get());
+    };
     let held = false;
     const keyboard = (event: KeyboardEvent) => {
       if (event.repeat || isTyping(event.target) || modalOpen()) return;
-      if (matchesHotkey(event, micKey)) {
+      if (matchesHotkey(event, deafenKey)) {
+        event.preventDefault();
+        deafen();
+      } else if (matchesHotkey(event, micKey)) {
         event.preventDefault();
         held = true;
         mic.press('page', 'down');
@@ -252,6 +261,7 @@ export function MeetingView({
       hotkey: ended ? null : micKey,
       overlay: ended ? null : preferences.overlayHotkey,
       lock: ended ? null : preferences.overlayLockHotkey,
+      deafen: ended ? null : deafenKey,
       mode,
     });
     window.addEventListener('keydown', keyboard);
@@ -264,6 +274,7 @@ export function MeetingView({
     const unsubscribe = onDesktopCommand((command) => {
       if (command.type === 'microphone.toggle') mic.press('shell', 'down');
       if (command.type === 'microphone.hold' && command.phase) mic.press('shell', command.phase);
+      if (command.type === 'deafen.toggle') deafen();
       // Кнопки на миниатюре в панели задач (T53): микрофон, камера, завершить.
       if (command.type === 'thumbar') {
         if (command.action === 'mic') toggle();
@@ -284,11 +295,12 @@ export function MeetingView({
         window.removeEventListener('mouseup', mouseUp);
       }
       unsubscribe();
-      notifyDesktop('hotkey.configure', { hotkey: null, overlay: null, lock: null });
+      notifyDesktop('hotkey.configure', { hotkey: null, overlay: null, lock: null, deafen: null });
     };
   }, [
     meeting,
     preferences.micHotkey,
+    preferences.deafenHotkey,
     preferences.micHotkeyMode,
     preferences.overlayHotkey,
     preferences.overlayLockHotkey,
@@ -532,6 +544,7 @@ export function MeetingView({
           </Suspense>
         )}
         <InviteCopiedNotice meeting={meeting} />
+        <DeafenedNotice meeting={meeting} />
       </div>
     </ToastProvider>
   );

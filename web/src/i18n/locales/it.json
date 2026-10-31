@@ -315,6 +315,11 @@
         "label": "Anteprima della condivisione",
         "hint": "Chi guarda vede una miniatura senza aprirla",
         "keywords": "anteprima miniatura condivisione schermo stream"
+      },
+      "hotkey-deafen": {
+        "label": "Audio della riunione",
+        "hint": "Disattiva o attiva, insieme al microfono",
+        "keywords": "cuffie silenzia deafen audio"
       }
     },
     "title": "Impostazioni",
@@ -394,7 +399,11 @@
         "taken": "Un altro programma usa già questa scorciatoia: funziona nella finestra di Cord, ma per lo sfondo scegline un'altra.",
         "duplicate": "Questa scorciatoia è già assegnata a un'altra azione di Cord.",
         "windowOnly": "Per ora questa scorciatoia funziona solo nella finestra di Cord."
-      }
+      },
+      "deafenTaken": "Questa scorciatoia è già del microfono: scegline un’altra.",
+      "deafenChangeLabel": "Modifica la scorciatoia dell’audio della riunione",
+      "deafenAssignLabel": "Assegna una scorciatoia all’audio della riunione",
+      "deafenResetLabel": "Ripristina la scorciatoia dell’audio della riunione"
     },
     "media": {
       "kind": {
@@ -631,6 +640,9 @@
       "done": "Link della riunione copiato",
       "failed": "Impossibile copiare il link della riunione",
       "copy": "Copia"
+    },
+    "deafened": {
+      "title": "L’audio della riunione è disattivato: non senti nessuno"
     }
   },
   "chess": {
@@ -2227,7 +2239,8 @@
       "muteForAll": "Disattiva il microfono per tutti",
       "remove": "Rimuovi dalla riunione",
       "actions": "Azioni: {{name}}"
-    }
+    },
+    "deafened": "Audio della riunione disattivato"
   },
   "dock": {
     "media": "Microfono e videocamera",
@@ -2264,7 +2277,8 @@
       }
     },
     "pip": "Riduci in finestra",
-    "pipClose": "Ripristina dalla finestra"
+    "pipClose": "Ripristina dalla finestra",
+    "sound": "Audio della riunione"
   },
   "invite": {
     "dialog": {
@@ -2483,7 +2497,8 @@
     "attachment": {
       "list": "Allegati del messaggio",
       "remove": "Rimuovi {{name}}"
-    }
+    },
+    "deafened": "Audio della riunione disattivato"
   },
   "home": {
     "entry": {

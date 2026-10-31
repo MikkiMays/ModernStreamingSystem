@@ -21,6 +21,7 @@ function fakeMeeting({ screen = false, unread = 0 } = {}) {
       pip: { state: new Store({ available: false, active: false }), toggle: vi.fn() },
       share: vi.fn(),
       toggle: vi.fn(),
+      setDeafened: vi.fn(),
       saveSettings: vi.fn(),
     },
   } as unknown as Meeting & { unread: Store<number>; media: { share: ReturnType<typeof vi.fn> } };
@@ -92,5 +93,49 @@ describe('непрочитанные в чате (R87)', () => {
     fireEvent.click(more);
     const item = await screen.findByRole('menuitem', { name: /Чат и файлы/ });
     expect(within(item).getByText('2')).toBeInTheDocument();
+  });
+});
+
+describe('«звук встречи» — отдельная кнопка слева от микрофона (R156)', () => {
+  const width = (px: number) =>
+    vi.stubGlobal('matchMedia', (query: string) => {
+      const max = /max-width:\s*(\d+)px/.exec(query);
+      return {
+        matches: max ? px <= Number(max[1]) : false,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      };
+    });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('своя плашка первой, слева от группы микрофона; из «ещё» пункт убран', () => {
+    width(1440);
+    const meeting = fakeMeeting();
+    dock(meeting);
+    const groups = screen.getAllByRole('group');
+    expect(groups[0]).toHaveAccessibleName('Звук встречи');
+    const button = within(groups[0]!).getByRole('button', { name: 'Выключить звук встречи' });
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(within(groups[1]!).getByRole('button', { name: 'Включить микрофон' })).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(meeting.media.setDeafened).toHaveBeenCalledWith(true);
+  });
+
+  it('выключен — красные наушники «Включить звук встречи»', () => {
+    width(1440);
+    const meeting = fakeMeeting();
+    act(() => meeting.media.deafened.set(true));
+    dock(meeting);
+    const button = screen.getByRole('button', { name: 'Включить звук встречи' });
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(button.querySelector('svg.lucide-headphone-off')).not.toBeNull();
+  });
+
+  it('уже 375 px — первой кнопкой в группе микрофона, отдельной плашки нет', () => {
+    width(360);
+    dock(fakeMeeting());
+    expect(screen.queryByRole('group', { name: 'Звук встречи' })).toBeNull();
+    const media = screen.getByRole('group', { name: 'Микрофон и камера' });
+    expect(within(media).getAllByRole('button')[0]).toHaveAccessibleName('Выключить звук встречи');
   });
 });

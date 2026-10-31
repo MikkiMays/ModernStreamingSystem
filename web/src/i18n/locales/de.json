@@ -315,6 +315,11 @@
         "label": "Vorschau der Freigabe",
         "hint": "Zuschauer sehen ein Vorschaubild, ohne sie zu öffnen",
         "keywords": "Vorschau Miniatur Bildschirmfreigabe Stream"
+      },
+      "hotkey-deafen": {
+        "label": "Meeting-Ton",
+        "hint": "Aus- oder einschalten – zusammen mit dem Mikrofon",
+        "keywords": "Kopfhörer stumm deafen Ton"
       }
     },
     "title": "Einstellungen",
@@ -394,7 +399,11 @@
         "taken": "Ein anderes Programm nutzt dieses Tastenkürzel bereits: Im Cord-Fenster funktioniert es, für den Hintergrund wähle ein anderes.",
         "duplicate": "Dieses Tastenkürzel ist bereits einer anderen Cord-Aktion zugewiesen.",
         "windowOnly": "Dieses Tastenkürzel funktioniert gerade nur im Cord-Fenster."
-      }
+      },
+      "deafenTaken": "Dieses Tastenkürzel nutzt bereits das Mikrofon – wählen Sie ein anderes.",
+      "deafenChangeLabel": "Tastenkürzel für Meeting-Ton ändern",
+      "deafenAssignLabel": "Tastenkürzel für Meeting-Ton zuweisen",
+      "deafenResetLabel": "Tastenkürzel für Meeting-Ton zurücksetzen"
     },
     "media": {
       "kind": {
@@ -630,6 +639,9 @@
       "done": "Link zum Meeting kopiert",
       "failed": "Link zum Meeting konnte nicht kopiert werden",
       "copy": "Kopieren"
+    },
+    "deafened": {
+      "title": "Meeting-Ton ist aus – Sie hören niemanden"
     }
   },
   "chess": {
@@ -2200,7 +2212,8 @@
       "muteForAll": "Mikrofon für alle stummschalten",
       "remove": "Aus dem Meeting entfernen",
       "actions": "Aktionen: {{name}}"
-    }
+    },
+    "deafened": "Meeting-Ton aus"
   },
   "dock": {
     "media": "Mikrofon und Kamera",
@@ -2236,7 +2249,8 @@
       }
     },
     "pip": "Bild-im-Bild",
-    "pipClose": "Bild-im-Bild beenden"
+    "pipClose": "Bild-im-Bild beenden",
+    "sound": "Meeting-Ton"
   },
   "invite": {
     "dialog": {
@@ -2454,7 +2468,8 @@
     "attachment": {
       "list": "Anhänge der Nachricht",
       "remove": "{{name}} entfernen"
-    }
+    },
+    "deafened": "Meeting-Ton aus"
   },
   "home": {
     "entry": {

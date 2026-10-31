@@ -9,6 +9,7 @@ import {
 import { cameraLevel, nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import {
+  defaultDeafenHotkey,
   defaultMicHotkey,
   defaultOverlayLockHotkey,
   validHotkey,
@@ -175,6 +176,14 @@ export interface Preferences {
    */
   overlayLockHotkey: Hotkey | null;
   /**
+   * «Звук встречи» выключен (R156, Р-40): как «Отключить звук» у Discord — не слышно никого и
+   * ничего во встрече, и микрофон выключен. Помнится между встречами (своё у устройства, не у
+   * комнаты); вход с выключенным звуком встречи видно сразу — красная кнопка и тост.
+   */
+  deafened: boolean;
+  /** Сочетание «звука встречи» — по умолчанию `Ctrl + Shift + D`, как у Discord. */
+  deafenHotkey: Hotkey | null;
+  /**
    * Что показывать за карточным столом помимо самой игры.
    *
    * Своё у каждого, как громкость: одному нужна подсказка «что у меня собралось», другому она
@@ -294,6 +303,13 @@ export function readPreferences(): Preferences {
         : validHotkey(data.overlayLockHotkey)
           ? data.overlayLockHotkey
           : { ...defaultOverlayLockHotkey },
+    deafened: data.deafened === true,
+    deafenHotkey:
+      data.deafenHotkey === null
+        ? null
+        : validHotkey(data.deafenHotkey)
+          ? data.deafenHotkey
+          : { ...defaultDeafenHotkey },
   };
 }
 export function savePreferences(patch: Partial<Preferences>): Preferences {

@@ -106,6 +106,36 @@ class RoomServiceTest {
   }
 
   @Test
+  void deafenedIsOwnStateEveryoneSeesAndOnlyTrueMeansDeafened() {
+    var host = host();
+    var guest = guest(host);
+    rooms.command(
+        guest.roomId(),
+        guest.credential(),
+        new Command(UUID.randomUUID(), "self.deafen", "true", null, 0));
+    var seen = rooms.snapshot(host.roomId(), host.credential()).participants();
+    assertThat(seen)
+        .filteredOn(p -> p.id().equals(guest.participantId()))
+        .singleElement()
+        .extracting(Participant::deafened)
+        .isEqualTo(true);
+    assertThat(seen)
+        .filteredOn(p -> p.id().equals(host.participantId()))
+        .singleElement()
+        .extracting(Participant::deafened)
+        .isEqualTo(false);
+    rooms.command(
+        guest.roomId(),
+        guest.credential(),
+        new Command(UUID.randomUUID(), "self.deafen", "нет", null, 0));
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).participants())
+        .filteredOn(p -> p.id().equals(guest.participantId()))
+        .singleElement()
+        .extracting(Participant::deafened)
+        .isEqualTo(false);
+  }
+
+  @Test
   void olderPublishersAreDiscoveredOnceWithoutReplayingStartOnReconnect() {
     var host = host();
     connected(host);
