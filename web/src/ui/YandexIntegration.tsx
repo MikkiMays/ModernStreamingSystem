@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, LogOut, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +58,24 @@ export function YandexIntegration({
   useEffect(() => {
     setToken(storedToken);
   }, [storedToken]);
+  /*
+    Сохранённый на устройстве токен подключается к комнате сам (R157, Р-43): раньше он уходил в
+    комнату только при включении музыки или по «Подключить», и в новой встрече человек снова видел
+    «не подключено». Один раз на комнату; без права (403) или с протухшим токеном — тихо, кнопка
+    «Подключить» остаётся и объяснит сама.
+  */
+  const tried = useRef<string | null>(null);
+  const saved = storedToken.trim();
+  useEffect(() => {
+    if (!saved || account.data?.connected !== false || tried.current === roomId) return;
+    tried.current = roomId;
+    void api
+      .connectToken(saved)
+      .then((value) => client.setQueryData(['yandex', roomId], value))
+      .catch(() => {
+        /* Права нет или токен устарел — подключат руками. */
+      });
+  }, [saved, account.data?.connected, roomId, api, client]);
   const connect = async () => {
     setBusy(true);
     setError('');
@@ -145,6 +163,8 @@ export function YandexIntegration({
               setQr(false);
               setError('');
               save({ connected: true, name: result.name ?? null });
+              // Вход по QR отдаёт токен и устройству (R157): следующая встреча подключится сама.
+              if (result.token) onStoredTokenChange(result.token);
               // Опрос живёт вне отрисовки — текст рождается в момент ответа, глобальным переводом.
               setNotice(translate(($) => $.music.yandex.connected));
             }}

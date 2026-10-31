@@ -185,6 +185,8 @@ def create_app(
                 # истекают сроки треков и не уходят осиротевшие файлы до перезапуска службы.
                 try:
                     store.cleanup()
+                    # Вход Яндекса комнаты уходит вместе с её музыкой (R157).
+                    yandex.sweep_rooms({room["roomId"] for room in store.rooms()})
                 except Exception:
                     logging.getLogger(__name__).exception("Уборка хранилища музыки не удалась")
 
