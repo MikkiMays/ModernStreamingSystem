@@ -452,12 +452,6 @@
   white-space: pre-line;
   text-wrap: balance;
 }
-/* «+85» — ручной пропуск заставки или рекламы для всех (T17): число вместо значка. */
-.watch-chrome .watch-intro b {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
 /* Реклама, которую пометил поток: кнопка пропуска у кого есть пульт, подпись — у остальных. */
 .watch-ad {
   display: inline-flex;

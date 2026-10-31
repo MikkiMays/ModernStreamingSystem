@@ -2041,7 +2041,6 @@
       "toStart": "Für alle an den Anfang",
       "sync": "Mit dem Raum synchronisieren",
       "skip": {
-        "intro": "85 Sekunden für alle überspringen",
         "ad": "Werbung für alle überspringen",
         "adShort": "Werbung überspringen",
         "adLabel": "Werbung im Stream"
