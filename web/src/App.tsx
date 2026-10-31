@@ -143,12 +143,14 @@ function Workspace() {
         return;
       }
       if (command.type === 'preferences.changed') {
+        // Общие настройки ({shared}, R146) кладёт `core/shared-preferences.ts`; здесь — прежние флаги.
         const patch = {
           ...(typeof command.showPing === 'boolean' ? { showPing: command.showPing } : {}),
           ...(typeof command.notificationSounds === 'boolean'
             ? { notificationSounds: command.notificationSounds }
             : {}),
         };
+        if (!Object.keys(patch).length) return;
         if (meeting) meeting.media.saveSettings(patch);
         else savePreferences(patch);
         return;

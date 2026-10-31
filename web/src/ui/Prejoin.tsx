@@ -198,8 +198,8 @@ export function Prejoin({
       const admission = await admit(name.trim() || t(($) => $.prejoin.defaultName), leave);
       settle?.(inviteLink(admission));
       if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
-      localStorage.setItem('cord:name', name.trim());
-      savePreferences({ devices: choices });
+      // Имя — тоже общая настройка (R146): через savePreferences, чтобы его узнала оболочка.
+      savePreferences({ name: name.trim(), devices: choices });
       stream.current.getTracks().forEach((t) => t.stop());
       setElsewhere(null);
       onJoin(admission, { ...choices, micOn: mic, cameraOn: camera });
@@ -390,7 +390,7 @@ export function Prejoin({
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                localStorage.setItem('cord:name', e.target.value.trim());
+                savePreferences({ name: e.target.value.trim() });
                 commandId.current = crypto.randomUUID();
               }}
               maxLength={40}

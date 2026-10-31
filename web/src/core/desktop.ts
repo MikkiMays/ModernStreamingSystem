@@ -32,6 +32,14 @@ interface CordDesktop {
     autoConnect: boolean;
     /** Высота кнопок окна «— ⧉ ×» в DIP (`titleBarOverlay.height`, с 1.0.10); нет — 36 (`core/titlebar.ts`). */
     titlebarHeight?: number;
+    /**
+     * Общие для всех серверов настройки (R146, флаг `prefs.shared`): значения последней записи с любого
+     * сервера. Preload уже положил их в `cord:preferences:v1` до первого скрипта; `devices` — названия
+     * устройств, их сверяет `shared-preferences.ts`. Пусто — у оболочки общего ещё нет (перенос).
+     */
+    shared?: Record<string, unknown>;
+    /** Токен Яндекс Музыки (R157): только серверу каталога; null — нет; '' — отключён. */
+    yandexMusicToken?: string | null;
   };
   send(type: string, payload?: object): void;
   invoke(method: string, payload?: object): Promise<unknown>;
@@ -75,6 +83,11 @@ export function desktopFeatures(): ReadonlySet<string> {
 
 export function hasFeature(name: string): boolean {
   return desktopFeatures().has(name);
+}
+
+/** Что оболочка v2 отдала странице до первой отрисовки; в v1 и в браузере — null. */
+export function desktopBootstrap(): CordDesktop['bootstrap'] | null {
+  return v2()?.bootstrap ?? null;
 }
 
 /**
