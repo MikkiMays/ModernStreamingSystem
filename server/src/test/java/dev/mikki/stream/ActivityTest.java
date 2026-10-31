@@ -439,6 +439,22 @@ class ActivityTest {
     return new ClientQuality.Report(seconds, rtt, loss, jitter, 1800, 2, 3, 40, path, codec);
   }
 
+  /**
+   * Кодек отдачи (R152) — тоже кодек встречи: его кто-то принимает, даже если издатель не смотрел.
+   */
+  @Test
+  void thePublishCodecJoinsTheMeetingCodecs() {
+    var host = host(Entrant.UNKNOWN);
+    var guest = guest(host);
+    present(host.roomId(), host, guest);
+    api.clientReport(
+        UUID.fromString(host.roomId()),
+        "Bearer " + guest.credential(),
+        new ClientQuality.Report(600, 40, 1.5, 12, 1800, 2, 3, 40, "direct-udp", "vp9", "h265"),
+        reporter());
+    assertThat(stats(host.roomId()).get("codecs")).isEqualTo("h265 vp9");
+  }
+
   MockHttpServletRequest reporter() {
     var http = new MockHttpServletRequest("POST", "/api/v1/rooms/x/client-report");
     http.setRemoteAddr(fresh());

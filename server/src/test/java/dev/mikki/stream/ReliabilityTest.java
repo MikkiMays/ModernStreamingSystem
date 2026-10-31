@@ -234,6 +234,93 @@ class ReliabilityTest {
   }
 
   /**
+   * Отдача в сводке (R152): секунды по источнику, кодеку и железу, секунды ограничений по причине и
+   * смены кодека — в счётчики; источник не из перечисления — {@code 400}; сводка без отдачи — как
+   * прежде. В метках — только перечисления.
+   */
+  @Test
+  void publishSummariesCountCodecShareLimitsAndSwitches() throws Exception {
+    var host = host();
+    var body =
+        """
+        {"tracks":[],
+         "tx":[{"source":"camera","codec":"av1","hw":"hw","seconds":9.5,"cpuSeconds":0,"bandwidthSeconds":1.5,"otherSeconds":0},
+               {"source":"screen","codec":"h264","hw":"sw","seconds":10,"cpuSeconds":4,"bandwidthSeconds":0,"otherSeconds":0}],
+         "switches":[{"source":"screen","from":"h265","to":"h264","reason":"cpu"}]}
+        """;
+    java.util.function.Function<String[], Double> count =
+        tags -> {
+          var counter =
+              registry
+                  .find(tags[0])
+                  .tags(java.util.Arrays.copyOfRange(tags, 1, tags.length))
+                  .counter();
+          return counter == null ? 0 : counter.count();
+        };
+    var camera =
+        new String[] {
+          "cord.client.publish.seconds", "source", "camera", "codec", "av1", "hw", "hw"
+        };
+    var screen =
+        new String[] {
+          "cord.client.publish.seconds", "source", "screen", "codec", "h264", "hw", "sw"
+        };
+    var cpu = new String[] {"cord.client.tx.limited.seconds", "source", "screen", "reason", "cpu"};
+    var narrow =
+        new String[] {"cord.client.tx.limited.seconds", "source", "camera", "reason", "bandwidth"};
+    var change =
+        new String[] {
+          "cord.client.codec.switch",
+          "source",
+          "screen",
+          "from",
+          "h265",
+          "to",
+          "h264",
+          "reason",
+          "cpu"
+        };
+    var before =
+        java.util.stream.Stream.of(camera, screen, cpu, narrow, change).map(count).toList();
+    mvc.perform(
+            post("/api/v1/rooms/" + host.roomId() + "/quality")
+                .header("Authorization", "Bearer " + host.credential())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isNoContent());
+    assertThat(count.apply(camera)).isEqualTo(before.get(0) + 9.5);
+    assertThat(count.apply(screen)).isEqualTo(before.get(1) + 10);
+    assertThat(count.apply(cpu)).isEqualTo(before.get(2) + 4);
+    assertThat(count.apply(narrow)).isEqualTo(before.get(3) + 1.5);
+    assertThat(count.apply(change)).isEqualTo(before.get(4) + 1);
+    // Источник не из перечисления — не сводка.
+    var other = host();
+    mvc.perform(
+            post("/api/v1/rooms/" + other.roomId() + "/quality")
+                .header("Authorization", "Bearer " + other.credential())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"tracks":[],"tx":[{"source":"window","codec":"av1","hw":"hw","seconds":1,"cpuSeconds":0,"bandwidthSeconds":0,"otherSeconds":0}]}
+                    """))
+        .andExpect(status().isBadRequest());
+    var names =
+        java.util.Set.of(
+            "cord.client.publish.seconds",
+            "cord.client.tx.limited.seconds",
+            "cord.client.codec.switch");
+    registry.getMeters().stream()
+        .filter(m -> names.contains(m.getId().getName()))
+        .forEach(
+            m ->
+                assertThat(m.getId().getTags())
+                    .allSatisfy(
+                        tag ->
+                            assertThat(tag.getKey())
+                                .isIn("source", "codec", "hw", "reason", "from", "to")));
+  }
+
+  /**
    * Служебная комната куратора ядру неизвестна: её вебхуки пропускаются, а не считаются отказами.
    */
   @Test
