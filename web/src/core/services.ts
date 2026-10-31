@@ -220,7 +220,8 @@ export class YandexApi {
   }
   status = () => this.call<YandexAccount>('');
   start = () => this.call<YandexAuthorization>('/auth', post({}));
-  poll = (id: string) => this.call<YandexAuthorization>(`/auth/${id}`, post({}));
+  /** Подтвердили — `connected` и токен этому участнику, один раз (R157). */
+  poll = (id: string) => this.call<YandexAuthorization | YandexDevicePoll>(`/auth/${id}`, post({}));
   cancel = (id: string) => this.call<void>(`/auth/${id}`, { method: 'DELETE' });
   connectToken = (token: string) => this.call<YandexAccount>('/token', post({ token }));
   disconnect = () => this.call<YandexAccount>('', { method: 'DELETE' });

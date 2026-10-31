@@ -36,7 +36,7 @@ from .cinema.reach import Reach
 from .sources import MUSIC as MUSIC_WORDS
 from .sources import YANDEX_GATE
 from .media import LONGEST, MAX_FILE, probe
-from .store import now
+from .store import TRACK_TTL, now
 from .webapp import Refusal
 
 # Новых входов по коду без встречи в минуту с одного адреса: человеку хватает одного-двух (код живёт
@@ -98,6 +98,27 @@ class Yandex:
         )
         return {"connected": active, "name": account.get("name") if active else None}
 
+    def sweep_rooms(self, alive: set[str]) -> int:
+        """Сейфы комнат, которых у музыки больше нет (R157).
+
+        Подключённый к встрече аккаунт лежит в сейфе под `room:<id>`, и раньше эти записи не
+        удалялись никогда: токены закончившихся встреч копились зашифрованными, хотя Р-15 обещает
+        «на сервере не хранится». Комната музыки живёт, пока ею пользуются (`Store.cleanup`), —
+        вместе с ней уходит и её вход.
+        """
+        removed = 0
+        for scope in self.vault.scopes("yandex"):
+            if not scope.startswith("room:") or scope[len("room:") :] in alive:
+                continue
+            # Подключили, а музыку ещё не включали — комнаты у музыки нет, но вход свежий: сутки
+            # ему дают, как треку в очереди. У старых записей без `savedAt` срок давно вышел.
+            account = self.vault.get("yandex", scope) or {}
+            if (account.get("savedAt") or 0) > now() - TRACK_TTL:
+                continue
+            self.vault.delete("yandex", scope)
+            removed += 1
+        return removed
+
     def disconnect(self, scope):
         self.vault.delete("yandex", scope)
         pending = self.store.state("yandex-pending:" + scope)
@@ -136,15 +157,17 @@ class Yandex:
                 "token": token,
                 "name": name[:120],
                 "expiresAt": now() + expires_in * 1000 if expires_in else None,
+                # Когда подключили — уборке (R157): вход комнаты без музыки живёт сутки.
+                "savedAt": now(),
             },
         )
         return self.status(scope)
 
-    async def start_auth(self, scope):
+    async def start_auth(self, scope, member_id=None):
         async with self.music.locks["yandex-auth:" + scope]:
             pending = self.store.state("yandex-pending:" + scope)
             value = self.store.claim(pending) if pending else None
-            if value and value["kind"] == "yandex-device":
+            if value and value["kind"] == "yandex-device" and value.get("member") == member_id:
                 return self.auth_public(pending, value)
             code = await self.request(
                 self.client_factory().request_device_code(device_name="Cord")
@@ -153,6 +176,9 @@ class Yandex:
             value = {
                 "kind": "yandex-device",
                 "scope": scope,
+                # Кто начал вход (R157): токен устройству отдаётся только ему, а опросить вход по
+                # чужому `auth_id` другой участник той же комнаты не может.
+                "member": member_id,
                 # Сырой Fernet, а не `vault.seal`: код устройства должен падать `InvalidToken`
                 # при порче, а не тихо становиться `None`, — ровно как отвечало на это место
                 # до выноса сейфа в отдельный модуль.
@@ -179,13 +205,19 @@ class Yandex:
             "status": "pending",
         }
 
-    async def poll_auth(self, scope, token):
+    async def poll_auth(self, scope, token, member_id=None):
         async with self.music.locks["yandex-auth:" + scope]:
             completed = self.store.receipt("yandex-auth:" + scope, token)
             if completed:
+                # Повтор после входа: аккаунт подключён, а токен второй раз не отдаётся (Р-15).
                 return {"status": "connected", **self.status(scope)}
             value = self.store.claim(token)
-            if not value or value["kind"] != "yandex-device" or value["scope"] != scope:
+            if (
+                not value
+                or value["kind"] != "yandex-device"
+                or value["scope"] != scope
+                or value.get("member") != member_id
+            ):
                 raise HTTPException(410, "Код входа истёк. Получите новый")
             if now() < value["nextPoll"]:
                 return self.auth_public(token, value)
@@ -213,7 +245,10 @@ class Yandex:
                 )
                 self.store.remember("yandex-auth:" + scope, token, {"done": True})
                 self.store.delete_claim(token)
-                return {"status": "connected", **status}
+                # Токен — и устройству того, кто входил (R157, Р-43): один раз, как у входа без
+                # встречи. Иначе он жил только в сейфе этой комнаты, и следующая встреча снова
+                # просила QR — «после перезахода токен отваливается».
+                return {"status": "connected", **status, "token": authorization.access_token}
             value["nextPoll"] = now() + value["interval"] * 1000
             self.store.db.execute(
                 "UPDATE claims SET body=? WHERE token=?", (json.dumps(value), token)
@@ -597,13 +632,13 @@ def routes(yandex, core):
 
     @router.post("/auth")
     async def auth(room_id: str, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization, "yandex.connect")
-        return await yandex.start_auth(scope)
+        scope, member = await scope_for(room_id, authorization, "yandex.connect")
+        return await yandex.start_auth(scope, member.get("id"))
 
     @router.post("/auth/{auth_id}")
     async def poll(room_id: str, auth_id: str, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization, "yandex.connect")
-        return await yandex.poll_auth(scope, auth_id)
+        scope, member = await scope_for(room_id, authorization, "yandex.connect")
+        return await yandex.poll_auth(scope, auth_id, member.get("id"))
 
     @router.delete("/auth/{auth_id}")
     async def cancel(room_id: str, auth_id: str, authorization: str = Header()):
