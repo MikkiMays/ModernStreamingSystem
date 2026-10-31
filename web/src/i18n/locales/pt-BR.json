@@ -2722,10 +2722,6 @@
         "name": "Música",
         "hint": "Uma fila compartilhada para a reunião toda"
       },
-      "any-game": {
-        "name": "Qualquer jogo",
-        "hint": "Jogos de navegador para a reunião toda"
-      },
       "standup": {
         "name": "Palco de stand-up",
         "hint": "Um se apresenta, os outros assistem e reagem"

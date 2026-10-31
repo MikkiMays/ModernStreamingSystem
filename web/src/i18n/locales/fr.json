@@ -2722,10 +2722,6 @@
         "name": "Musique",
         "hint": "Une file d'attente commune à toute la réunion"
       },
-      "any-game": {
-        "name": "N'importe quel jeu",
-        "hint": "Jeux de navigateur pour toute la réunion"
-      },
       "standup": {
         "name": "Scène stand-up",
         "hint": "Un joueur se produit, les autres regardent et réagissent"

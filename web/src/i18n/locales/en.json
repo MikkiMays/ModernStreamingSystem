@@ -2692,10 +2692,6 @@
         "name": "Music",
         "hint": "One shared queue for the whole meeting"
       },
-      "any-game": {
-        "name": "Any game",
-        "hint": "Browser games for the whole meeting"
-      },
       "standup": {
         "name": "Stand-up stage",
         "hint": "One performs, everyone else watches and reacts"

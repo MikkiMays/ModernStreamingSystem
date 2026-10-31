@@ -2722,10 +2722,6 @@
         "name": "Musica",
         "hint": "Una coda comune per tutta la riunione"
       },
-      "any-game": {
-        "name": "Qualsiasi gioco",
-        "hint": "Giochi nel browser per tutta la riunione"
-      },
       "standup": {
         "name": "Palco stand-up",
         "hint": "Uno si esibisce, gli altri guardano e reagiscono"

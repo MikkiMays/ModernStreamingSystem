@@ -2692,10 +2692,6 @@
         "name": "Musik",
         "hint": "Eine gemeinsame Warteschlange für das ganze Meeting"
       },
-      "any-game": {
-        "name": "Beliebiges Spiel",
-        "hint": "Browserspiele für das ganze Meeting"
-      },
       "standup": {
         "name": "Stand-up-Bühne",
         "hint": "Einer tritt auf, die anderen schauen zu und reagieren"
