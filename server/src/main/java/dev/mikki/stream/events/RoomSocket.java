@@ -10,6 +10,8 @@ import jakarta.validation.Validator;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -33,6 +35,23 @@ public class RoomSocket extends TextWebSocketHandler {
   }
 
   private final Map<String, Connection> sockets = new ConcurrentHashMap<>();
+
+  /** Этот процесс ядра: своё сообщение из Redis он уже разослал сам и второй раз не рассылает. */
+  private final String node = UUID.randomUUID().toString();
+
+  /**
+   * Комнаты, рассылка которых уже стоит в очереди: пачка событий одной транзакции — один проход по
+   * сокетам. Метка снимается до прохода, поэтому событие, зафиксированное во время него, поставит
+   * следующий.
+   */
+  private final Set<String> pending = ConcurrentHashMap.newKeySet();
+
+  /**
+   * Рассылка — не в потоке того, кто правил комнату (сокет отправителя, HTTP-запрос, планировщик):
+   * проход читает базу для каждого сокета встречи, и отправитель его ждать не должен.
+   */
+  private final ExecutorService fanOut = Executors.newVirtualThreadPerTaskExecutor();
+
   private final RoomService rooms;
   private final RateLimits limits;
   private final Validator validator;
@@ -123,7 +142,7 @@ public class RoomSocket extends TextWebSocketHandler {
             throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
           var ack = commands.execute(c.roomId, c.credential, command, c.address);
           send(c, Map.of("type", "ack", "ack", ack));
-          if (config.redisEnabled()) redis.convertAndSend("room-events", c.roomId);
+          // Остальным встречу разошлёт `published` — по событиям, зафиксированным командой.
           flush(c);
         } else throw new Problem(400, "UNKNOWN_COMMAND", "Неизвестная команда");
       } catch (Problem e) {
@@ -144,8 +163,64 @@ public class RoomSocket extends TextWebSocketHandler {
    */
   @org.springframework.transaction.event.TransactionalEventListener(fallbackExecution = true)
   public void roomChanged(dev.mikki.stream.room.RoomChanged event) {
-    if (config.redisEnabled()) redis.convertAndSend("room-events", event.roomId());
-    else flushRoom(event.roomId());
+    deliver(event.roomId());
+  }
+
+  /**
+   * В журнал комнаты записаны события (после фиксации): своим сокетам — сразу, другим узлам — через
+   * Redis.
+   *
+   * <p>Раньше и свои сокеты узнавали о событии только из Redis — эхом собственного сообщения: Redis
+   * медлит (steal хоста, 500 мс таймаут команды) — встреча ждёт его или секундного прохода {@link
+   * #catchUp()}, а таймаут {@code PUBLISH} в потоке сокета ещё и закрывал сокет отправителя.
+   * Команды по HTTP не рассылались вовсе — до прохода.
+   */
+  @org.springframework.context.event.EventListener
+  public void published(RoomEventsPublished event) {
+    deliver(event.roomId());
+  }
+
+  private void deliver(String roomId) {
+    flushSoon(roomId);
+    if (config.redisEnabled())
+      fanOut.execute(
+          () -> {
+            try {
+              redis.convertAndSend("room-events", node + " " + roomId);
+            } catch (RuntimeException e) {
+              // Другие узлы догонят своим проходом; своим сокетам всё уже разослано.
+            }
+          });
+  }
+
+  /**
+   * Сообщение Redis: «узел комната» (прежние версии слали одну комнату). Своё пропускается — эти
+   * сокеты получили события раньше, чем сообщение вернулось.
+   */
+  public void remote(String message) {
+    var roomId = roomOf(message, node);
+    if (roomId != null) flushSoon(roomId);
+  }
+
+  /** Комната из сообщения Redis, или {@code null}, если его прислал этот же узел. */
+  static String roomOf(String message, String node) {
+    var space = message.indexOf(' ');
+    if (space < 0) return message;
+    return message.substring(0, space).equals(node) ? null : message.substring(space + 1);
+  }
+
+  private void flushSoon(String roomId) {
+    if (pending.add(roomId))
+      fanOut.execute(
+          () -> {
+            pending.remove(roomId);
+            flushRoom(roomId);
+          });
+  }
+
+  @jakarta.annotation.PreDestroy
+  void stopFanOut() {
+    fanOut.shutdown();
   }
 
   /**

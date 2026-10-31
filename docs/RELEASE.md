@@ -134,8 +134,7 @@ scripts/turn-guard.test.mjs`.
 
 ```bash
 cd /opt/.worktrees/<имя>                     # web/node_modules нужен: генератор — npm run generate:api
-docker build -f infra/Dockerfile.server -t cord-core-gen:<ветка> .
-CORD_GEN_IMAGE=cord-core-gen:<ветка> CORD_GEN_NO_BUILD=1 backlog/bin/gen-contracts.sh
+backlog/bin/gen-contracts.sh                 # соберёт ядро под тегом cord-core-gen:<коммит> и снимет схему
 git diff --stat -- contracts/openapi.json web/src/api/generated.ts
 ```
 
@@ -631,8 +630,7 @@ gh run download <id> -R MikkiMays/ModernStreamingSystem -n cord-android-debug -D
 
 ## 10. Ловушки
 
-- **Не тот каталог.** Всё, что зовёт `docker compose` (`deploy.sh`, `gen-contracts.sh` без `CORD_GEN_IMAGE`,
-  тесты служб через compose), в worktree падает — там нет `.env`; а в каталоге стенда `docker compose build` из
+- **Не тот каталог.** Всё, что зовёт `docker compose` (`deploy.sh`, тесты служб через compose), в worktree падает — там нет `.env`; а в каталоге стенда `docker compose build` из
   ветки подменил бы образ, которым живёт стенд. Выкатка — только из `/opt/ModernStreamingSystem` и только `main`.
 - **Голый `docker compose up -d` на стенде** поднимет и профиль `monitoring` (он в `COMPOSE_PROFILES`) и
   пересоздаст всё, у чего поменялась конфигурация. Только `deploy.sh` или `up -d --no-deps <служба>`.

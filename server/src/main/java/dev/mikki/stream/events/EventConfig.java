@@ -37,8 +37,7 @@ public class EventConfig implements WebSocketConfigurer {
     var container = new RedisMessageListenerContainer();
     container.setConnectionFactory(factory);
     container.addMessageListener(
-        (message, pattern) ->
-            socket.flushRoom(new String(message.getBody(), StandardCharsets.UTF_8)),
+        (message, pattern) -> socket.remote(new String(message.getBody(), StandardCharsets.UTF_8)),
         new ChannelTopic("room-events"));
     return container;
   }

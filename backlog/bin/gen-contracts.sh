@@ -3,7 +3,10 @@
 # стека и не трогая стенд.
 #
 #   backlog/bin/gen-contracts.sh            # собрать образ ядра из рабочего дерева и снять схему
-#   CORD_GEN_NO_BUILD=1 backlog/bin/gen-contracts.sh   # взять уже собранный образ
+#   CORD_GEN_IMAGE=cord-core-gen:abc CORD_GEN_NO_BUILD=1 backlog/bin/gen-contracts.sh   # взять уже собранный
+#
+# Образ собирается `docker build` под своим тегом `cord-core-gen:<коммит>` — из любого worktree, без `.env`, и
+# образ стенда `modern-streaming-core:latest` не подменяется (раньше `docker compose build core` делал именно это).
 #
 # Поднимает одноразовые Postgres и Redis на своих портах и второй экземпляр ядра с открытой схемой
 # (`SPRINGDOC_API_DOCS_ENABLED=true`) на 127.0.0.1:18089, снимает схему тем же `npm run
@@ -15,9 +18,7 @@ BIN=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO=$(cd "$BIN/../.." && pwd)
 cd "$REPO"
 
-# Свой образ (`CORD_GEN_IMAGE=cord-core-w1b CORD_GEN_NO_BUILD=1`) — когда ядро собрано из ветки под
-# своим тегом и образ стенда `modern-streaming-core` трогать нельзя.
-IMAGE=${CORD_GEN_IMAGE:-modern-streaming-core:latest}
+IMAGE=${CORD_GEN_IMAGE:-cord-core-gen:$(git rev-parse --short HEAD)}
 PG_PORT=15432 REDIS_PORT=16379 CORE_PORT=18089
 NAME=cord-contracts-$$
 SECRET=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
@@ -26,7 +27,7 @@ cleanup() { docker rm -f "$NAME-core" "$NAME-pg" "$NAME-redis" >/dev/null 2>&1 |
 trap cleanup EXIT
 
 if [[ ${CORD_GEN_NO_BUILD:-0} != 1 ]]; then
-  COMPOSE_BAKE=false CORD_BUILD=$(git rev-parse --short HEAD) docker compose build core
+  DOCKER_BUILDKIT=1 docker build -q -f infra/Dockerfile.server -t "$IMAGE" . >/dev/null
 fi
 
 docker run -d --name "$NAME-pg" --network host \

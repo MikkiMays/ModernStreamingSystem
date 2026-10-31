@@ -3,7 +3,7 @@
 #
 #   ./update.sh               обновить всё: код, образы, конфигурацию
 #   ./update.sh --check       посмотреть, что изменилось; ничего не трогать
-#   ./update.sh --yes         без вопросов, для cron и скриптов
+#   ./update.sh --yes         без вопросов, для cron и скриптов; идут встречи — отложить (выход 75)
 #   ./update.sh --force       пересобрать, даже если ничего не изменилось
 #   ./update.sh --keep-calls  не трогать SFU: идущие звонки переживут обновление
 #
@@ -178,6 +178,21 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   git status --short --untracked-files=no | sed 's/^/      /'
   warn "Слияние может не пройти. Сохранить их: git stash"
   (( ASSUME_YES )) || { read -rp "    Продолжить? [y/N] " answer; [[ "$answer" == [yY] ]] || exit 1; }
+fi
+
+# Идущие встречи: сборка на той же машине, что и SFU, душит звонки, а перезапуск их обрывает. Человеку —
+# список перед вопросом; cron (`--yes`) откладывает обновление до следующего раза, если не `--force`.
+CALLS=0
+if (( ! NOTHING_TO_DO )) && [[ -x backlog/bin/active-meetings.sh ]]; then
+  meetings="$(backlog/bin/active-meetings.sh 2>&1)" && CALLS=0 || CALLS=$?
+  if (( CALLS == 1 )); then
+    warn "Сейчас идут встречи — сборка их замедлит, перезапуск оборвёт (--keep-calls оставит SFU):"
+    sed 's/^/      /' <<<"$meetings"
+    if (( ASSUME_YES && ! FORCE )); then
+      note "Отложено до следующего запуска: идут встречи. Обновить всё равно — --force."
+      exit 75
+    fi
+  fi
 fi
 
 if (( ! ASSUME_YES )) && (( ! NOTHING_TO_DO )); then

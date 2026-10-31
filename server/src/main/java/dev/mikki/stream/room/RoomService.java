@@ -2036,7 +2036,11 @@ public class RoomService {
    * искали бы событие, которого нет.
    */
   private void published(String roomId, long sequence) {
-    Runnable remember = () -> sequences.merge(roomId, sequence, Math::max);
+    Runnable remember =
+        () -> {
+          sequences.merge(roomId, sequence, Math::max);
+          events.publishEvent(new RoomEventsPublished(roomId));
+        };
     if (org.springframework.transaction.support.TransactionSynchronizationManager
         .isSynchronizationActive())
       org.springframework.transaction.support.TransactionSynchronizationManager
