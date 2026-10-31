@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,9 @@ public class BoardRooms {
   private final BoardProperties limits;
   private final Clock clock;
   private final Map<String, Hub> boards = new ConcurrentHashMap<>();
+  private final AtomicLong accepted = new AtomicLong();
+  private final AtomicLong rejected = new AtomicLong();
+  private final AtomicLong saveFailures = new AtomicLong();
 
   /** Доска и её участники. Список участников меняется только под замком доски ({@link #room}). */
   public static final class Hub {
@@ -171,6 +175,7 @@ public class BoardRooms {
             store.save(
                 hub.room.roomId(), scene.epoch(), scene.seq(), scene.elements(), clock.millis());
       } catch (RuntimeException e) {
+        saveFailures.incrementAndGet();
         log.warn("Доска {} не записалась: {}", hub.room.roomId(), e.toString());
         return;
       }
@@ -190,6 +195,37 @@ public class BoardRooms {
     } finally {
       hub.flushing.set(false);
     }
+  }
+
+  /**
+   * Учесть пачку правок: сколько элементов принято и сколько отклонено (версия, предел) — для
+   * метрик.
+   */
+  public void counted(BoardRoom.Applied applied) {
+    accepted.addAndGet(applied.accepted());
+    rejected.addAndGet(applied.rejected().size());
+  }
+
+  /** Элементов принято с запуска ядра. */
+  public long accepted() {
+    return accepted.get();
+  }
+
+  /** Элементов отклонено с запуска ядра. */
+  public long rejected() {
+    return rejected.get();
+  }
+
+  /** Неудачных записей сцены в базу с запуска ядра. */
+  public long saveFailures() {
+    return saveFailures.get();
+  }
+
+  /** Сокетов на всех досках сейчас. */
+  public int peerCount() {
+    int count = 0;
+    for (var hub : all()) count += hub.peers().size();
+    return count;
   }
 
   /** Записать все доски — при остановке ядра. */

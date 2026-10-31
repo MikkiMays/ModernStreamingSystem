@@ -173,6 +173,9 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_screens_active` | gauge | — | `screen.started` / завершение |
 | `cord_media_reconnects_total` | counter | `outcome=lost\|restored` | `media.lost` / `media.restored` |
 | `cord_room_sockets` | gauge | — | `RoomSocket` |
+| `cord_board_open`, `cord_board_peers` | gauge | — | доски в памяти ядра и их сокеты (`BoardRooms`, R159) |
+| `cord_board_elements_total` | counter | `result=accepted\|rejected` | правки элементов (`BoardSocket`): отклонённые — устаревшая версия или предел |
+| `cord_board_save_failures_total` | counter | — | сцена доски не записалась в `room_boards` (`BoardRooms.save`) |
 | `cord_livekit_webhooks_total` | counter | `event` | `MediaService` |
 | `cord_retention_deleted_total` | counter | `kind=room\|event\|attachment\|audit\|stats` | уборка |
 | `cord_client_errors_total` | counter | `kind=js\|media\|socket`, `client` | новый `POST /api/client-report` |

@@ -15,6 +15,7 @@ import dev.mikki.stream.media.MediaGateway;
 import dev.mikki.stream.room.*;
 import dev.mikki.stream.room.Contracts.*;
 import dev.mikki.stream.shared.Json;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.*;
@@ -60,6 +61,7 @@ class BoardSocketTest {
   @Autowired BoardStore store;
   @Autowired JdbcClient jdbc;
   @Autowired WebApplicationContext web;
+  @Autowired MeterRegistry registry;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
@@ -202,9 +204,15 @@ class BoardSocketTest {
     boris.await("scene");
     assertThat(anna.await("joined").path("from").asText()).isEqualTo(guest.participantId());
 
+    var accepted = registry.find("cord.board.elements").tag("result", "accepted").functionCounter();
+    double before = accepted.count();
     anna.send(ops(rect("a", 1, 7)));
     var ack = anna.await("ack");
     assertThat(ack.path("n").asInt()).isEqualTo(1);
+    // Видно и в «Cord — встречи»: правка учтена, оба сокета — на доске.
+    assertThat(accepted.count()).isEqualTo(before + 1);
+    assertThat(registry.get("cord.board.peers").gauge().value()).isGreaterThanOrEqualTo(2);
+    assertThat(registry.get("cord.board.open").gauge().value()).isGreaterThanOrEqualTo(1);
     var ops = boris.await("ops");
     assertThat(ops.path("seq").asLong()).isEqualTo(ack.path("seq").asLong());
     assertThat(ops.path("from").asText()).isEqualTo(host.participantId());

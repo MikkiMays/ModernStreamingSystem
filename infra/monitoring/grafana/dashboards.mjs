@@ -129,6 +129,15 @@ const dashboards = [
     ], 's'),
     series('Входы по исходу, в минуту', [['sum by (result) (rate(cord_joins_total[5m])) * 60', '{{result}}']], 'short', { stack: true }),
     series('Интеграции идут сейчас', [['sum by (kind) (cord_integrations_active)', '{{kind}}']], 'short', { stack: true }),
+    // Доска (R159): своя нагрузка мимо транзакций комнаты — доски в памяти, сокеты, правки и записи сцены.
+    series('Доска: открыто и смотрят', [
+      ['sum(cord_board_open)', 'досок в памяти'],
+      ['sum(cord_board_peers)', 'сокетов'],
+    ]),
+    series('Доска: правки элементов, в секунду', [
+      ['sum by (result) (rate(cord_board_elements_total[5m]))', '{{result}}'],
+      ['sum(increase(cord_board_save_failures_total[1h]))', 'сцена не записалась за час'],
+    ]),
     series('Отказы ядра по коду, в минуту (10 частых)', [['topk(10, sum by (code) (rate(cord_errors_total[5m])) * 60)', '{{code}}']], 'short', { w: 24 }),
     series('Блокировки', [['sum by (by, kind) (increase(cord_blocks_created_total[1h]))', '{{by}} · {{kind}}']]),
     series('Версия ядра', [['max by (version) (cord_build_info)', '{{version}}']]),

@@ -597,7 +597,7 @@
     {
       "id": 13,
       "type": "timeseries",
-      "title": "Отказы ядра по коду, в минуту (10 частых)",
+      "title": "Доска: открыто и смотрят",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -605,6 +605,120 @@
       "gridPos": {
         "x": 0,
         "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(cord_board_open)",
+          "legendFormat": "досок в памяти",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "expr": "sum(cord_board_peers)",
+          "legendFormat": "сокетов",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Доска: правки элементов, в секунду",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(cord_board_elements_total[5m]))",
+          "legendFormat": "{{result}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "expr": "sum(increase(cord_board_save_failures_total[1h]))",
+          "legendFormat": "сцена не записалась за час",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Отказы ядра по коду, в минуту (10 частых)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
         "w": 24,
         "h": 8
       },
@@ -643,7 +757,7 @@
       }
     },
     {
-      "id": 14,
+      "id": 16,
       "type": "timeseries",
       "title": "Блокировки",
       "datasource": {
@@ -652,7 +766,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -691,7 +805,7 @@
       }
     },
     {
-      "id": 15,
+      "id": 17,
       "type": "timeseries",
       "title": "Версия ядра",
       "datasource": {
@@ -700,7 +814,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 36,
+        "y": 44,
         "w": 12,
         "h": 8
       },

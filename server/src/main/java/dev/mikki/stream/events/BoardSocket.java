@@ -328,6 +328,7 @@ public class BoardSocket extends TextWebSocketHandler {
     var hub = peer.hub;
     synchronized (hub.room()) {
       var applied = hub.room().apply(elements, peer.memberId);
+      boards.counted(applied);
       if (applied.batch() != null)
         BoardRooms.broadcast(hub, peer, ops(applied.batch(), false, sent));
       var ack = new StringBuilder("{\"type\":\"ack\",\"seq\":");
