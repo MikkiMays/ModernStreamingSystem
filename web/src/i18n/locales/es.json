@@ -1075,6 +1075,77 @@
       "sendFailed": "No se pudo enviar el dibujo."
     }
   },
+  "board": {
+    "name": "Pizarra",
+    "loading": "Abriendo la pizarra…",
+    "modes": {
+      "all": "Dibujan todos",
+      "host": "Dibuja el anfitrión"
+    },
+    "viewOnly": "Solo ver: dibuja el anfitrión",
+    "status": {
+      "connecting": "Conectando con la pizarra…",
+      "offline": "Se perdió la conexión con la pizarra; reconectando. Tus dibujos no se perderán",
+      "closed": "La pizarra no está disponible",
+      "replaced": "La pizarra está abierta en otra pestaña",
+      "reconnect": "Abrir aquí"
+    },
+    "actions": {
+      "saveToChat": "Guardar en el chat",
+      "saving": "Guardando…",
+      "download": "Descargar",
+      "downloadPng": "Como imagen PNG",
+      "downloadSvg": "Como imagen SVG",
+      "downloadFile": "Como archivo de pizarra",
+      "open": "Abrir archivo",
+      "clear": "Borrar la pizarra",
+      "close": "Cerrar la pizarra",
+      "more": "Más",
+      "highlighter": "Marcador",
+      "sticky": "Nota adhesiva",
+      "drawers": "Quién dibuja",
+      "drawersAll": "Todos los participantes",
+      "drawersHost": "Solo el anfitrión",
+      "menu": "Menú de la pizarra"
+    },
+    "stickyHint": "Haz doble clic en la nota para escribir",
+    "chat": {
+      "message": "Pizarra · {{time}}",
+      "file": "Pizarra {{time}}",
+      "saved": "Pizarra guardada en el chat",
+      "failed": "No se pudo guardar la pizarra en el chat",
+      "retention": "La imagen y el archivo de la pizarra del chat desaparecen una hora después de la reunión, como máximo en un día. Para conservarla más tiempo, descarga el archivo de la pizarra o añade la reunión a Favoritos.",
+      "empty": "La pizarra está vacía"
+    },
+    "import": {
+      "title": "Abrir archivo en la pizarra",
+      "description": "«{{name}}»: ¿reemplazar lo que hay en la pizarra o añadirlo al lado?",
+      "replace": "Reemplazar la pizarra",
+      "add": "Añadir a la pizarra",
+      "replaceHint": "Todo lo que hay ahora en la pizarra desaparecerá para todos.",
+      "failed": "Este archivo no parece una pizarra",
+      "noReplace": "Solo el anfitrión puede reemplazar la pizarra"
+    },
+    "close": {
+      "title": "¿Guardar la pizarra en el chat?",
+      "description": "La pizarra se cerrará para todos los participantes. La imagen y el archivo de la pizarra quedan en el chat para abrirla de nuevo.",
+      "save": "Guardar y cerrar",
+      "discard": "Cerrar sin guardar"
+    },
+    "clear": {
+      "title": "¿Borrar la pizarra?",
+      "description": "Todo lo dibujado desaparecerá para todos los participantes.",
+      "confirm": "Borrar"
+    },
+    "notice": {
+      "full": "La pizarra está llena: elimina algo para seguir dibujando",
+      "rejected": "Algunos cambios no cupieron en la pizarra",
+      "cleared": "{{name}} borró la pizarra"
+    },
+    "drop": "Suelta para abrir el archivo en la pizarra",
+    "exportFailed": "No se pudo guardar la imagen de la pizarra",
+    "cancel": "Cancelar"
+  },
   "games": {
     "list": {
       "poker": {
@@ -2479,6 +2550,8 @@
     "approve": "Dejar entrar: {{name}}",
     "remove": "Expulsar: {{name}}",
     "download": "Descargar {{name}}",
+    "openOnBoard": "Abrir en la pizarra",
+    "openOnBoardOf": "Abrir en la pizarra: {{name}}",
     "dropUnfinished": "Eliminar la subida sin terminar: {{name}}",
     "attachment": {
       "list": "Adjuntos del mensaje",
@@ -2761,6 +2834,7 @@
   },
   "services": {
     "cinemaLive": "En pantalla",
+    "boardLive": "Pizarra abierta",
     "music": {
       "tokenFailed": "No se pudo conectar el token guardado de Yandex Music. Conecta la cuenta manualmente abajo.",
       "back": "Integraciones",
@@ -2851,6 +2925,10 @@
       },
       "target": "{{kind}} {{ms}} ms",
       "none": "No hay pistas suscritas"
+    },
+    "board": {
+      "label": "Pizarra",
+      "value": "{{p50}} ms, el 95 % en {{p95}} ms"
     },
     "ordered": "Los medios van por un relé sobre TCP/TLS. Esta ruta no pierde paquetes, sino que los vuelve a pedir, y todo lo que llega después espera al rezagado: al oído suena como «se calló y luego habló más rápido». El búfer se ha ampliado automáticamente. Si se repite, comprueba que tu red deja pasar UDP hasta el servidor de medios: la ruta directa es bastante más estable.",
     "videoPaused_one": "El vídeo se te pausó {{count}} vez: tu conexión no podía con la imagen, así que el servidor priorizó la voz y la música. La imagen vuelve sola cuando la conexión mejora.",
@@ -3148,7 +3226,8 @@
       "poker": "Póker",
       "durak": "Durak",
       "chess": "Ajedrez",
-      "gartic": "Gartic"
+      "gartic": "Gartic",
+      "board": "Pizarra"
     },
     "now": {
       "live": "Reuniones en curso",

@@ -1075,6 +1075,77 @@
       "sendFailed": "Impossible d'envoyer le dessin."
     }
   },
+  "board": {
+    "name": "Tableau blanc",
+    "loading": "Ouverture du tableau blanc…",
+    "modes": {
+      "all": "Tout le monde dessine",
+      "host": "L'hôte dessine"
+    },
+    "viewOnly": "Lecture seule : l'hôte dessine",
+    "status": {
+      "connecting": "Connexion au tableau blanc…",
+      "offline": "Connexion au tableau blanc perdue, reconnexion en cours. Vos dessins ne seront pas perdus",
+      "closed": "Le tableau blanc n'est pas disponible",
+      "replaced": "Le tableau blanc est ouvert dans un autre onglet",
+      "reconnect": "Ouvrir ici"
+    },
+    "actions": {
+      "saveToChat": "Enregistrer dans le chat",
+      "saving": "Enregistrement…",
+      "download": "Télécharger",
+      "downloadPng": "En image PNG",
+      "downloadSvg": "En image SVG",
+      "downloadFile": "En fichier de tableau",
+      "open": "Ouvrir un fichier",
+      "clear": "Effacer le tableau",
+      "close": "Fermer le tableau",
+      "more": "Plus",
+      "highlighter": "Surligneur",
+      "sticky": "Note adhésive",
+      "drawers": "Qui dessine",
+      "drawersAll": "Tous les participants",
+      "drawersHost": "L'hôte uniquement",
+      "menu": "Menu du tableau"
+    },
+    "stickyHint": "Double-cliquez sur la note pour écrire",
+    "chat": {
+      "message": "Tableau blanc · {{time}}",
+      "file": "Tableau blanc {{time}}",
+      "saved": "Tableau enregistré dans le chat",
+      "failed": "Impossible d'enregistrer le tableau dans le chat",
+      "retention": "L'image et le fichier du tableau dans le chat disparaissent une heure après la réunion, au plus tard au bout d'un jour. Pour le garder plus longtemps, téléchargez le fichier du tableau ou ajoutez la réunion aux Favoris.",
+      "empty": "Le tableau est vide"
+    },
+    "import": {
+      "title": "Ouvrir un fichier sur le tableau",
+      "description": "« {{name}} » : remplacer le contenu du tableau ou l'ajouter à côté ?",
+      "replace": "Remplacer le tableau",
+      "add": "Ajouter au tableau",
+      "replaceHint": "Tout ce qui est sur le tableau disparaîtra pour tout le monde.",
+      "failed": "Ce fichier ne ressemble pas à un tableau",
+      "noReplace": "Seul l'hôte peut remplacer le tableau"
+    },
+    "close": {
+      "title": "Enregistrer le tableau dans le chat ?",
+      "description": "Le tableau sera fermé pour tous les participants. L'image et le fichier du tableau restent dans le chat pour le rouvrir.",
+      "save": "Enregistrer et fermer",
+      "discard": "Fermer sans enregistrer"
+    },
+    "clear": {
+      "title": "Effacer le tableau ?",
+      "description": "Tout ce qui est dessiné disparaîtra pour tous les participants.",
+      "confirm": "Effacer"
+    },
+    "notice": {
+      "full": "Le tableau est plein : supprimez des éléments pour continuer à dessiner",
+      "rejected": "Certaines modifications n'ont pas tenu sur le tableau",
+      "cleared": "{{name}} a effacé le tableau"
+    },
+    "drop": "Déposez pour ouvrir le fichier sur le tableau",
+    "exportFailed": "Impossible d'enregistrer l'image du tableau",
+    "cancel": "Annuler"
+  },
   "games": {
     "list": {
       "poker": {
@@ -2479,6 +2550,8 @@
     "approve": "Faire entrer : {{name}}",
     "remove": "Exclure : {{name}}",
     "download": "Télécharger {{name}}",
+    "openOnBoard": "Ouvrir sur le tableau",
+    "openOnBoardOf": "Ouvrir sur le tableau : {{name}}",
     "dropUnfinished": "Supprimer l'envoi inachevé : {{name}}",
     "attachment": {
       "list": "Pièces jointes du message",
@@ -2761,6 +2834,7 @@
   },
   "services": {
     "cinemaLive": "Projection en cours",
+    "boardLive": "Tableau ouvert",
     "music": {
       "tokenFailed": "Impossible de connecter le jeton Yandex Music enregistré. Connectez le compte manuellement ci-dessous.",
       "back": "Intégrations",
@@ -2851,6 +2925,10 @@
       },
       "target": "{{kind}} {{ms}} ms",
       "none": "Aucune piste suivie"
+    },
+    "board": {
+      "label": "Tableau blanc",
+      "value": "{{p50}} ms, 95 % sous {{p95}} ms"
     },
     "ordered": "Les médias passent par un relais en TCP/TLS. Ce chemin ne perd pas de paquets, il les redemande, et tout ce qui arrive ensuite attend le retardataire — à l'oreille, cela donne « silence, puis débit accéléré ». Le tampon a été augmenté automatiquement. Si cela se répète, vérifiez que votre réseau laisse passer l'UDP jusqu'au serveur média : le chemin direct est nettement plus régulier.",
     "videoPaused_one": "La vidéo a été mise en pause {{count}} fois pour vous : votre connexion ne suivait pas l'image, alors le serveur a donné la priorité à la voix et à la musique. L'image revient d'elle-même dès que la connexion s'améliore.",
@@ -3148,7 +3226,8 @@
       "poker": "Poker",
       "durak": "Durak",
       "chess": "Échecs",
-      "gartic": "Gartic"
+      "gartic": "Gartic",
+      "board": "Tableau blanc"
     },
     "now": {
       "live": "Réunions en cours",

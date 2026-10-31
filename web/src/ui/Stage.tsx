@@ -34,6 +34,8 @@ const PokerTable = lazy(() => import('./PokerTable'));
 const DurakTable = lazy(() => import('./DurakTable'));
 const ChessTable = lazy(() => import('./ChessTable'));
 const GarticTable = lazy(() => import('./GarticTable'));
+/** Доска (R159) — Excalidraw, около мегабайта: грузится, только когда её открыли. */
+const BoardStage = lazy(() => import('./board/BoardStage'));
 
 /**
  * Показывать ли себя зеркально.
@@ -582,6 +584,25 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         }
       >
         {occupant.kind === 'chess' ? <ChessTable meeting={meeting} /> : <GarticTable meeting={meeting} />}
+      </Suspense>,
+    );
+  } else if (occupant?.kind === 'board' && snapshot.board) {
+    /*
+      Доска (R159) занимает сцену целиком, как шахматы: холст во всю ширину, лица — у участников (R121).
+      Ключ слоя — `board`, и доска не размонтируется у ушедшего: сокет, своя история отмены и вид
+      холста остаются, а вернувшийся видит всё, что нарисовали без него.
+    */
+    integration = layer(
+      'board',
+      'board-stage',
+      <Suspense
+        fallback={
+          <div role="status" className="board-loading">
+            {t(($) => $.board.loading)}
+          </div>
+        }
+      >
+        <BoardStage meeting={meeting} />
       </Suspense>,
     );
   } else if (occupant?.kind === 'poker' && snapshot.poker) {

@@ -1,0 +1,199 @@
+/*
+  Доска встречи (R159). Только токены `styles/tokens.css`; холст — Excalidraw в теме Cord.
+
+  Сцена тёмная в обеих темах (`.media-stage`), шапка доски — на ней же, как у столов игр. Холст —
+  «доска»: в светлой теме белый, в тёмной — тёмный (тему Excalidraw берёт из Cord, `theme.ts`). Цвет
+  выделения и кнопок редактора — акцент Cord, шрифт подписей — шрифт Cord.
+
+  Ссылки наружу и чужие входы (библиотека, встраивание страниц, «текст в диаграмму», ИИ) спрятаны
+  здесь и убраны сторожем `hardening.ts`: правило продукта — ни одной ссылки наружу.
+*/
+
+.board-stage {
+  padding: 0;
+}
+.board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--text);
+}
+.board button,
+.board input {
+  font: inherit;
+}
+
+/* ---------- шапка ---------- */
+.board-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.board-bar__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.board-bar__mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border-radius: var(--radius-2);
+  background: var(--brand-board);
+  color: var(--brand-board-ink);
+}
+.board-bar__heading {
+  min-width: 0;
+}
+.board-bar__heading h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.board-bar__mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.board-bar__peers {
+  font-variant-numeric: tabular-nums;
+}
+.board-bar__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.board-bar__tools .ui-button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.board-bar__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* ---------- подписи над холстом ---------- */
+.board-note {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.board-note--status[data-state='offline'],
+.board-note--status[data-state='replaced'] {
+  color: var(--text);
+}
+.board-dialog-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ---------- холст ---------- */
+.board-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-3);
+  overflow: hidden;
+  box-shadow: 0 0 0 var(--hairline) var(--line);
+}
+.board-canvas .excalidraw {
+  --ui-font: var(--font-sans);
+  --color-primary: var(--accent-fill);
+  --color-primary-darker: var(--accent-fill-hover);
+  --color-primary-darkest: var(--accent-fill-active);
+  --color-primary-hover: var(--accent-fill-hover);
+  --color-primary-light: var(--accent-soft);
+  --color-primary-light-darker: var(--accent-soft);
+  height: 100%;
+}
+.board-canvas[data-drop] {
+  box-shadow: 0 0 0 2px var(--accent-fill);
+}
+.board-drop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--accent-fill) 12%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/*
+  Входы Excalidraw, которых в Cord нет: библиотека (ведёт на libraries.excalidraw.com и публикует через
+  GitHub), встраивание чужих страниц и «текст в диаграмму» (у них одна метка `toolbar-embeddable`), ИИ-рамка
+  и шапка окна помощи (документация, блог, GitHub). Ядро встраиваемое и так не принимает.
+*/
+.board-canvas .excalidraw .default-sidebar-trigger,
+.board-canvas .excalidraw [data-testid='toolbar-embeddable'],
+.board-canvas .excalidraw [data-testid='toolbar-magicframe'],
+.board-canvas .excalidraw .library-button,
+.excalidraw .HelpDialog .HelpDialog__header {
+  display: none;
+}
+
+.board-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--muted);
+}
+
+/* ---------- узко: шапка без подписей, телефон — доска во всю сцену ---------- */
+@media (max-width: 1023px) {
+  .board-bar__tools .ui-button__label,
+  .board-bar__save .ui-button__label {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .board-bar {
+    gap: var(--space-2);
+  }
+  .board-bar__mode {
+    display: none;
+  }
+  .board-bar__actions {
+    gap: var(--space-1);
+  }
+  .board-canvas {
+    border-radius: var(--radius-2);
+  }
+  /*
+    На телефоне доска — во всю сцену (R159): пульт звонка спорит с нижней панелью Excalidraw, поэтому,
+    пока доска на сцене, он уходит, как в полном экране. Вернуть его — «Все участники» в шапке доски, а
+    назад к доске — чёлкой (R121).
+  */
+  .meeting-page:has(.stage[data-stage-layer='board']:not([data-away])) .call-footer {
+    display: none;
+  }
+  .meeting-page:has(.stage[data-stage-layer='board']:not([data-away])) .stage-wrap {
+    padding: var(--space-2);
+  }
+}

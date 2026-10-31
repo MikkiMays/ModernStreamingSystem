@@ -33,7 +33,8 @@ export type BrandId =
   | 'poker'
   | 'durak'
   | 'chess'
-  | 'gartic';
+  | 'gartic'
+  | 'board';
 
 export interface Brand {
   /** Заливка плашки значка и полосы. */
@@ -66,6 +67,8 @@ export const BRANDS: Record<BrandId, Brand> = {
   durak: { color: '#c9a227', ink: DARK, text: { light: '#7a5d00', dark: '#e3c04f' } },
   chess: { color: '#5271a3', ink: WHITE, text: { light: '#3f5a87', dark: '#9db4dc' } },
   gartic: { color: '#8d65c5', ink: WHITE, text: { light: '#6a45a3', dark: '#bca6ff' } },
+  // Доска (R159) — тёплый оранжевый маркера: не цвет приложения и не цвет игр.
+  board: { color: '#e8590c', ink: WHITE, text: { light: '#b0430a', dark: '#ff9a5c' } },
 };
 
 export const BRAND_IDS = Object.keys(BRANDS) as BrandId[];

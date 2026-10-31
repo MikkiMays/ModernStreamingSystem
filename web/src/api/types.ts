@@ -6,19 +6,23 @@ export type Status = Participant['status'];
 export type Message = components['schemas']['Message'];
 export type Snapshot = Omit<
   components['schemas']['Snapshot'],
-  'watch' | 'poker' | 'durak' | 'chess' | 'gartic' | 'you'
+  'watch' | 'poker' | 'durak' | 'chess' | 'gartic' | 'you' | 'board'
 > & {
   watch: Watch | null;
   poker: PokerTable | null;
   durak: DurakTable | null;
   chess?: ChessTable | null;
   gartic?: GarticTable | null;
+  /** Доска на сцене (R159); старое ядро поля не присылает. Сама сцена — сокетом доски. */
+  board?: BoardView | null;
   /**
    * Права этого участника — готовым списком ядра (`core/permissions.ts`). Старое ядро поля не
    * присылает; у постороннего оно `null`.
    */
   you?: RoomYou | null;
 };
+/** Открытая доска (R159): кто открыл, когда и кому рисовать — всем или только ведущему. */
+export type BoardView = Omit<components['schemas']['BoardView'], 'drawers'> & { drawers: 'all' | 'host' };
 /** Что участник может во встрече: имена действий матрицы ядра (`room/Permissions.java`). */
 export type RoomYou = {
   can: string[];

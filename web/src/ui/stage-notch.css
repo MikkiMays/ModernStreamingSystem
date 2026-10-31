@@ -215,3 +215,7 @@
     display: none;
   }
 }
+.stage-notch[data-kind='board'] .stage-notch__mark {
+  --notch-brand: var(--brand-board);
+  --notch-ink: var(--brand-board-ink);
+}

@@ -78,6 +78,8 @@
 | вложение, файл                    | file                           | archivo              | fichier                 | file                    | 文件         | Datei               | arquivo                  |
 | стол (игровой)                    | table                          | mesa                 | table                   | tavolo                  | 牌桌         | Tisch               | mesa                     |
 | ход                               | turn (чей ход), move (шахматы) | turno, jugada        | tour, coup              | turno, mossa            | 回合，走棋   | Zug                 | vez, jogada              |
+| доска (общий холст встречи)       | whiteboard                     | pizarra              | tableau blanc           | lavagna                 | 白板         | Whiteboard          | quadro                   |
+| рисовать (на доске)               | draw                           | dibujar              | dessiner                | disegnare               | 绘图         | zeichnen            | desenhar                 |
 | раунд                             | round                          | ronda                | manche                  | round                   | 回合         | Runde               | rodada                   |
 | фишки                             | chips                          | fichas               | jetons                  | fiches                  | 筹码         | Chips               | fichas                   |
 | ставка                            | bet                            | apuesta              | mise                    | puntata                 | 下注         | Einsatz             | aposta                   |

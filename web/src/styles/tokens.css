@@ -132,6 +132,9 @@
   --palette-brand-gartic: #8d65c5;
   --palette-brand-gartic-on-light: #6a45a3;
   --palette-brand-gartic-on-dark: #bca6ff;
+  --palette-brand-board: #e8590c;
+  --palette-brand-board-on-light: #b0430a;
+  --palette-brand-board-on-dark: #ff9a5c;
   /* лица без картинки: пять пар «фон — буква» */
   --palette-face-blue-bg: #d9e4fc;
   --palette-face-blue: #315589;
@@ -363,6 +366,8 @@
   --brand-chess-ink: var(--palette-white);
   --brand-gartic: var(--palette-brand-gartic);
   --brand-gartic-ink: var(--palette-white);
+  --brand-board: var(--palette-brand-board);
+  --brand-board-ink: var(--palette-white);
 }
 
 /* ---------- смысловые: светлая тема ---------- */
@@ -423,6 +428,7 @@
   --brand-durak-text: var(--palette-brand-durak-on-light);
   --brand-chess-text: var(--palette-brand-chess-on-light);
   --brand-gartic-text: var(--palette-brand-gartic-on-light);
+  --brand-board-text: var(--palette-brand-board-on-light);
 }
 
 /* ---------- смысловые: тёмная тема (два блока совпадают дословно) ---------- */
@@ -481,6 +487,7 @@
   --brand-durak-text: var(--palette-brand-durak-on-dark);
   --brand-chess-text: var(--palette-brand-chess-on-dark);
   --brand-gartic-text: var(--palette-brand-gartic-on-dark);
+  --brand-board-text: var(--palette-brand-board-on-dark);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -538,6 +545,7 @@
     --brand-durak-text: var(--palette-brand-durak-on-dark);
     --brand-chess-text: var(--palette-brand-chess-on-dark);
     --brand-gartic-text: var(--palette-brand-gartic-on-dark);
+    --brand-board-text: var(--palette-brand-board-on-dark);
   }
 }
 
