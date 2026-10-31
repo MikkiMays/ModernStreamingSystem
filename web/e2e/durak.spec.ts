@@ -166,7 +166,9 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
             },
             {
               message: 'A settled bout must expose the next legal action or the game result',
-              timeout: Math.max(1, Math.min(10000, playUntil - Date.now())),
+              // 30 с, а не 10: стенд на общем VPS замирает целиком на 5–10 с (обе страницы разом, steal и
+              // soft lockup хоста, журнал 01.11.2026) — ход за это время не теряется, его просто не видно.
+              timeout: Math.max(1, Math.min(30000, playUntil - Date.now())),
             },
           )
           .toBe(true);
