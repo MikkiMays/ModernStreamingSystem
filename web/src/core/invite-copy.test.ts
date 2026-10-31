@@ -8,8 +8,8 @@ function clipboard({ items = true, text = true } = {}) {
   vi.stubGlobal('navigator', {
     clipboard: {
       write: items
-        ? vi.fn(async (list: ClipboardItem[]) => {
-            const blob = await list[0].getType('text/plain');
+        ? vi.fn(async ([item]: ClipboardItem[]) => {
+            const blob = await item!.getType('text/plain');
             written.push(await blob.text());
           })
         : undefined,
