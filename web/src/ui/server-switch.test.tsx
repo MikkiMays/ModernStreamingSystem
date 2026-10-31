@@ -102,9 +102,15 @@ describe('экран подключения', () => {
 });
 
 describe('«Сервер» в настройках', () => {
-  it('в браузере: «Сменить сервер» — серверы каталога, текущий отмечен, выбор ведёт на сайт', async () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { ...location, origin: location.origin, assign });
+  it('в браузере: «Сменить сервер» — серверы каталога, текущий отмечен, выбор ведёт на сайт с общими настройками', async () => {
+    // Переход — ссылкой, которая называет, откуда пришли (R146): у страниц Cord `no-referrer`.
+    const clicked: { href: string; referrerPolicy: string }[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicked.push({ href: this.href, referrerPolicy: this.referrerPolicy });
+    });
+    localStorage.setItem('cord:name', 'Ника');
     render(<ServerSection showPing={false} changePing={vi.fn()} inCall={false} />);
     await act(async () => {});
     expect(screen.queryByRole('switch', { name: 'Подключаться при запуске' })).toBeNull();
@@ -120,7 +126,20 @@ describe('«Сервер» в настройках', () => {
     ]);
     expect(items[1]).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(items[2]!);
-    expect(assign).toHaveBeenCalledWith('https://cordcam.ru/');
+    expect(clicked).toHaveLength(1);
+    expect(clicked[0]!.href).toMatch(/^https:\/\/cordcam\.ru\/#cord-prefs=[A-Za-z0-9_-]+$/);
+    expect(clicked[0]!.referrerPolicy).toBe('origin');
+    click.mockRestore();
+  });
+
+  it('под заголовком сказано: настройки общие, комнаты, избранное и недавние у каждого сервера свои (R146)', async () => {
+    render(<ServerSection showPing={false} changePing={vi.fn()} inCall={false} />);
+    await act(async () => {});
+    expect(
+      screen.getByText(
+        'Настройки общие для всех серверов. Комнаты, избранное и недавние у каждого сервера свои.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('в браузере без каталога (или только этот сервер) кнопки нет — выбирать не из чего', async () => {

@@ -442,7 +442,8 @@
       "leaveFirst": "Primero sal de la reunión",
       "change": "Cambiar de servidor",
       "forget": "Olvidar contraseña",
-      "here": "Estás aquí"
+      "here": "Estás aquí",
+      "shared": "Los ajustes son comunes a todos los servidores. Las salas, los favoritos y las reuniones recientes son propios de cada servidor."
     },
     "sounds": {
       "cues": "Avisos",

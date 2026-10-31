@@ -442,7 +442,8 @@
       "leaveFirst": "Quittez d'abord la réunion",
       "change": "Changer de serveur",
       "forget": "Oublier le mot de passe",
-      "here": "Vous êtes ici"
+      "here": "Vous êtes ici",
+      "shared": "Les paramètres sont communs à tous les serveurs. Les salles, les favoris et les réunions récentes sont propres à chaque serveur."
     },
     "sounds": {
       "cues": "Signaux",
