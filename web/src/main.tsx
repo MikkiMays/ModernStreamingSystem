@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { applyLanguage } from './i18n';
 // Оформление — одним списком на оба входа: приложение и Mini App Telegram (`telegram/main.tsx`).
 import './app-styles';
+// Путь шрифтов доски (R159) — во входе, а не рядом с доской: в сборке Excalidraw лежит в одном чанке с
+// доской и выполняется раньше её модулей, а список адресов шрифтов он собирает сразу.
+import './ui/board/asset-path';
 import App from './App';
 import { readPreferences } from './core/preferences';
 import {

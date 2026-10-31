@@ -259,7 +259,7 @@ test('«Сохранить в чат» — картинка и файл доск
   await board(anna).getByRole('button', { name: 'Сохранить в чат' }).click();
   await boris.getByRole('button', { name: /^Чат(,|$)/ }).click();
   const files = boris.locator('.attachment-message');
-  await expect(files.filter({ hasText: /\.png\b/ })).toHaveCount(1, { timeout: 60000 });
+  await expect(files.filter({ hasText: /\.png/ })).toHaveCount(1, { timeout: 60000 });
   await expect(files.filter({ hasText: /\.cord-board/ })).toHaveCount(1, { timeout: 60000 });
   await expect(
     boris

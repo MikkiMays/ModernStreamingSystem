@@ -10,6 +10,8 @@ import { installInputModality } from '../ui/input-modality';
 import { installScrollActivity } from '../ui/scroll-activity';
 import { startTelegram } from './sdk';
 import { TelegramApp } from './TelegramApp';
+// Путь шрифтов доски (R159) — во входе, раньше ленивого чанка с Excalidraw (см. `src/main.tsx`).
+import '../ui/board/asset-path';
 
 /*
   Вход Mini App Telegram (`tg.html`, E09). Telegram — до React: цвета шапки и фона, полный экран и
