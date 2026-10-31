@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { inviteLink, joinMeeting, startMeeting } from './support/cinema';
+import { inviteLink, joinMeeting } from './support/cinema';
 
 /*
   R148 («НЕДАВНИЕ ВСТРЕЧИ супер ВАЖНО», владелец 31.10): встреча, из которой вышли, видна на главной
@@ -13,7 +13,13 @@ test('недавние: вернуться в идущую встречу, «С�
   const me = await host.newPage();
   const other = await guest.newPage();
   try {
-    await startMeeting(me);
+    // Своё название: «Создать снова» должно принести именно его, а не умолчание предвхода.
+    await me.goto('/');
+    await me.getByRole('button', { name: /Новая встреча/ }).click();
+    await me.getByLabel('Ваше имя').fill('Майс');
+    await me.getByLabel('Название встречи').fill('Разбор недавних');
+    await me.getByRole('button', { name: 'Начать встречу' }).click();
+    await expect(me.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
     const invitation = await inviteLink(me);
     await joinMeeting(other, invitation);
     await me.getByRole('button', { name: 'Выйти из встречи' }).click();
@@ -32,7 +38,7 @@ test('недавние: вернуться в идущую встречу, «С�
     await me.goto('/');
     await expect(recent.getByText(/завершена/)).toBeVisible({ timeout: 40000 });
     await recent.getByRole('button', { name: 'Создать снова' }).first().click();
-    await expect(me.getByLabel('Название встречи')).not.toHaveValue('Наша встреча');
+    await expect(me.getByLabel('Название встречи')).toHaveValue('Разбор недавних');
 
     for (const width of [390, 1440]) {
       await me.goto('/');
