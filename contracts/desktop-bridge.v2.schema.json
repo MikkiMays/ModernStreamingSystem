@@ -193,6 +193,17 @@
           "items": { "type": "string", "maxLength": 2000, "pattern": "^[hH][tT][tT][pP][sS]?://" }
         },
         "lastPlatform": { "type": "object" },
+        "background": {
+          "description": "Фон в видео (R153): {kind: none} | {kind: blur, strength: light | strong} | {kind: image, id: встроенный фон или custom}. Своё фото (custom) лежит в IndexedDB своего origin: на сервере без него камера идёт без фона.",
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "enum": ["none", "blur", "image"] },
+            "strength": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,23}$" },
+            "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,23}$" }
+          }
+        },
         "devices": {
           "type": "object",
           "additionalProperties": false,
@@ -248,6 +259,7 @@
             "showPing": { "$ref": "#/$defs/sharedEntry" },
             "cinemaLinks": { "$ref": "#/$defs/sharedEntry" },
             "lastPlatform": { "$ref": "#/$defs/sharedEntry" },
+            "background": { "$ref": "#/$defs/sharedEntry" },
             "devices": { "$ref": "#/$defs/sharedEntry" },
             "yandexMusicToken": { "$ref": "#/$defs/sharedEntry" }
           }

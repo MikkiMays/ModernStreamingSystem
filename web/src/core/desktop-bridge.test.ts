@@ -412,6 +412,17 @@ describe('общие настройки для всех серверов (R146)'
     expect(errors({ shared: {}, seed: 'yes' }, def('preferencesChanged'))).not.toEqual([]);
   });
 
+  it('фон в видео (R153) — общий: размытие, встроенный фон или своё фото; чужой вид — отказ', () => {
+    for (const background of [
+      { kind: 'none' },
+      { kind: 'blur', strength: 'strong' },
+      { kind: 'image', id: 'custom' },
+    ])
+      expect(errors({ background }, def('sharedValues')), JSON.stringify(background)).toEqual([]);
+    expect(errors({ background: { kind: 'video' } }, def('sharedValues'))).not.toEqual([]);
+    expect(errors({ background: { kind: 'image', url: 'https://x' } }, def('sharedValues'))).not.toEqual([]);
+  });
+
   it('«Звук встречи» (R156): mini.state.deafened и нажатие deafen', () => {
     expect(errors({ room: 'Пятница', deafened: true }, def('miniState'))).toEqual([]);
     expect(errors({ deafened: 'yes' }, def('miniState'))).not.toEqual([]);

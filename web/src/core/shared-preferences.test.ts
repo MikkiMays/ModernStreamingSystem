@@ -6,6 +6,7 @@ import {
   changedShared,
   chunkEntries,
   DEVICE_KEY,
+  LATER_SHARED_KEYS,
   labelsOf,
   LOCAL_KEYS,
   PER_SERVER_STORAGE,
@@ -94,9 +95,24 @@ afterEach(() => {
 
 describe('что общее, а что у сервера своё (R146)', () => {
   it('каждое поле настроек в одном списке: общие, секрет, устройства по названию или своё', () => {
-    const lists = [...SHARED_KEYS, ...SECRET_KEYS, DEVICE_KEY, ...LOCAL_KEYS];
+    const lists = [...SHARED_KEYS, ...LATER_SHARED_KEYS, ...SECRET_KEYS, DEVICE_KEY, ...LOCAL_KEYS];
     expect(new Set(lists).size).toBe(lists.length);
-    expect([...lists].sort()).toEqual(Object.keys(readPreferences()).sort());
+    const fields = Object.keys(readPreferences());
+    // Общий ключ соседней ветки (фон, R153) может ещё не войти в настройки этой сборки.
+    const present = lists.filter(
+      (key) => fields.includes(key) || !(LATER_SHARED_KEYS as readonly string[]).includes(key),
+    );
+    expect([...present].sort()).toEqual([...fields].sort());
+    expect(LATER_SHARED_KEYS).toContain('background');
+  });
+
+  it('фон в видео (R153) — общий, когда он есть в настройках; нет поля — ключ не участвует', () => {
+    const prefs = { ...readPreferences(), background: { kind: 'blur', strength: 'light' } } as Preferences;
+    expect(sharedValues(prefs)).toHaveProperty('background', { kind: 'blur', strength: 'light' });
+    expect(changedShared(readPreferences(), prefs, {})).toEqual({
+      background: { kind: 'blur', strength: 'light' },
+    });
+    expect(changedShared(readPreferences(), readPreferences(), {})).toEqual({});
   });
 
   it('общие — всё человека и устройства, как велел владелец; токен — секрет', () => {

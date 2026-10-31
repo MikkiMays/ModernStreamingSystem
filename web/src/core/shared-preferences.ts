@@ -64,7 +64,20 @@ export const SHARED_KEYS = [
   'cinemaLinks',
   'lastPlatform',
 ] as const satisfies readonly (keyof Preferences)[];
+/**
+ * Общие ключи из соседних веток, которых в `Preferences` этой сборки может ещё не быть: `background`
+ * — фон в видео (R153, `media/background-effect.ts`: `{kind: 'none' | 'blur' | 'image', …}`; своё фото
+ * лежит в IndexedDB своего origin, поэтому на другом сервере без него камера идёт без фона). Нет поля
+ * в настройках — ключ просто не участвует.
+ */
+export const LATER_SHARED_KEYS = ['background'] as const;
+/** Все общие ключи — и те, что придут с соседними ветками. */
+const ALL_SHARED: readonly string[] = [...SHARED_KEYS, ...LATER_SHARED_KEYS];
 export type SharedKey = (typeof SHARED_KEYS)[number];
+/** Поле настроек по имени: общего ключа соседней ветки в этой сборке может не быть. */
+function field(prefs: Preferences, key: string): unknown {
+  return (prefs as unknown as Record<string, unknown>)[key];
+}
 /** Секрет: только оболочке клиента Windows, никогда — во фрагмент адреса. */
 export const SECRET_KEYS = ['yandexMusicToken'] as const satisfies readonly (keyof Preferences)[];
 /** Устройства: общие по названию, у сервера — свои `deviceId`. */
@@ -89,7 +102,12 @@ export const PER_SERVER_STORAGE = [
   'cord:profile:v1',
 ] as const;
 // Каждое поле настроек — в одном из списков: новое поле без решения «общее или своё» не соберётся.
-type Classified = SharedKey | (typeof SECRET_KEYS)[number] | typeof DEVICE_KEY | (typeof LOCAL_KEYS)[number];
+type Classified =
+  | SharedKey
+  | (typeof LATER_SHARED_KEYS)[number]
+  | (typeof SECRET_KEYS)[number]
+  | typeof DEVICE_KEY
+  | (typeof LOCAL_KEYS)[number];
 const everyFieldClassified: Record<Exclude<keyof Preferences, Classified>, never> = {};
 void everyFieldClassified;
 
@@ -155,8 +173,8 @@ function same(a: unknown, b: unknown) {
 /** Общие значения этих настроек (без секрета и устройств) — как они уходят с устройства. */
 export function sharedValues(prefs: Preferences): Values {
   const values: Values = {};
-  for (const key of SHARED_KEYS) {
-    const value = shareable(key, prefs[key]);
+  for (const key of ALL_SHARED) {
+    const value = shareable(key, field(prefs, key));
     if (value !== undefined) values[key] = value;
   }
   return values;
@@ -172,10 +190,10 @@ export function sharedValues(prefs: Preferences): Values {
 export function changedShared(before: Preferences, after: Preferences, known: Values): Values {
   const base = parsePreferences(known, typeof known.name === 'string' ? known.name : null);
   const changed: Values = {};
-  for (const key of [...SHARED_KEYS, ...SECRET_KEYS]) {
-    const value = shareable(key, after[key]);
-    if (value === undefined || same(value, shareable(key, before[key]))) continue;
-    if (key in known && same(value, shareable(key, base[key]))) continue;
+  for (const key of [...ALL_SHARED, ...SECRET_KEYS]) {
+    const value = shareable(key, field(after, key));
+    if (value === undefined || same(value, shareable(key, field(before, key)))) continue;
+    if (key in known && same(value, shareable(key, field(base, key)))) continue;
     changed[key] = value;
   }
   return changed;
@@ -337,11 +355,7 @@ function applyFromShell(data: Record<string, unknown>) {
       }
       continue;
     }
-    if (
-      !(SHARED_KEYS as readonly string[]).includes(key) &&
-      !(SECRET_KEYS as readonly string[]).includes(key)
-    )
-      continue;
+    if (!ALL_SHARED.includes(key) && !(SECRET_KEYS as readonly string[]).includes(key)) continue;
     known[key] = value;
     patch[key] = value;
   }
@@ -493,10 +507,13 @@ export function takePrefsFragment(): CarriedPreferences | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const data = raw as Values;
   const allowed: Values = {};
-  for (const key of SHARED_KEYS) if (key in data) allowed[key] = data[key];
+  for (const key of ALL_SHARED) if (key in data) allowed[key] = data[key];
   const parsed = parsePreferences(allowed, typeof allowed.name === 'string' ? allowed.name : null);
   const patch: Partial<Preferences> = {};
-  for (const key of Object.keys(allowed) as SharedKey[]) (patch as Values)[key] = parsed[key];
+  for (const key of Object.keys(allowed)) {
+    const value = field(parsed, key);
+    if (value !== undefined) (patch as Values)[key] = value;
+  }
   const theme = typeof data.theme === 'string' && THEMES.includes(data.theme) ? data.theme : null;
   if (!Object.keys(patch).length && !theme) return null;
   return { patch, theme };
