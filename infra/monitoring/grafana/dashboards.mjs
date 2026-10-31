@@ -217,6 +217,8 @@ const dashboards = [
     stat('Память свободна', 'node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes', 'percentunit'),
     stat('Диск свободен', 'node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}', 'percentunit'),
     stat('Нагрузка (1 мин)', 'node_load1'),
+    // Та же ступень, что люди видят палочками рядом с пингом (R143): 1 — свободно, 4 — мест нет.
+    stat('Загрузка для людей (1–4)', 'max(cord_server_load_level)'),
     stat('Запросов к шлюзу', 'sum(rate(caddy_http_requests_total[5m]))', 'reqps'),
     series('ЦП по видам', [['sum by (mode) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) / scalar(count(node_cpu_seconds_total{mode="idle"}))', '{{mode}}']], 'percentunit', { stack: true }),
     series('Память', [

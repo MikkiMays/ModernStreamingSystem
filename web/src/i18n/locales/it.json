@@ -2319,7 +2319,20 @@
   },
   "kit": {
     "toasts": "Notifiche",
-    "soon": "Presto"
+    "soon": "Presto",
+    "load": {
+      "label": "Carico del server: {{value}}",
+      "levels": {
+        "1": "basso",
+        "2": "medio",
+        "3": "alto",
+        "4": "molto alto"
+      },
+      "full": "nessun posto",
+      "maintenance": "in aggiornamento",
+      "closed": "chiuso alle nuove riunioni",
+      "unknown": "sconosciuto"
+    }
   },
   "connect": {
     "failure": {

@@ -49,6 +49,8 @@ stream:
   # связи, или совсем новая — моложе 30 секунд. Восемь обычных встреч по 5–6 человек, а не восемь
   # полных (`docs/architecture/target-2026-10.md` §5.2); уточняется замером на спокойной машине.
   max-rooms: ${STREAM_MAX_ROOMS:8}
+  # Отдача канала сервера, Мбит/с — доля канала в ступени загрузки рядом с пингом (R143, Р-37).
+  uplink-mbps: ${STREAM_UPLINK_MBPS:1000}
   recovery-seconds: 20
   join-seconds: 120
   empty-room-seconds: 60

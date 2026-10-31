@@ -2319,7 +2319,20 @@
   },
   "kit": {
     "toasts": "Notifications",
-    "soon": "Bientôt"
+    "soon": "Bientôt",
+    "load": {
+      "label": "Charge du serveur : {{value}}",
+      "levels": {
+        "1": "faible",
+        "2": "moyenne",
+        "3": "élevée",
+        "4": "très élevée"
+      },
+      "full": "complet",
+      "maintenance": "mise à jour",
+      "closed": "fermé aux nouvelles réunions",
+      "unknown": "inconnue"
+    }
   },
   "connect": {
     "failure": {
