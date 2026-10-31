@@ -60,7 +60,7 @@ function buildMeta(): Plugin {
  * адреса (`font-src 'self'`). Сборка кладёт `dist/prod/fonts` пакета в `/assets/excalidraw-<версия>/fonts/`
  * — путь меняется с версией, поэтому шлюз кэширует его навсегда, как всё под `/assets/`. Dev-сервер
  * отдаёт те же файлы прямо из `node_modules`. Путь доска узнаёт из `__EXCALIDRAW_ASSETS__`
- * (`ui/board/asset-path.ts`).
+ * (`ui/board/asset-path.ts`), а запасной адрес пакета на esm.sh сборка заменяет тем же путём.
  */
 const excalidrawRoot = fileURLToPath(new URL('./node_modules/@excalidraw/excalidraw/', import.meta.url));
 const excalidrawVersion = existsSync(join(excalidrawRoot, 'package.json'))
@@ -87,6 +87,19 @@ function excalidrawFonts(): Plugin {
         response.setHeader('Content-Type', 'font/woff2');
         createReadStream(file).pipe(response);
       });
+    },
+    // Запасной адрес шрифтов Excalidraw (`ASSETS_FALLBACK_URL`, esm.sh) стоит в каждом `FontFace` вторым
+    // источником, а Chrome сверяет с CSP все источники сразу при создании: 230 нарушений на каждое открытие
+    // доски, хотя грузятся свои. В сборке запасной адрес — тот же свой путь. Не нашёлся (другая версия
+    // пакета) — сборка падает: внешний адрес не должен вернуться молча.
+    transform(code, id) {
+      if (!id.includes('@excalidraw/excalidraw/dist/') || !code.includes('"ASSETS_FALLBACK_URL"')) return;
+      const next = code.replace(
+        /("ASSETS_FALLBACK_URL",\s*)`https:\/\/esm\.sh\/.*?\/dist\/prod\/`/s,
+        (_, head: string) => `${head}${JSON.stringify(`/${excalidrawAssets}`)}`,
+      );
+      if (next === code) this.error(`Excalidraw ${excalidrawVersion}: запасной адрес шрифтов не найден`);
+      return { code: next, map: null };
     },
     generateBundle() {
       for (const file of files(fonts))
