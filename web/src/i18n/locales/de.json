@@ -3360,6 +3360,10 @@
         "network": {
           "q": "Die Verbindung bricht ab, das Video ist pixelig",
           "a": "Pausier Downloads und Streams über dieselbe Verbindung; ein Kabel oder WLAN nah am Router ist deutlich stabiler.\nVPNs und Firmennetze stören manchmal die direkte Verbindung — ohne sie kommen Ton und Video mit weniger Verzögerung.\nÖffne im Meeting „Einstellungen und Aktionen → Diagnose“: Dort siehst du Weg, Verluste und Verzögerung — du kannst sie deiner Anfrage beifügen."
+        },
+        "micBadge": {
+          "q": "Über Spielen und Fenstern schwebt ein rotes Mikrofonsymbol",
+          "a": "Dieses Symbol zeichnet nicht Cord, sondern die Grafikkartensoftware oder Windows – Sie können es ausschalten.\nNVIDIA App / GeForce Experience: Alt+Z → Einstellungen → HUD-Layout → „Statusanzeige“ → aus.\nAMD Software: Alt+R → Einstellungen → Allgemein → „Overlay“ – Aufnahme- und Mikrofonanzeigen ausschalten.\nXbox Game Bar: Win+G → Einstellungen → Allgemein – „Aufnahmeanzeige anzeigen“ deaktivieren.\nVon Cord liegen nur das Sprecher-Widget (Overlay: „Einstellungen → Overlay“) und das Mini-Anruffenster unten rechts („Einstellungen → Windows“) über anderen Fenstern."
         }
       }
     },

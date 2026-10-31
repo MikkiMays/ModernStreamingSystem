@@ -3399,6 +3399,10 @@
         "network": {
           "q": "A conexão cai, o vídeo fica quadriculado",
           "a": "Pause downloads e transmissões na mesma conexão; um cabo ou o Wi‑Fi perto do roteador é bem mais estável.\nVPNs e redes corporativas às vezes atrapalham a conexão direta — sem elas, som e vídeo chegam com menos atraso.\nNa reunião, abra “Configurações e ações → Diagnóstico”: lá aparecem o caminho, as perdas e o atraso — dá para anexá-los à solicitação."
+        },
+        "micBadge": {
+          "q": "Um ícone vermelho de microfone aparece sobre jogos e janelas",
+          "a": "Esse ícone não é do Cord, e sim do programa da placa de vídeo ou do Windows — dá para desligá-lo.\nNVIDIA App / GeForce Experience: Alt+Z → Configurações → Layout do HUD → “Indicador de status” → desligado.\nAMD Software: Alt+R → Configurações → Geral → “Sobreposição” — desligue os indicadores de gravação e microfone.\nXbox Game Bar: Win+G → Configurações → Geral — desmarque “Mostrar indicador de gravação”.\nDo Cord, só ficam por cima o widget de quem fala (sobreposição: “Configurações → Sobreposição”) e a minijanela da chamada no canto inferior direito (“Configurações → Windows”)."
         }
       }
     },

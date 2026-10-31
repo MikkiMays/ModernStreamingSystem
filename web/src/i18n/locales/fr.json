@@ -3399,6 +3399,10 @@
         "network": {
           "q": "La connexion coupe, la vidéo est pixelisée",
           "a": "Mettez en pause les téléchargements et les flux sur la même connexion ; un câble ou un Wi‑Fi proche du routeur est nettement plus stable.\nLes VPN et les réseaux d'entreprise gênent parfois la connexion directe — sans eux, le son et la vidéo ont moins de retard.\nDans la réunion, ouvrez « Paramètres et actions → Diagnostic » : on y voit le trajet, les pertes et le retard — vous pouvez les joindre à votre demande."
+        },
+        "micBadge": {
+          "q": "Une icône de micro rouge flotte au-dessus des jeux et des fenêtres",
+          "a": "Cette icône n’est pas dessinée par Cord mais par le logiciel de votre carte graphique ou par Windows — vous pouvez la désactiver.\nNVIDIA App / GeForce Experience : Alt+Z → Paramètres → Disposition du HUD → « Indicateur d’état » → désactivé.\nAMD Software : Alt+R → Paramètres → Général → « Superposition » — désactivez les indicateurs d’enregistrement et de micro.\nXbox Game Bar : Win+G → Paramètres → Général — décochez « Afficher l’indicateur d’enregistrement ».\nCôté Cord, seuls le widget des intervenants (superposition : « Paramètres → Superposition ») et la mini-fenêtre d’appel en bas à droite (« Paramètres → Windows ») restent au premier plan."
         }
       }
     },

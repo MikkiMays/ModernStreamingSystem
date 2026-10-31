@@ -3399,6 +3399,10 @@
         "network": {
           "q": "La conexión se corta, el vídeo se ve pixelado",
           "a": "Pausa las descargas y transmisiones en la misma conexión; un cable o una Wi‑Fi cerca del router es mucho más estable.\nLas VPN y las redes de empresa a veces dificultan la conexión directa — sin ellas, el sonido y el vídeo llegan con menos retraso.\nEn la reunión, abre «Ajustes y acciones → Diagnóstico»: ahí se ven la ruta, las pérdidas y el retraso — puedes adjuntarlos a tu solicitud."
+        },
+        "micBadge": {
+          "q": "Un icono rojo de micrófono aparece sobre los juegos y ventanas",
+          "a": "Este icono no lo dibuja Cord, sino el programa de tu tarjeta gráfica o Windows: puedes desactivarlo.\nNVIDIA App / GeForce Experience: Alt+Z → Configuración → Diseño del HUD → «Indicador de estado» → desactivar.\nAMD Software: Alt+R → Configuración → General → «Superposición»: desactiva los indicadores de grabación y micrófono.\nXbox Game Bar: Win+G → Configuración → General: desmarca «Mostrar indicador de grabación».\nLo único de Cord que queda encima es el widget de quien habla (superposición: «Configuración → Superposición») y la miniventana de llamada abajo a la derecha («Configuración → Windows»)."
         }
       }
     },
