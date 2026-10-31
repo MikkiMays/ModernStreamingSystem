@@ -22,7 +22,8 @@ function fakeApi() {
       interval: 5,
       status: 'pending' as const,
     })),
-    poll: vi.fn(() => new Promise<never>(() => {})),
+    // Ответ опроса — «ещё ждём» навсегда; тест входа в комнате подменяет его на `connected` с токеном.
+    poll: vi.fn((): Promise<{ status: string; token?: string; name?: string }> => new Promise(() => {})),
     cancel: vi.fn(async () => undefined),
     connectToken: vi.fn(async () => ({ connected: true, name: 'Гость Яндекса' })),
     disconnect: vi.fn(),
