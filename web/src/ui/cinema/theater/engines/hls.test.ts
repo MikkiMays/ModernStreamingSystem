@@ -88,8 +88,10 @@ describe('HLS через hls.js', () => {
     expect(hls().config).toEqual({
       enableWorker: true,
       backBufferLength: 120,
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
+      maxBufferLength: 20,
+      maxMaxBufferLength: 30,
+      abrBandWidthFactor: 0.8,
+      abrBandWidthUpFactor: 0.6,
       fragLoadingMaxRetry: 8,
       fragLoadingRetryDelay: 500,
       fragLoadingMaxRetryTimeout: 4000,

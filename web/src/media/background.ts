@@ -362,6 +362,11 @@ interface AudioContextLike {
   removeEventListener(type: 'statechange', listener: () => void): void;
 }
 
+/** Chrome на Android (и приложение Cord на нём): там контекст звука можно будить и в фоне (R147). */
+export function android(): boolean {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+}
+
 /** Столько ждём `resume()`: без жеста Safari оставляет обещание висеть, а не отказывает. */
 export const RESUME_WAIT_MS = 300;
 
@@ -389,6 +394,13 @@ export class AudioWaker {
     private readonly context: AudioContextLike | null,
     private readonly visible: () => boolean = () => typeof document === 'undefined' || !document.hidden,
     private readonly gestures: LifecycleTarget | null = typeof document !== 'undefined' ? document : null,
+    /**
+     * Будить и в фоне (R147): Chrome на Android жеста для `resume()` не требует, а засыпает контекст
+     * именно в фоне — при переключении приложения и погашенном экране. Ждать возвращения на экран там
+     * значило молчать всё время, пока человек говорит с выключенным экраном. На iOS — нет: там
+     * `resume()` без жеста висит, и будить его в фоне бессмысленно.
+     */
+    private readonly inBackground: boolean = android(),
   ) {
     context?.addEventListener('statechange', this.changed);
     for (const type of GESTURES) this.gestures?.addEventListener(type, this.gesture);
@@ -422,7 +434,7 @@ export class AudioWaker {
   private changed = () => {
     if (this.disposed || !this.context) return;
     if (this.context.state === 'running') this.blocked.set(false);
-    else if (this.context.state !== 'closed' && this.visible()) void this.wake();
+    else if (this.context.state !== 'closed' && (this.visible() || this.inBackground)) void this.wake();
   };
 
   private gesture = () => {
