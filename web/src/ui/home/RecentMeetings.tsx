@@ -199,7 +199,7 @@ function RecentRow({
   return (
     <li className="home-recent__row" data-live={live || undefined} data-ended={ended || undefined}>
       <span className="home-recent__icon" aria-hidden="true">
-        {ended ? <History size={18} /> : live ? <span className="home-recent__dot" /> : <Video size={18} />}
+        {ended ? <History size={16} /> : live ? <span className="home-recent__dot" /> : <Video size={16} />}
       </span>
       <span className="home-recent__text">
         <span className="home-recent__name">{title}</span>
