@@ -175,7 +175,7 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_room_sockets` | gauge | — | `RoomSocket` |
 | `cord_board_open`, `cord_board_peers` | gauge | — | доски в памяти ядра и их сокеты (`BoardRooms`, R159) |
 | `cord_board_elements_total` | counter | `result=accepted\|rejected` | правки элементов (`BoardSocket`): отклонённые — устаревшая версия или предел |
-| `cord_board_save_failures_total` | counter | — | сцена доски не записалась в `room_boards` (`BoardRooms.save`) |
+| `cord_board_save_failures_total` | counter | — | сцена доски не записалась в `room_boards` (`BoardRooms.save`); панели «Доска: открыто и смотрят» и «Доска: правки элементов» — на «Cord — встречи» (`board/BoardMetrics`) |
 | `cord_livekit_webhooks_total` | counter | `event` | `MediaService` |
 | `cord_retention_deleted_total` | counter | `kind=room\|event\|attachment\|audit\|stats` | уборка |
 | `cord_client_errors_total` | counter | `kind=js\|media\|socket`, `client` | новый `POST /api/client-report` |
@@ -227,12 +227,15 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 
 `cord_server_load_level` — ступень 1–4, которую люди видят четырьмя палочками рядом с пингом (подвал главной,
 «Сменить сервер», «Настройки → Сервер», окно «Серверы» клиента). Считает `activity/LoadMeter` раз в 5 с:
-наибольшая из долей — занятые встречи к `max-rooms`, люди на связи к шести на встречу, ЦП хоста вместе со steal
-(steal > 25 % — не ниже 3) и отдача канала к `STREAM_UPLINK_MBPS`; вниз — только после 30 с ниже порога. Наружу
-(`GET /api/v1/load`, открыт как пинг, 120 в минуту с адреса) — только ступень и состояние `ok | busy | full |
-maintenance | closed`, без чисел. Соседей по каталогу для браузера спрашивает ядро (`GET /api/v1/catalog/load`, раз в
-30 с на соседа, таймаут 2 с; старый сосед без маршрута — `unknown`). Панель «Загрузка для людей (1–4)» — на «Cord —
-сервер».
+наибольшая из долей — занятые встречи к `max-rooms` (как у самого предела: человек на связи или встреча моложе
+30 с — с волны B 31.10 пустые сохранённые комнаты не в счёт, раньше пустой стенд показывал 4), люди на связи к
+шести на каждое место, ЦП хоста вместе со steal (steal > 25 % — не ниже 3) и отдача канала к `STREAM_UPLINK_MBPS`;
+все места заняты — 4; вниз — только после 30 с ниже порога. Наружу (`GET /api/v1/load`, открыт как пинг, 120 в
+минуту с адреса) — только ступень и состояние `ok | busy | full | maintenance | closed`, без чисел. Соседей по
+каталогу для браузера спрашивает ядро (`GET /api/v1/catalog/load`, 30 в минуту с адреса; раз в 30 с на соседа,
+таймаут 2 с; старый сосед без маршрута — `unknown`). Долей по отдельности ядро не выдаёт — ни наружу, ни
+метрикой. Панель «Загрузка для людей (1–4)» — на «Cord — сервер»; устройство — `docs/architecture.md` →
+«Загрузка сервера».
 
 ## 5. Цели сбора и экспортеры
 
