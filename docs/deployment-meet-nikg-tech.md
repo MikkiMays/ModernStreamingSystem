@@ -1,5 +1,11 @@
 # Cord on meet.nikg.tech — deployment record, 9 September 2026
 
+> Запись историческая (09.09.2026). Клиент Windows с тех пор — Electron (выпуски `desktop-vX.Y.Z`,
+> `Cord-Setup-X.Y.Z.exe`); нативный клиент WinUI, о котором ниже (`vX.Y.Z`, `Cord-Setup-X.Y.Z-x64.exe`,
+> `Cord-win-x64.zip`), снят. Обновление этого сервера сейчас — `./update.sh` после проверки встреч,
+> порядок — [RELEASE.md](RELEASE.md#6-другие-серверы); раскладка ниже (`/opt/meet`, `--legacy-hosts`,
+> порты 18090/18091) — на дату записи, на месте её сверить.
+
 ## Scope and decision
 
 Deploy the existing Cord web application and Windows installer on this server as a separate project in `/opt/meet`. New installs must connect to `https://meet.nikg.tech` without a local Java/Node server or manual server settings. Browser and desktop must join the same rooms and support camera, microphone, screen sharing, chat, files, admission and recovery.

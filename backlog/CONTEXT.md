@@ -94,17 +94,16 @@
 
 Разрешение владельца постоянное и полное (`DECISIONS.md` → «Решено владельцем»):
 в конце каждой порции изменений кода — `main` обеих реп локально и на GitHub, выкатка на прод,
-релиз Windows, если менялся его код, и проверка здоровья.
+релиз Windows, если менялся его код, и проверка здоровья. Порядок по шагам — `docs/RELEASE.md`.
 
-- `cd "$CORD_ROOT/ModernStreamingSystem" && docker compose build <служба> && docker compose up -d
-  --no-deps <служба>`. Веб собирается **внутрь `gateway`**; проверки и правила — `core`; кинозал,
-  музыка, Telegram — `services`. Сборка `services` долгая — в фоне.
+- `cd "$CORD_ROOT/ModernStreamingSystem" && backlog/bin/deploy.sh <службы>`. Веб собирается **внутрь
+  `gateway`**; проверки и правила — `core`; кинозал, музыка, Telegram — `services`. Сборка `services` долгая — в фоне.
 - Перед сборкой — **нет ли идущих встреч**: сборка на той же машине душит SFU (на старом
-  сервере были задержки 32–48 с). Способ проверить делает E00 (`backlog/bin/`).
-- Одна выкатка за раз: `flock "$CORD_ROOT/ModernStreamingSystem/backlog/.deploy.lock" <команды>`.
-- Windows: пуш в `main` запускает CI, который **выкладывает релиз**; второй пуш подряд убивает
-  выкладку (останется черновик релиза — удалить его, и идущий прогон опубликует). После релиза зеркало `/download` обновляется
-  руками: `scripts/publish-windows-release.py`.
+  сервере были задержки 32–48 с). `deploy.sh` спрашивает `backlog/bin/active-meetings.sh` сам и держит
+  `backlog/.deploy.lock` — одна выкатка за раз.
+- Windows: пуш в `main` репы Windows с новым номером в `desktop/package.json` — CI выпускает `desktop-vX.Y.Z`;
+  затем зеркало `/download` и канал обновлений: `backlog/bin/publish-windows.sh --desktop X.Y.Z`; cordcam — ветка
+  `deploy/cordcam`.
 - После выкатки: `docker compose ps` против HEAD, коммит в `<meta name="cord-build">` страницы (в интерфейсе его нет), e2e против прода.
 - CI и релизы — `gh` или GitHub REST с токеном (см. «Сервер — это прод»). Репозитории приватные:
   анонимный API отвечает 404, это не «релиза нет».
