@@ -261,17 +261,20 @@ SFU такую дорожку знает — слушателям с RED отд�
 через TURN/TLS на 443; иначе «Подключение…» и обрыв. LiveKit 1.13.6 при включённом TURN/TLS всегда
 объявляет браузеру `turns:<turn.domain>:443?transport=tcp` — и при `external_tls: false` с `tls_port: 5349`
 (проверено 01.11.2026). Поэтому в режимах `simple` и `ip` TURN/TLS у браузеров не работал никогда: этот адрес
-попадает на HTTPS-край. Медиа через один TCP 443 есть только в режиме `strict` (`scripts/configure.mjs`): три
+попадает на HTTPS-край. С 01.11.2026 (Р-52) `configure.mjs` в этих режимах TURN/TLS не включает вовсе —
+браузер больше не тратит время на мёртвый кандидат, у SFU нет сертификата, 5349 снаружи закрыт. Медиа через
+один TCP 443 есть только в режиме `strict` (`scripts/configure.mjs`): три
 имени — приложение, `rtc.` и `turn.`, край по SNI отдаёт `turn.<домен>:443` на TURN LiveKit (5349 — внутри
 машины, снаружи закрыт стеной), сертификаты Let's Encrypt — на все три имени. Одно имя с разбором
 содержимого (caddy-l4) не делаем: это новый модуль в краю, через который идёт весь HTTPS (Р-50).
 
 - **`cord.nikg.tech` — в `strict` с 01.11.2026**: `rtc.` и `turn.cord.nikg.tech` → 108.165.32.75; Allocate
   по TLS на `turn.cord.nikg.tech:443` с учёткой участника проходит, relay в интернет — отказ (A12,
-  `scripts/turn-relay-check.mjs`).
+  `node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn=turn.cord.nikg.tech:443
+  --transport=tls`).
 - **`cordcam.ru`** — записи `rtc.`/`turn.` в DNS есть, но на 01.11.2026 режим одного имени: TURN/TLS на 5349
   (сертификат `cordcam.ru`), `turn.cordcam.ru:443` не отвечает. Перевод — `configure.mjs --refresh` и
-  перезапуск edge и SFU (`backlog/OWNER-ACTIONS.md`, п. 7).
+  перезапуск edge и SFU — по шагам в `docs/RELEASE.md`.
 - Р-34 (`allow_tcp_fallback: false`) на стенде действует с выкатки волны A 31.10: конфигурация SFU
   перевыпущена, раньше она отставала от `configure.mjs`.
 - В приложении Android — `ACCESS_NETWORK_STATE` (выше).
