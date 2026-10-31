@@ -130,12 +130,10 @@ test('a phone: «звук встречи» alone at 390, in the mic group below 
     await page.setViewportSize({ width: 390, height: 844 });
     for (const width of [320, 360, 390, 430, 700]) {
       await page.setViewportSize({ width, height: 844 });
-      expect(await measure(page), `телефон ${width}px`).toMatchObject({
-        rows: 1,
-        outside: false,
-        stage: 0,
-        page: 0,
-      });
+      // Где стоит «звук встречи», решает media query в React (R156) — замер после перерисовки.
+      await expect
+        .poll(() => measure(page), { message: `телефон ${width}px` })
+        .toMatchObject({ rows: 1, outside: false, stage: 0, page: 0 });
     }
     await page.getByRole('button', { name: 'Настройки и действия' }).click();
     for (const item of ['Чат и файлы', 'Участники', 'Интеграции', 'Показать экран', 'Полноэкранный режим'])
