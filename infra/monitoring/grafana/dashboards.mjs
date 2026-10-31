@@ -229,6 +229,8 @@ const dashboards = [
     // Та же ступень, что люди видят палочками рядом с пингом (R143): 1 — свободно, 4 — мест нет.
     stat('Загрузка для людей (1–4)', 'max(cord_server_load_level)'),
     stat('Запросов к шлюзу', 'sum(rate(caddy_http_requests_total[5m]))', 'reqps'),
+    // Из чего сложилась ступень: она — наибольшая из долей, steal ≥ 0,25 держит не ниже 3 (R143, Р-37).
+    series('Загрузка для людей: доли', [['max by (kind) (cord_server_load_share)', '{{kind}}']], 'percentunit', { w: 24 }),
     series('ЦП по видам', [['sum by (mode) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) / scalar(count(node_cpu_seconds_total{mode="idle"}))', '{{mode}}']], 'percentunit', { stack: true }),
     series('Память', [
       ['node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes', 'занята'],

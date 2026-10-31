@@ -18,8 +18,8 @@ import org.springframework.stereotype.Component;
  * Насколько сервер занят — ступенью 1–4 для палочек рядом с пингом (R143, Р-37).
  *
  * <p>Наружу уходит только ступень и состояние: число идущих встреч и людей — сведения об
- * использовании, они остаются за паролем владельца ({@code /activity/now}). Человеку, который
- * выбирает сервер, хватает «свободно — средне — тесно — мест нет».
+ * использовании, они остаются за паролем владельца ({@code GET /api/v1/admin/now}). Человеку,
+ * который выбирает сервер, хватает «свободно — средне — тесно — мест нет».
  *
  * <p>Ступень — наибольшая из четырёх долей, потому что звонок портит любое узкое место, а не их
  * среднее: занятые встречи к {@code max-rooms}, люди на связи к обычной встрече из пяти-шести
@@ -76,6 +76,10 @@ public class LoadMeter {
   private double cpu;
   private double steal;
   private double tx;
+
+  /** Доли последнего замера — для «Cord — сервер»: какое узкое место подняло ступень. */
+  private volatile double roomsShare, peopleShare, cpuShare, uplinkShare, stealShare;
+
   private int level = 1;
   private long lowerSince = -1;
   private volatile Load current = new Load(1, "ok", 0);
@@ -93,6 +97,23 @@ public class LoadMeter {
     Gauge.builder("cord.server.load.level", this, meter -> meter.current.level())
         .description("Загрузка сервера ступенью 1–4, как её видят люди рядом с пингом (R143)")
         .register(registry);
+    // Доли по отдельности (0…1): ступень — наибольшая из них, а владельцу видно, какая именно.
+    for (var kind : new String[] {"rooms", "people", "cpu", "uplink", "steal"})
+      Gauge.builder("cord.server.load.share", this, meter -> meter.share(kind))
+          .description(
+              "Доля загрузки сервера по виду (0…1): встречи, люди, процессор, канал, steal")
+          .tag("kind", kind)
+          .register(registry);
+  }
+
+  double share(String kind) {
+    return switch (kind) {
+      case "rooms" -> roomsShare;
+      case "people" -> peopleShare;
+      case "cpu" -> cpuShare;
+      case "uplink" -> uplinkShare;
+      default -> stealShare;
+    };
   }
 
   LoadMeter(
@@ -135,12 +156,12 @@ public class LoadMeter {
                 .filter(room -> room.connected() > 0 || now - room.createdAt() < RoomState.FRESH_MS)
                 .count();
     var maxRooms = Math.max(1, config.maxRooms());
-    var share =
-        Math.max(
-            Math.max(
-                (double) rooms / maxRooms,
-                (double) snapshot.connected() / (maxRooms * PEOPLE_PER_ROOM)),
-            Math.max(cpu, tx / uplinkMbps));
+    roomsShare = (double) rooms / maxRooms;
+    peopleShare = (double) snapshot.connected() / (maxRooms * PEOPLE_PER_ROOM);
+    cpuShare = cpu;
+    uplinkShare = tx / uplinkMbps;
+    stealShare = steal;
+    var share = Math.max(Math.max(roomsShare, peopleShare), Math.max(cpuShare, uplinkShare));
     var wanted = step(share);
     if (steal > 0.25) wanted = Math.max(wanted, 3);
     var full = rooms >= maxRooms;

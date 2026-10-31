@@ -166,7 +166,7 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_leaves_total` | counter | `reason=leave\|removed\|timeout\|switched\|closed` | `RoomService`, `MediaService` |
 | `cord_commands_total` | counter | `type` (≈55 известных + `other`), `result=ok\|error` | `CommandDispatcher.execute` |
 | `cord_errors_total` | counter | `code` (`Problem.code`, ≈45), `status` | `ApiErrors` |
-| `cord_integration_sessions_total` | counter | `kind=poker\|durak\|chess\|gartic\|watch\|music\|telegram` | `*.open`, `watch.open`, бот |
+| `cord_commands_total{type=~".*\\.open"}` | counter | `type` (`poker.open`, `watch.open`, `board.open`…) | открытия интеграций считает общий счётчик команд — отдельного нет |
 | `cord_integrations_active` | gauge | `kind` (`watch`, `music`, `poker`, `durak`, `chess`, `gartic`, `board`) | `RoomState` |
 | `cord_messages_total` | counter | — (только счёт) | `message.send` |
 | `cord_attachments_total`, `cord_attachment_bytes_total` | counter | `result` | `TusGateway` |
@@ -233,9 +233,10 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 все места заняты — 4; вниз — только после 30 с ниже порога. Наружу (`GET /api/v1/load`, открыт как пинг, 120 в
 минуту с адреса) — только ступень и состояние `ok | busy | full | maintenance | closed`, без чисел. Соседей по
 каталогу для браузера спрашивает ядро (`GET /api/v1/catalog/load`, 30 в минуту с адреса; раз в 30 с на соседа,
-таймаут 2 с; старый сосед без маршрута — `unknown`). Долей по отдельности ядро не выдаёт — ни наружу, ни
-метрикой. Панель «Загрузка для людей (1–4)» — на «Cord — сервер»; устройство — `docs/architecture.md` →
-«Загрузка сервера».
+таймаут 2 с; старый сосед без маршрута — `unknown`). Наружу доли не уходят; владельцу они видны метрикой
+`cord_server_load_share{kind=rooms|people|cpu|uplink|steal}` (0…1, с 01.11.2026) — панель «Загрузка для людей:
+доли» рядом со ступенью «Загрузка для людей (1–4)» на «Cord — сервер»: видно, какое узкое место подняло ступень.
+Устройство — `docs/architecture.md` → «Загрузка сервера».
 
 ## 5. Цели сбора и экспортеры
 

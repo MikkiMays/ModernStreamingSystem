@@ -1,6 +1,7 @@
 package dev.mikki.stream.activity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -92,6 +93,20 @@ class LoadMeterTest {
     assertThat(LoadMeter.step(0.9)).isEqualTo(4);
     rooms = 4;
     assertThat(after(0.1, 0, 10).level()).isEqualTo(3);
+  }
+
+  @Test
+  void sharesAreExportedOneByOne() {
+    rooms = 4;
+    connected = 12;
+    after(0.2, 0.05, 100);
+    after(0.2, 0.05, 100);
+    // Ступень — наибольшая доля, а в «Cord — сервер» видно каждую: 4 из 8 встреч, 12 из 48 человек.
+    assertThat(meter.share("rooms")).isEqualTo(0.5);
+    assertThat(meter.share("people")).isEqualTo(0.25);
+    assertThat(meter.share("cpu")).isCloseTo(0.2, within(0.01));
+    assertThat(meter.share("uplink")).isCloseTo(0.1, within(0.01));
+    assertThat(meter.share("steal")).isCloseTo(0.05, within(0.01));
   }
 
   @Test
