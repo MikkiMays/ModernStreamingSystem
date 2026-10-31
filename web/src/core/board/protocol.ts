@@ -87,6 +87,8 @@ export type ServerMessage =
       tool: Tool;
       button: 'up' | 'down';
       sel?: string[];
+      /** Видимая часть сцены автора: `[x1, y1, x2, y2]` — за ним можно «следовать». */
+      vb?: [number, number, number, number];
       t?: number;
     }
   | {
@@ -110,7 +112,16 @@ export type ServerMessage =
 export type ClientMessage =
   | { type: 'auth'; roomId: string; credential: string; epoch: number; since: number }
   | { type: 'ops'; els: BoardElement[]; t: number }
-  | { type: 'presence'; x: number; y: number; tool: Tool; button: 'up' | 'down'; sel?: string[]; t: number }
+  | {
+      type: 'presence';
+      x: number;
+      y: number;
+      tool: Tool;
+      button: 'up' | 'down';
+      sel?: string[];
+      vb?: [number, number, number, number];
+      t: number;
+    }
   | { type: 'ink'; id: string; start: number; pts: number[][]; el: InkStyle; t: number }
   | { type: 'sync'; epoch: number; since: number }
   | { type: 'ping'; id: string };

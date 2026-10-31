@@ -27,6 +27,7 @@ import { applyVolumeNow } from '../media/volume';
 import { SCENES } from './cinema/scenes';
 import { integrationName } from './notch-state';
 import { leaveToPeople, StageExitContext } from './stage-context';
+import { BoardBoundary } from './board/BoardBoundary';
 import './video-paused.css';
 
 const WatchTheater = lazy(() => import('./cinema/theater/WatchTheater'));
@@ -595,15 +596,17 @@ export function Stage({ meeting }: { meeting: Meeting }) {
     integration = layer(
       'board',
       'board-stage',
-      <Suspense
-        fallback={
-          <div role="status" className="board-loading">
-            {t(($) => $.board.loading)}
-          </div>
-        }
-      >
-        <BoardStage meeting={meeting} />
-      </Suspense>,
+      <BoardBoundary>
+        <Suspense
+          fallback={
+            <div role="status" className="board-loading">
+              {t(($) => $.board.loading)}
+            </div>
+          }
+        >
+          <BoardStage meeting={meeting} />
+        </Suspense>
+      </BoardBoundary>,
     );
   } else if (occupant?.kind === 'poker' && snapshot.poker) {
     const table = snapshot.poker;

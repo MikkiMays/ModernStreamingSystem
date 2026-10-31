@@ -8,6 +8,7 @@ import {
   jsonBytes,
   normalizeRemote,
   remoteWins,
+  wins,
   type InkStroke,
 } from './merge';
 import {
@@ -46,6 +47,8 @@ export interface Cursor {
   tool: Tool;
   button: 'up' | 'down';
   selection: string[];
+  /** Что сосед сейчас видит: `[x1, y1, x2, y2]` в координатах сцены. */
+  bounds?: [number, number, number, number];
 }
 
 /** Холст, с которым работает синхронизация: в жизни — Excalidraw, в тестах — подделка. */
@@ -136,6 +139,11 @@ export class BoardSync {
   private pending = new Map<string, BoardElement>();
   /** Отправленное и ещё не подтверждённое — по сообщению на запись. */
   private inflight: Map<string, { v: number; n: number }>[] = [];
+  /**
+   * Чужие правки, пришедшие с прошлого кадра: на холст они ложатся раз в кадр одним слиянием, а не
+   * перерисовкой на каждое сообщение — иначе пачка правок двадцати рисующих душит слабый телефон.
+   */
+  private incoming: BoardElement[] = [];
   /** Чужие правки, отложенные, пока человек правит этот элемент сам. */
   private deferred = new Map<string, BoardElement>();
   /**
@@ -157,6 +165,13 @@ export class BoardSync {
   private presenceTimer?: ReturnType<typeof setTimeout>;
   private selection = '';
   private selectionOut: string[] | null = null;
+  private pointerAt: { x: number; y: number; tool: Tool; button: 'up' | 'down' } = {
+    x: 0,
+    y: 0,
+    tool: 'pointer',
+    button: 'up',
+  };
+  private bounds: [number, number, number, number] | null = null;
   private socket?: SocketLike;
   private live = false;
   private attempt = 0;
@@ -166,6 +181,14 @@ export class BoardSync {
   private lastPong = 0;
   private scheduled = false;
   private disposed = false;
+  /**
+   * Часы сервера по самому сокету доски: ответ на `ping` несёт время ядра, а быстрейший из недавних
+   * ответов даёт поправку с ошибкой не больше половины его пути. Часы встречи меряются по запросам
+   * снимка и на загруженной машине ошибаются на сотни миллисекунд — для замера задержки штриха это шум.
+   */
+  private clock: { offset: number; rtt: number; at: number }[] = [];
+  private pings = new Map<string, number>();
+  private pingSeq = 0;
   private versionSum = Number.NaN;
 
   constructor(private readonly options: BoardSyncOptions) {}
@@ -241,7 +264,18 @@ export class BoardSync {
   /** Свой курсор и лазер — в сцене холста. */
   pointer(x: number, y: number, tool: Tool, button: 'up' | 'down') {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    this.presenceOut = { x, y, tool, button };
+    this.pointerAt = { x, y, tool, button };
+    this.presenceOut = this.pointerAt;
+    this.schedulePresence();
+  }
+
+  /** Что видно у себя — соседи, которые «следуют» за этим участником, видят то же. */
+  viewport(bounds: [number, number, number, number]) {
+    if (!bounds.every(Number.isFinite)) return;
+    const old = this.bounds;
+    if (old && bounds.every((value, i) => Math.abs(value - old[i]!) < 1)) return;
+    this.bounds = bounds;
+    this.presenceOut = this.pointerAt;
     this.schedulePresence();
   }
 
@@ -325,6 +359,20 @@ export class BoardSync {
     return true;
   }
 
+  /** Который час на сервере: по сокету доски, пока замеров нет — по часам встречи. */
+  serverNow(): number {
+    if (!this.clock.length) return this.options.now();
+    const best = this.clock.reduce((found, sample) => (sample.rtt <= found.rtt ? sample : found));
+    return Date.now() + best.offset;
+  }
+
+  private ping() {
+    const id = `b${++this.pingSeq}`;
+    this.pings.set(id, performance.now());
+    if (this.pings.size > 8) this.pings.delete(this.pings.keys().next().value!);
+    this.send({ type: 'ping', id });
+  }
+
   private onTick() {
     this.ticks++;
     const now = Date.now();
@@ -332,7 +380,8 @@ export class BoardSync {
     for (const [id, stroke] of this.strokes) if (now - stroke.at > INK_EXPIRES_MS) this.dropInk(id);
     if (this.inkRemove.size) this.schedule();
     this.stats.set(this.latency.stats());
-    if (this.live && this.ticks % 10 === 0) this.send({ type: 'ping', id: String(this.ticks) });
+    // Первые секунды — замер часов каждую секунду, дальше — раз в десять: и часы, и «жив ли сокет».
+    if (this.live && (this.clock.length < 5 || this.ticks % 10 === 0)) this.ping();
     if (this.live && now - this.lastPong > 25_000) this.socket?.close();
   }
 
@@ -342,6 +391,7 @@ export class BoardSync {
     switch (message.type) {
       case 'hello':
         this.me = message.me;
+        this.ping();
         this.canDraw.set(message.canDraw);
         this.peers.set(new Set(message.peers));
         this.attempt = 0;
@@ -353,6 +403,7 @@ export class BoardSync {
       case 'synced':
         if (message.seq >= this.seq) this.seq = message.seq;
         this.syncing = false;
+        this.applyIncoming();
         this.becomeLive();
         break;
       case 'ops':
@@ -362,12 +413,12 @@ export class BoardSync {
           break;
         }
         this.seq = message.seq;
-        this.mergeRemote(message.els);
-        if (!message.replay && message.t) this.latency.add(this.options.now() - message.t);
+        this.queueRemote(message.els);
+        if (!message.replay && message.t) this.latency.add(this.serverNow() - message.t);
         break;
       case 'ack':
         this.inflight.shift();
-        if (message.stale?.length) this.mergeRemote(message.stale);
+        if (message.stale?.length) this.queueRemote(message.stale);
         if (message.rejected?.length)
           this.notice.set({
             kind: message.rejected.some((item) => item.code === 'BOARD_FULL') ? 'full' : 'rejected',
@@ -384,6 +435,7 @@ export class BoardSync {
           tool: message.tool,
           button: message.button,
           selection: message.sel ?? this.cursorTarget.get(message.from)?.selection ?? [],
+          ...(message.vb ? { bounds: message.vb } : {}),
         });
         if (!this.cursorShown.has(message.from))
           this.cursorShown.set(message.from, { ...this.cursorTarget.get(message.from)! });
@@ -391,7 +443,7 @@ export class BoardSync {
         break;
       case 'ink':
         this.remoteInk(message.from, message.id, message.start, message.pts, message.el);
-        if (message.t) this.latency.add(this.options.now() - message.t);
+        if (message.t) this.latency.add(this.serverNow() - message.t);
         break;
       case 'joined':
         this.peers.update((peers) => new Set([...peers, message.from]));
@@ -426,8 +478,18 @@ export class BoardSync {
           this.localChange();
         }
         break;
-      case 'pong':
+      case 'pong': {
+        const sent = this.pings.get(message.id);
+        if (sent === undefined) break;
+        this.pings.delete(message.id);
+        const rtt = performance.now() - sent;
+        const now = Date.now();
+        this.clock = [
+          ...this.clock.filter((sample) => now - sample.at < 10 * 60_000),
+          { offset: message.st + rtt / 2 - now, rtt, at: now },
+        ].slice(-16);
         break;
+      }
       case 'error':
         if (message.code === 'VIEW_ONLY') this.canDraw.set(false);
         break;
@@ -438,6 +500,7 @@ export class BoardSync {
   private scene(epoch: number, seq: number, elements: BoardElement[]) {
     const remote = elements.map(normalizeRemote).filter((el): el is BoardElement => !!el);
     this.syncing = false;
+    this.applyIncoming();
     if (epoch !== this.epoch) {
       this.epoch = epoch;
       this.seq = seq;
@@ -451,6 +514,7 @@ export class BoardSync {
   }
 
   private resetScene(elements: BoardElement[]) {
+    this.incoming = [];
     this.known = new Map(elements.map((el) => [el.id, { v: el.version, n: el.versionNonce }]));
     this.pending.clear();
     this.inflight = [];
@@ -479,15 +543,35 @@ export class BoardSync {
     this.send({ type: 'sync', epoch: this.epoch, since: this.seq });
   }
 
+  /** Чужие правки — до следующего кадра. */
+  private queueRemote(elements: readonly BoardElement[]) {
+    for (const el of elements) this.incoming.push(el);
+    this.schedule();
+  }
+
+  /** Всё, что пришло с прошлого кадра, — одним слиянием. */
+  private applyIncoming() {
+    if (!this.incoming.length) return;
+    const batch = this.incoming;
+    this.incoming = [];
+    this.mergeRemote(batch);
+  }
+
   /** Чужие правки: победившие — на холст и в «известное ядру», проигравшие своей — пропустить. */
   private mergeRemote(elements: readonly BoardElement[]) {
     const canvas = this.options.canvas;
     const local = new Map(canvas.elements().map((el) => [el.id, el]));
     const editing = canvas.editing();
     const winners: BoardElement[] = [];
+    // Несколько версий одного элемента в пачке — остаётся победившая, как у ядра.
+    const best = new Map<string, BoardElement>();
     for (const raw of elements) {
       const el = normalizeRemote(raw);
       if (!el) continue;
+      const seen = best.get(el.id);
+      if (!seen || wins(el, seen)) best.set(el.id, el);
+    }
+    for (const el of best.values()) {
       if (this.strokes.has(el.id)) {
         // Готовый штрих соседа заменяет его временный.
         this.strokes.delete(el.id);
@@ -592,14 +676,25 @@ export class BoardSync {
   /** Раз в кадр: свои правки, свой штрих, свой курсор; чужие штрихи и курсоры — на холст. */
   flush() {
     const canvas = this.options.canvas;
+    this.applyIncoming();
     if (this.live) {
       this.flushOps();
       this.flushInk();
       if (this.presenceOut && Date.now() - this.presenceAt >= LIMITS.presenceMs) {
         const { x, y, tool, button } = this.presenceOut;
         const sel = this.selectionOut ?? undefined;
+        const vb = this.bounds ?? undefined;
         if (
-          this.send({ type: 'presence', x, y, tool, button, ...(sel ? { sel } : {}), t: this.options.now() })
+          this.send({
+            type: 'presence',
+            x,
+            y,
+            tool,
+            button,
+            ...(sel ? { sel } : {}),
+            ...(vb ? { vb } : {}),
+            t: this.serverNow(),
+          })
         ) {
           this.presenceAt = Date.now();
           this.presenceOut = null;
@@ -625,7 +720,7 @@ export class BoardSync {
     const out = () => {
       if (!chunk.length) return;
       const versions = new Map(chunk.map((el) => [el.id, { v: el.version, n: el.versionNonce }]));
-      if (this.send({ type: 'ops', els: chunk, t: this.options.now() })) {
+      if (this.send({ type: 'ops', els: chunk, t: this.serverNow() })) {
         this.inflight.push(versions);
         for (const [id, version] of versions) this.known.set(id, version);
       } else for (const el of chunk) this.pending.set(el.id, el);
@@ -678,7 +773,7 @@ export class BoardSync {
     if (el.points.length <= from) return;
     const pressures = el.pressures ?? [];
     const pts = el.points.slice(from).map((point, i) => [point[0]!, point[1]!, pressures[from + i] ?? 0.5]);
-    if (this.send({ type: 'ink', id: el.id, start: from, pts, el: inkStyle(el), t: this.options.now() }))
+    if (this.send({ type: 'ink', id: el.id, start: from, pts, el: inkStyle(el), t: this.serverNow() }))
       this.inkSent.set(el.id, el.points.length);
   }
 

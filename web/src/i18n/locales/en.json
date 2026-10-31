@@ -1073,6 +1073,8 @@
   "board": {
     "name": "Whiteboard",
     "loading": "Opening the whiteboard…",
+    "failed": "The whiteboard didn't open",
+    "retry": "Try again",
     "modes": {
       "all": "Everyone draws",
       "host": "Host draws"

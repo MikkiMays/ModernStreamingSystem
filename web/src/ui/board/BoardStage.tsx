@@ -8,6 +8,7 @@ import {
   convertToExcalidrawElements,
   Excalidraw,
   FONT_FAMILY,
+  getVisibleSceneBounds,
   loadFromBlob,
   MainMenu,
   ROUNDNESS,
@@ -53,6 +54,7 @@ import {
   IconButton,
   Menu,
   MenuContent,
+  MenuGroup,
   MenuItem,
   MenuLabel,
   MenuRadioGroup,
@@ -122,6 +124,8 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     width: number;
   }>(null);
   const picker = useRef<HTMLInputElement>(null);
+  const section = useRef<HTMLElement>(null);
+  const marking = useRef(0);
   const highlighterRef = useRef(highlighter);
   highlighterRef.current = highlighter;
   // Имена и цвета соседей — из снимка встречи; холст спрашивает их на каждый кадр курсоров.
@@ -154,7 +158,11 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     });
     next.start();
     setSync(next);
-    const stop = next.stats.subscribe(() => meeting.boardLatency.set(next.stats.get()));
+    const stop = next.stats.subscribe(() => {
+      const stats = next.stats.get();
+      meeting.boardLatency.set(stats);
+      if (section.current && stats) section.current.dataset.latency = String(stats.p95);
+    });
     return () => {
       stop();
       next.dispose();
@@ -356,8 +364,27 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     else void run('board.close');
   };
 
+  /**
+   * Сколько видимых элементов и их отпечаток — атрибутами секции, раз в кадр. По ним видно, что сцены
+   * у участников сошлись (e2e), не заглядывая в холст.
+   */
+  const markScene = () => {
+    if (marking.current) return;
+    marking.current = requestAnimationFrame(() => {
+      marking.current = 0;
+      if (!api || !section.current) return;
+      const shown = visible(api.getSceneElements() as unknown as BoardElement[]);
+      section.current.dataset.elements = String(shown.length);
+      section.current.dataset.scene = sceneMark(shown);
+    });
+  };
+
   const onChange = (_elements: readonly unknown[], app: AppState) => {
     sync?.localChange();
+    markScene();
+    // Что видно у себя — для тех, кто «следует» за этим участником.
+    const view = getVisibleSceneBounds(app);
+    sync?.viewport([view[0], view[1], view[2], view[3]]);
     sync?.select(Object.keys(app.selectedElementIds).filter((id) => app.selectedElementIds[id]));
     const pen = highlighterRef.current;
     if (pen && api && app.activeTool.type !== 'freedraw') {
@@ -384,7 +411,13 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
   const others = [...peers].filter((id) => id !== me).length;
 
   return (
-    <section className="board" aria-label={t(($) => $.board.name)} data-view-only={viewOnly || undefined}>
+    <section
+      ref={section}
+      className="board"
+      aria-label={t(($) => $.board.name)}
+      data-view-only={viewOnly || undefined}
+      data-state={state}
+    >
       <header className="board-bar">
         <div className="board-bar__title">
           <span className="board-bar__mark" aria-hidden="true">
@@ -447,16 +480,18 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
               }
             />
             <MenuContent align="end" className="board-menu">
-              <MenuLabel>{t(($) => $.board.actions.download)}</MenuLabel>
-              <MenuItem icon={<FileImage />} onClick={() => void download('png')}>
-                {t(($) => $.board.actions.downloadPng)}
-              </MenuItem>
-              <MenuItem icon={<Download />} onClick={() => void download('svg')}>
-                {t(($) => $.board.actions.downloadSvg)}
-              </MenuItem>
-              <MenuItem icon={<FileJson />} onClick={() => void download('board')}>
-                {t(($) => $.board.actions.downloadFile)}
-              </MenuItem>
+              <MenuGroup>
+                <MenuLabel>{t(($) => $.board.actions.download)}</MenuLabel>
+                <MenuItem icon={<FileImage />} onClick={() => void download('png')}>
+                  {t(($) => $.board.actions.downloadPng)}
+                </MenuItem>
+                <MenuItem icon={<Download />} onClick={() => void download('svg')}>
+                  {t(($) => $.board.actions.downloadSvg)}
+                </MenuItem>
+                <MenuItem icon={<FileJson />} onClick={() => void download('board')}>
+                  {t(($) => $.board.actions.downloadFile)}
+                </MenuItem>
+              </MenuGroup>
               {canDraw && (
                 <>
                   <MenuSeparator />
@@ -468,11 +503,11 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
               {canSettings && (
                 <>
                   <MenuSeparator />
-                  <MenuLabel>{t(($) => $.board.actions.drawers)}</MenuLabel>
                   <MenuRadioGroup
                     value={board.drawers}
                     onValueChange={(value) => void run('board.settings', String(value))}
                   >
+                    <MenuLabel>{t(($) => $.board.actions.drawers)}</MenuLabel>
                     <MenuRadioItem className="ui-menu__item" value="all">
                       <span className="ui-menu__icon" aria-hidden="true">
                         <Users />
@@ -726,6 +761,14 @@ const UI_OPTIONS = {
   },
   tools: { image: true },
 };
+
+/** Отпечаток сцены: номера и версии видимых элементов. У сошедшихся сцен он один и тот же. */
+function sceneMark(elements: readonly BoardElement[]): string {
+  let hash = 2166136261;
+  for (const key of elements.map((el) => `${el.id}:${el.version}:${el.versionNonce}`).sort())
+    for (let i = 0; i < key.length; i++) hash = Math.imul(hash ^ key.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(36);
+}
 
 function restorePen(api: ExcalidrawImperativeAPI, pen: { color: string; opacity: number; width: number }) {
   api.updateScene({

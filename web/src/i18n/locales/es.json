@@ -1078,6 +1078,8 @@
   "board": {
     "name": "Pizarra",
     "loading": "Abriendo la pizarra…",
+    "failed": "La pizarra no se abrió",
+    "retry": "Intentar de nuevo",
     "modes": {
       "all": "Dibujan todos",
       "host": "Dibuja el anfitrión"

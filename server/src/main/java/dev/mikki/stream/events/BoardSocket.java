@@ -371,6 +371,13 @@ public class BoardSocket extends TextWebSocketHandler {
           ids.add(id.asText());
       message.put("sel", ids);
     }
+    // Видимая часть сцены — чтобы за участником можно было «следовать» (нажатие на его аватар).
+    var bounds = body.get("vb");
+    if (bounds != null && bounds.isArray() && bounds.size() == 4) {
+      var box = new ArrayList<Double>(4);
+      for (var value : bounds) if (finite(value)) box.add(value.asDouble());
+      if (box.size() == 4) message.put("vb", box);
+    }
     message.put("t", body.path("t").asLong(0));
     var json = Json.write(message);
     peer.lastPresence = json;

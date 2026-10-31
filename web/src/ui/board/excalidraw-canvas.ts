@@ -1,4 +1,4 @@
-import { CaptureUpdateAction, reconcileElements } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, reconcileElements, zoomToFitBounds } from '@excalidraw/excalidraw';
 import type { ExcalidrawElement, OrderedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type {
@@ -26,6 +26,9 @@ export interface BoardPerson {
  * `CaptureUpdateAction.NEVER`: в историю отмены попадает только своё — отмена у каждого своя.
  */
 export class ExcalidrawCanvas implements BoardCanvas, LocalFiles {
+  /** Видимая часть сцены того, за кем следуют, — последняя, к которой подогнан вид. */
+  private followedBounds = '';
+
   constructor(
     private readonly api: ExcalidrawImperativeAPI,
     private readonly people: () => ReadonlyMap<string, BoardPerson>,
@@ -105,6 +108,31 @@ export class ExcalidrawCanvas implements BoardCanvas, LocalFiles {
       });
     }
     this.api.updateScene({ collaborators });
+    this.follow(cursors);
+  }
+
+  /**
+   * «Следовать» за соседом (нажатие на его аватар в Excalidraw): вид подгоняется под то, что видит он, —
+   * его видимую часть сцены сосед присылает вместе с курсором.
+   */
+  private follow(cursors: ReadonlyMap<string, Cursor>) {
+    const state = this.api.getAppState();
+    const followed = state.userToFollow?.socketId;
+    const bounds = followed ? cursors.get(followed)?.bounds : undefined;
+    if (!bounds) return;
+    const key = bounds.map((value) => Math.round(value)).join(',');
+    if (key === this.followedBounds) return;
+    this.followedBounds = key;
+    const { appState } = zoomToFitBounds({
+      bounds,
+      appState: state,
+      fitToViewport: true,
+      viewportZoomFactor: 1,
+    });
+    this.api.updateScene({
+      appState: { scrollX: appState.scrollX, scrollY: appState.scrollY, zoom: appState.zoom },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
   }
 
   // --- картинки ----------------------------------------------------------------------------

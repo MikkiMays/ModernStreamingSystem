@@ -1078,6 +1078,8 @@
   "board": {
     "name": "Tableau blanc",
     "loading": "Ouverture du tableau blanc…",
+    "failed": "Le tableau blanc ne s'est pas ouvert",
+    "retry": "Réessayer",
     "modes": {
       "all": "Tout le monde dessine",
       "host": "L'hôte dessine"

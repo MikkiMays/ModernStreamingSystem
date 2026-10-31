@@ -127,6 +127,22 @@ describe('доска на сцене', () => {
     expect(document.querySelector('a[href*="github.com"]')).toBeNull();
   });
 
+  it('«Ещё»: скачать, открыть файл, кто рисует и очистить — меню открывается и выбирает', async () => {
+    show(meeting(['board.draw', 'board.clear', 'board.settings', 'board.close']));
+    await waitFor(() => expect(document.querySelector('.excalidraw')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Ещё' }));
+    expect(await screen.findByRole('menuitem', { name: 'Картинкой PNG' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Файлом доски' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Открыть файл' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitemradio', { name: 'Все участники' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByRole('menuitemradio', { name: 'Только ведущий' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Очистить доску' })).toBeInTheDocument();
+    expect(externalLinks()).toEqual([]);
+  });
+
   it('язык редактора — язык Cord', () => {
     expect(excalidrawLanguage('ru')).toBe('ru-RU');
     expect(excalidrawLanguage('zh-Hans')).toBe('zh-CN');

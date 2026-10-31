@@ -1078,6 +1078,8 @@
   "board": {
     "name": "Quadro",
     "loading": "Abrindo o quadro…",
+    "failed": "O quadro não abriu",
+    "retry": "Tentar de novo",
     "modes": {
       "all": "Todos desenham",
       "host": "O anfitrião desenha"

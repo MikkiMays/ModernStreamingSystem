@@ -1078,6 +1078,8 @@
   "board": {
     "name": "Lavagna",
     "loading": "Apertura della lavagna…",
+    "failed": "La lavagna non si è aperta",
+    "retry": "Riprova",
     "modes": {
       "all": "Disegnano tutti",
       "host": "Disegna l'host"
