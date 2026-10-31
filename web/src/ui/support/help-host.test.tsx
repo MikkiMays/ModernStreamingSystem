@@ -50,6 +50,8 @@ function fakeMeeting() {
       callReport: () => null,
     },
     control: { state: new Store('connected') },
+    // Задержка доски (R159) — «Диагностика» показывает её, когда доска открыта.
+    boardLatency: new Store(null),
   } as unknown as Meeting;
 }
 
