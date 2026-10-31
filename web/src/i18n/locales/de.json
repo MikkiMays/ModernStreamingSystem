@@ -2276,7 +2276,20 @@
   },
   "kit": {
     "toasts": "Benachrichtigungen",
-    "soon": "Bald"
+    "soon": "Bald",
+    "load": {
+      "label": "Serverauslastung: {{value}}",
+      "levels": {
+        "1": "niedrig",
+        "2": "mittel",
+        "3": "hoch",
+        "4": "sehr hoch"
+      },
+      "full": "kein Platz",
+      "maintenance": "wird aktualisiert",
+      "closed": "für neue Meetings geschlossen",
+      "unknown": "unbekannt"
+    }
   },
   "connect": {
     "failure": {

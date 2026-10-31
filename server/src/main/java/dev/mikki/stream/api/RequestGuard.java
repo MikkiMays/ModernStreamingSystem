@@ -33,7 +33,10 @@ public class RequestGuard extends OncePerRequestFilter {
           "/api/v1/events",
           "/api/v1/proof",
           "/api/v1/support",
-          "/api/v1/catalog");
+          "/api/v1/catalog",
+          // Загрузка сервера (R143) — как пинг: говорит только, насколько он занят, ступенью.
+          "/api/v1/load",
+          "/api/v1/catalog/load");
 
   private final StreamProperties config;
   private final ServerAccess access;

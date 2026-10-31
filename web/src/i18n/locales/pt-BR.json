@@ -2304,7 +2304,20 @@
   },
   "kit": {
     "toasts": "Notificações",
-    "soon": "Em breve"
+    "soon": "Em breve",
+    "load": {
+      "label": "Carga do servidor: {{value}}",
+      "levels": {
+        "1": "baixa",
+        "2": "média",
+        "3": "alta",
+        "4": "muito alta"
+      },
+      "full": "sem vagas",
+      "maintenance": "atualizando",
+      "closed": "fechado para novas reuniões",
+      "unknown": "desconhecida"
+    }
   },
   "connect": {
     "failure": {

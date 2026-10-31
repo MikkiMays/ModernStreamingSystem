@@ -23,3 +23,17 @@
   opacity: 1;
   cursor: default;
 }
+/* Загрузка (R143) — справа, по центру обеих строк: имя и адрес остаются слева столбиком. */
+.server-menu__item .ui-menu__label {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-4);
+}
+.server-menu__name,
+.server-menu__host {
+  grid-column: 1;
+}
+.server-menu__load {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}

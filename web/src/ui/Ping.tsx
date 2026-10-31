@@ -6,6 +6,8 @@ import { Store } from '../core/store';
 import type { OutboundVideo } from '../media/session';
 import { outboundNote } from '../media/outbound-note';
 import { useStore } from './primitives';
+import { useServerLoad } from '../core/server-load';
+import { LoadBars } from './kit/LoadBars';
 const noPing = new Store<number | null>(null);
 const noControl = new Store('closed');
 const noVideo = new Store<OutboundVideo | null>(null);
@@ -30,6 +32,7 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
   const rtt = useStore(meeting?.control.ping ?? noPing);
   const control = useStore(meeting?.control.state ?? noControl);
   const video = useStore(meeting?.media.outbound ?? noVideo);
+  const load = useServerLoad(enabled && !meeting);
   useEffect(() => {
     const change = () => setEnabled(readPreferences().showPing);
     window.addEventListener('cord:preferences', change);
@@ -97,6 +100,13 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
         : value === null
           ? '—'
           : t(($) => $.media.ping.ms, { value })}
+      {/* Загрузка сервера (R143) — на главной, рядом с пингом; во встрече она ничего не меняет. */}
+      {!meeting && load && (
+        <>
+          {' · '}
+          <LoadBars level={load.level} state={load.state} />
+        </>
+      )}
       {video && video.width > 0 && (
         <>
           {' · '}

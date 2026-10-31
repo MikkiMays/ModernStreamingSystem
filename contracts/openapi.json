@@ -356,6 +356,25 @@
         ],
         "type": "object"
       },
+      "CatalogLoad": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "level": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Challenge": {
         "properties": {
           "algorithm": {
@@ -2354,6 +2373,22 @@
           },
           "waiting": {
             "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Load": {
+        "properties": {
+          "level": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "int64",
             "type": "integer"
           }
         },
@@ -4870,6 +4905,29 @@
         ]
       }
     },
+    "/api/v1/catalog/load": {
+      "get": {
+        "operationId": "catalogLoad",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogLoad"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "load-controller"
+        ]
+      }
+    },
     "/api/v1/favorites": {
       "get": {
         "operationId": "list",
@@ -5234,6 +5292,26 @@
         },
         "tags": [
           "favorite-controller"
+        ]
+      }
+    },
+    "/api/v1/load": {
+      "get": {
+        "operationId": "load",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Load"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "load-controller"
         ]
       }
     },

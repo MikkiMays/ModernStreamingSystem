@@ -2276,7 +2276,20 @@
   },
   "kit": {
     "toasts": "Notifications",
-    "soon": "Soon"
+    "soon": "Soon",
+    "load": {
+      "label": "Server load: {{value}}",
+      "levels": {
+        "1": "low",
+        "2": "medium",
+        "3": "high",
+        "4": "very high"
+      },
+      "full": "no room",
+      "maintenance": "updating",
+      "closed": "closed to new meetings",
+      "unknown": "unknown"
+    }
   },
   "connect": {
     "failure": {

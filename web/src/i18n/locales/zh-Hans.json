@@ -2248,7 +2248,20 @@
   },
   "kit": {
     "toasts": "通知",
-    "soon": "即将推出"
+    "soon": "即将推出",
+    "load": {
+      "label": "服务器负载：{{value}}",
+      "levels": {
+        "1": "低",
+        "2": "中",
+        "3": "高",
+        "4": "很高"
+      },
+      "full": "已满",
+      "maintenance": "正在更新",
+      "closed": "不接受新会议",
+      "unknown": "未知"
+    }
   },
   "connect": {
     "failure": {

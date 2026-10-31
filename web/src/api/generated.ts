@@ -271,6 +271,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalogLoad"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/favorites": {
         parameters: {
             query?: never;
@@ -392,6 +408,22 @@ export interface paths {
         };
         get?: never;
         put: operations["reorder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["load"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -841,6 +873,14 @@ export interface components {
         CardPair: {
             attack: string;
             beat: string | null;
+        };
+        CatalogLoad: {
+            /** Format: int64 */
+            at?: number;
+            /** Format: int32 */
+            level?: number;
+            state?: string;
+            url?: string;
         };
         Challenge: {
             algorithm?: string;
@@ -1381,6 +1421,13 @@ export interface components {
             startedAt?: number;
             /** Format: int32 */
             waiting?: number;
+        };
+        Load: {
+            /** Format: int32 */
+            level?: number;
+            state?: string;
+            /** Format: int64 */
+            updatedAt?: number;
         };
         Login: {
             password?: string;
@@ -2388,6 +2435,26 @@ export interface operations {
             };
         };
     };
+    catalogLoad: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CatalogLoad"][];
+                };
+            };
+        };
+    };
     list: {
         parameters: {
             query?: never;
@@ -2627,6 +2694,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    load: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Load"];
+                };
             };
         };
     };

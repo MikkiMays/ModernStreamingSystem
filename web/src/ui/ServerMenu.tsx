@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
 import { loadServerCatalog, serverName, type CatalogServer } from '../core/catalog';
 import { currentServerUrl } from '../core/servers';
+import { useCatalogLoad } from '../core/server-load';
 import { locale } from '../i18n';
-import { Button, Menu, MenuContent, MenuItem, MenuTrigger, type ButtonProps } from './kit';
+import { Button, LoadBars, Menu, MenuContent, MenuItem, MenuTrigger, type ButtonProps } from './kit';
 import './server-menu.css';
 
 /**
@@ -44,10 +45,12 @@ export function ServerMenu({
     };
   }, []);
   const here = currentServerUrl();
+  const [open, setOpen] = useState(false);
+  const loads = useCatalogLoad(open);
   if (!servers.some((server) => server.url !== here)) return null;
   const language = locale(t);
   return (
-    <Menu>
+    <Menu onOpenChange={setOpen}>
       <MenuTrigger
         disabled={disabled}
         render={
@@ -71,6 +74,12 @@ export function ServerMenu({
               <span className="server-menu__host">
                 {current ? t(($) => $.settings.server.here) : new URL(server.url).host}
               </span>
+              {/* Загрузка (R143): ступени соседей спрашивает ядро — CSP не пускает браузер к ним. */}
+              <LoadBars
+                className="server-menu__load"
+                level={loads?.get(new URL(server.url).origin)?.level}
+                state={loads?.get(new URL(server.url).origin)?.state}
+              />
             </MenuItem>
           );
         })}

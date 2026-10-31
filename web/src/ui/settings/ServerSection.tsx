@@ -1,3 +1,5 @@
+import { useServerLoad } from '../../core/server-load';
+import { LoadBars } from '../kit/LoadBars';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plug } from 'lucide-react';
@@ -33,11 +35,23 @@ export function ServerSection({
   const desktop = isDesktop();
   const current = useStore(session);
   const [saved, setSaved] = useState(thisServer);
+  const load = useServerLoad();
   return (
     <SettingGroup title={t(($) => $.settings.server.connection)}>
       <SettingRow
         id="server-current"
-        hint={`${current?.name || serverLabel(saved)} · ${new URL(currentServerUrl()).host}`}
+        hint={
+          <>
+            {`${current?.name || serverLabel(saved)} · ${new URL(currentServerUrl()).host}`}
+            {/* Загрузка этого сервера словами и палочками (R143). */}
+            {load && (
+              <>
+                {' · '}
+                <LoadBars level={load.level} state={load.state} withText />
+              </>
+            )}
+          </>
+        }
       >
         {desktop ? (
           <Button
