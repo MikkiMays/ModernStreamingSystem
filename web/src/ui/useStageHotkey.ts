@@ -4,6 +4,7 @@ import type { Meeting } from '../core/meeting';
 import { useStore } from './primitives';
 import { backToStage, leaveToPeople, STAGE_KEY } from './stage-context';
 import { useStageView } from './useStageView';
+import { modalOpen } from './modal';
 
 /** Фокус нигде: на самой странице, а не на каком-то её элементе. */
 function onPage(target: EventTarget | null): boolean {
@@ -39,7 +40,7 @@ export function useStageHotkey(meeting: Meeting) {
       if (event.code !== STAGE_KEY || event.repeat || event.defaultPrevented) return;
       if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
       const target = event.target;
-      if (isTyping(target) || document.querySelector('[role="dialog"]')) return;
+      if (isTyping(target) || modalOpen()) return;
       if (!onPage(target) && !(target instanceof Element && target.closest('.stage-wrap'))) return;
       const now = latest.current;
       if (

@@ -39,6 +39,7 @@ import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
 import { useDesktopOverlay } from './useDesktopOverlay';
 import { useTrayChat } from './useTrayChat';
+import { MODAL_SELECTOR, modalOpen } from './modal';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 /** Окна поверх встречи — одно за раз (S5). */
@@ -102,7 +103,7 @@ export function MeetingView({
     const timer = setInterval(() => {
       const held = [
         ...document.querySelectorAll<HTMLElement>(
-          '[role="menu"], [role="dialog"], .call-footer :focus-visible',
+          `[role="menu"], ${MODAL_SELECTOR}, .call-footer :focus-visible`,
         ),
       ].some((element) => element.checkVisibility() && !element.closest('[aria-hidden="true"]'));
       setControlsVisible(held || Date.now() - lastActivity.current < 3000);
@@ -218,7 +219,7 @@ export function MeetingView({
     const micKey = preferences.micHotkey;
     let held = false;
     const keyboard = (event: KeyboardEvent) => {
-      if (event.repeat || isTyping(event.target) || document.querySelector('[role="dialog"]')) return;
+      if (event.repeat || isTyping(event.target) || modalOpen()) return;
       if (matchesHotkey(event, micKey)) {
         event.preventDefault();
         held = true;
@@ -237,7 +238,7 @@ export function MeetingView({
     };
     // Кнопка мыши в сочетании (Mouse3–Mouse5) — в окне встречи так же, как клавиша.
     const mouseDown = (event: MouseEvent) => {
-      if (!matchesMouseHotkey(event, micKey) || document.querySelector('[role="dialog"]')) return;
+      if (!matchesMouseHotkey(event, micKey) || modalOpen()) return;
       event.preventDefault();
       held = true;
       mic.press('page', 'down');

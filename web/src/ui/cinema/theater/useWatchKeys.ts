@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { hotkeyLabel, matchesHotkey, type Hotkey } from '../../../core/hotkeys';
 import { t } from '../../../i18n';
 import { focusKind, watchKey, type FocusPlace, type KeyContext, type WatchAction } from './watch-keys';
+import { modalOpen } from '../../modal';
 
 /** Фокус нигде: на самой странице, а не на каком-то её элементе. */
 function onPage(target: EventTarget | null): boolean {
@@ -77,7 +78,7 @@ export function useWatchKeys({
       const mic = now.micHotkey ?? null;
       const verdict = watchKey(event, {
         ...now.context,
-        dialog: !!document.querySelector('[role="dialog"]'),
+        dialog: modalOpen(),
         place,
         focus: focusKind(target),
         focusVisible: focusVisible(target),
