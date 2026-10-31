@@ -13,6 +13,7 @@ import { AudioFields, QualityFields } from './Settings';
 import { SettingGroup, SettingRow } from './settings/Row';
 import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
+import { beginInviteCopy, inviteLink } from '../core/invite-copy';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
 import { Button, Dialog, Field, IconButton, Input, Segmented, Switch } from './kit';
@@ -187,8 +188,15 @@ export function Prejoin({
     setBusy(true);
     setError('');
     setDeviceError(false);
+    /*
+      Новая встреча (R142): ссылка на неё — в буфер сразу. Запись в буфер начинается здесь, в самом
+      нажатии «Начать встречу», а ссылку подставит ответ сервера (`core/invite-copy.ts`); тост
+      «Ссылка на встречу скопирована» покажет уже открывшаяся встреча.
+    */
+    const settle = destination ? null : beginInviteCopy();
     try {
       const admission = await admit(name.trim() || t(($) => $.prejoin.defaultName), leave);
+      settle?.(inviteLink(admission));
       if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
       localStorage.setItem('cord:name', name.trim());
       savePreferences({ devices: choices });
@@ -196,6 +204,7 @@ export function Prejoin({
       setElsewhere(null);
       onJoin(admission, { ...choices, micOn: mic, cameraOn: camera });
     } catch (e) {
+      settle?.(null);
       refused(e);
     } finally {
       setBusy(false);

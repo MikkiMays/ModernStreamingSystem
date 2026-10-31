@@ -12,13 +12,24 @@ import { IconButton } from './IconButton';
  */
 export const useToast = BaseToast.useToastManager;
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({
+  children,
+  place,
+}: {
+  children: ReactNode;
+  /** Во встрече тосты встают над пультом звонка, а не на него (R142). */
+  place?: 'meeting';
+}) {
   const { t } = useTranslation();
   return (
     <BaseToast.Provider>
       {children}
       <BaseToast.Portal>
-        <BaseToast.Viewport className="ui-toast__viewport" aria-label={t(($) => $.kit.toasts)}>
+        <BaseToast.Viewport
+          className="ui-toast__viewport"
+          data-place={place}
+          aria-label={t(($) => $.kit.toasts)}
+        >
           <ToastList />
         </BaseToast.Viewport>
       </BaseToast.Portal>

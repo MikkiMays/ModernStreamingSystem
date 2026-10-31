@@ -15,7 +15,8 @@ import { Settings } from './Settings';
 import type { Theme } from './Home';
 import { MeetingHeader } from './MeetingHeader';
 import { PresenceAsk, usePresence } from './abuse/Presence';
-import { Button, IconButton, ResizeHandle, usePanelWidth } from './kit';
+import { Button, IconButton, ResizeHandle, ToastProvider, usePanelWidth } from './kit';
+import { InviteCopiedNotice } from './InviteCopiedNotice';
 import { humans } from '../core/people';
 import {
   hotkeyFromMouse,
@@ -305,229 +306,232 @@ export function MeetingView({
   /** Люди без ботов и интеграций — для счётчиков (T35). */
   const people = humans(snapshot.participants);
   return (
-    <div
-      className={`meeting-page ${targetFull ? 'meeting-fullscreen' : ''} ${controlsVisible ? '' : 'controls-hidden'}`}
-      data-full={targetFull ? 'true' : undefined}
-      // Устойчивый признак «медиа подключено» для e2e и оболочек вместо текста «В эфире» (T25).
-      data-media-status={ended ? 'ended' : media.status}
-      onPointerMove={wakeControls}
-      onPointerDown={wakeControls}
-      onFocusCapture={wakeControls}
-      style={{ '--panel-width': `${panelWidth.width}px` } as CSSProperties}
-    >
-      <MeetingHeader
-        meeting={meeting}
-        canEdit={may('room.settings')}
-        onInvite={() => show('invite')}
-        onSettings={() => show('meetingSettings')}
-        onDiagnostics={() => show('diagnostics')}
-      />
-      <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
-        <main className="stage-wrap" aria-label={t(($) => $.meeting.view.stage)}>
-          {!ended &&
-            may('participant.approve') &&
-            snapshot.participants.some((p) => p.status === 'WAITING') && (
-              <button className="admission-banner" onClick={() => setPanel('people')}>
-                <Users size={16} />{' '}
-                {t(($) => $.meeting.view.requests, {
-                  n: snapshot.participants.filter((p) => p.status === 'WAITING').length,
-                })}
-              </button>
-            )}
-          {!ended && media.status === 'recovering' && (
-            <div className="recovery-banner media-stage" role="status">
-              <Wifi size={20} />
-              <div>
-                <strong>{t(($) => $.meeting.view.recoveryTitle)}</strong>
-                <span>{t(($) => $.meeting.view.recoveryText)}</span>
-              </div>
-              <b>{t(($) => $.meeting.view.seconds, { n: media.remaining })}</b>
-            </div>
-          )}
-          {!ended && <PresenceAsk snapshot={snapshot} presence={presence} />}
-          {!ended && control === 'recovering' && media.status === 'connected' && (
-            <div className="control-banner media-stage" role="status">
-              {t(($) => $.meeting.view.controlRecovering)}
-            </div>
-          )}
-          {ended ? (
-            <div className="ended-stage media-stage">
-              <span className="ended-icon">
-                <PhoneOff size={32} />
-              </span>
-              <h2>{ended}</h2>
-              <p>
-                {t(($) => $.meeting.view.thanks)}
-                <br />
-                {t(($) => $.meeting.view.retention)}
-              </p>
-              <Button variant="primary" size="lg" icon={<ArrowLeft />} onClick={onHome}>
-                {t(($) => $.meeting.view.home)}
-              </Button>
-              <Button variant="quiet" onClick={() => setPanel('chat')}>
-                {t(($) => $.meeting.view.history)}
-              </Button>
-            </div>
-          ) : self?.status === 'WAITING' ? (
-            <div className="ended-stage media-stage">
-              <span className="waiting-orbit">
-                <Users size={32} />
-              </span>
-              <h2>{t(($) => $.meeting.view.waitingTitle)}</h2>
-              <p>
-                {t(($) => $.meeting.view.waitingSettle)}
-                <br />
-                {t(($) => $.meeting.view.waitingMedia)}
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Интеграция, от которой зритель ушёл к участникам, — чёлкой сверху по центру (R121). */}
-              <StageNotch meeting={meeting} />
-              {/* Активные интеграции — чипами поверх сцены справа сверху (R30). Со сцены панель
-                  открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
-              <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
-              <Stage meeting={meeting} />
-              {/* Из чужого экрана — в разговор; закреплённую камеру открепляют на ней самой (R83). */}
-              {viewing && (
-                <button
-                  className="return-conversation media-stage"
-                  onClick={() => meeting.returnToConversation()}
-                >
-                  <ArrowLeft size={16} /> {t(($) => $.meeting.view.returnToConversation)}
+    <ToastProvider place="meeting">
+      <div
+        className={`meeting-page ${targetFull ? 'meeting-fullscreen' : ''} ${controlsVisible ? '' : 'controls-hidden'}`}
+        data-full={targetFull ? 'true' : undefined}
+        // Устойчивый признак «медиа подключено» для e2e и оболочек вместо текста «В эфире» (T25).
+        data-media-status={ended ? 'ended' : media.status}
+        onPointerMove={wakeControls}
+        onPointerDown={wakeControls}
+        onFocusCapture={wakeControls}
+        style={{ '--panel-width': `${panelWidth.width}px` } as CSSProperties}
+      >
+        <MeetingHeader
+          meeting={meeting}
+          canEdit={may('room.settings')}
+          onInvite={() => show('invite')}
+          onSettings={() => show('meetingSettings')}
+          onDiagnostics={() => show('diagnostics')}
+        />
+        <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
+          <main className="stage-wrap" aria-label={t(($) => $.meeting.view.stage)}>
+            {!ended &&
+              may('participant.approve') &&
+              snapshot.participants.some((p) => p.status === 'WAITING') && (
+                <button className="admission-banner" onClick={() => setPanel('people')}>
+                  <Users size={16} />{' '}
+                  {t(($) => $.meeting.view.requests, {
+                    n: snapshot.participants.filter((p) => p.status === 'WAITING').length,
+                  })}
                 </button>
               )}
+            {!ended && media.status === 'recovering' && (
+              <div className="recovery-banner media-stage" role="status">
+                <Wifi size={20} />
+                <div>
+                  <strong>{t(($) => $.meeting.view.recoveryTitle)}</strong>
+                  <span>{t(($) => $.meeting.view.recoveryText)}</span>
+                </div>
+                <b>{t(($) => $.meeting.view.seconds, { n: media.remaining })}</b>
+              </div>
+            )}
+            {!ended && <PresenceAsk snapshot={snapshot} presence={presence} />}
+            {!ended && control === 'recovering' && media.status === 'connected' && (
+              <div className="control-banner media-stage" role="status">
+                {t(($) => $.meeting.view.controlRecovering)}
+              </div>
+            )}
+            {ended ? (
+              <div className="ended-stage media-stage">
+                <span className="ended-icon">
+                  <PhoneOff size={32} />
+                </span>
+                <h2>{ended}</h2>
+                <p>
+                  {t(($) => $.meeting.view.thanks)}
+                  <br />
+                  {t(($) => $.meeting.view.retention)}
+                </p>
+                <Button variant="primary" size="lg" icon={<ArrowLeft />} onClick={onHome}>
+                  {t(($) => $.meeting.view.home)}
+                </Button>
+                <Button variant="quiet" onClick={() => setPanel('chat')}>
+                  {t(($) => $.meeting.view.history)}
+                </Button>
+              </div>
+            ) : self?.status === 'WAITING' ? (
+              <div className="ended-stage media-stage">
+                <span className="waiting-orbit">
+                  <Users size={32} />
+                </span>
+                <h2>{t(($) => $.meeting.view.waitingTitle)}</h2>
+                <p>
+                  {t(($) => $.meeting.view.waitingSettle)}
+                  <br />
+                  {t(($) => $.meeting.view.waitingMedia)}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Интеграция, от которой зритель ушёл к участникам, — чёлкой сверху по центру (R121). */}
+                <StageNotch meeting={meeting} />
+                {/* Активные интеграции — чипами поверх сцены справа сверху (R30). Со сцены панель
+                  открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
+                <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
+                <Stage meeting={meeting} />
+                {/* Из чужого экрана — в разговор; закреплённую камеру открепляют на ней самой (R83). */}
+                {viewing && (
+                  <button
+                    className="return-conversation media-stage"
+                    onClick={() => meeting.returnToConversation()}
+                  >
+                    <ArrowLeft size={16} /> {t(($) => $.meeting.view.returnToConversation)}
+                  </button>
+                )}
+              </>
+            )}
+            {(audioBlocked || audioAsleep) && !ended && (
+              <Button
+                variant="primary"
+                size="lg"
+                className="audio-unlock"
+                icon={<Headphones />}
+                onClick={() => void meeting.media.unlockAudio().then(() => setAudioBlocked(false))}
+              >
+                {t(($) => $.meeting.view.unlockAudio)}
+              </Button>
+            )}
+            {/* Кнопка «Включить звук» стоит на том же месте и важнее подсказки. */}
+            {!(audioBlocked || audioAsleep) && <BackgroundNote meeting={meeting} />}
+            {media.error && !ended && (
+              <div className="media-error media-stage" role="alert">
+                <span>{media.error}</span>
+                {/* Не вышли в эфир — помощь с диагностикой этой встречи, не уходя из неё (T36). */}
+                <HelpButton tone="stage" onDiagnostics={() => show('diagnostics')} />
+                <IconButton
+                  tone="stage"
+                  label={t(($) => $.meeting.view.dismissError)}
+                  onClick={() => meeting.media.clearError()}
+                >
+                  <X size={20} />
+                </IconButton>
+              </div>
+            )}
+            {fullscreen && (
+              <button
+                ref={collapseToggle}
+                className="controls-toggle media-stage"
+                aria-label={
+                  controlsVisible
+                    ? t(($) => $.meeting.view.collapseControls)
+                    : t(($) => $.meeting.view.expandControls)
+                }
+                aria-expanded={controlsVisible}
+                aria-controls="meeting-controls"
+                onClick={() => {
+                  const collapse = controlsVisible;
+                  setControlsCollapsed(collapse);
+                  setControlsVisible(!collapse);
+                  lastActivity.current = Date.now();
+                  collapseToggle.current?.focus({ preventScroll: true });
+                }}
+              >
+                {controlsVisible ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                {!controlsVisible && <span>{t(($) => $.meeting.view.controls)}</span>}
+              </button>
+            )}
+            <CallDock
+              meeting={meeting}
+              compact={compact}
+              ended={!!ended}
+              panel={panel}
+              togglePanel={togglePanel}
+              people={people.length}
+              fullscreen={fullscreen}
+              toggleFullscreen={toggleFullscreen}
+              onLeave={leaveMeeting}
+              onSettings={() => show('settings')}
+              onDiagnostics={() => show('diagnostics')}
+              onMeetingSettings={may('room.settings') ? () => show('meetingSettings') : undefined}
+              onCloseForAll={
+                may('room.close')
+                  ? () => void meeting.command('close').catch((e) => meeting.media.report(e))
+                  : undefined
+              }
+            />
+          </main>
+          {panel && (
+            <>
+              <ResizeHandle
+                className="panel-resizer"
+                edge="end"
+                label={t(($) => $.meeting.view.panelWidth)}
+                value={panelWidth.width}
+                min={panelWidth.min}
+                max={panelWidth.max}
+                onChange={panelWidth.setWidth}
+                onReset={panelWidth.reset}
+              />
+              <Sidebar
+                meeting={meeting}
+                panel={panel}
+                setPanel={setPanel}
+                onClose={() => setPanel(null)}
+                onInvite={() => show('invite')}
+              />
             </>
           )}
-          {(audioBlocked || audioAsleep) && !ended && (
-            <Button
-              variant="primary"
-              size="lg"
-              className="audio-unlock"
-              icon={<Headphones />}
-              onClick={() => void meeting.media.unlockAudio().then(() => setAudioBlocked(false))}
-            >
-              {t(($) => $.meeting.view.unlockAudio)}
-            </Button>
-          )}
-          {/* Кнопка «Включить звук» стоит на том же месте и важнее подсказки. */}
-          {!(audioBlocked || audioAsleep) && <BackgroundNote meeting={meeting} />}
-          {media.error && !ended && (
-            <div className="media-error media-stage" role="alert">
-              <span>{media.error}</span>
-              {/* Не вышли в эфир — помощь с диагностикой этой встречи, не уходя из неё (T36). */}
-              <HelpButton tone="stage" onDiagnostics={() => show('diagnostics')} />
-              <IconButton
-                tone="stage"
-                label={t(($) => $.meeting.view.dismissError)}
-                onClick={() => meeting.media.clearError()}
-              >
-                <X size={20} />
-              </IconButton>
-            </div>
-          )}
-          {fullscreen && (
-            <button
-              ref={collapseToggle}
-              className="controls-toggle media-stage"
-              aria-label={
-                controlsVisible
-                  ? t(($) => $.meeting.view.collapseControls)
-                  : t(($) => $.meeting.view.expandControls)
-              }
-              aria-expanded={controlsVisible}
-              aria-controls="meeting-controls"
-              onClick={() => {
-                const collapse = controlsVisible;
-                setControlsCollapsed(collapse);
-                setControlsVisible(!collapse);
-                lastActivity.current = Date.now();
-                collapseToggle.current?.focus({ preventScroll: true });
-              }}
-            >
-              {controlsVisible ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-              {!controlsVisible && <span>{t(($) => $.meeting.view.controls)}</span>}
-            </button>
-          )}
-          <CallDock
-            meeting={meeting}
-            compact={compact}
-            ended={!!ended}
-            panel={panel}
-            togglePanel={togglePanel}
-            people={people.length}
-            fullscreen={fullscreen}
-            toggleFullscreen={toggleFullscreen}
-            onLeave={leaveMeeting}
-            onSettings={() => show('settings')}
-            onDiagnostics={() => show('diagnostics')}
-            onMeetingSettings={may('room.settings') ? () => show('meetingSettings') : undefined}
-            onCloseForAll={
-              may('room.close')
-                ? () => void meeting.command('close').catch((e) => meeting.media.report(e))
-                : undefined
-            }
-          />
-        </main>
-        {panel && (
-          <>
-            <ResizeHandle
-              className="panel-resizer"
-              edge="end"
-              label={t(($) => $.meeting.view.panelWidth)}
-              value={panelWidth.width}
-              min={panelWidth.min}
-              max={panelWidth.max}
-              onChange={panelWidth.setWidth}
-              onReset={panelWidth.reset}
-            />
-            <Sidebar
-              meeting={meeting}
-              panel={panel}
-              setPanel={setPanel}
-              onClose={() => setPanel(null)}
-              onInvite={() => show('invite')}
-            />
-          </>
-        )}
-      </div>
+        </div>
 
-      <AudioLayer
-        tracks={tracks}
-        onBlocked={audioNeedsGesture}
-        volumes={volumes}
-        deafened={deafened}
-        master={preferences.outputVolume / 100}
-      />
-      <Invite meeting={meeting} open={layer === 'invite'} onOpenChange={toggle('invite')} />
-      {may('room.settings') && (
-        <MeetingSettings
-          meeting={meeting}
-          open={layer === 'meetingSettings'}
-          onOpenChange={toggle('meetingSettings')}
+        <AudioLayer
+          tracks={tracks}
+          onBlocked={audioNeedsGesture}
+          volumes={volumes}
+          deafened={deafened}
+          master={preferences.outputVolume / 100}
         />
-      )}
-      <Settings
-        meeting={meeting}
-        open={layer === 'settings'}
-        section={section}
-        theme={theme}
-        setTheme={setTheme}
-        onOpenChange={(open) => {
-          toggle('settings')(open);
-          if (!open) onSectionClosed?.();
-        }}
-      />
-      {layer === 'diagnostics' && (
-        <Suspense fallback={null}>
-          <Diagnostics
+        <Invite meeting={meeting} open={layer === 'invite'} onOpenChange={toggle('invite')} />
+        {may('room.settings') && (
+          <MeetingSettings
             meeting={meeting}
-            onClose={() => hide('diagnostics')}
-            onHelp={() => helpFromDiagnostics()}
-            onReport={() => helpFromDiagnostics(true)}
+            open={layer === 'meetingSettings'}
+            onOpenChange={toggle('meetingSettings')}
           />
-        </Suspense>
-      )}
-    </div>
+        )}
+        <Settings
+          meeting={meeting}
+          open={layer === 'settings'}
+          section={section}
+          theme={theme}
+          setTheme={setTheme}
+          onOpenChange={(open) => {
+            toggle('settings')(open);
+            if (!open) onSectionClosed?.();
+          }}
+        />
+        {layer === 'diagnostics' && (
+          <Suspense fallback={null}>
+            <Diagnostics
+              meeting={meeting}
+              onClose={() => hide('diagnostics')}
+              onHelp={() => helpFromDiagnostics()}
+              onReport={() => helpFromDiagnostics(true)}
+            />
+          </Suspense>
+        )}
+        <InviteCopiedNotice meeting={meeting} />
+      </div>
+    </ToastProvider>
   );
 }
