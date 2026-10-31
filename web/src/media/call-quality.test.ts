@@ -49,7 +49,20 @@ describe('итог звонка (client-report)', () => {
       lossySeconds: 2,
       path: 'relay-udp',
       codec: 'vp8',
+      publishCodec: null,
     });
+  });
+
+  it('кодек отдачи — тот, которым ушло больше всего байт (R152)', () => {
+    const quality = new CallQuality();
+    quality.observe(link({}), [report(0)], 0);
+    quality.notePublished('h265', 300_000);
+    quality.notePublished('av1', 900_000);
+    quality.notePublished('h265', 100_000);
+    quality.notePublished('vp9', 0);
+    quality.observe(link({}), [report(50_000)], 6_000);
+    quality.observe(link({}), [report(100_000)], 12_000);
+    expect(quality.summary()?.publishCodec).toBe('av1');
   });
 
   it('уснувшая вкладка и пересборка связи звонком не считаются', () => {

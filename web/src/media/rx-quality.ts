@@ -1,3 +1,5 @@
+import type { CodecSwitch, PublishSource } from './codec-planner';
+import type { VideoCodec } from './call-quality';
 import { measuredDelayMs, type PlayoutClass, type PlayoutSample } from './playout';
 
 /**
@@ -24,9 +26,45 @@ export interface RxTrack {
   delayMs: number | null;
 }
 
+/**
+ * Отдача за окно (R152): чем и как кодировалась своя камера и свой показ — для долей кодеков и HW/SW в
+ * Grafana (`cord_client_publish_seconds_total`). Секунды — по разнице `qualityLimitationDurations`
+ * самого крупного слоя, то есть по часам кодировщика, а не опроса.
+ */
+export interface TxTrack {
+  source: PublishSource;
+  codec: VideoCodec;
+  hw: 'hw' | 'sw' | 'unknown';
+  seconds: number;
+  /** Сколько из них кодировщик ограничивал процессор, канал и прочее. */
+  cpuSeconds: number;
+  bandwidthSeconds: number;
+  otherSeconds: number;
+}
+
 export interface RxSummary {
   tracks: RxTrack[];
+  /** Своя отдача; нет — ничего не публиковали. Старое ядро поле пропускает. */
+  tx?: TxTrack[];
+  /** Смены кодека отдачи за окно (`cord_client_codec_switch_total`). */
+  switches?: CodecSwitch[];
 }
+
+/** Один замер отдачи источника: сколько секунд прошло и сколько из них чем ограничено. */
+export interface TxObservation {
+  source: PublishSource;
+  codec: VideoCodec;
+  hw: TxTrack['hw'];
+  seconds: number;
+  cpuSeconds: number;
+  bandwidthSeconds: number;
+  otherSeconds: number;
+}
+
+/** Сколько записей отдачи в одной сводке: два источника, по смене кодека посреди окна. */
+export const MAX_TX = 4;
+/** Сколько смен кодека в одной сводке: при окне 30 с между сменами больше не бывает. */
+export const MAX_SWITCHES = 8;
 
 /** Как часто уходит сводка; ядро не примет чаще (`QualityController.WINDOW`). */
 export const INTERVAL_MS = 10_000;
@@ -56,6 +94,33 @@ export class RxQuality {
   private previous = new Map<string, PlayoutSample>();
   private window = new Map<PlayoutClass, Window>();
   private since: number | null = null;
+  private tx = new Map<string, TxTrack>();
+  private switches: CodecSwitch[] = [];
+
+  /** Замер своей отдачи (`MediaSession.sampleUpstream`, раз в 3 с). */
+  observeTx(observation: TxObservation) {
+    if (!(observation.seconds > 0)) return;
+    const key = `${observation.source}/${observation.codec}/${observation.hw}`;
+    const entry = this.tx.get(key) ?? {
+      source: observation.source,
+      codec: observation.codec,
+      hw: observation.hw,
+      seconds: 0,
+      cpuSeconds: 0,
+      bandwidthSeconds: 0,
+      otherSeconds: 0,
+    };
+    entry.seconds += observation.seconds;
+    entry.cpuSeconds += Math.max(0, observation.cpuSeconds);
+    entry.bandwidthSeconds += Math.max(0, observation.bandwidthSeconds);
+    entry.otherSeconds += Math.max(0, observation.otherSeconds);
+    this.tx.set(key, entry);
+  }
+
+  /** Смены кодека отдачи (`CodecPlanner.takeSwitches`). */
+  noteSwitches(switches: readonly CodecSwitch[]) {
+    this.switches.push(...switches);
+  }
 
   /** Один опрос: отчёты всех подписанных дорожек с их запасом. */
   observe(observations: readonly RxObservation[], now: number) {
@@ -110,7 +175,22 @@ export class RxQuality {
       });
     }
     this.window.clear();
-    return tracks.length ? { tracks } : null;
+    const round = (value: number) => Math.round(Math.min(60, value) * 10) / 10;
+    const tx = [...this.tx.values()]
+      .sort((a, b) => b.seconds - a.seconds)
+      .slice(0, MAX_TX)
+      .map((entry) => ({
+        ...entry,
+        seconds: round(entry.seconds),
+        cpuSeconds: round(Math.min(entry.cpuSeconds, entry.seconds)),
+        bandwidthSeconds: round(Math.min(entry.bandwidthSeconds, entry.seconds)),
+        otherSeconds: round(Math.min(entry.otherSeconds, entry.seconds)),
+      }));
+    const switches = this.switches.slice(-MAX_SWITCHES);
+    this.tx.clear();
+    this.switches = [];
+    if (!tracks.length && !tx.length && !switches.length) return null;
+    return { tracks, ...(tx.length ? { tx } : {}), ...(switches.length ? { switches } : {}) };
   }
 
   /** Соединение пересобрано: прежние счётчики ни о чём не говорят, окно начинается заново. */
@@ -118,5 +198,6 @@ export class RxQuality {
     this.previous.clear();
     this.window.clear();
     this.since = null;
+    // Отдача и смены кодека копятся по своим часам и переподключения переживают.
   }
 }
