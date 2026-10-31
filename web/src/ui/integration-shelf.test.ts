@@ -12,22 +12,28 @@ describe('витрина интеграций (T30, T12, T13, R158)', () => {
       'board',
       'telegram',
     ]);
-    expect(SHELF.filter((item) => !item.soon).map((item) => item.id)).toEqual(['games', 'cinema', 'music']);
+    expect(SHELF.filter((item) => !item.soon).map((item) => item.id)).toEqual([
+      'games',
+      'cinema',
+      'music',
+      'board',
+    ]);
     expect(SHELF.at(-1)).toMatchObject({ id: 'telegram', soon: true, apart: true });
     expect(SHELF.filter((item) => item.apart).map((item) => item.id)).toEqual(['telegram']);
   });
 
   it('у каждой «Скоро» — одна строка о том, что это будет', () => {
     const soon = SHELF.filter((item) => item.soon);
-    expect(soon.map((item) => shelfName(t, item.id))).toEqual([
-      'Сцена стендап',
-      'Доска рисования',
-      'Telegram',
-    ]);
+    expect(soon.map((item) => shelfName(t, item.id))).toEqual(['Сцена стендап', 'Telegram']);
     for (const item of soon) {
       expect(shelfHint(t, item.id).length).toBeGreaterThan(10);
       expect(shelfHint(t, item.id)).not.toContain('\n');
     }
+  });
+
+  it('доска (R159) — готовая карточка со своим цветом', () => {
+    expect(SHELF.find((item) => item.id === 'board')).toMatchObject({ soon: false, brand: 'board' });
+    expect(shelfName(t, 'board')).toBe('Доска рисования');
   });
 
   it('Telegram видят все, а подсказка про создателя — у всех, кроме него', () => {

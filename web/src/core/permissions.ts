@@ -42,13 +42,18 @@ export type RoomAction =
   | 'chess.open'
   | 'chess.manage'
   | 'gartic.open'
-  | 'gartic.manage';
+  | 'gartic.manage'
+  | 'board.open'
+  | 'board.draw'
+  | 'board.settings'
+  | 'board.clear'
+  | 'board.close';
 
 /**
  * Класс действия — только для ядра, которое ещё не присылает `you` (откат образа ядра). Классы те
  * же, что у матрицы ядра, поэтому и тогда кнопки совпадают с тем, что ядро и служба пропустят.
  */
-type Kind = 'creator' | 'integrations' | 'participant' | 'poker' | 'durak' | 'chess' | 'gartic';
+type Kind = 'creator' | 'integrations' | 'participant' | 'poker' | 'durak' | 'chess' | 'gartic' | 'board';
 const KIND: Record<RoomAction, Kind> = {
   'room.close': 'creator',
   'room.settings': 'creator',
@@ -83,6 +88,12 @@ const KIND: Record<RoomAction, Kind> = {
   'chess.manage': 'chess',
   'gartic.open': 'integrations',
   'gartic.manage': 'gartic',
+  // Ядро без `you` доски не знает вовсе: ответ «нельзя» здесь только для порядка.
+  'board.open': 'board',
+  'board.draw': 'board',
+  'board.settings': 'board',
+  'board.clear': 'board',
+  'board.close': 'board',
 };
 
 type View = Pick<
@@ -118,5 +129,7 @@ function legacy(snapshot: View, participantId: string, action: RoomAction): bool
       return host(snapshot.chess);
     case 'gartic':
       return host(snapshot.gartic);
+    case 'board':
+      return false;
   }
 }

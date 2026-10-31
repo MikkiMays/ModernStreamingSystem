@@ -12,6 +12,7 @@ import {
   Paperclip,
   Pause,
   Play,
+  Presentation,
   Send,
   UserPlus,
   UserX,
@@ -40,6 +41,8 @@ import { useVoiceTier } from './useVoice';
 import { ExecutableNote } from './abuse/Notices';
 import { ChatText } from './abuse/ChatText';
 import { locale } from '../i18n';
+import { boardFileKind } from '../core/board/export';
+import { backToStage } from './stage-context';
 
 export type Panel = 'people' | 'chat' | 'services';
 export function Sidebar({
@@ -215,6 +218,28 @@ export function Sidebar({
     },
     [],
   );
+  /*
+    «Открыть на доске» у файла доски в чате (R154): файл ложится во встречу, доска забирает его и
+    спрашивает, заменить её или добавить. Доски нет — сначала её открыть, если можно.
+  */
+  const boardOpen = !!snapshot.board;
+  const canOpenOnBoard =
+    !ended &&
+    (boardOpen
+      ? allowed(snapshot, meeting.admission.participantId, 'board.draw')
+      : allowed(snapshot, meeting.admission.participantId, 'board.open'));
+  const openOnBoard = async (file: Parameters<typeof meeting.api.download>[0]) => {
+    setError('');
+    try {
+      const blob = await meeting.api.attachment(file);
+      meeting.boardImport.set(new globalThis.File([blob], file.name, { type: 'application/json' }));
+      if (meeting.snapshot.get().board) backToStage(meeting);
+      else await meeting.command('board.open');
+    } catch (e) {
+      meeting.boardImport.set(null);
+      setError((e as Error).message);
+    }
+  };
   const copyMessage = async (text: string) => {
     setError('');
     try {
@@ -418,6 +443,15 @@ export function Sidebar({
                       </small>
                       <ExecutableNote file={entry.file} />
                     </div>
+                    {canOpenOnBoard && boardFileKind(entry.file.name) === 'board' && (
+                      <IconButton
+                        label={t(($) => $.sidebar.openOnBoardOf, { name: entry.file.name })}
+                        title={t(($) => $.sidebar.openOnBoard)}
+                        onClick={() => void openOnBoard(entry.file)}
+                      >
+                        <Presentation size={20} />
+                      </IconButton>
+                    )}
                     <IconButton
                       label={t(($) => $.sidebar.download, { name: entry.file.name })}
                       onClick={() =>

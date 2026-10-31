@@ -7,6 +7,7 @@ import type { Translate } from '../i18n';
 export function integrationName(t: Translate, kind: StageKind): string {
   if (kind === 'cinema') return t(($) => $.services.roster.cinema);
   if (kind === 'gartic') return 'Gartic';
+  if (kind === 'board') return t(($) => $.board.name);
   return t(($) => $.services.games[kind]);
 }
 
@@ -107,6 +108,14 @@ export function notchState(
       status: turn ? yours : seated(game.players.length),
       turn,
       ...(turn ? { ring: ringOf(game.phaseStartedAt, game.deadline) } : {}),
+    };
+  }
+  if (occupant.kind === 'board' && room.board) {
+    // Доска (R159): кто рисует — все или только ведущий; «Ваш ход» у доски не бывает.
+    return {
+      ...base,
+      name: integrationName(t, 'board'),
+      status: room.board.drawers === 'host' ? t(($) => $.board.modes.host) : t(($) => $.board.modes.all),
     };
   }
   const watch = room.watch;

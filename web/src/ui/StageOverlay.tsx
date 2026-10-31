@@ -1,6 +1,15 @@
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Clapperboard, Club, Crown, Music2, Pencil, Spade, type LucideIcon } from 'lucide-react';
+import {
+  Clapperboard,
+  Club,
+  Crown,
+  Music2,
+  Pencil,
+  Presentation,
+  Spade,
+  type LucideIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
@@ -29,7 +38,7 @@ import './stage-overlay.css';
  * чужого экрана её показывает чёлка сверху по центру (`StageNotch`). Интеграция на сцене одна (`stageBusy`
  * ядра), поэтому чипы игр и кино остаются только для снимка, где сцену делят двое.
  */
-export type ChipKind = 'poker' | 'durak' | 'chess' | 'gartic' | 'cinema' | 'music';
+export type ChipKind = 'poker' | 'durak' | 'chess' | 'gartic' | 'board' | 'cinema' | 'music';
 
 export interface StageChip {
   kind: ChipKind;
@@ -54,6 +63,7 @@ export const ICONS: Record<ChipKind, LucideIcon> = {
   durak: Club,
   chess: Crown,
   gartic: Pencil,
+  board: Presentation,
   cinema: Clapperboard,
   music: Music2,
 };
@@ -115,6 +125,11 @@ export function stageChips(
     const players = (snapshot.gartic as { players?: unknown[] }).players ?? [];
     add('gartic', game(t, 'Gartic', players.length));
   }
+  if (snapshot.board)
+    add(
+      'board',
+      t(($) => $.board.name),
+    );
   if (snapshot.watch) {
     const cinema = t(($) => $.services.roster.cinema);
     const title = snapshot.watch.title?.trim();

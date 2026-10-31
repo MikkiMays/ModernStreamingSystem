@@ -30,7 +30,7 @@ public class Metrics {
 
   /** Виды интеграций, которые метры знают поимённо. Остальное — {@code other}. */
   public static final List<String> INTEGRATIONS =
-      List.of("watch", "music", "poker", "durak", "chess", "gartic");
+      List.of("watch", "music", "poker", "durak", "chess", "gartic", "board");
 
   private final MeterRegistry registry;
   private final RoomRepository rooms;

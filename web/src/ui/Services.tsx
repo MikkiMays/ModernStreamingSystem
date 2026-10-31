@@ -12,6 +12,7 @@ import { musicHint, shelfName, type ShelfId } from './integration-shelf';
 import { MusicWidget } from './music/MusicWidget';
 import { useMusic } from './music/useMusic';
 import { gameActivity, musicActivity } from './services-status';
+import { backToStage } from './stage-context';
 
 /**
  * Панель интеграций встречи: витрина (`IntegrationShelf`) и внутри — группа.
@@ -22,6 +23,8 @@ import { gameActivity, musicActivity } from './services-status';
  */
 type Group = 'cinema' | 'music' | 'games';
 const OPENS: readonly ShelfId[] = ['cinema', 'music', 'games'];
+/** Что делит сцену с доской (R159): у неё нет группы — карточка сразу открывает её на сцене. */
+type Rival = Group | 'board';
 
 export function Services({ meeting }: { meeting: Meeting }) {
   /**
@@ -45,33 +48,55 @@ export function Services({ meeting }: { meeting: Meeting }) {
    */
   const musicStatus = musicActivity(t, music.state, music.down);
   const gamesStatus = gameActivity(t, snapshot.poker, snapshot.durak, snapshot.chess, snapshot.gartic);
-  const running: Record<Group, boolean> = {
+  const running: Record<Rival, boolean> = {
     cinema: !!snapshot.watch,
     music: musicStatus.active,
     games: gamesStatus.active,
+    board: !!snapshot.board,
   };
-  const RIVALS: Record<Group, Group[]> = {
-    cinema: ['music', 'games'],
+  // Доска — на той же сцене, что кинозал и игры: открыть её поверх них нельзя, и наоборот.
+  const RIVALS: Record<Rival, Rival[]> = {
+    cinema: ['music', 'games', 'board'],
     music: ['cinema'],
-    games: ['cinema'],
+    games: ['cinema', 'board'],
+    board: ['cinema', 'games'],
   };
-  const blockedBy = (group: Group): Group | null =>
+  const blockedBy = (group: Rival): Rival | null =>
     running[group] ? null : (RIVALS[group].find((rival) => running[rival]) ?? null);
+  const [boardError, setBoardError] = useState('');
+  /** Карточка доски: идёт — вернуться к ней на сцену, нет — принести, если можно. */
+  const openBoard = () => {
+    if (snapshot.board) {
+      backToStage(meeting);
+      return;
+    }
+    if (!can('board.open')) return;
+    setBoardError('');
+    void meeting.command('board.open').catch((error) => setBoardError((error as Error).message));
+  };
 
   if (!group) {
     const blocked = Object.fromEntries(
-      OPENS.map((id) => [id, blockedBy(id as Group)])
+      ([...OPENS, 'board'] as Rival[])
+        .map((id) => [id, blockedBy(id)] as const)
         .filter(([, rival]) => rival)
         .map(([id, rival]) => [id, shelfName(t, rival as ShelfId)]),
     );
     return (
       <div className="services-panel" key="groups">
         <IntegrationShelf
-          hints={{ music: musicHint(t, music.sources) }}
+          hints={{
+            music: musicHint(t, music.sources),
+            // Принести доску организатор разрешил только себе — карточка говорит это сразу.
+            ...(!snapshot.board && !can('board.open')
+              ? { board: t(($) => $.services.music.enableLocked) }
+              : {}),
+          }}
           live={{
             cinema: running.cinema ? t(($) => $.services.cinemaLive) : undefined,
             music: musicStatus.active ? musicStatus.label : undefined,
             games: gamesStatus.active ? gamesStatus.label : undefined,
+            board: running.board ? t(($) => $.services.boardLive) : undefined,
           }}
           blockedBy={blocked}
           canLinkTelegram={can('telegram.link')}
@@ -82,13 +107,17 @@ export function Services({ meeting }: { meeting: Meeting }) {
               if (can('telegram.link')) setGroup('telegram');
               return;
             }
+            if (id === 'board') {
+              openBoard();
+              return;
+            }
             if (!(OPENS as readonly string[]).includes(id)) return;
             setGroup(id as Group);
           }}
         />
-        {music.error && (
+        {(music.error || boardError) && (
           <p className="services-error" role="alert">
-            {music.error}
+            {music.error || boardError}
           </p>
         )}
       </div>

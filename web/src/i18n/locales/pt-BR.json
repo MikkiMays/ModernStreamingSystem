@@ -1093,6 +1093,79 @@
       "sendFailed": "Não foi possível enviar o desenho."
     }
   },
+  "board": {
+    "name": "Quadro",
+    "loading": "Abrindo o quadro…",
+    "failed": "O quadro não abriu",
+    "retry": "Tentar de novo",
+    "modes": {
+      "all": "Todos desenham",
+      "host": "O anfitrião desenha"
+    },
+    "viewOnly": "Só visualização: o anfitrião está desenhando",
+    "status": {
+      "connecting": "Conectando ao quadro…",
+      "offline": "A conexão com o quadro caiu; reconectando. Seus desenhos não serão perdidos",
+      "closed": "O quadro não está disponível",
+      "replaced": "O quadro está aberto em outra aba",
+      "reconnect": "Abrir aqui"
+    },
+    "actions": {
+      "saveToChat": "Salvar no chat",
+      "saving": "Salvando…",
+      "download": "Baixar",
+      "downloadPng": "Como imagem PNG",
+      "downloadSvg": "Como imagem SVG",
+      "downloadFile": "Como arquivo do quadro",
+      "open": "Abrir arquivo",
+      "clear": "Limpar o quadro",
+      "close": "Fechar o quadro",
+      "more": "Mais",
+      "highlighter": "Marca-texto",
+      "sticky": "Nota adesiva",
+      "drawers": "Quem desenha",
+      "drawersAll": "Todos os participantes",
+      "drawersHost": "Só o anfitrião",
+      "menu": "Menu do quadro"
+    },
+    "stickyHint": "Clique duas vezes na nota para escrever",
+    "chat": {
+      "message": "Quadro · {{time}}",
+      "file": "Quadro {{time}}",
+      "saved": "Quadro salvo no chat",
+      "failed": "Não foi possível salvar o quadro no chat",
+      "retention": "A imagem e o arquivo do quadro no chat somem uma hora depois da reunião, no máximo em um dia. Para guardar por mais tempo, baixe o arquivo do quadro ou adicione a reunião aos Favoritos.",
+      "empty": "O quadro está vazio"
+    },
+    "import": {
+      "title": "Abrir arquivo no quadro",
+      "description": "“{{name}}”: substituir o que está no quadro ou adicionar ao lado?",
+      "replace": "Substituir o quadro",
+      "add": "Adicionar ao quadro",
+      "replaceHint": "Tudo o que está no quadro agora vai sumir para todos.",
+      "failed": "Este arquivo não parece um quadro",
+      "noReplace": "Só o anfitrião pode substituir o quadro"
+    },
+    "close": {
+      "title": "Salvar o quadro no chat?",
+      "description": "O quadro será fechado para todos os participantes. A imagem e o arquivo do quadro ficam no chat para abri-lo de novo.",
+      "save": "Salvar e fechar",
+      "discard": "Fechar sem salvar"
+    },
+    "clear": {
+      "title": "Limpar o quadro?",
+      "description": "Tudo o que foi desenhado vai sumir para todos os participantes.",
+      "confirm": "Limpar"
+    },
+    "notice": {
+      "full": "O quadro está cheio: remova algo para continuar desenhando",
+      "rejected": "Algumas alterações não couberam no quadro",
+      "cleared": "{{name}} limpou o quadro"
+    },
+    "drop": "Solte para abrir o arquivo no quadro",
+    "exportFailed": "Não foi possível salvar a imagem do quadro",
+    "cancel": "Cancelar"
+  },
   "games": {
     "list": {
       "poker": {
@@ -2514,6 +2587,8 @@
     "approve": "Deixar entrar: {{name}}",
     "remove": "Remover: {{name}}",
     "download": "Baixar {{name}}",
+    "openOnBoard": "Abrir no quadro",
+    "openOnBoardOf": "Abrir no quadro: {{name}}",
     "dropUnfinished": "Excluir o envio incompleto: {{name}}",
     "attachment": {
       "list": "Anexos da mensagem",
@@ -2824,6 +2899,7 @@
   },
   "services": {
     "cinemaLive": "Em exibição",
+    "boardLive": "Quadro aberto",
     "music": {
       "tokenFailed": "Não foi possível conectar o token salvo do Yandex Music. Conecte a conta manualmente abaixo.",
       "back": "Integrações",
@@ -2914,6 +2990,10 @@
       },
       "target": "{{kind}} {{ms}} ms",
       "none": "Nenhuma faixa assinada"
+    },
+    "board": {
+      "label": "Quadro",
+      "value": "{{p50}} ms, 95% em até {{p95}} ms"
     },
     "ordered": "A mídia passa por um relay via TCP/TLS. Esse caminho não perde pacotes, ele os pede de novo, e tudo o que chega depois espera o atrasado — aos ouvidos soa como “ficou mudo e depois falou mais rápido”. O buffer foi aumentado automaticamente. Se isso se repetir, verifique se a sua rede deixa passar UDP até o servidor de mídia: o caminho direto é bem mais estável.",
     "videoPaused_one": "O vídeo foi pausado {{count}} vez para você: sua conexão não dava conta da imagem, então o servidor priorizou a voz e a música. A imagem volta sozinha quando a conexão melhora.",
@@ -3054,6 +3134,15 @@
     "BLOCKED": "O dono fechou o acesso a este servidor",
     "BLOCK_NOT_FOUND": "O bloqueio já foi removido ou expirou",
     "BLOCK_SUBJECT_UNKNOWN": "O endereço e o perfil desta pessoa são desconhecidos: não há o que bloquear",
+    "BOARD_CLOSED": "O quadro já foi fechado",
+    "BOARD_DRAWERS": "Escolha quem pode desenhar no quadro",
+    "BOARD_FILES_FULL": "O quadro tem imagens demais. Remova as que não precisa",
+    "BOARD_FILE_INVALID": "Não foi possível ler a imagem",
+    "BOARD_FILE_NOT_FOUND": "Esta imagem não está mais no quadro",
+    "BOARD_FILE_TOO_LARGE": "A imagem é grande demais para o quadro",
+    "BOARD_FILE_TYPE": "No quadro só cabem imagens PNG, JPEG, WebP ou GIF",
+    "BOARD_OPEN": "O quadro já está aberto",
+    "BOARD_OWNER_ONLY": "Só quem abriu o quadro ou quem criou a reunião pode fechá-lo",
     "CHAT_RATE": "Muitas mensagens seguidas. Espere um minuto",
     "CHAT_RATE_IP": "Muitas mensagens desta rede. Espere um minuto",
     "CHAT_REPEAT": "Esta mensagem já foi enviada. Espere um pouco",
@@ -3221,7 +3310,8 @@
       "poker": "Pôquer",
       "durak": "Durak",
       "chess": "Xadrez",
-      "gartic": "Gartic"
+      "gartic": "Gartic",
+      "board": "Quadro"
     },
     "now": {
       "live": "Reuniões em andamento",

@@ -146,6 +146,19 @@ describe('кинозал', () => {
     });
   });
 
+  it('доска (R159) — кто рисует: все или ведущий', () => {
+    const board = { openedBy: 'host', openedAt: 1, drawers: 'all' };
+    expect(notchState(t, room({ board }), 'me', 0)).toMatchObject({
+      kind: 'board',
+      name: 'Доска',
+      status: 'Рисуют все',
+      turn: false,
+    });
+    expect(notchState(t, room({ board: { ...board, drawers: 'host' } }), 'me', 0)?.status).toBe(
+      'Рисует ведущий',
+    );
+  });
+
   it('сцена свободна — чёлки нет', () => {
     expect(notchState(t, room({}), 'me', 0)).toBeNull();
   });

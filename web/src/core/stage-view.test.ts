@@ -7,9 +7,17 @@ import { awayAfter, newFilm, stageOccupant, stageView, type StageOccupant } from
   ухода, когда сцена меняется. Выбор вида — личный, комната о нём не знает.
 */
 
-type Room = Pick<Snapshot, 'chess' | 'gartic' | 'poker' | 'durak' | 'watch'>;
+type Room = Pick<Snapshot, 'chess' | 'gartic' | 'poker' | 'durak' | 'watch' | 'board'>;
 const room = (extra: Partial<Record<keyof Room, unknown>> = {}) =>
-  ({ chess: null, gartic: null, poker: null, durak: null, watch: null, ...extra }) as unknown as Room;
+  ({
+    chess: null,
+    gartic: null,
+    poker: null,
+    durak: null,
+    watch: null,
+    board: null,
+    ...extra,
+  }) as unknown as Room;
 const film: StageOccupant = { kind: 'cinema', film: true, content: 'youtube:abc' };
 const other: StageOccupant = { kind: 'cinema', film: true, content: 'ivi:42' };
 const catalog: StageOccupant = { kind: 'cinema', film: false };
@@ -28,6 +36,12 @@ describe('что занимает сцену', () => {
     expect(stageOccupant(room({ gartic: {}, poker: {} }), false)?.kind).toBe('gartic');
     expect(stageOccupant(room({ poker: {}, durak: {}, watch: {} }), false)?.kind).toBe('poker');
     expect(stageOccupant(room({ durak: {}, watch: {} }), false)?.kind).toBe('durak');
+  });
+
+  it('доска (R159) — своя интеграция на сцене, раньше кинозала', () => {
+    expect(stageOccupant(room({ board: { drawers: 'all' } }), false)).toEqual({ kind: 'board', film: false });
+    expect(stageOccupant(room({ board: { drawers: 'all' } }), true)?.kind).toBe('board');
+    expect(stageOccupant(room({ durak: {}, board: { drawers: 'all' } }), false)?.kind).toBe('durak');
   });
 
   it('кинозал — фильм комнаты или свой открытый каталог', () => {

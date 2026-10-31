@@ -126,6 +126,18 @@ stream:
     # Файлы, которые могут запустить программу (exe, msi, bat, js, apk, архивы…): `warn` — пометка и
     # предупреждение при скачивании, `block` — не принимать (415 FILE_TYPE_BLOCKED), `allow` — как все.
     executable-attachments: ${CHAT_EXECUTABLE_ATTACHMENTS:warn}
+  # Доска (R159): пределы сцены Excalidraw одной встречи (`board/BoardProperties.java`). Сцена — в базе
+  # (`room_boards`), картинки — там же (`room_board_files`) и уходят вместе со встречей.
+  board:
+    max-elements: ${BOARD_MAX_ELEMENTS:10000}
+    max-scene-bytes: ${BOARD_MAX_SCENE_BYTES:8388608}
+    max-element-bytes: 65536
+    # Одно сообщение сокета доски: элемент до 64 КиБ и конверт вокруг него.
+    max-message-bytes: 98304
+    max-files: ${BOARD_MAX_FILES:32}
+    max-file-bytes: ${BOARD_MAX_FILE_BYTES:4194304}
+    # Как часто сцена с новыми правками пишется в базу, мс.
+    flush-ms: 3000
   # Обращения в поддержку (E13): форма на странице «Помощь» и в окне «?». Обращение хранится в базе,
   # бот доносит его в Telegram владельца Cord: `SUPPORT_TELEGRAM_CHAT_ID`, без него — чат оповещений
   # мониторинга (`ALERT_TELEGRAM_CHAT_ID`, E10); нет обоих — обращения только в базе.

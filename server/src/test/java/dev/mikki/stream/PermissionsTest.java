@@ -61,6 +61,11 @@ class PermissionsTest {
           durak.manage        | ++ | -- | ++ | -- | -- | --
           chess.manage        | ++ | -- | ++ | -- | -- | --
           gartic.manage       | ++ | -- | ++ | -- | -- | --
+          board.open          | ++ | +- | +- | -- | -- | --
+          board.draw          | ++ | ++ | ++ | -- | -- | --
+          board.settings      | ++ | +- | +- | -- | -- | --
+          board.clear         | ++ | +- | +- | -- | -- | --
+          board.close         | ++ | -- | ++ | -- | -- | --
           """)
   void matrix(
       String action,
@@ -100,7 +105,51 @@ class PermissionsTest {
     assertThat(Arrays.stream(Action.values()).map(Action::wire))
         .doesNotHaveDuplicates()
         .allSatisfy(name -> assertThat(name).matches("[a-z]+\\.[a-z]+"))
-        .hasSize(33);
+        .hasSize(38);
+  }
+
+  /**
+   * Доска «рисует ведущий» (R159): перо, очистка и выбор, кто рисует, — только у создателя встречи,
+   * иначе участник вернул бы себе перо той же кнопкой. Закрыть может и тот, кто открыл.
+   */
+  @Test
+  void hostOnlyBoardLeavesThePenWithTheCreator() {
+    var room = room(true);
+    room.board.drawers = RoomState.Board.HOST;
+    var creator = member("creator", true, RoomState.Status.CONNECTED);
+    var guest = member("guest", false, RoomState.Status.CONNECTED);
+    var opener = member(HOST, false, RoomState.Status.CONNECTED);
+    for (var m : List.of(creator, guest, opener)) room.members.put(m.id, m);
+    assertThat(Permissions.granted(room, creator))
+        .contains("board.draw", "board.settings", "board.clear", "board.close");
+    assertThat(Permissions.granted(room, guest))
+        .doesNotContain("board.draw", "board.settings", "board.clear", "board.close")
+        .contains("board.open");
+    assertThat(Permissions.granted(room, opener))
+        .doesNotContain("board.draw", "board.settings", "board.clear")
+        .contains("board.close");
+  }
+
+  @Test
+  void withoutABoardNobodyDrawsOrClosesIt() {
+    var room = room(true);
+    room.board = null;
+    var creator = member("creator", true, RoomState.Status.CONNECTED);
+    room.members.put(creator.id, creator);
+    assertThat(Permissions.granted(room, creator))
+        .doesNotContain("board.draw", "board.settings", "board.clear", "board.close")
+        .contains("board.open");
+    var guest = member("guest", false, RoomState.Status.CONNECTED);
+    room.members.put(guest.id, guest);
+    room.board = new RoomState.Board();
+    room.board.openedBy = HOST;
+    assertThatThrownBy(() -> Permissions.require(room, guest, Action.BOARD_CLOSE))
+        .isInstanceOfSatisfying(
+            Problem.class,
+            p -> {
+              assertThat(p.status()).isEqualTo(409);
+              assertThat(p.code()).isEqualTo("BOARD_OWNER_ONLY");
+            });
   }
 
   @Test
@@ -170,6 +219,9 @@ class PermissionsTest {
     room.chess.hostId = HOST;
     room.gartic = new dev.mikki.stream.game.Gartic();
     room.gartic.hostId = HOST;
+    // Доску тоже принёс «ведущий игры»: закрыть её может он и создатель.
+    room.board = new RoomState.Board();
+    room.board.openedBy = HOST;
     return room;
   }
 

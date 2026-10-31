@@ -249,6 +249,26 @@
         },
         "type": "object"
       },
+      "BoardView": {
+        "properties": {
+          "drawers": {
+            "type": "string"
+          },
+          "openedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "openedBy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawers",
+          "openedAt",
+          "openedBy"
+        ],
+        "type": "object"
+      },
       "Bucket": {
         "properties": {
           "meetings": {
@@ -772,7 +792,11 @@
               "gartic.submit",
               "gartic.reveal",
               "presence.confirm",
-              "self.deafen"
+              "self.deafen",
+              "board.open",
+              "board.close",
+              "board.settings",
+              "board.clear"
             ],
             "type": "string"
           },
@@ -3640,6 +3664,16 @@
           "approvalRequired": {
             "type": "boolean"
           },
+          "board": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BoardView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "chess": {
             "oneOf": [
               {
@@ -5683,6 +5717,100 @@
         },
         "tags": [
           "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/board/files/{fileId}": {
+      "get": {
+        "operationId": "boardFile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "format": "byte",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "board-controller"
+        ]
+      },
+      "put": {
+        "operationId": "putBoardFile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "board-controller"
         ]
       }
     },

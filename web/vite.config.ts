@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -55,6 +56,50 @@ function buildMeta(): Plugin {
 }
 
 /**
+ * Шрифты доски (R159) — свои, а не с CDN Excalidraw (`esm.sh`): CSP пускает шрифты только со своего
+ * адреса (`font-src 'self'`). Сборка кладёт `dist/prod/fonts` пакета в `/assets/excalidraw-<версия>/fonts/`
+ * — путь меняется с версией, поэтому шлюз кэширует его навсегда, как всё под `/assets/`. Dev-сервер
+ * отдаёт те же файлы прямо из `node_modules`. Путь доска узнаёт из `__EXCALIDRAW_ASSETS__`
+ * (`ui/board/asset-path.ts`).
+ */
+const excalidrawRoot = fileURLToPath(new URL('./node_modules/@excalidraw/excalidraw/', import.meta.url));
+const excalidrawVersion = existsSync(join(excalidrawRoot, 'package.json'))
+  ? (JSON.parse(readFileSync(join(excalidrawRoot, 'package.json'), 'utf8')) as { version: string }).version
+  : '0';
+const excalidrawAssets = `assets/excalidraw-${excalidrawVersion}/`;
+
+function files(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? files(path) : [path];
+  });
+}
+
+function excalidrawFonts(): Plugin {
+  const fonts = join(excalidrawRoot, 'dist', 'prod', 'fonts');
+  return {
+    name: 'cord-excalidraw-fonts',
+    configureServer(server) {
+      server.middlewares.use(`/${excalidrawAssets}fonts/`, (request, response, next) => {
+        const file = join(fonts, decodeURIComponent((request.url ?? '').split('?')[0] ?? ''));
+        if (!file.startsWith(fonts + sep) || !existsSync(file)) return next();
+        response.setHeader('Content-Type', 'font/woff2');
+        createReadStream(file).pipe(response);
+      });
+    },
+    generateBundle() {
+      for (const file of files(fonts))
+        this.emitFile({
+          type: 'asset',
+          fileName: `${excalidrawAssets}fonts/${relative(fonts, file).split(sep).join('/')}`,
+          source: readFileSync(file),
+        });
+    },
+  };
+}
+
+/**
  * Фон в видео (R153): wasm MediaPipe — со своего сервера, а не с jsdelivr. По умолчанию
  * `@livekit/track-processors` тянет его с CDN, а модель — с googleapis, и CSP шлюза закрыла бы и то и
  * другое (ослаблять её нельзя). Модель (250 КБ) лежит в `public/mediapipe/`, а wasm (~18 МБ) в
@@ -93,6 +138,7 @@ function mediapipeAssets(): Plugin {
 export default defineConfig({
   define: {
     __CORD_VERSION__: JSON.stringify(version),
+    __EXCALIDRAW_ASSETS__: JSON.stringify(`/${excalidrawAssets}`),
   },
   plugins: [
     react(),
@@ -100,6 +146,7 @@ export default defineConfig({
     tailwindcss(),
     buildMeta(),
     mediapipeAssets(),
+    excalidrawFonts(),
   ],
   server: { proxy },
   preview: { proxy },
@@ -123,5 +170,7 @@ export default defineConfig({
     // CSS в тестах выключен целиком, и `import … from '*.css?raw'` получал бы пустую строку. Текстом
     // CSS читает только сверка границ раскладки (`ui/breakpoints.test.ts`) — ей текст и отдаётся.
     css: { include: [/\.css\?raw$/] },
+    // Excalidraw (R159) — ESM-сборка с импортами без расширений: её разбирает Vite, а не Node.
+    server: { deps: { inline: [/@excalidraw\/excalidraw/] } },
   },
 });

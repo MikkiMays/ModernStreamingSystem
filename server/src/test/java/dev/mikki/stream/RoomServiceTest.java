@@ -42,6 +42,7 @@ class RoomServiceTest {
   @Autowired FavoriteService favorites;
   @Autowired StreamProperties config;
   @Autowired JdbcClient jdbc;
+  @Autowired dev.mikki.stream.board.BoardStore boardStore;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
@@ -1410,6 +1411,87 @@ class RoomServiceTest {
     poker(host, "poker.open", "friendly", null, null);
     assertThatThrownBy(() -> poker(host, "durak.open", "podkidnoy", null, null))
         .isInstanceOf(Problem.class);
+  }
+
+  static void refused(Runnable action, String code) {
+    assertThatThrownBy(action::run)
+        .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.code()).isEqualTo(code));
+  }
+
+  /**
+   * Доска (R159) занимает ту же единственную сцену, что кинозал, столы и игры. Жизнь доски — в
+   * комнате (кто открыл и кто рисует), закрывает её открывший или создатель.
+   */
+  @Test
+  void theBoardTakesTheStageAndOnlyItsOwnerClosesIt() {
+    var host = host();
+    var guest = guest(host);
+    var third = guest(host);
+    watch(host, "watch.open", "youtube", "video", "abc", null);
+    refused(() -> poker(host, "board.open", null, null, null), "INTEGRATION_BUSY");
+    watch(host, "watch.close", null, null, null, null);
+    poker(guest, "board.open", "host", null, null);
+    var board = rooms.snapshot(host.roomId(), guest.credential()).board();
+    assertThat(board.openedBy()).isEqualTo(guest.participantId());
+    assertThat(board.drawers()).isEqualTo("host");
+    assertThat(rooms.snapshot(host.roomId(), guest.credential()).you().can())
+        .contains("board.close")
+        .doesNotContain("board.draw", "board.clear", "board.settings");
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).you().can())
+        .contains("board.draw", "board.clear", "board.settings", "board.close");
+    refused(() -> poker(host, "board.open", null, null, null), "BOARD_OPEN");
+    refused(() -> watch(host, "watch.open", "youtube", "video", "abc", null), "INTEGRATION_BUSY");
+    refused(() -> poker(host, "poker.open", "friendly", null, null), "INTEGRATION_BUSY");
+    refused(() -> poker(host, "durak.open", "podkidnoy", null, null), "INTEGRATION_BUSY");
+    refused(() -> poker(host, "chess.open", "10-5", null, null), "INTEGRATION_BUSY");
+    refused(() -> poker(host, "board.settings", "everyone", null, null), "BOARD_DRAWERS");
+    poker(host, "board.settings", "all", null, null);
+    assertThat(rooms.read(host.roomId()).board.drawers).isEqualTo("all");
+    refused(() -> poker(third, "board.close", null, null, null), "BOARD_OWNER_ONLY");
+    poker(guest, "board.close", null, null, null);
+    assertThat(rooms.read(host.roomId()).board).isNull();
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).board()).isNull();
+    refused(() -> poker(host, "board.clear", null, null, null), "BOARD_CLOSED");
+    poker(host, "chess.open", "10-5", null, null);
+    refused(() -> poker(host, "board.open", null, null, null), "INTEGRATION_BUSY");
+  }
+
+  /** Встреча завершилась — доска закрыта, а её сцена ждёт возвращения, пока жива комната. */
+  @Test
+  void closingTheMeetingClosesTheBoardButKeepsItsScene() {
+    var host = host();
+    poker(host, "board.open", null, null, null);
+    assertThat(boardStore.save(host.roomId(), 0, 3, "[{\"id\":\"a\"}]", now.get())).isTrue();
+    command(host, "close", null, 0);
+    assertThat(rooms.read(host.roomId()).board).isNull();
+    assertThat(boardStore.load(host.roomId())).isPresent();
+  }
+
+  /**
+   * Сцена и картинки доски — в базе рядом с комнатой и уходят вместе с ней ({@code ON DELETE
+   * CASCADE}, миграция V14): у удалённой встречи доски нет, писать её некуда.
+   */
+  @Test
+  void boardSceneAndPicturesLeaveWithTheRoom() {
+    var host = host();
+    var id = host.roomId();
+    assertThat(boardStore.load(id)).isEmpty();
+    assertThat(boardStore.save(id, 1, 5, "[{\"id\":\"a\",\"text\":\"привет\"}]", now.get()))
+        .isTrue();
+    assertThat(boardStore.save(id, 2, 9, "[{\"id\":\"b\"}]", now.get())).isTrue();
+    var saved = boardStore.load(id).orElseThrow();
+    assertThat(saved.epoch()).isEqualTo(2);
+    assertThat(saved.seq()).isEqualTo(9);
+    assertThat(saved.elements()).isEqualTo("[{\"id\":\"b\"}]");
+    var bytes = new byte[] {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
+    assertThat(boardStore.putFile(id, "f1", "image/png", bytes, now.get())).isTrue();
+    assertThat(boardStore.putFile(id, "f1", "image/png", bytes, now.get())).isFalse();
+    assertThat(boardStore.file(id, "f1").orElseThrow().data()).isEqualTo(bytes);
+    assertThat(boardStore.files(id)).extracting(f -> f.id()).containsExactly("f1");
+    assertThat(boardStore.save(UUID.randomUUID().toString(), 1, 1, "[]", now.get())).isFalse();
+    jdbc.sql("DELETE FROM rooms WHERE id=?").param(id).update();
+    assertThat(boardStore.load(id)).isEmpty();
+    assertThat(boardStore.files(id)).isEmpty();
   }
 
   /** Место и фишки принадлежат человеку, а не сессии: вернувшийся садится на свой стул. */

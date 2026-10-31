@@ -167,7 +167,7 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_commands_total` | counter | `type` (≈55 известных + `other`), `result=ok\|error` | `CommandDispatcher.execute` |
 | `cord_errors_total` | counter | `code` (`Problem.code`, ≈45), `status` | `ApiErrors` |
 | `cord_integration_sessions_total` | counter | `kind=poker\|durak\|chess\|gartic\|watch\|music\|telegram` | `*.open`, `watch.open`, бот |
-| `cord_integrations_active` | gauge | `kind` | `RoomState` |
+| `cord_integrations_active` | gauge | `kind` (`watch`, `music`, `poker`, `durak`, `chess`, `gartic`, `board`) | `RoomState` |
 | `cord_messages_total` | counter | — (только счёт) | `message.send` |
 | `cord_attachments_total`, `cord_attachment_bytes_total` | counter | `result` | `TusGateway` |
 | `cord_screens_active` | gauge | — | `screen.started` / завершение |

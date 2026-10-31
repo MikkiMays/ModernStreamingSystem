@@ -1083,6 +1083,79 @@
       "sendFailed": "无法发送画作。"
     }
   },
+  "board": {
+    "name": "白板",
+    "loading": "正在打开白板…",
+    "failed": "白板未能打开",
+    "retry": "重试",
+    "modes": {
+      "all": "所有人可绘图",
+      "host": "仅主持人绘图"
+    },
+    "viewOnly": "仅查看：主持人正在绘图",
+    "status": {
+      "connecting": "正在连接白板…",
+      "offline": "与白板的连接已断开，正在重新连接。你的绘图不会丢失",
+      "closed": "白板不可用",
+      "replaced": "白板已在另一个标签页中打开",
+      "reconnect": "在此打开"
+    },
+    "actions": {
+      "saveToChat": "保存到聊天",
+      "saving": "正在保存…",
+      "download": "下载",
+      "downloadPng": "PNG 图片",
+      "downloadSvg": "SVG 图片",
+      "downloadFile": "白板文件",
+      "open": "打开文件",
+      "clear": "清空白板",
+      "close": "关闭白板",
+      "more": "更多",
+      "highlighter": "荧光笔",
+      "sticky": "便利贴",
+      "drawers": "谁可以绘图",
+      "drawersAll": "所有参与者",
+      "drawersHost": "仅主持人",
+      "menu": "白板菜单"
+    },
+    "stickyHint": "双击便利贴即可输入文字",
+    "chat": {
+      "message": "白板 · {{time}}",
+      "file": "白板 {{time}}",
+      "saved": "白板已保存到聊天",
+      "failed": "无法将白板保存到聊天",
+      "retention": "聊天中的白板图片和文件会在会议结束一小时后删除，最长保留一天。如需长期保存，请下载白板文件或将会议加入收藏。",
+      "empty": "白板是空的"
+    },
+    "import": {
+      "title": "在白板上打开文件",
+      "description": "“{{name}}”：替换白板上的内容，还是添加到旁边？",
+      "replace": "替换白板",
+      "add": "添加到白板",
+      "replaceHint": "白板上现有的内容将对所有人消失。",
+      "failed": "这个文件看起来不是白板",
+      "noReplace": "只有主持人可以替换白板"
+    },
+    "close": {
+      "title": "将白板保存到聊天？",
+      "description": "白板将对所有参与者关闭。图片和白板文件会留在聊天中，可以再次打开。",
+      "save": "保存并关闭",
+      "discard": "不保存直接关闭"
+    },
+    "clear": {
+      "title": "清空白板？",
+      "description": "所有绘制内容将对所有参与者消失。",
+      "confirm": "清空"
+    },
+    "notice": {
+      "full": "白板已满：请删除一些内容后再继续绘图",
+      "rejected": "部分修改未能放到白板上",
+      "cleared": "{{name}} 清空了白板"
+    },
+    "drop": "松开即可在白板上打开文件",
+    "exportFailed": "无法保存白板图片",
+    "cancel": "取消"
+  },
   "games": {
     "list": {
       "poker": {
@@ -2456,6 +2529,8 @@
     "approve": "允许进入：{{name}}",
     "remove": "移出：{{name}}",
     "download": "下载 {{name}}",
+    "openOnBoard": "在白板上打开",
+    "openOnBoardOf": "在白板上打开：{{name}}",
     "dropUnfinished": "删除未完成的上传：{{name}}",
     "attachment": {
       "list": "消息附件",
@@ -2762,6 +2837,7 @@
   },
   "services": {
     "cinemaLive": "正在放映",
+    "boardLive": "白板已打开",
     "music": {
       "tokenFailed": "无法连接已保存的 Yandex Music 令牌。请在下方手动连接账号。",
       "back": "集成",
@@ -2850,6 +2926,10 @@
       },
       "target": "{{kind}} {{ms}} 毫秒",
       "none": "没有已订阅的轨道"
+    },
+    "board": {
+      "label": "白板",
+      "value": "{{p50}} 毫秒，95% 在 {{p95}} 毫秒内"
     },
     "ordered": "媒体正通过 TCP/TLS 中继传输。这条路径不会丢包，而是重新请求丢失的包，之后到达的数据都要等它——听起来就像“先静音，然后语速变快”。缓冲已自动增大。如果反复出现，请检查网络是否允许 UDP 到达媒体服务器：直连路径会平稳得多。",
     "videoPaused_other": "视频已为你暂停 {{count}} 次：你的网络带不动画面，服务器优先保证了语音和音乐。网络好转后画面会自动恢复。",
@@ -2988,6 +3068,15 @@
     "BLOCKED": "服务器所有者已关闭对此服务器的访问",
     "BLOCK_NOT_FOUND": "封禁已解除或已过期",
     "BLOCK_SUBJECT_UNKNOWN": "不知道此人的地址和资料：没有可封禁的对象",
+    "BOARD_CLOSED": "白板已关闭",
+    "BOARD_DRAWERS": "请选择谁可以在白板上绘图",
+    "BOARD_FILES_FULL": "白板上的图片太多了。请删除不需要的图片",
+    "BOARD_FILE_INVALID": "无法读取图片",
+    "BOARD_FILE_NOT_FOUND": "白板上已没有这张图片",
+    "BOARD_FILE_TOO_LARGE": "图片太大，无法放到白板上",
+    "BOARD_FILE_TYPE": "白板只支持 PNG、JPEG、WebP 或 GIF 图片",
+    "BOARD_OPEN": "白板已打开",
+    "BOARD_OWNER_ONLY": "只有打开白板的人或会议创建者可以关闭它",
     "CHAT_RATE": "连续发送的消息太多。请等一分钟",
     "CHAT_RATE_IP": "来自此网络的消息太多。请等一分钟",
     "CHAT_REPEAT": "这条消息已经发送过了。请稍候",
@@ -3155,7 +3244,8 @@
       "poker": "扑克",
       "durak": "Durak",
       "chess": "国际象棋",
-      "gartic": "Gartic"
+      "gartic": "Gartic",
+      "board": "白板"
     },
     "now": {
       "live": "进行中的会议",

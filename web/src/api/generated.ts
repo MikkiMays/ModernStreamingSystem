@@ -511,6 +511,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{id}/board/files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["boardFile"];
+        put: operations["putBoardFile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/{id}/client-report": {
         parameters: {
             query?: never;
@@ -858,6 +874,12 @@ export interface components {
             subject?: string;
             term?: string;
         };
+        BoardView: {
+            drawers: string;
+            /** Format: int64 */
+            openedAt: number;
+            openedBy: string;
+        };
         Bucket: {
             /** Format: int32 */
             meetings?: number;
@@ -989,7 +1011,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "screen.preview" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "media.decode" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal" | "presence.confirm" | "self.deafen";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "screen.preview" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "media.decode" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal" | "presence.confirm" | "self.deafen" | "board.open" | "board.close" | "board.settings" | "board.clear";
             under?: string;
         };
         Connect: {
@@ -1844,6 +1866,7 @@ export interface components {
         };
         Snapshot: {
             approvalRequired: boolean;
+            board?: components["schemas"]["BoardView"] | null;
             chess?: components["schemas"]["ChessView"] | null;
             /** Format: int32 */
             cinemaTraffic?: null | number;
@@ -2914,6 +2937,55 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["Attachment"];
                 };
+            };
+        };
+    };
+    boardFile: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                fileId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    putBoardFile: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+                "Content-Type"?: string;
+            };
+            path: {
+                fileId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

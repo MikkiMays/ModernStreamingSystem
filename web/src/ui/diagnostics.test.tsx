@@ -105,6 +105,7 @@ function fakeMeeting(tracks: unknown[] = []) {
       }),
     },
     control: { state: new Store('connected') },
+    boardLatency: new Store(null),
   } as unknown as Meeting;
 }
 

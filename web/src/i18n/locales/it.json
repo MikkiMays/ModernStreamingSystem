@@ -1093,6 +1093,79 @@
       "sendFailed": "Impossibile inviare il disegno."
     }
   },
+  "board": {
+    "name": "Lavagna",
+    "loading": "Apertura della lavagna…",
+    "failed": "La lavagna non si è aperta",
+    "retry": "Riprova",
+    "modes": {
+      "all": "Disegnano tutti",
+      "host": "Disegna l'host"
+    },
+    "viewOnly": "Solo visione: disegna l'host",
+    "status": {
+      "connecting": "Connessione alla lavagna…",
+      "offline": "Connessione alla lavagna persa, riconnessione in corso. I tuoi disegni non andranno persi",
+      "closed": "La lavagna non è disponibile",
+      "replaced": "La lavagna è aperta in un'altra scheda",
+      "reconnect": "Apri qui"
+    },
+    "actions": {
+      "saveToChat": "Salva nella chat",
+      "saving": "Salvataggio…",
+      "download": "Scarica",
+      "downloadPng": "Come immagine PNG",
+      "downloadSvg": "Come immagine SVG",
+      "downloadFile": "Come file della lavagna",
+      "open": "Apri file",
+      "clear": "Cancella la lavagna",
+      "close": "Chiudi la lavagna",
+      "more": "Altro",
+      "highlighter": "Evidenziatore",
+      "sticky": "Post-it",
+      "drawers": "Chi disegna",
+      "drawersAll": "Tutti i partecipanti",
+      "drawersHost": "Solo l'host",
+      "menu": "Menu della lavagna"
+    },
+    "stickyHint": "Fai doppio clic sul post-it per scrivere",
+    "chat": {
+      "message": "Lavagna · {{time}}",
+      "file": "Lavagna {{time}}",
+      "saved": "Lavagna salvata nella chat",
+      "failed": "Impossibile salvare la lavagna nella chat",
+      "retention": "L'immagine e il file della lavagna nella chat spariscono un'ora dopo la riunione, al massimo dopo un giorno. Per conservarla più a lungo, scarica il file della lavagna o aggiungi la riunione ai Preferiti.",
+      "empty": "La lavagna è vuota"
+    },
+    "import": {
+      "title": "Apri file sulla lavagna",
+      "description": "«{{name}}»: sostituire ciò che c'è sulla lavagna o aggiungerlo accanto?",
+      "replace": "Sostituisci la lavagna",
+      "add": "Aggiungi alla lavagna",
+      "replaceHint": "Tutto ciò che è ora sulla lavagna scomparirà per tutti.",
+      "failed": "Questo file non sembra una lavagna",
+      "noReplace": "Solo l'host può sostituire la lavagna"
+    },
+    "close": {
+      "title": "Salvare la lavagna nella chat?",
+      "description": "La lavagna si chiuderà per tutti i partecipanti. L'immagine e il file della lavagna restano nella chat per riaprirla.",
+      "save": "Salva e chiudi",
+      "discard": "Chiudi senza salvare"
+    },
+    "clear": {
+      "title": "Cancellare la lavagna?",
+      "description": "Tutto ciò che è disegnato scomparirà per tutti i partecipanti.",
+      "confirm": "Cancella"
+    },
+    "notice": {
+      "full": "La lavagna è piena: elimina qualcosa per continuare a disegnare",
+      "rejected": "Alcune modifiche non sono entrate nella lavagna",
+      "cleared": "{{name}} ha cancellato la lavagna"
+    },
+    "drop": "Rilascia per aprire il file sulla lavagna",
+    "exportFailed": "Impossibile salvare l'immagine della lavagna",
+    "cancel": "Annulla"
+  },
   "games": {
     "list": {
       "poker": {
@@ -2514,6 +2587,8 @@
     "approve": "Fai entrare: {{name}}",
     "remove": "Escludi: {{name}}",
     "download": "Scarica {{name}}",
+    "openOnBoard": "Apri sulla lavagna",
+    "openOnBoardOf": "Apri sulla lavagna: {{name}}",
     "dropUnfinished": "Elimina il caricamento incompleto: {{name}}",
     "attachment": {
       "list": "Allegati del messaggio",
@@ -2824,6 +2899,7 @@
   },
   "services": {
     "cinemaLive": "Proiezione in corso",
+    "boardLive": "Lavagna aperta",
     "music": {
       "tokenFailed": "Impossibile collegare il token salvato di Yandex Music. Collega l'account manualmente qui sotto.",
       "back": "Integrazioni",
@@ -2914,6 +2990,10 @@
       },
       "target": "{{kind}} {{ms}} ms",
       "none": "Nessuna traccia sottoscritta"
+    },
+    "board": {
+      "label": "Lavagna",
+      "value": "{{p50}} ms, il 95% entro {{p95}} ms"
     },
     "ordered": "I contenuti passano da un relay su TCP/TLS. Questo percorso non perde pacchetti ma li richiede di nuovo, e tutto ciò che arriva dopo aspetta quello in ritardo: all'orecchio suona come «si è zittito, poi ha parlato più in fretta». Il buffer è stato aumentato automaticamente. Se succede spesso, verifica che la rete lasci passare UDP fino al server multimediale: il percorso diretto è molto più regolare.",
     "videoPaused_one": "Il video è stato messo in pausa {{count}} volta: la tua connessione non reggeva l'immagine, quindi il server ha dato la precedenza a voce e musica. L'immagine torna da sola quando la connessione migliora.",
@@ -3054,6 +3134,15 @@
     "BLOCKED": "Il proprietario ha chiuso l'accesso a questo server",
     "BLOCK_NOT_FOUND": "Il blocco è già stato rimosso o è scaduto",
     "BLOCK_SUBJECT_UNKNOWN": "Indirizzo e profilo di questa persona sono sconosciuti: non c'è nulla da bloccare",
+    "BOARD_CLOSED": "La lavagna è già chiusa",
+    "BOARD_DRAWERS": "Scegli chi può disegnare sulla lavagna",
+    "BOARD_FILES_FULL": "La lavagna ha troppe immagini. Elimina quelle che non servono",
+    "BOARD_FILE_INVALID": "Impossibile leggere l'immagine",
+    "BOARD_FILE_NOT_FOUND": "Questa immagine non è più sulla lavagna",
+    "BOARD_FILE_TOO_LARGE": "L'immagine è troppo grande per la lavagna",
+    "BOARD_FILE_TYPE": "Sulla lavagna si possono mettere solo immagini PNG, JPEG, WebP o GIF",
+    "BOARD_OPEN": "La lavagna è già aperta",
+    "BOARD_OWNER_ONLY": "Solo chi ha aperto la lavagna o chi ha creato la riunione può chiuderla",
     "CHAT_RATE": "Troppi messaggi di fila. Attendi un minuto",
     "CHAT_RATE_IP": "Troppi messaggi da questa rete. Attendi un minuto",
     "CHAT_REPEAT": "Questo messaggio è già stato inviato. Attendi un po'",
@@ -3221,7 +3310,8 @@
       "poker": "Poker",
       "durak": "Durak",
       "chess": "Scacchi",
-      "gartic": "Gartic"
+      "gartic": "Gartic",
+      "board": "Lavagna"
     },
     "now": {
       "live": "Riunioni in corso",

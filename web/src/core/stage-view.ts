@@ -5,14 +5,14 @@ import type { Snapshot } from '../api/types';
  *
  * Владелец 25.10: «внутри сцены нельзя выйти на всех участников… возможность выйти на просмотр всех
  * участников даст возможность посмотреть все камеры блоками как на встрече и также видеть окна людей, кто
- * стримит». Сцену занимает одна интеграция (`stageBusy` ядра): кинозал, покер, дурак, шахматы или
- * рисование. Зритель может уйти от неё к обычной встрече и вернуться чёлкой — это его личный выбор: комната
+ * стримит». Сцену занимает одна интеграция (`stageBusy` ядра): кинозал, покер, дурак, шахматы,
+ * рисование или доска. Зритель может уйти от неё к обычной встрече и вернуться чёлкой — это его личный выбор: комната
  * о нём не знает, интеграция идёт для всех.
  *
  * Здесь только правила, без интерфейса: что занимает сцену, какой вид показать и что остаётся от ухода,
  * когда сцена меняется. Хранит уход встреча (`Meeting.stageAway`).
  */
-export type StageKind = 'chess' | 'gartic' | 'poker' | 'durak' | 'cinema';
+export type StageKind = 'chess' | 'gartic' | 'poker' | 'durak' | 'board' | 'cinema';
 
 /** Что занимает сцену. `film` — кинозал с фильмом комнаты, а не только свой открытый каталог. */
 export interface StageOccupant {
@@ -24,7 +24,7 @@ export interface StageOccupant {
 
 export type StageView = 'meeting' | 'integration' | 'people';
 
-type Room = Pick<Snapshot, 'chess' | 'gartic' | 'poker' | 'durak' | 'watch'>;
+type Room = Pick<Snapshot, 'chess' | 'gartic' | 'poker' | 'durak' | 'watch' | 'board'>;
 
 /**
  * Кто на сцене — в том же порядке, в каком её отдаёт `Stage.tsx`. Кинозал — это и фильм комнаты, и свой
@@ -35,6 +35,8 @@ export function stageOccupant(room: Room, catalog: boolean): StageOccupant | nul
   if (room.gartic) return { kind: 'gartic', film: false };
   if (room.poker) return { kind: 'poker', film: false };
   if (room.durak) return { kind: 'durak', film: false };
+  // Доска (R159) — та же единственная сцена: ядро не пускает её рядом со столами и кинозалом.
+  if (room.board) return { kind: 'board', film: false };
   if (room.watch)
     return { kind: 'cinema', film: true, content: `${room.watch.provider}:${room.watch.contentId}` };
   return catalog ? { kind: 'cinema', film: false } : null;

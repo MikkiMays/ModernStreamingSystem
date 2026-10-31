@@ -1088,6 +1088,79 @@
       "sendFailed": "Zeichnung konnte nicht gesendet werden."
     }
   },
+  "board": {
+    "name": "Whiteboard",
+    "loading": "Whiteboard wird geöffnet…",
+    "failed": "Das Whiteboard hat sich nicht geöffnet",
+    "retry": "Erneut versuchen",
+    "modes": {
+      "all": "Alle zeichnen",
+      "host": "Host zeichnet"
+    },
+    "viewOnly": "Nur ansehen: Der Host zeichnet",
+    "status": {
+      "connecting": "Verbindung zum Whiteboard…",
+      "offline": "Verbindung zum Whiteboard unterbrochen, wird wiederhergestellt. Deine Zeichnungen gehen nicht verloren",
+      "closed": "Das Whiteboard ist nicht verfügbar",
+      "replaced": "Das Whiteboard ist in einem anderen Tab geöffnet",
+      "reconnect": "Hier öffnen"
+    },
+    "actions": {
+      "saveToChat": "Im Chat speichern",
+      "saving": "Wird gespeichert…",
+      "download": "Herunterladen",
+      "downloadPng": "Als PNG-Bild",
+      "downloadSvg": "Als SVG-Bild",
+      "downloadFile": "Als Whiteboard-Datei",
+      "open": "Datei öffnen",
+      "clear": "Whiteboard leeren",
+      "close": "Whiteboard schließen",
+      "more": "Mehr",
+      "highlighter": "Textmarker",
+      "sticky": "Haftnotiz",
+      "drawers": "Wer zeichnet",
+      "drawersAll": "Alle Teilnehmer",
+      "drawersHost": "Nur der Host",
+      "menu": "Whiteboard-Menü"
+    },
+    "stickyHint": "Doppelklicke auf die Haftnotiz, um zu schreiben",
+    "chat": {
+      "message": "Whiteboard · {{time}}",
+      "file": "Whiteboard {{time}}",
+      "saved": "Whiteboard im Chat gespeichert",
+      "failed": "Das Whiteboard konnte nicht im Chat gespeichert werden",
+      "retention": "Bild und Whiteboard-Datei im Chat verschwinden eine Stunde nach dem Meeting, spätestens nach einem Tag. Um es länger aufzubewahren, lade die Whiteboard-Datei herunter oder füge das Meeting zu den Favoriten hinzu.",
+      "empty": "Das Whiteboard ist leer"
+    },
+    "import": {
+      "title": "Datei auf dem Whiteboard öffnen",
+      "description": "„{{name}}“: Den Inhalt des Whiteboards ersetzen oder daneben hinzufügen?",
+      "replace": "Whiteboard ersetzen",
+      "add": "Zum Whiteboard hinzufügen",
+      "replaceHint": "Alles, was jetzt auf dem Whiteboard ist, verschwindet für alle.",
+      "failed": "Diese Datei sieht nicht nach einem Whiteboard aus",
+      "noReplace": "Nur der Host kann das Whiteboard ersetzen"
+    },
+    "close": {
+      "title": "Whiteboard im Chat speichern?",
+      "description": "Das Whiteboard wird für alle Teilnehmer geschlossen. Bild und Whiteboard-Datei bleiben im Chat, um es wieder zu öffnen.",
+      "save": "Speichern und schließen",
+      "discard": "Ohne Speichern schließen"
+    },
+    "clear": {
+      "title": "Whiteboard leeren?",
+      "description": "Alles Gezeichnete verschwindet für alle Teilnehmer.",
+      "confirm": "Leeren"
+    },
+    "notice": {
+      "full": "Das Whiteboard ist voll: Entferne etwas, um weiterzuzeichnen",
+      "rejected": "Einige Änderungen passten nicht auf das Whiteboard",
+      "cleared": "{{name}} hat das Whiteboard geleert"
+    },
+    "drop": "Loslassen, um die Datei auf dem Whiteboard zu öffnen",
+    "exportFailed": "Das Bild des Whiteboards konnte nicht gespeichert werden",
+    "cancel": "Abbrechen"
+  },
   "games": {
     "list": {
       "poker": {
@@ -2485,6 +2558,8 @@
     "approve": "Hereinlassen: {{name}}",
     "remove": "Entfernen: {{name}}",
     "download": "{{name}} herunterladen",
+    "openOnBoard": "Auf dem Whiteboard öffnen",
+    "openOnBoardOf": "Auf dem Whiteboard öffnen: {{name}}",
     "dropUnfinished": "Unvollständigen Upload löschen: {{name}}",
     "attachment": {
       "list": "Anhänge der Nachricht",
@@ -2793,6 +2868,7 @@
   },
   "services": {
     "cinemaLive": "Läuft gerade",
+    "boardLive": "Whiteboard offen",
     "music": {
       "tokenFailed": "Der gespeicherte Yandex-Music-Token konnte nicht verbunden werden. Verbinde das Konto unten manuell.",
       "back": "Integrationen",
@@ -2882,6 +2958,10 @@
       },
       "target": "{{kind}} {{ms}} ms",
       "none": "Keine abonnierten Spuren"
+    },
+    "board": {
+      "label": "Whiteboard",
+      "value": "{{p50}} ms, 95 % unter {{p95}} ms"
     },
     "ordered": "Die Medien laufen über ein Relay per TCP/TLS. Dieser Weg verliert keine Pakete, sondern fordert sie neu an – und alles, was danach kommt, wartet auf den Nachzügler. Klingt wie „erst still, dann schneller geredet“. Der Puffer wurde automatisch erhöht. Passiert das öfter, prüfe, ob dein Netzwerk UDP bis zum Medienserver durchlässt: Der direkte Weg ist deutlich gleichmäßiger.",
     "videoPaused_one": "Video wurde bei dir {{count}}-mal pausiert: Deine Verbindung kam mit dem Bild nicht mit, deshalb hat der Server Sprache und Musik Vorrang gegeben. Das Bild kommt von selbst zurück, sobald die Verbindung besser wird.",
@@ -3021,6 +3101,15 @@
     "BLOCKED": "Der Inhaber hat den Zugang zu diesem Server gesperrt",
     "BLOCK_NOT_FOUND": "Die Sperre wurde bereits aufgehoben oder ist abgelaufen",
     "BLOCK_SUBJECT_UNKNOWN": "Adresse und Profil dieser Person sind unbekannt: Es gibt nichts zu sperren",
+    "BOARD_CLOSED": "Das Whiteboard ist bereits geschlossen",
+    "BOARD_DRAWERS": "Wähle, wer auf dem Whiteboard zeichnen darf",
+    "BOARD_FILES_FULL": "Auf dem Whiteboard sind zu viele Bilder. Entferne die, die du nicht brauchst",
+    "BOARD_FILE_INVALID": "Das Bild konnte nicht gelesen werden",
+    "BOARD_FILE_NOT_FOUND": "Dieses Bild ist nicht mehr auf dem Whiteboard",
+    "BOARD_FILE_TOO_LARGE": "Das Bild ist zu groß für das Whiteboard",
+    "BOARD_FILE_TYPE": "Aufs Whiteboard passen nur PNG-, JPEG-, WebP- oder GIF-Bilder",
+    "BOARD_OPEN": "Das Whiteboard ist bereits geöffnet",
+    "BOARD_OWNER_ONLY": "Nur wer das Whiteboard geöffnet oder das Meeting erstellt hat, kann es schließen",
     "CHAT_RATE": "Zu viele Nachrichten hintereinander. Warte eine Minute",
     "CHAT_RATE_IP": "Zu viele Nachrichten aus diesem Netzwerk. Warte eine Minute",
     "CHAT_REPEAT": "Diese Nachricht wurde schon gesendet. Warte kurz",
@@ -3188,7 +3277,8 @@
       "poker": "Poker",
       "durak": "Durak",
       "chess": "Schach",
-      "gartic": "Gartic"
+      "gartic": "Gartic",
+      "board": "Whiteboard"
     },
     "now": {
       "live": "Laufende Meetings",

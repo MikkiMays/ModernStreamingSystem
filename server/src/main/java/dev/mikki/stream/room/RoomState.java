@@ -179,6 +179,20 @@ public class RoomState {
   public dev.mikki.stream.game.Gartic gartic;
 
   /**
+   * Доска на сцене (R159), или null — закрыта.
+   *
+   * <p>Здесь только то, что решает права и сцену: кто открыл, когда и кому можно рисовать. Сама
+   * сцена (элементы, картинки) живёт в {@code room_boards} и в памяти ядра ({@code
+   * board.BoardRooms}): правки штрихов идут десятки раз в секунду мимо транзакции комнаты, и писать
+   * их в снимок значило бы переписывать комнату на каждое движение пера. Закрыли доску — сцена
+   * остаётся до следующего открытия или до удаления встречи.
+   *
+   * <p>{@code NON_NULL} — комната без доски пишется ровно как раньше: откат образа ядра её читает.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Board board;
+
+  /**
    * Чем кончились игры этой беседы.
    *
    * <p>ЭТО ИТОГИ, А НЕ ЛОГ. Кто играл, сколько докупался, сколько поставил, кто сорвал самый
@@ -416,6 +430,25 @@ public class RoomState {
 
     /** Растёт на каждое изменение: по нему клиент отличает своё эхо от чужого решения. */
     public long revision;
+  }
+
+  /**
+   * Открытая доска: кто открыл, когда и кому рисовать — {@code all} (всем участникам) или {@code
+   * host} (только создателю встречи). {@code ignoreUnknown} — для следующего отката.
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class Board {
+    public static final String ALL = "all";
+    public static final String HOST = "host";
+
+    public String openedBy;
+    public long openedAt;
+    public String drawers = ALL;
+
+    /** Рисует только создатель встречи. */
+    public boolean hostOnly() {
+      return HOST.equals(drawers);
+    }
   }
 
   public record Invite(

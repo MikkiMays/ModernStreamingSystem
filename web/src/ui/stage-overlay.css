@@ -117,6 +117,10 @@
   --chip-brand: var(--brand-gartic);
   --chip-ink: var(--brand-gartic-ink);
 }
+.stage-chip[data-kind='board'] {
+  --chip-brand: var(--brand-board);
+  --chip-ink: var(--brand-board-ink);
+}
 
 /* Эквалайзер — три полоски цвета музыки: единственное, что здесь движется само, потому что это звук. */
 .stage-chip__eq {

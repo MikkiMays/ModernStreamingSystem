@@ -1088,6 +1088,79 @@
       "sendFailed": "Couldn't send the drawing."
     }
   },
+  "board": {
+    "name": "Whiteboard",
+    "loading": "Opening the whiteboard…",
+    "failed": "The whiteboard didn't open",
+    "retry": "Try again",
+    "modes": {
+      "all": "Everyone draws",
+      "host": "Host draws"
+    },
+    "viewOnly": "View only: the host is drawing",
+    "status": {
+      "connecting": "Connecting to the whiteboard…",
+      "offline": "Lost connection to the whiteboard — reconnecting. Your drawings won't be lost",
+      "closed": "The whiteboard is unavailable",
+      "replaced": "The whiteboard is open in another tab",
+      "reconnect": "Open here"
+    },
+    "actions": {
+      "saveToChat": "Save to chat",
+      "saving": "Saving…",
+      "download": "Download",
+      "downloadPng": "As PNG image",
+      "downloadSvg": "As SVG image",
+      "downloadFile": "As whiteboard file",
+      "open": "Open file",
+      "clear": "Clear whiteboard",
+      "close": "Close whiteboard",
+      "more": "More",
+      "highlighter": "Highlighter",
+      "sticky": "Sticky note",
+      "drawers": "Who draws",
+      "drawersAll": "All participants",
+      "drawersHost": "Host only",
+      "menu": "Whiteboard menu"
+    },
+    "stickyHint": "Double-click the sticky note to type",
+    "chat": {
+      "message": "Whiteboard · {{time}}",
+      "file": "Whiteboard {{time}}",
+      "saved": "Whiteboard saved to chat",
+      "failed": "Couldn't save the whiteboard to chat",
+      "retention": "The image and whiteboard file in the chat disappear an hour after the meeting, a day at most. To keep it longer, download the whiteboard file or add the meeting to Favorites.",
+      "empty": "The whiteboard is empty"
+    },
+    "import": {
+      "title": "Open file on the whiteboard",
+      "description": "“{{name}}”: replace what's on the whiteboard or add it alongside?",
+      "replace": "Replace whiteboard",
+      "add": "Add to whiteboard",
+      "replaceHint": "Everything on the whiteboard now will disappear for everyone.",
+      "failed": "This file doesn't look like a whiteboard",
+      "noReplace": "Only the host can replace the whiteboard"
+    },
+    "close": {
+      "title": "Save the whiteboard to chat?",
+      "description": "The whiteboard will close for all participants. The image and the whiteboard file stay in the chat so you can open it again.",
+      "save": "Save and close",
+      "discard": "Close without saving"
+    },
+    "clear": {
+      "title": "Clear the whiteboard?",
+      "description": "Everything drawn will disappear for all participants.",
+      "confirm": "Clear"
+    },
+    "notice": {
+      "full": "The whiteboard is full: remove something to keep drawing",
+      "rejected": "Some changes didn't fit on the whiteboard",
+      "cleared": "{{name}} cleared the whiteboard"
+    },
+    "drop": "Drop to open the file on the whiteboard",
+    "exportFailed": "Couldn't save the whiteboard image",
+    "cancel": "Cancel"
+  },
   "games": {
     "list": {
       "poker": {
@@ -2485,6 +2558,8 @@
     "approve": "Let in: {{name}}",
     "remove": "Remove: {{name}}",
     "download": "Download {{name}}",
+    "openOnBoard": "Open on whiteboard",
+    "openOnBoardOf": "Open on whiteboard: {{name}}",
     "dropUnfinished": "Delete unfinished upload: {{name}}",
     "attachment": {
       "list": "Message attachments",
@@ -2793,6 +2868,7 @@
   },
   "services": {
     "cinemaLive": "Now showing",
+    "boardLive": "Whiteboard open",
     "music": {
       "tokenFailed": "Couldn't connect the saved Yandex Music token. Connect the account manually below.",
       "back": "Integrations",
@@ -2882,6 +2958,10 @@
       },
       "target": "{{kind}} {{ms}} ms",
       "none": "No subscribed tracks"
+    },
+    "board": {
+      "label": "Whiteboard",
+      "value": "{{p50}} ms, 95% within {{p95}} ms"
     },
     "ordered": "Media goes through a relay over TCP/TLS. This path doesn't drop packets — it re-requests them, and everything that arrives after waits for the late one. To the ear it sounds like “went quiet, then talked faster”. The buffer has been raised automatically. If this keeps happening, check that your network lets UDP through to the media server: the direct path is noticeably smoother.",
     "videoPaused_one": "Video was paused for you {{count}} time: your connection couldn't keep up with the picture, so the server kept speech and music going. The picture comes back on its own when the connection improves.",
@@ -3021,6 +3101,15 @@
     "BLOCKED": "The owner has closed access to this server",
     "BLOCK_NOT_FOUND": "The block has already been lifted or has expired",
     "BLOCK_SUBJECT_UNKNOWN": "This person's address and profile are unknown: there's nothing to block",
+    "BOARD_CLOSED": "The whiteboard is already closed",
+    "BOARD_DRAWERS": "Choose who can draw on the whiteboard",
+    "BOARD_FILES_FULL": "The whiteboard has too many images. Remove the ones you don't need",
+    "BOARD_FILE_INVALID": "Couldn't read the image",
+    "BOARD_FILE_NOT_FOUND": "This image is no longer on the whiteboard",
+    "BOARD_FILE_TOO_LARGE": "The image is too large for the whiteboard",
+    "BOARD_FILE_TYPE": "Only PNG, JPEG, WebP or GIF images can go on the whiteboard",
+    "BOARD_OPEN": "The whiteboard is already open",
+    "BOARD_OWNER_ONLY": "Only the person who opened the whiteboard or the meeting creator can close it",
     "CHAT_RATE": "Too many messages in a row. Wait a minute",
     "CHAT_RATE_IP": "Too many messages from this network. Wait a minute",
     "CHAT_REPEAT": "This message has already been sent. Wait a moment",
@@ -3188,7 +3277,8 @@
       "poker": "Poker",
       "durak": "Durak",
       "chess": "Chess",
-      "gartic": "Gartic"
+      "gartic": "Gartic",
+      "board": "Whiteboard"
     },
     "now": {
       "live": "Meetings in progress",
