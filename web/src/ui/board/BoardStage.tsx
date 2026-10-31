@@ -508,13 +508,13 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
                     onValueChange={(value) => void run('board.settings', String(value))}
                   >
                     <MenuLabel>{t(($) => $.board.actions.drawers)}</MenuLabel>
-                    <MenuRadioItem className="ui-menu__item" value="all">
+                    <MenuRadioItem className="ui-menu__item" value="all" closeOnClick>
                       <span className="ui-menu__icon" aria-hidden="true">
                         <Users />
                       </span>
                       <span className="ui-menu__label">{t(($) => $.board.actions.drawersAll)}</span>
                     </MenuRadioItem>
-                    <MenuRadioItem className="ui-menu__item" value="host">
+                    <MenuRadioItem className="ui-menu__item" value="host" closeOnClick>
                       <span className="ui-menu__icon" aria-hidden="true">
                         <PenLine />
                       </span>

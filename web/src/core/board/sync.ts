@@ -179,6 +179,8 @@ export class BoardSync {
   private tick?: ReturnType<typeof setInterval>;
   private ticks = 0;
   private lastPong = 0;
+  /** Когда открыт текущий сокет: без «hello» за 15 с он считается зависшим и открывается заново. */
+  private openedAt = 0;
   private scheduled = false;
   private disposed = false;
   /**
@@ -299,6 +301,7 @@ export class BoardSync {
           `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/v1/board`,
         ) as unknown as SocketLike);
     this.socket = socket;
+    this.openedAt = Date.now();
     socket.onopen = () => {
       if (this.socket !== socket) return;
       this.lastPong = Date.now();
@@ -383,6 +386,8 @@ export class BoardSync {
     // Первые секунды — замер часов каждую секунду, дальше — раз в десять: и часы, и «жив ли сокет».
     if (this.live && (this.clock.length < 5 || this.ticks % 10 === 0)) this.ping();
     if (this.live && now - this.lastPong > 25_000) this.socket?.close();
+    const waiting = this.state.get() === 'connecting' || this.state.get() === 'offline';
+    if (!this.live && waiting && this.socket && now - this.openedAt > 15_000) this.socket.close();
   }
 
   /** Пришло от ядра. Открыто ради тестов. */

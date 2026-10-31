@@ -43,6 +43,9 @@ export async function boardSvg(api: ExcalidrawImperativeAPI, shade: Shade): Prom
     appState: { ...api.getAppState(), exportBackground: true, exportWithDarkMode: shade === 'dark' },
     files: api.getFiles(),
     exportPadding: 24,
+    // Встроить шрифты Excalidraw умеет только через модуль woff2 с `new Function` — его CSP Cord не
+    // пускает (`script-src` без 'unsafe-eval'). SVG ссылается на шрифты по имени, картинки внутри.
+    skipInliningFonts: true,
   });
   return new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
 }
