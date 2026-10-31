@@ -135,7 +135,7 @@ export function NoiseRow({
         size="sm"
         aria-label={rowText(t, 'noise').label}
         value={audio.suppression}
-        onValueChange={(suppression) => change({ ...audio, suppression })}
+        onValueChange={(suppression) => change({ ...audio, suppression, suppressionChosen: true })}
         options={options}
       />
     </SettingRow>

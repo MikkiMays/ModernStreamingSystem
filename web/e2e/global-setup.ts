@@ -23,6 +23,13 @@ export default function globalSetup(config: FullConfig) {
             name: 'cord:onboarding:v1',
             value: JSON.stringify({ tour: true }),
           },
+          // Шумодав по умолчанию теперь «Усиленное» (R145), а RNNoise режет поддельный тон Chromium
+          // как шум: индикатор речи и уровни в сценариях молчали бы. Сценарии идут на прежнем
+          // «Стандартном», выбранном явно; свои условия звука сценарий ставит сам.
+          {
+            name: 'cord:preferences:v1',
+            value: JSON.stringify({ audio: { suppression: 'browser', suppressionChosen: true } }),
+          },
         ],
       },
     ],

@@ -1,5 +1,11 @@
 import { notifyDesktop } from './desktop';
-import { defaultScreenMode, screenAudios, type ScreenAudio, type ScreenProfile } from '../media/profiles';
+import {
+  defaultScreenMode,
+  screenAudios,
+  touchFirst,
+  type ScreenAudio,
+  type ScreenProfile,
+} from '../media/profiles';
 import { cameraLevel, nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import {
@@ -28,6 +34,11 @@ export const stageLayouts: StageLayout[] = ['grid', 'speaker'];
 
 export interface AudioPreferences {
   suppression: 'off' | 'browser' | 'rnnoise' | 'voice';
+  /**
+   * Выбрал ли человек шумоподавление сам (R145). Пока нет — действует умолчание устройства
+   * ({@link defaultSuppression}), и оно может меняться от версии к версии; выбранное не трогается.
+   */
+  suppressionChosen?: boolean;
   echoCancellation: boolean;
   autoGainControl: boolean;
   gain: number;
@@ -38,6 +49,49 @@ export const defaultAudio: AudioPreferences = {
   autoGainControl: true,
   gain: 1,
 };
+
+/**
+ * Шумоподавление, пока человек не выбрал его сам (R145, владелец 31.10.2026: «автоматически должно
+ * быть включено усиленное шумоподавление у всех… если зритель сам менял свои настройки, то они так и
+ * сохраняются»).
+ *
+ * «Усиленное» (RNNoise) — там, где оно работает: нужен AudioWorklet и WebAssembly. На телефоне пока
+ * «Стандартное»: у Android в фоне второй контекст звука RNNoise засыпает, и микрофон молчит (R147) —
+ * включать его телефонам вместе с починкой фона, не раньше.
+ */
+export function defaultSuppression(): AudioPreferences['suppression'] {
+  if (typeof window === 'undefined' || !('AudioWorkletNode' in window) || typeof WebAssembly !== 'object')
+    return 'browser';
+  return touchFirst() ? 'browser' : 'rnnoise';
+}
+/**
+ * Запись звука от версий без {@link AudioPreferences.suppressionChosen}: выбирал ли человек сам.
+ * Отличить «выбрал „Стандартное“» от «ничего не трогал» по ней нельзя — `savePreferences` всегда
+ * писал весь объект. Поэтому запись, целиком равная прежнему умолчанию, считается невыбранной;
+ * любое отличие (шумодав, эхо, усиление, громкость) — выбором человека.
+ */
+function chosenBefore(audio: Partial<AudioPreferences>): boolean {
+  return !(
+    audio.suppression === 'browser' &&
+    audio.echoCancellation !== false &&
+    audio.autoGainControl !== false &&
+    (audio.gain ?? 1) === 1
+  );
+}
+
+function suppressionOf(
+  audio: Partial<AudioPreferences> | undefined,
+): Pick<AudioPreferences, 'suppression' | 'suppressionChosen'> {
+  const stored = ['off', 'browser', 'rnnoise', 'voice'].includes(audio?.suppression ?? '')
+    ? audio!.suppression!
+    : null;
+  const chosen =
+    stored !== null &&
+    (audio!.suppressionChosen === true || (audio!.suppressionChosen === undefined && chosenBefore(audio!)));
+  return chosen
+    ? { suppression: stored, suppressionChosen: true }
+    : { suppression: defaultSuppression(), suppressionChosen: false };
+}
 
 /** Игры, у которых есть свои звуки стола (T45). */
 export type GameKind = 'poker' | 'durak' | 'chess' | 'gartic';
@@ -190,9 +244,7 @@ export function readPreferences(): Preferences {
     camera: cameraLevel(data.camera),
     devices,
     audio: {
-      suppression: ['off', 'browser', 'rnnoise', 'voice'].includes(data.audio?.suppression ?? '')
-        ? data.audio!.suppression
-        : 'browser',
+      ...suppressionOf(data.audio),
       echoCancellation:
         typeof data.audio?.echoCancellation === 'boolean' ? data.audio.echoCancellation : true,
       autoGainControl: typeof data.audio?.autoGainControl === 'boolean' ? data.audio.autoGainControl : true,
