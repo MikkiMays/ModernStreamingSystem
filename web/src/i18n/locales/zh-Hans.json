@@ -2023,7 +2023,7 @@
       "adSkipped": "已为所有人跳过广告",
       "exitFullscreen": "退出全屏",
       "fullscreen": "展开播放器",
-      "unmute": "开启视频声音",
+      "unmute": "打开声音",
       "mute": "关闭视频声音",
       "volume": "视频音量",
       "buffering": "正在加载",
@@ -2055,7 +2055,8 @@
         "streamFailed": "视频流无法打开。请换一个视频",
         "openFailed": "无法打开视频",
         "renewFailed": "无法刷新视频流"
-      }
+      },
+      "liveAd": "平台正在播放广告 · {{time}}"
     },
     "keys": {
       "locked": "主持人仅允许自己使用遥控——暂停和快进由主持人控制",

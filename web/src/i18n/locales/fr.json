@@ -2073,7 +2073,7 @@
       "adSkipped": "Pub passée pour tous",
       "exitFullscreen": "Quitter le plein écran",
       "fullscreen": "Agrandir le lecteur",
-      "unmute": "Activer le son de la vidéo",
+      "unmute": "Activer le son",
       "mute": "Couper le son de la vidéo",
       "volume": "Volume de la vidéo",
       "buffering": "Chargement",
@@ -2105,7 +2105,8 @@
         "streamFailed": "Le flux ne s'est pas ouvert. Essayez une autre vidéo",
         "openFailed": "Impossible d'ouvrir la vidéo",
         "renewFailed": "Impossible d'actualiser le flux"
-      }
+      },
+      "liveAd": "Pause publicitaire de la plateforme · {{time}}"
     },
     "keys": {
       "locked": "L'hôte s'est réservé la télécommande : pause et avance rapide sont à lui",

@@ -2073,7 +2073,7 @@
       "adSkipped": "Anúncio pulado para todos",
       "exitFullscreen": "Sair da tela cheia",
       "fullscreen": "Expandir o player",
-      "unmute": "Ativar o som do vídeo",
+      "unmute": "Ativar o som",
       "mute": "Silenciar o vídeo",
       "volume": "Volume do vídeo",
       "buffering": "Carregando",
@@ -2105,7 +2105,8 @@
         "streamFailed": "A transmissão não abriu. Tente outro vídeo",
         "openFailed": "Não foi possível abrir o vídeo",
         "renewFailed": "Não foi possível atualizar a transmissão"
-      }
+      },
+      "liveAd": "Intervalo comercial da plataforma · {{time}}"
     },
     "keys": {
       "locked": "O anfitrião reservou o controle para si — pausa e avanço são com ele",

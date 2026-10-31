@@ -14,7 +14,7 @@ import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
 import { allowed } from './permissions';
 import { knownProvider } from './cinema/link';
-import { awayAfter, stageOccupant, type StageKind, type StageOccupant } from './stage-view';
+import { awayAfter, newFilm, stageOccupant, type StageKind, type StageOccupant } from './stage-view';
 import {
   DesktopNotifier,
   readWindowState,
@@ -520,6 +520,11 @@ export class Meeting {
   private settleStage() {
     const after = this.stageOccupant();
     this.stageAway.set(awayAfter(this.stageAway.get(), this.stageBefore, after));
+    // Новый фильм открывается у всех (R150, Р-42): и у того, кто смотрел чужой показ, — кроме того,
+    // кто сам сейчас показывает экран (он на сцене, его показ смотрят другие). Чужой показ остаётся
+    // доступен чёлкой и плиткой.
+    if (newFilm(this.stageBefore, after) && this.viewing.get() && !this.media.state.get().screen)
+      this.closeViewing();
     this.stageBefore = after;
   }
   screenPlaying(screenId: string) {

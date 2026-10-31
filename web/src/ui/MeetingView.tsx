@@ -29,7 +29,7 @@ import {
 import { MicHotkey } from '../core/mic-hotkey';
 import { hasFeature, notifyDesktop, onDesktopCommand, onNotificationAction } from '../core/desktop';
 import { desktopSettingsAvailable, toggleDesktopOverlay } from '../core/desktop-settings';
-import { useFullscreen } from '../core/fullscreen';
+import { stageFullscreen, useFullscreen } from '../core/fullscreen';
 import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
@@ -84,7 +84,14 @@ export function MeetingView({
     общий `useFullscreen`.
   */
   const root = useRef<HTMLElement>(document.documentElement);
-  const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(root);
+  const { full: fullscreen, targetFull, toggle: toggleMeetingFullscreen } = useFullscreen(root);
+  // На сцене фильм — кнопка пульта разворачивает плеер (R144, Р-41), а не всю встречу: у обеих
+  // кнопок одна цель. Свернуть — тем же, что развернули.
+  const toggleFullscreen = () => {
+    const stage = stageFullscreen();
+    if (stage && (!fullscreen || !targetFull)) stage();
+    else toggleMeetingFullscreen();
+  };
   const [controlsVisible, setControlsVisible] = useState(true);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const lastActivity = useRef(Date.now());

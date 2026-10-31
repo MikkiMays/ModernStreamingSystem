@@ -2073,7 +2073,7 @@
       "adSkipped": "Pubblicità saltata per tutti",
       "exitFullscreen": "Esci dallo schermo intero",
       "fullscreen": "Espandi il player",
-      "unmute": "Attiva l'audio del video",
+      "unmute": "Attiva l’audio",
       "mute": "Disattiva l'audio del video",
       "volume": "Volume del video",
       "buffering": "Caricamento",
@@ -2105,7 +2105,8 @@
         "streamFailed": "Il flusso non si è aperto. Prova un altro video",
         "openFailed": "Impossibile aprire il video",
         "renewFailed": "Impossibile aggiornare il flusso"
-      }
+      },
+      "liveAd": "Pausa pubblicitaria della piattaforma · {{time}}"
     },
     "keys": {
       "locked": "L'host ha riservato a sé il telecomando: pausa e avanzamento sono suoi",

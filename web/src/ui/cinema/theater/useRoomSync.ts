@@ -12,6 +12,7 @@ import type { Meeting } from '../../../core/meeting';
 import { catchUp, correction, finished, targetPosition, type CatchUp } from '../../../core/watch';
 import type { Playback } from './engines/playback';
 import { contentOf, type Status } from './useSource';
+import { playLadder } from './autoplay';
 import { skipTarget } from './watch-controls';
 
 /**
@@ -77,6 +78,7 @@ export function useRoomSync({
   echo,
   wake,
   setStatus,
+  onAutoMuted,
 }: {
   meeting: Meeting;
   watch: Watch;
@@ -88,6 +90,8 @@ export function useRoomSync({
   /** Разбудить пульт: нажатие пультом — это и движение мыши. */
   wake: () => void;
   setStatus: Dispatch<SetStateAction<Status>>;
+  /** Политика автозапуска дала играть только без звука — плееру показать «Включить звук». */
+  onAutoMuted?: () => void;
 }) {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -198,7 +202,11 @@ export function useRoomSync({
           element.playbackRate = 1;
           element.currentTime = fix.positionMs / 1000;
         }
-        void element.play().catch(() => setStatus((current) => (current === 'ready' ? 'blocked' : current)));
+        // Лестница автозапуска (R150): без жеста — без звука, а не «Смотреть вместе» поверх кадра.
+        void playLadder(element).then((result) => {
+          if (result === 'muted') onAutoMuted?.();
+          if (result === 'blocked') setStatus((current) => (current === 'ready' ? 'blocked' : current));
+        });
       }
       if (fix.action === 'pause') {
         element.pause();
@@ -221,7 +229,7 @@ export function useRoomSync({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', visible);
     };
-  }, [meeting, video, playback, echo, setStatus]);
+  }, [meeting, video, playback, echo, setStatus, onAutoMuted]);
 
   /** Нажатие пультом: сначала комнате, а плеер догонит себя сам ближайшей проверкой. */
   const command = (type: WatchCommand, positionMs?: number) => {
@@ -299,6 +307,16 @@ export function useRoomSync({
     if (!latest.current.watch.paused) command('watch.pause');
   };
 
+  /**
+   * Перемотали родным пультом iPhone во весь экран (R144): с правом пульта — для всех; без права
+   * проверка расхождения сама вернёт кадр на секунду комнаты.
+   */
+  const seeked = () => {
+    const element = video.current;
+    if (!element || echo.quiet() || latest.current.live || !latest.current.canControl) return;
+    command('watch.seek', Math.round(element.currentTime * 1000));
+  };
+
   /** Метаданные приехали: встать туда, где комната, а открывшему — включить. */
   const loaded = () => {
     const element = video.current;
@@ -335,6 +353,7 @@ export function useRoomSync({
     resync,
     played,
     paused,
+    seeked,
     loaded,
   };
 }
