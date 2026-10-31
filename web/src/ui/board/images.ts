@@ -30,7 +30,7 @@ export async function boardPng(api: ExcalidrawImperativeAPI, shade: Shade): Prom
     files: api.getFiles(),
     mimeType: 'image/png',
     exportPadding: 24,
-    getDimensions: (width, height) => {
+    getDimensions: (width: number, height: number) => {
       const scale = Math.min(2, MAX_SIDE / Math.max(width, height, 1));
       return { width: Math.round(width * scale), height: Math.round(height * scale), scale };
     },
