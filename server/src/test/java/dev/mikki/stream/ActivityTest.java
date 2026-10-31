@@ -543,12 +543,59 @@ class ActivityTest {
   void aSummaryIsNumbersInBoundsAndWordsFromALongList() {
     var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
     assertThat(validator.validate(call(600, 40, 1.5, 12, "relay-tcp", "av1"))).isEmpty();
+    assertThat(validator.validate(call(600, 40, 1.5, 12, "relay-tls", "av1"))).isEmpty();
     assertThat(validator.validate(call(600, 40, 1.5, 12, "Иван", "av1"))).isNotEmpty();
     assertThat(validator.validate(call(600, 40, 1.5, 12, "direct-udp", "x264-my-camera")))
         .isNotEmpty();
     assertThat(validator.validate(call(-1, 40, 1.5, 12, "direct-udp", null))).isNotEmpty();
     assertThat(validator.validate(call(600, 40, 101.0, 12, "direct-udp", null))).isNotEmpty();
     assertThat(validator.validate(call(90_000, 40, 1.0, 12, "direct-udp", null))).isNotEmpty();
+  }
+
+  /**
+   * Сеть не пропускает звонок (R149): браузер говорит об этом потерей связи с уточнением {@code
+   * ice-failed} — и вход ложится в метр входов исходом {@code ice_failed} двери {@code media}, по
+   * разу на команду. Обычная потеря связи исходом входа не считается.
+   */
+  @Test
+  void aJoinWhoseMediaNeverCameUpIsCountedAsIceFailed() {
+    var host = host(Entrant.UNKNOWN);
+    var room = UUID.fromString(host.roomId());
+    var found = registry.find("cord.joins").tag("door", "media").tag("result", "ice_failed");
+    double before = found.counter() == null ? 0 : found.counter().count();
+    var http = new MockHttpServletRequest("POST", "/api/v1/rooms/x/commands");
+    http.setRemoteAddr(fresh());
+    var blocked =
+        new Command(
+            UUID.randomUUID(),
+            "media.lost",
+            null,
+            null,
+            1,
+            null,
+            null,
+            null,
+            null,
+            "ice-failed",
+            null,
+            null);
+    api.command(room, "Bearer " + host.credential(), blocked, http);
+    api.command(
+        room,
+        "Bearer " + host.credential(),
+        new Command(UUID.randomUUID(), "media.lost", null, null, 1),
+        http);
+    assertThat(
+            registry
+                .get("cord.joins")
+                .tag("door", "media")
+                .tag("result", "ice_failed")
+                .counter()
+                .count())
+        .isEqualTo(before + 1);
+    // Вход, которого медиа не дождалось, по-прежнему на месте: счёт ничего в комнате не меняет.
+    assertThat(rooms.read(host.roomId()).members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.JOINING);
   }
 
   /** Итоги за период и итоги дня: встреча, человеко-секунды, пик. */

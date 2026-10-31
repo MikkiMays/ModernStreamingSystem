@@ -183,6 +183,10 @@ export default function Diagnostics({
     const text = [
       diagnosticsText(),
       callReportText(meeting.media.callReport()),
+      // Путь прямо сейчас (`direct-udp`, `relay-tls`…), а не преобладавший за звонок, как `path` выше (R149).
+      `path now: ${link.path}`,
+      ...(meeting.media.relayOnly ? ['relay only: tls'] : []),
+      ...(media.blocked ? [`media blocked: ${media.blocked.tls ? 'turn-tls offered' : 'no turn-tls'}`] : []),
       ...targets.map((target) => `playout: ${target.kind} ${target.targetMs} ms`),
       ...(pauses ? [`video paused by sfu: ${pauses}`] : []),
       ...(['camera', 'screen'] as const).flatMap((source) => {
@@ -231,7 +235,9 @@ export default function Diagnostics({
                 ? t(($) => $.diagnostics.media.connected)
                 : media.status === 'recovering'
                   ? t(($) => $.diagnostics.media.recovering)
-                  : t(($) => $.diagnostics.media.disconnected)}
+                  : media.blocked
+                    ? t(($) => $.diagnostics.media.blocked)
+                    : t(($) => $.diagnostics.media.disconnected)}
             </Metric>
             <Metric label={t(($) => $.diagnostics.control.label)}>
               {control === 'connected'
@@ -269,10 +275,17 @@ export default function Diagnostics({
               </Metric>
             )}
           </dl>
-          {link.ordered && (
+          {/* Рычаг поддержки (`media/turn-tls.ts`): видно, что путь выбран руками, а не сетью. */}
+          {meeting.media.relayOnly ? (
             <p className="diagnostics-card__note" data-tone="warning" role="status">
-              {t(($) => $.diagnostics.ordered)}
+              {t(($) => $.diagnostics.relayOnly)}
             </p>
+          ) : (
+            link.ordered && (
+              <p className="diagnostics-card__note" data-tone="warning" role="status">
+                {t(($) => $.diagnostics.ordered)}
+              </p>
+            )
           )}
           {pauses > 0 && (
             <p

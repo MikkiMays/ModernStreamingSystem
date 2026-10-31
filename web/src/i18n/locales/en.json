@@ -594,6 +594,10 @@
       "requests": "Join requests: {{n}} · Open",
       "recoveryTitle": "Getting you back into the conversation",
       "recoveryText": "Check your network. We're reconnecting automatically.",
+      "blockedTitle": "Your network is blocking the call",
+      "blockedText": "The server is reachable, but audio and video can't get through — this happens behind a VPN or a strict firewall. Turn off the VPN or switch networks: we'll connect on our own.",
+      "blockedTls": "Even the fallback route over port 443 is blocked.",
+      "blockedOwner": "If it's the same for everyone on this network, ask the server owner to enable TURN on port 443.",
       "seconds": "{{n}} s",
       "controlRecovering": "Restoring chat and controls. Audio and video keep working.",
       "thanks": "Thanks for the conversation.",
@@ -1368,7 +1372,8 @@
         "direct-udp": "Direct to media server · UDP",
         "direct-tcp": "Direct to media server · TCP",
         "relay-udp": "Via TURN relay · UDP",
-        "relay-tcp": "Via TURN relay · TCP/TLS",
+        "relay-tcp": "Via TURN relay · TCP",
+        "relay-tls": "Via TURN relay · TLS",
         "unknown": "Path unknown"
       },
       "grades": {
@@ -2925,7 +2930,8 @@
       "label": "Audio and video",
       "connected": "Connected",
       "recovering": "Recovering",
-      "disconnected": "Not connected"
+      "disconnected": "Not connected",
+      "blocked": "Blocked: your network is blocking the call"
     },
     "control": {
       "label": "Chat and controls",
@@ -2964,6 +2970,7 @@
       "value": "{{p50}} ms, 95% within {{p95}} ms"
     },
     "ordered": "Media goes through a relay over TCP/TLS. This path doesn't drop packets — it re-requests them, and everything that arrives after waits for the late one. To the ear it sounds like “went quiet, then talked faster”. The buffer has been raised automatically. If this keeps happening, check that your network lets UDP through to the media server: the direct path is noticeably smoother.",
+    "relayOnly": "TURN/TLS check is on: in this browser, media goes only through the relay on port 443; other routes aren't tried.",
     "videoPaused_one": "Video was paused for you {{count}} time: your connection couldn't keep up with the picture, so the server kept speech and music going. The picture comes back on its own when the connection improves.",
     "videoPaused_other": "Video was paused for you {{count}} times: your connection couldn't keep up with the picture, so the server kept speech and music going. The picture comes back on its own when the connection improves.",
     "checking": "Checking…",

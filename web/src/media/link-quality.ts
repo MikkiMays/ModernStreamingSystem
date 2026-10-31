@@ -15,7 +15,11 @@ import type { Translate } from '../i18n';
  * хотя бы с один оборот, поэтому тип пути должен доезжать до расчёта буфера.
  */
 
-export type LinkPath = 'direct-udp' | 'direct-tcp' | 'relay-udp' | 'relay-tcp' | 'unknown';
+/**
+ * `relay-tls` — ретранслятор по TLS (`turns:`, на 443 в режиме `strict`): единственный путь там, где
+ * открыт только HTTPS (R149). От `relay-tcp` отличается для людей и для счёта ядра, для буфера — нет.
+ */
+export type LinkPath = 'direct-udp' | 'direct-tcp' | 'relay-udp' | 'relay-tcp' | 'relay-tls' | 'unknown';
 export type LinkGrade = 'good' | 'fair' | 'poor' | 'unknown';
 /**
  * Жив ли путь по мнению ICE. `disconnected` — то, во что Chrome уходит через секунды после
@@ -108,13 +112,15 @@ export function readPath(report: RTCStatsReport): LinkPath {
       : (local?.protocol ?? remote?.protocol)
   )?.toLowerCase();
   if (!protocol) return 'unknown';
-  const ordered = protocol === 'tcp' || protocol === 'tls' || protocol === 'ssltcp';
-  if (relayed) return ordered ? 'relay-tcp' : 'relay-udp';
+  // `ssltcp` — прежнее имя TLS до TURN у старого Chrome.
+  const tls = protocol === 'tls' || protocol === 'ssltcp';
+  const ordered = tls || protocol === 'tcp';
+  if (relayed) return tls ? 'relay-tls' : ordered ? 'relay-tcp' : 'relay-udp';
   return ordered ? 'direct-tcp' : 'direct-udp';
 }
 
 export function isOrdered(path: LinkPath) {
-  return path === 'direct-tcp' || path === 'relay-tcp';
+  return path === 'direct-tcp' || path === 'relay-tcp' || path === 'relay-tls';
 }
 
 export function gradeLink(state: Omit<LinkState, 'grade'>): LinkGrade {

@@ -44,6 +44,17 @@ describe('какой путь выбрал ICE', () => {
         candidate('remote'),
       ]),
     );
+    expect(path).toBe('relay-tls');
+    expect(isOrdered(path)).toBe(true);
+  });
+  it('ретранслятор поверх простого TCP — свой путь, тоже упорядоченный', () => {
+    const path = readPath(
+      report([
+        pair(),
+        candidate('local', { candidateType: 'relay', protocol: 'udp', relayProtocol: 'tcp' }),
+        candidate('remote'),
+      ]),
+    );
     expect(path).toBe('relay-tcp');
     expect(isOrdered(path)).toBe(true);
   });

@@ -87,10 +87,12 @@ groups:
         annotations: { summary: 'Свободной памяти меньше 10 % десять минут' }
 
       # Доля неудачных входов во встречу — при живом трафике, а не на двух попытках ночью.
+      # Дверь `media` (`ice_failed`, R149) — не отказ ядра, а сеть человека после пропущенного входа:
+      # тот же вход уже сосчитан своей дверью с `ok`, и в долю отказов он не идёт.
       - alert: JoinFailures
         expr: |
-          sum(rate(cord_joins_total{result!="ok"}[10m])) / sum(rate(cord_joins_total[10m])) > 0.2
-          and sum(rate(cord_joins_total[10m])) > 0.02
+          sum(rate(cord_joins_total{door!="media",result!="ok"}[10m])) / sum(rate(cord_joins_total{door!="media"}[10m])) > 0.2
+          and sum(rate(cord_joins_total{door!="media"}[10m])) > 0.02
         for: 10m
         labels: { severity: page }
         annotations: { summary: 'Больше 20 % входов во встречи отказаны за десять минут' }

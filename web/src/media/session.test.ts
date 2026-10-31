@@ -509,6 +509,192 @@ describe('показ открывается зрителям после кадр
   });
 });
 
+/*
+  Сеть не пропускает звонок (R149): сигнал до SFU дошёл, а ICE — нет. SDK в этом случае сначала шлёт
+  `Disconnected`, потом отвергает `connect` («could not establish pc connection»).
+*/
+describe('сеть не пропускает звонок', () => {
+  const TLS = [{ urls: ['turn:192.0.2.1:3478?transport=udp', 'turns:turn.example:443?transport=tcp'] }];
+  type Fake = EventEmitter & {
+    state: string;
+    engine?: { latestJoinResponse?: { iceServers: typeof TLS } };
+    connect: ReturnType<typeof vi.fn>;
+  };
+  function blockedFixture() {
+    const f = fixture();
+    Object.assign(f.api, { resume: vi.fn(async () => ({ reset: false, snapshot: null })) });
+    const room = f.room as unknown as Fake;
+    room.state = 'disconnected';
+    /** Попытка, где сигнал доходит (`servers`) или нет (`null`), а медиа не встаёт. */
+    const fail = (servers: typeof TLS | null) =>
+      room.connect.mockImplementationOnce(async () => {
+        if (servers) {
+          room.engine = { latestJoinResponse: { iceServers: servers } };
+          room.emit(RoomEvent.SignalConnected);
+        }
+        room.emit(RoomEvent.Disconnected, DisconnectReason.UNKNOWN_REASON);
+        throw new Error(
+          servers ? 'could not establish pc connection' : 'could not establish signal connection',
+        );
+      });
+    const reports = () =>
+      (f.api.command as ReturnType<typeof vi.fn>).mock.calls.filter(
+        ([command]) => (command as { option?: string }).option === 'ice-failed',
+      );
+    return { ...f, room, fail, reports };
+  }
+
+  it('вместо отсчёта и чужого английского — надпись; ядро узнаёт один раз; попытки идут без конца встречи', async () => {
+    vi.useFakeTimers();
+    const { media, room, fail, reports, ended } = blockedFixture();
+    try {
+      for (let i = 0; i < 20; i++) fail(TLS);
+      await media.start();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(media.state.get()).toMatchObject({ status: 'connecting', blocked: { tls: true }, error: null });
+      expect(media.recovery.active).toBe(false);
+      expect(reports()).toHaveLength(1);
+      expect(reports()[0]![0]).toMatchObject({ type: 'media.lost', generation: 1 });
+      // Минута — втрое дольше окна восстановления: встреча идёт, попытки — раз в несколько секунд.
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(ended).not.toHaveBeenCalled();
+      expect(room.connect.mock.calls.length).toBeGreaterThanOrEqual(10);
+      expect(reports()).toHaveLength(1);
+      expect(media.state.get().status).toBe('connecting');
+      // Сеть нашлась: медиа встало — надписи нет.
+      room.connect.mockReset();
+      room.connect.mockImplementation(async () => {
+        room.state = 'connected';
+        room.emit(RoomEvent.Connected);
+      });
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(media.state.get()).toMatchObject({ status: 'connected', blocked: null });
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('сервер без TURN/TLS — надпись просит владельца; сменилась сеть — попытка сразу', async () => {
+    vi.useFakeTimers();
+    const { media, room, fail } = blockedFixture();
+    try {
+      fail([{ urls: ['turn:192.0.2.1:3478?transport=udp'] }]);
+      await media.start();
+      expect(media.state.get().blocked).toEqual({ tls: false });
+      fail(null);
+      window.dispatchEvent(new Event('online'));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(room.connect).toHaveBeenCalledTimes(2);
+      // Сигнал на этот раз не дошёл — это всё та же сеть, что не пропускает: без отсчёта, слово о TLS прежнее.
+      expect(media.state.get()).toMatchObject({ status: 'connecting', blocked: { tls: false } });
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('сигнал не дошёл при первом входе — как раньше: отсчёт восстановления и текст ошибки', async () => {
+    vi.useFakeTimers();
+    const { media, fail, reports } = blockedFixture();
+    try {
+      fail(null);
+      await media.start();
+      expect(media.state.get()).toMatchObject({ status: 'recovering', blocked: null });
+      expect(media.state.get().error).toBe('could not establish signal connection');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reports()).toHaveLength(0);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('сначала не дошёл сигнал, потом — медиа: отсчёт снят, встреча не кончается через двадцать секунд', async () => {
+    vi.useFakeTimers();
+    const { media, fail, ended } = blockedFixture();
+    try {
+      fail(null);
+      for (let i = 0; i < 20; i++) fail(TLS);
+      await media.start();
+      expect(media.state.get().status).toBe('recovering');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(media.state.get()).toMatchObject({ status: 'connecting', blocked: { tls: true }, error: null });
+      expect(media.recovery.active).toBe(false);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(ended).not.toHaveBeenCalled();
+      expect(media.state.get().status).toBe('connecting');
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('после первого подключения провал с живым сигналом — обычное восстановление, а не «сеть не пропускает»', async () => {
+    vi.useFakeTimers();
+    const { media, room, fail } = blockedFixture();
+    try {
+      room.connect.mockImplementationOnce(async () => {
+        room.state = 'connected';
+        room.emit(RoomEvent.Connected);
+      });
+      await media.start();
+      expect(media.state.get().status).toBe('connected');
+      fail(TLS);
+      room.state = 'disconnected';
+      room.emit(RoomEvent.Disconnected, DisconnectReason.UNKNOWN_REASON);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(media.state.get()).toMatchObject({ status: 'recovering', blocked: null });
+    } finally {
+      media.dispose();
+    }
+  });
+});
+
+/** Рычаг поддержки (`turn-tls.ts`): только ретранслятор и только `turns:` из ответа на вход. */
+describe('только TURN по TLS', () => {
+  afterEach(() => localStorage.removeItem('cord:relay'));
+
+  it('connect получает rtcConfig: relay и серверы turns: — в момент сборки, после ответа на вход', async () => {
+    localStorage.setItem('cord:relay', 'tls');
+    const { media, room } = fixture();
+    try {
+      expect(media.relayOnly).toBe(true);
+      await media.start();
+      const options = (room as unknown as { connect: ReturnType<typeof vi.fn> }).connect.mock
+        .calls[0]![2] as {
+        rtcConfig: RTCConfiguration;
+      };
+      expect({ ...options.rtcConfig }).toEqual({ iceTransportPolicy: 'relay', iceServers: [] });
+      Object.assign(room, {
+        engine: {
+          latestJoinResponse: {
+            iceServers: [
+              {
+                urls: ['turn:192.0.2.1:3478?transport=udp', 'turns:turn.example:443?transport=tcp'],
+                username: 'u',
+                credential: 'c',
+              },
+            ],
+          },
+        },
+      });
+      expect({ ...options.rtcConfig }.iceServers).toEqual([
+        { urls: ['turns:turn.example:443?transport=tcp'], username: 'u', credential: 'c' },
+      ]);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('без флага — серверы ICE остаются за SDK', async () => {
+    const { media, room } = fixture();
+    try {
+      await media.start();
+      const options = (room as unknown as { connect: ReturnType<typeof vi.fn> }).connect.mock.calls[0]![2];
+      expect(options).not.toHaveProperty('rtcConfig');
+    } finally {
+      media.dispose();
+    }
+  });
+});
+
 /** Знак сети при живом SDK — немедленный resume, а не ожидание таймаута пинга (T50). */
 describe('знак сети', () => {
   it('по online при «подключённом» SDK просит resume сразу, но не чаще раза в несколько секунд', () => {

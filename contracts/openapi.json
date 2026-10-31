@@ -3186,7 +3186,7 @@
             "type": "integer"
           },
           "path": {
-            "pattern": "direct-udp|direct-tcp|relay-udp|relay-tcp|unknown",
+            "pattern": "direct-udp|direct-tcp|relay-udp|relay-tcp|relay-tls|unknown",
             "type": "string"
           },
           "publishCodec": {

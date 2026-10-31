@@ -595,6 +595,10 @@
       "requests": "Solicitudes para unirse: {{n}} · Abrir",
       "recoveryTitle": "Volviendo a la conversación",
       "recoveryText": "Revisa tu conexión. Reintentamos automáticamente.",
+      "blockedTitle": "La red está bloqueando la llamada",
+      "blockedText": "El servidor responde, pero el audio y el vídeo no pasan; suele ocurrir detrás de una VPN o de un cortafuegos estricto. Desactiva la VPN o cambia de red: nos conectaremos solos.",
+      "blockedTls": "Ni siquiera pasó la ruta de reserva por el puerto 443.",
+      "blockedOwner": "Si a todos en esta red les pasa lo mismo, pide al propietario del servidor que active TURN en el puerto 443.",
       "seconds": "{{n}} s",
       "controlRecovering": "Restableciendo el chat y los controles. El audio y el vídeo siguen funcionando.",
       "thanks": "Gracias por la conversación.",
@@ -1382,7 +1386,8 @@
         "direct-udp": "Directo al servidor de medios · UDP",
         "direct-tcp": "Directo al servidor de medios · TCP",
         "relay-udp": "A través del relé TURN · UDP",
-        "relay-tcp": "A través del relé TURN · TCP/TLS",
+        "relay-tcp": "A través del relé TURN · TCP",
+        "relay-tls": "A través del relé TURN · TLS",
         "unknown": "Ruta desconocida"
       },
       "grades": {
@@ -2957,7 +2962,8 @@
       "label": "Audio y vídeo",
       "connected": "Conectados",
       "recovering": "Restableciéndose",
-      "disconnected": "Sin conectar"
+      "disconnected": "Sin conectar",
+      "blocked": "No pasan: la red está bloqueando la llamada"
     },
     "control": {
       "label": "Chat y controles",
@@ -2996,6 +3002,7 @@
       "value": "{{p50}} ms, el 95 % en {{p95}} ms"
     },
     "ordered": "Los medios van por un relé sobre TCP/TLS. Esta ruta no pierde paquetes, sino que los vuelve a pedir, y todo lo que llega después espera al rezagado: al oído suena como «se calló y luego habló más rápido». El búfer se ha ampliado automáticamente. Si se repite, comprueba que tu red deja pasar UDP hasta el servidor de medios: la ruta directa es bastante más estable.",
+    "relayOnly": "La prueba de TURN/TLS está activada: en este navegador los medios solo van por el relé en el puerto 443; no se prueban otras rutas.",
     "videoPaused_one": "El vídeo se te pausó {{count}} vez: tu conexión no podía con la imagen, así que el servidor priorizó la voz y la música. La imagen vuelve sola cuando la conexión mejora.",
     "videoPaused_many": "El vídeo se te pausó {{count}} veces: tu conexión no podía con la imagen, así que el servidor priorizó la voz y la música. La imagen vuelve sola cuando la conexión mejora.",
     "videoPaused_other": "El vídeo se te pausó {{count}} veces: tu conexión no podía con la imagen, así que el servidor priorizó la voz y la música. La imagen vuelve sola cuando la conexión mejora.",

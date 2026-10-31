@@ -214,6 +214,38 @@ describe('«Диагностика»', () => {
     expect(writeText.mock.calls[0]![0]).toContain('video paused by sfu: 2');
   });
 
+  it('только TURN по TLS (R149): путь словами, режим проверки виден; в отчёте — путь сейчас и режим', async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const meeting = fakeMeeting();
+    const media = (meeting as unknown as { media: Record<string, unknown> }).media;
+    media.relayOnly = true;
+    media.link = new Store({ path: 'relay-tls', grade: 'fair', jitterMs: 9, ordered: true });
+    render(<Diagnostics meeting={meeting} onClose={vi.fn()} onHelp={vi.fn()} onReport={vi.fn()} />);
+    expect(screen.getByText('Через ретранслятор TURN · TLS · Средний')).toBeVisible();
+    expect(screen.getByText(/^Включена проверка TURN\/TLS/)).toHaveAttribute('data-tone', 'warning');
+    // Совет про UDP здесь неуместен: путь выбран руками, а не сетью.
+    expect(screen.queryByText(/^Медиа идёт через ретранслятор поверх TCP\/TLS/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать отчёт о звонке' }));
+    await screen.findByText('Отчёт скопирован — его можно вставить в обращение');
+    const text = writeText.mock.calls[0]![0];
+    expect(text).toContain('path now: relay-tls');
+    expect(text).toContain('relay only: tls');
+  });
+
+  it('сеть не пропускает звонок (R149): «Аудио и видео» — словами надписи, в отчёте — предлагал ли сервер TLS', async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const meeting = fakeMeeting();
+    const media = (meeting as unknown as { media: Record<string, unknown> }).media;
+    media.state = new Store({ status: 'connecting', quality: 'unknown', blocked: { tls: false } });
+    render(<Diagnostics meeting={meeting} onClose={vi.fn()} onHelp={vi.fn()} onReport={vi.fn()} />);
+    expect(screen.getByText('Не проходят: сеть не пропускает звонок')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать отчёт о звонке' }));
+    await screen.findByText('Отчёт скопирован — его можно вставить в обращение');
+    expect(writeText.mock.calls[0]![0]).toContain('media blocked: no turn-tls');
+  });
+
   it('подвал: «Сообщить о проблеме» и «Поддержка» — окно заменяет тот, кто показал диагностику (R49, R79)', () => {
     const onHelp = vi.fn();
     const onReport = vi.fn();

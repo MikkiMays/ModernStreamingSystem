@@ -594,6 +594,10 @@
       "requests": "Beitrittsanfragen: {{n}} · Öffnen",
       "recoveryTitle": "Zurück ins Gespräch",
       "recoveryText": "Prüfe deine Verbindung. Wir verbinden automatisch neu.",
+      "blockedTitle": "Dein Netzwerk blockiert den Anruf",
+      "blockedText": "Der Server ist erreichbar, aber Ton und Video kommen nicht durch – das passiert hinter einem VPN oder einer strengen Firewall. Schalte das VPN aus oder wechsle das Netzwerk: Wir verbinden uns von selbst.",
+      "blockedTls": "Selbst der Ausweichweg über Port 443 kommt nicht durch.",
+      "blockedOwner": "Wenn es allen in diesem Netzwerk so geht, bitte den Serverinhaber, TURN auf Port 443 einzuschalten.",
       "seconds": "{{n}} s",
       "controlRecovering": "Chat und Steuerung werden wiederhergestellt. Audio und Video laufen weiter.",
       "thanks": "Danke für das Gespräch.",
@@ -1368,7 +1372,8 @@
         "direct-udp": "Direkt zum Medienserver · UDP",
         "direct-tcp": "Direkt zum Medienserver · TCP",
         "relay-udp": "Über TURN-Relay · UDP",
-        "relay-tcp": "Über TURN-Relay · TCP/TLS",
+        "relay-tcp": "Über TURN-Relay · TCP",
+        "relay-tls": "Über TURN-Relay · TLS",
         "unknown": "Pfad unbekannt"
       },
       "grades": {
@@ -2925,7 +2930,8 @@
       "label": "Audio und Video",
       "connected": "Verbunden",
       "recovering": "Werden wiederhergestellt",
-      "disconnected": "Nicht verbunden"
+      "disconnected": "Nicht verbunden",
+      "blocked": "Blockiert: Das Netzwerk lässt den Anruf nicht durch"
     },
     "control": {
       "label": "Chat und Steuerung",
@@ -2964,6 +2970,7 @@
       "value": "{{p50}} ms, 95 % unter {{p95}} ms"
     },
     "ordered": "Die Medien laufen über ein Relay per TCP/TLS. Dieser Weg verliert keine Pakete, sondern fordert sie neu an – und alles, was danach kommt, wartet auf den Nachzügler. Klingt wie „erst still, dann schneller geredet“. Der Puffer wurde automatisch erhöht. Passiert das öfter, prüfe, ob dein Netzwerk UDP bis zum Medienserver durchlässt: Der direkte Weg ist deutlich gleichmäßiger.",
+    "relayOnly": "TURN/TLS-Prüfung ist an: In diesem Browser laufen Medien nur über das Relay auf Port 443, andere Wege werden nicht versucht.",
     "videoPaused_one": "Video wurde bei dir {{count}}-mal pausiert: Deine Verbindung kam mit dem Bild nicht mit, deshalb hat der Server Sprache und Musik Vorrang gegeben. Das Bild kommt von selbst zurück, sobald die Verbindung besser wird.",
     "videoPaused_other": "Video wurde bei dir {{count}}-mal pausiert: Deine Verbindung kam mit dem Bild nicht mit, deshalb hat der Server Sprache und Musik Vorrang gegeben. Das Bild kommt von selbst zurück, sobald die Verbindung besser wird.",
     "checking": "Wird geprüft…",

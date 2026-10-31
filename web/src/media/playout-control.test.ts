@@ -91,7 +91,7 @@ describe('контроллер запаса', () => {
     protocol = 'tls';
     type = 'relay';
     await controller.tick([voice], 2000);
-    expect(controller.link.path).toBe('relay-tcp');
+    expect(controller.link.path).toBe('relay-tls');
     expect(voice.receiver.jitterBufferTarget).toBeGreaterThan(direct);
     expect(voice.receiver.jitterBufferTarget).toBeGreaterThanOrEqual(300);
   });
@@ -107,7 +107,7 @@ describe('контроллер запаса', () => {
     expect(controller.link.ordered).toBe(false);
     const voice = track('voice', 'conversation', () => statsOf([...path('tls', 'relay'), inbound(0)]));
     await controller.tick([voice], 4000, outbound);
-    expect(controller.link.path).toBe('relay-tcp');
+    expect(controller.link.path).toBe('relay-tls');
   });
 
   it('заглушка в звуке поднимает запас именно у пострадавшей дорожки', async () => {

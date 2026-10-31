@@ -127,7 +127,14 @@ const dashboards = [
       ['histogram_quantile(0.5, sum by (le) (rate(cord_meeting_duration_seconds_bucket[6h])))', 'медиана'],
       ['histogram_quantile(0.9, sum by (le) (rate(cord_meeting_duration_seconds_bucket[6h])))', 'p90'],
     ], 's'),
-    series('Входы по исходу, в минуту', [['sum by (result) (rate(cord_joins_total[5m])) * 60', '{{result}}']], 'short', { stack: true }),
+    series('Входы по исходу, в минуту', [['sum by (result) (rate(cord_joins_total{door!="media"}[5m])) * 60', '{{result}}']], 'short', { stack: true }),
+    // R149: вход пропущен, а медиа не встало — сигнал до SFU дошёл, пути нет (VPN, файрвол, сервер без
+    // TURN/TLS на 443). Не отказ ядра: дверь `media` не идёт ни в «Входы по исходу», ни в `JoinFailures`.
+    // Рядом — звонки, которые довёз TURN/TLS: кого режим `strict` спас.
+    series('Сеть не пропустила звонок, за час', [
+      ['sum(increase(cord_joins_total{door="media",result="ice_failed"}[1h]))', 'медиа не встало (ice_failed)'],
+      ['sum(increase(cord_client_reports_total{path="relay-tls"}[1h]))', 'звонки через TURN/TLS 443'],
+    ]),
     series('Интеграции идут сейчас', [['sum by (kind) (cord_integrations_active)', '{{kind}}']], 'short', { stack: true }),
     // Доска (R159): своя нагрузка мимо транзакций комнаты — доски в памяти, сокеты, правки и записи сцены.
     series('Доска: открыто и смотрят', [

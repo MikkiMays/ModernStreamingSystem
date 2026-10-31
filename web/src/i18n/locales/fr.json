@@ -595,6 +595,10 @@
       "requests": "Demandes d'accès : {{n}} · Ouvrir",
       "recoveryTitle": "Retour dans la conversation",
       "recoveryText": "Vérifiez votre réseau. Nous réessayons automatiquement.",
+      "blockedTitle": "Le réseau bloque l’appel",
+      "blockedText": "Le serveur répond, mais le son et la vidéo ne passent pas — c’est fréquent derrière un VPN ou un pare-feu strict. Désactivez le VPN ou changez de réseau : nous nous connecterons tout seuls.",
+      "blockedTls": "Même la voie de secours par le port 443 n’est pas passée.",
+      "blockedOwner": "Si c’est pareil pour tout le monde sur ce réseau, demandez au propriétaire du serveur d’activer TURN sur le port 443.",
       "seconds": "{{n}} s",
       "controlRecovering": "Rétablissement du chat et des commandes. L'audio et la vidéo continuent de fonctionner.",
       "thanks": "Merci pour cet échange.",
@@ -1382,7 +1386,8 @@
         "direct-udp": "Direct vers le serveur média · UDP",
         "direct-tcp": "Direct vers le serveur média · TCP",
         "relay-udp": "Via le relais TURN · UDP",
-        "relay-tcp": "Via le relais TURN · TCP/TLS",
+        "relay-tcp": "Via le relais TURN · TCP",
+        "relay-tls": "Via le relais TURN · TLS",
         "unknown": "Chemin inconnu"
       },
       "grades": {
@@ -2957,7 +2962,8 @@
       "label": "Audio et vidéo",
       "connected": "Connectés",
       "recovering": "Rétablissement",
-      "disconnected": "Non connectés"
+      "disconnected": "Non connectés",
+      "blocked": "Bloqués : le réseau bloque l’appel"
     },
     "control": {
       "label": "Chat et commandes",
@@ -2996,6 +3002,7 @@
       "value": "{{p50}} ms, 95 % sous {{p95}} ms"
     },
     "ordered": "Les médias passent par un relais en TCP/TLS. Ce chemin ne perd pas de paquets, il les redemande, et tout ce qui arrive ensuite attend le retardataire — à l'oreille, cela donne « silence, puis débit accéléré ». Le tampon a été augmenté automatiquement. Si cela se répète, vérifiez que votre réseau laisse passer l'UDP jusqu'au serveur média : le chemin direct est nettement plus régulier.",
+    "relayOnly": "Test TURN/TLS activé : dans ce navigateur, les médias passent uniquement par le relais sur le port 443 ; les autres voies ne sont pas essayées.",
     "videoPaused_one": "La vidéo a été mise en pause {{count}} fois pour vous : votre connexion ne suivait pas l'image, alors le serveur a donné la priorité à la voix et à la musique. L'image revient d'elle-même dès que la connexion s'améliore.",
     "videoPaused_many": "La vidéo a été mise en pause {{count}} fois pour vous : votre connexion ne suivait pas l'image, alors le serveur a donné la priorité à la voix et à la musique. L'image revient d'elle-même dès que la connexion s'améliore.",
     "videoPaused_other": "La vidéo a été mise en pause {{count}} fois pour vous : votre connexion ne suivait pas l'image, alors le serveur a donné la priorité à la voix et à la musique. L'image revient d'elle-même dès que la connexion s'améliore.",

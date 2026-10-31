@@ -136,7 +136,12 @@ public class Metrics {
     peak.record(peakHumans);
   }
 
-  /** Вход во встречу: {@code ok} или код отказа в нижнем регистре ({@code room_full}, …). */
+  /**
+   * Вход во встречу: {@code ok} или код отказа в нижнем регистре ({@code room_full}, …). Дверь
+   * {@code media} — исход уже пропущенного входа: {@code ice_failed}, сигнал до SFU дошёл, а медиа
+   * не встало (R149, {@code CommandDispatcher}); этот же человек сосчитан и своей дверью с {@code
+   * ok}.
+   */
   public void joined(String door, String result) {
     Counter.builder("cord.joins")
         .description("Входы во встречу по двери и исходу")
