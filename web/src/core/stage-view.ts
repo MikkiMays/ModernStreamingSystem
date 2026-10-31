@@ -18,6 +18,8 @@ export type StageKind = 'chess' | 'gartic' | 'poker' | 'durak' | 'cinema';
 export interface StageOccupant {
   kind: StageKind;
   film: boolean;
+  /** Какой фильм (`площадка:ролик`) — новый фильм открывается у всех (R150, Р-42). */
+  content?: string;
 }
 
 export type StageView = 'meeting' | 'integration' | 'people';
@@ -33,7 +35,8 @@ export function stageOccupant(room: Room, catalog: boolean): StageOccupant | nul
   if (room.gartic) return { kind: 'gartic', film: false };
   if (room.poker) return { kind: 'poker', film: false };
   if (room.durak) return { kind: 'durak', film: false };
-  if (room.watch) return { kind: 'cinema', film: true };
+  if (room.watch)
+    return { kind: 'cinema', film: true, content: `${room.watch.provider}:${room.watch.contentId}` };
   return catalog ? { kind: 'cinema', film: false } : null;
 }
 
@@ -55,8 +58,9 @@ export function stageView(
  *
  * Уход привязан к той интеграции, от которой ушли. Кончилась она или её сменила другая — уход забыт:
  * новая интеграция открывается у всех, как и без R121. То же, когда зритель ушёл из своего каталога, а
- * комната тем временем включила фильм: это новый фильм для всех. Пауза, следующая серия и другой фильм в
- * идущем кинозале — та же интеграция, и ушедший остаётся с людьми.
+ * комната тем временем включила фильм: это новый фильм для всех. И другой фильм в идущем кинозале — тоже
+ * новый фильм для всех (R150, Р-42, владелец 31.10: «открытие комнаты должно быть для всех и четко»).
+ * Пауза, перемотка и та же запись — та же интеграция, и ушедший остаётся с людьми.
  */
 export function awayAfter(
   away: StageKind | null,
@@ -65,5 +69,11 @@ export function awayAfter(
 ): StageKind | null {
   if (!away || !after || after.kind !== away) return null;
   if (after.film && before && !before.film) return null;
+  if (after.film && before?.film && after.content !== before.content) return null;
   return away;
+}
+
+/** Комната включила другой фильм (или фильм после каталога) — то, что все должны увидеть (R150). */
+export function newFilm(before: StageOccupant | null, after: StageOccupant | null): boolean {
+  return !!after?.film && (!before?.film || before.content !== after.content);
 }

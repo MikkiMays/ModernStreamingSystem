@@ -34,6 +34,11 @@ export function attachHls(
     texts: (tracks: MediaTrack[]) => void;
     /** Рекламные отрезки, которые пометил сам поток (`ad-breaks.ts`), — у записи, не у эфира. */
     breaks?: (breaks: AdBreak[]) => void;
+    /**
+     * То же у эфира (R150): пропустить там нечего — у эфира нет общей позиции, — но площадка (Twitch)
+     * вставляет рекламу в сам поток, и плеер честно говорит, сколько её ждать.
+     */
+    liveBreaks?: (breaks: AdBreak[]) => void;
     /** Подпись протухла (403/410): `true` — адрес обновляется, лечить на месте не нужно. */
     expired: () => boolean;
     fail: (message: string) => void;
@@ -144,8 +149,10 @@ export function attachHls(
   // Рекламу, которую помечает сам поток, ищем в каждом пришедшем списке записи: у эфира общей
   // позиции нет, и пропустить вставку всей комнатой там некуда.
   hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
-    if (!callbacks.alive() || !callbacks.breaks || data.details.live) return;
-    callbacks.breaks(adBreaks(data.details.fragments as unknown as AdFragment[]));
+    if (!callbacks.alive()) return;
+    const found = adBreaks(data.details.fragments as unknown as AdFragment[]);
+    if (data.details.live) callbacks.liveBreaks?.(found);
+    else callbacks.breaks?.(found);
   });
   hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_event, data) => {
     if (callbacks.alive()) callbacks.texts(data.subtitleTracks);

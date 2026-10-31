@@ -161,3 +161,70 @@ describe('exitFullscreenWithin (R121)', () => {
     setFullscreenElement(null);
   });
 });
+
+describe('полный экран на телефоне (R144, Р-41)', () => {
+  it('iPhone во вкладке Safari: плеер — родным полным экраном <video>, без полосы адреса', async () => {
+    let controls: ReturnType<typeof useFullscreen> | undefined;
+    const enter = vi.fn();
+    function Probe() {
+      const screen = useRef<HTMLDivElement>(null);
+      const video = useRef<HTMLVideoElement>(null);
+      const fullscreen = useFullscreen(screen, video);
+      useEffect(() => {
+        controls = fullscreen;
+      }, [fullscreen]);
+      return (
+        <div ref={screen}>
+          <video
+            ref={(element) => {
+              video.current = element;
+              if (element)
+                Object.assign(element, { webkitEnterFullscreen: enter, webkitSupportsFullscreen: true });
+            }}
+          />
+        </div>
+      );
+    }
+    setFullscreenElement(null);
+    setFullscreenEnabled(false);
+    const view = render(<Probe />);
+    await act(async () => controls?.toggle());
+    expect(enter).toHaveBeenCalledTimes(1);
+    expect(controls).toMatchObject({ full: true, targetFull: true });
+    await act(async () =>
+      view.container.querySelector('video')!.dispatchEvent(new Event('webkitendfullscreen')),
+    );
+    expect(controls).toMatchObject({ full: false });
+  });
+
+  it('метаданных ещё нет — замена на всё окно, а не кнопка, которая ничего не делает', async () => {
+    let controls: ReturnType<typeof useFullscreen> | undefined;
+    const enter = vi.fn();
+    function Probe() {
+      const screen = useRef<HTMLDivElement>(null);
+      const video = useRef<HTMLVideoElement>(null);
+      const fullscreen = useFullscreen(screen, video);
+      useEffect(() => {
+        controls = fullscreen;
+      }, [fullscreen]);
+      return (
+        <div ref={screen}>
+          <video
+            ref={(element) => {
+              video.current = element;
+              if (element)
+                Object.assign(element, { webkitEnterFullscreen: enter, webkitSupportsFullscreen: false });
+            }}
+          />
+        </div>
+      );
+    }
+    setFullscreenElement(null);
+    setFullscreenEnabled(false);
+    render(<Probe />);
+    await act(async () => controls?.toggle());
+    expect(enter).not.toHaveBeenCalled();
+    expect(controls).toMatchObject({ full: true, targetFull: true });
+    await act(async () => controls?.toggle());
+  });
+});

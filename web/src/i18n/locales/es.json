@@ -2086,7 +2086,7 @@
       "adSkipped": "Anuncio saltado para todos",
       "exitFullscreen": "Salir de pantalla completa",
       "fullscreen": "Ampliar el reproductor",
-      "unmute": "Activar el sonido del vídeo",
+      "unmute": "Activar el sonido",
       "mute": "Silenciar el vídeo",
       "volume": "Volumen del vídeo",
       "buffering": "Cargando",
@@ -2118,7 +2118,8 @@
         "streamFailed": "La emisión no se abrió. Prueba otro vídeo",
         "openFailed": "No se pudo abrir el vídeo",
         "renewFailed": "No se pudo actualizar la emisión"
-      }
+      },
+      "liveAd": "Pausa publicitaria de la plataforma · {{time}}"
     },
     "keys": {
       "locked": "El anfitrión se ha reservado el mando: la pausa y el avance son cosa suya",

@@ -2061,7 +2061,7 @@
       "adSkipped": "Ad skipped for everyone",
       "exitFullscreen": "Exit full screen",
       "fullscreen": "Expand player",
-      "unmute": "Unmute the video",
+      "unmute": "Turn on sound",
       "mute": "Mute the video",
       "volume": "Video volume",
       "buffering": "Loading",
@@ -2093,7 +2093,8 @@
         "streamFailed": "The stream didn't open. Try another video",
         "openFailed": "Couldn't open the video",
         "renewFailed": "Couldn't refresh the stream"
-      }
+      },
+      "liveAd": "Ad break on the platform · {{time}}"
     },
     "keys": {
       "locked": "The host has kept the remote to themselves — pause and seeking are theirs",

@@ -2061,7 +2061,7 @@
       "adSkipped": "Werbung für alle übersprungen",
       "exitFullscreen": "Vollbild beenden",
       "fullscreen": "Player vergrößern",
-      "unmute": "Videoton einschalten",
+      "unmute": "Ton einschalten",
       "mute": "Videoton ausschalten",
       "volume": "Videolautstärke",
       "buffering": "Wird geladen",
@@ -2093,7 +2093,8 @@
         "streamFailed": "Der Stream ließ sich nicht öffnen. Versuch ein anderes Video",
         "openFailed": "Video konnte nicht geöffnet werden",
         "renewFailed": "Stream konnte nicht aktualisiert werden"
-      }
+      },
+      "liveAd": "Werbepause der Plattform · {{time}}"
     },
     "keys": {
       "locked": "Die Fernbedienung hat sich der Host vorbehalten – Pause und Spulen liegen bei ihm",

@@ -44,6 +44,8 @@ export function usePlayback({
   const [texts, setTexts] = useState<CaptionChoice[]>([]);
   /** Рекламные отрезки, которые пометил поток (T17): по ним плеер пропускает рекламу всей комнатой. */
   const [breaks, setBreaks] = useState<AdBreak[]>([]);
+  /** Реклама, которую площадка вставила в эфир (R150): только чтобы сказать, сколько её ждать. */
+  const [liveBreaks, setLiveBreaks] = useState<AdBreak[]>([]);
   const playback = useRef<Playback | null>(null);
   /**
    * Что человек выбрал ушами, а не что сейчас играет.
@@ -127,6 +129,7 @@ export function usePlayback({
         voice: setVoice,
         texts: (tracks) => setTexts(captionChoices(tracks, source.captions)),
         breaks: setBreaks,
+        liveBreaks: setLiveBreaks,
         expired,
         fail,
       });
@@ -187,6 +190,7 @@ export function usePlayback({
     voice,
     texts,
     breaks,
+    liveBreaks,
     playback,
     mediaError,
     chooseVoice,

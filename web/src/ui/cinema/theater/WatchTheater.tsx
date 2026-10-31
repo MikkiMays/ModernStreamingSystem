@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LoaderCircle, Play, SkipForward } from 'lucide-react';
+import { LoaderCircle, Play, SkipForward, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
 import { CinemaApi } from '../../../core/cinema';
-import { useFullscreen } from '../../../core/fullscreen';
+import { nativeFullscreenVideo, setStageFullscreen, useFullscreen } from '../../../core/fullscreen';
 import { t as translate } from '../../../i18n';
 import { targetPosition, VISIBLE_DRIFT } from '../../../core/watch';
 import { useStore } from '../../primitives';
@@ -105,9 +105,6 @@ export function WatchTheater({
     полном экране лежит внутри того, что видно. Ссылка та же, что у полного экрана, — второй
     якорь развёл бы их однажды по разным элементам.
   */
-  // На телефоне полноэкранного режима для чужих элементов нет, и кнопка там раскладывает
-  // плеер на всё окно сама — см. {@link useFullscreen}.
-  const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(screen);
   const video = useRef<HTMLVideoElement>(null);
   // Кадр и время для чёлки у ушедшего к участникам (R121).
   useEffect(() => {
@@ -119,6 +116,28 @@ export function WatchTheater({
   }, []);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const echo = useEcho();
+  // На iPhone во вкладке — родной плеер `<video>` (без полосы адреса), где полного экрана для элементов
+  // нет вовсе — плеер на всё окно сам; на Android — ещё и поворот. См. {@link useFullscreen}.
+  const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(screen, video);
+  // Кнопка пульта встречи разворачивает плеер, пока он на сцене (R144): одна цель у обеих кнопок.
+  useEffect(() => {
+    setStageFullscreen(toggleFullscreen);
+    return () => setStageFullscreen(null);
+  }, [toggleFullscreen]);
+  // Выход из родного полного экрана iPhone ставит ролик на паузу сам — это не человек: паузу всей
+  // комнате не шлём и, если комната играет, продолжаем (R144).
+  const pausedRef = useRef(watch.paused);
+  pausedRef.current = watch.paused;
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    const ended = () => {
+      echo.suppress();
+      if (!pausedRef.current) void element.play().catch(() => {});
+    };
+    element.addEventListener('webkitendfullscreen', ended);
+    return () => element.removeEventListener('webkitendfullscreen', ended);
+  }, [echo]);
   const player = usePlayback({ meeting, api, watch, video, echo, preferences });
   const { source, status, setStatus, error } = player;
   const live = watch.kind === 'channel' || !!source?.live;
@@ -143,6 +162,24 @@ export function WatchTheater({
     return () => clearTimeout(hideTimer.current);
   }, [wake]);
 
+  /** Политика автозапуска пустила фильм только без звука (R150): плашка «Включить звук». */
+  const [autoMuted, setAutoMuted] = useState(false);
+  const onAutoMuted = useCallback(() => setAutoMuted(true), []);
+  const unmute = useCallback(() => {
+    if (video.current) video.current.muted = false;
+    setAutoMuted(false);
+  }, []);
+  // Первое же касание или клавиша — жест: звук включается, плашка уходит.
+  useEffect(() => {
+    if (!autoMuted) return;
+    const options = { capture: true, once: true } as const;
+    document.addEventListener('pointerdown', unmute, options);
+    document.addEventListener('keydown', unmute, options);
+    return () => {
+      document.removeEventListener('pointerdown', unmute, options);
+      document.removeEventListener('keydown', unmute, options);
+    };
+  }, [autoMuted, unmute]);
   const sync = useRoomSync({
     meeting,
     watch,
@@ -153,6 +190,7 @@ export function WatchTheater({
     echo,
     wake,
     setStatus,
+    onAutoMuted,
   });
   const { command } = sync;
 
@@ -205,6 +243,21 @@ export function WatchTheater({
     комната всё ещё в рекламе. Без права на пульт не шлют — у таких только подпись.
   */
   const ad = live ? null : adAt(player.breaks, sync.position / 1000);
+  /*
+    Эфир в рекламе у самой площадки (R150, Р-42). Вырезать её нельзя: Twitch вставляет рекламу в поток
+    тем, у кого нет подписки, и обходить это — против его условий. Можно честно сказать, сколько ждать.
+  */
+  const [liveNow, setLiveNow] = useState(0);
+  const hasLiveBreaks = live && player.liveBreaks.length > 0;
+  useEffect(() => {
+    if (!hasLiveBreaks) return;
+    const tick = () => setLiveNow(video.current?.currentTime ?? 0);
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [hasLiveBreaks]);
+  const liveAd = hasLiveBreaks ? adAt(player.liveBreaks, liveNow) : null;
+  const liveAdLeft = liveAd ? Math.max(0, Math.ceil(liveAd.end - liveNow)) : 0;
   const adStart = ad?.start ?? null;
   const adEnd = ad?.end ?? null;
   const rank = skipRank(meeting.admission.participantId, watch.openedBy, snapshot.participants);
@@ -287,6 +340,10 @@ export function WatchTheater({
             setPlaying(false);
             sync.paused();
           }}
+          // Перемотка родным пультом iPhone во весь экран (R144) — в комнату, как наша.
+          onSeeked={() => {
+            if (nativeFullscreenVideo() === video.current) sync.seeked();
+          }}
           onWaiting={() => setWaiting(true)}
           onPlaying={() => setWaiting(false)}
           onLoadedMetadata={() => {
@@ -345,6 +402,18 @@ export function WatchTheater({
           <div key={hint.at} className="watch-hint" role="status">
             {hint.text}
           </div>
+        )}
+        {liveAd && status === 'ready' && (
+          <span className="watch-live-ad" role="status">
+            {t(($) => $.cinema.theater.liveAd, {
+              time: `${Math.floor(liveAdLeft / 60)}:${String(liveAdLeft % 60).padStart(2, '0')}`,
+            })}
+          </span>
+        )}
+        {autoMuted && status === 'ready' && (
+          <button type="button" className="watch-unmute" aria-live="polite" onClick={unmute}>
+            <VolumeX size={20} aria-hidden="true" /> {t(($) => $.cinema.theater.unmute)}
+          </button>
         )}
         {status !== 'ready' && (
           <div className="watch-overlay" role="status">
