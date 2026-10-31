@@ -113,12 +113,15 @@ afterEach(() => {
 });
 
 const meter = () => screen.getByRole('meter', { name: 'Уровень микрофона' });
-// SDK проверка берёт по требованию (`await import('livekit-client')`): дождаться того же модуля и отпустить
-// несколько микрозадач — захват, уровень и состояние успевают дойти до разметки.
+// SDK проверка берёт по требованию (`await import('livekit-client')`), а импорт в vitest — цепочка
+// неизвестной длины. Ждём так же: несколько импортов подряд — цепочка компонента (возобновить AudioContext,
+// импорт, захват, состояние) успевает дойти до разметки и на медленной машине CI, где одного не хватало.
 const settle = () =>
   act(async () => {
-    await import('livekit-client');
-    for (let i = 0; i < 5; i++) await Promise.resolve();
+    for (let i = 0; i < 8; i++) {
+      await import('livekit-client');
+      await Promise.resolve();
+    }
   });
 
 function section(meeting?: Meeting, preferences = readPreferences()) {
