@@ -2513,6 +2513,33 @@
       "privacy": "Senza account. Le riunioni non vengono registrate.",
       "about": "Informazioni",
       "help": "Aiuto"
+    },
+    "recent": {
+      "title": "Recenti",
+      "clear": "Cancella",
+      "clearTitle": "Cancellare le riunioni recenti?",
+      "clearText": "L’elenco delle riunioni recenti su questo dispositivo verrà eliminato. Le riunioni e i preferiti restano come sono.",
+      "clearConfirm": "Cancella",
+      "cancel": "Annulla",
+      "rejoin": "Rientra",
+      "again": "Crea di nuovo",
+      "byCode": "Entra con codice",
+      "ended": "terminata",
+      "people_one": "{{count}} persona",
+      "people_many": "{{count}} persone",
+      "people_other": "{{count}} persone",
+      "today": "oggi, {{time}}",
+      "yesterday": "ieri, {{time}}",
+      "more": "Mostra tutte ({{count}})",
+      "less": "Mostra meno",
+      "menu": "Azioni: {{title}}",
+      "copyCode": "Copia codice",
+      "copied": "Codice copiato",
+      "copyFailed": "Impossibile copiare il codice",
+      "favorite": "Aggiungi ai preferiti",
+      "favorited": "Riunione aggiunta ai preferiti",
+      "forget": "Rimuovi dalle recenti",
+      "failed": "Impossibile rientrare nella riunione"
     }
   },
   "prejoin": {

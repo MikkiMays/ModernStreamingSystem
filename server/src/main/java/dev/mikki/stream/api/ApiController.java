@@ -243,6 +243,17 @@ public class ApiController {
     return entries.admit("code", http, () -> rooms.joinCode(request, entrant(http, "code")));
   }
 
+  /**
+   * Недавние встречи главной (R148): идут ли они и сколько в них людей — не больше двадцати за раз
+   * и тридцати запросов в минуту с адреса. Главная спрашивает при открытии и раз в 30 с.
+   */
+  @PostMapping("/rooms/presence")
+  public List<Contracts.Presence> presence(
+      @Valid @RequestBody Contracts.PresenceQuery query, HttpServletRequest http) {
+    limits.check("presence:" + address.of(http), 30);
+    return rooms.presence(query.rooms());
+  }
+
   @PostMapping("/rooms/{id}/rejoin")
   public Contracts.Admission rejoin(
       @PathVariable UUID id,

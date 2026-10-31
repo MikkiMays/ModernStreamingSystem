@@ -703,6 +703,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["presence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -1524,6 +1540,22 @@ export interface components {
             /** Format: int64 */
             amount: number;
             seats: number[];
+        };
+        Presence: {
+            code?: string;
+            /** Format: int32 */
+            people?: number;
+            roomId?: string;
+            state?: string;
+            title?: string;
+        };
+        PresenceQuery: {
+            rooms: components["schemas"]["PresenceRoom"][];
+        };
+        PresenceRoom: {
+            credential: string;
+            /** Format: uuid */
+            roomId: string;
         };
         Quality: {
             /** Format: int32 */
@@ -3138,6 +3170,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Admission"];
+                };
+            };
+        };
+    };
+    presence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresenceQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Presence"][];
                 };
             };
         };

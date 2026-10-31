@@ -2513,6 +2513,33 @@
       "privacy": "Sem conta. As reuniões não são gravadas.",
       "about": "Sobre",
       "help": "Ajuda"
+    },
+    "recent": {
+      "title": "Recentes",
+      "clear": "Limpar",
+      "clearTitle": "Limpar as reuniões recentes?",
+      "clearText": "A lista de reuniões recentes deste dispositivo será apagada. As reuniões e seus favoritos continuam iguais.",
+      "clearConfirm": "Limpar",
+      "cancel": "Cancelar",
+      "rejoin": "Voltar",
+      "again": "Criar de novo",
+      "byCode": "Entrar com código",
+      "ended": "encerrada",
+      "people_one": "{{count}} pessoa",
+      "people_many": "{{count}} pessoas",
+      "people_other": "{{count}} pessoas",
+      "today": "hoje, {{time}}",
+      "yesterday": "ontem, {{time}}",
+      "more": "Mostrar todas ({{count}})",
+      "less": "Mostrar menos",
+      "menu": "Ações: {{title}}",
+      "copyCode": "Copiar código",
+      "copied": "Código copiado",
+      "copyFailed": "Não foi possível copiar o código",
+      "favorite": "Adicionar aos favoritos",
+      "favorited": "Reunião adicionada aos favoritos",
+      "forget": "Remover das recentes",
+      "failed": "Não foi possível voltar à reunião"
     }
   },
   "prejoin": {

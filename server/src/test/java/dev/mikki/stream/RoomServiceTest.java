@@ -77,6 +77,35 @@ class RoomServiceTest {
   }
 
   @Test
+  void presenceTellsRecentMeetingsApartWithoutAnsweringForeignCredentials() {
+    var host = host();
+    var guest = guest(host);
+    connected(guest);
+    var other = host();
+    var query =
+        List.of(
+            new PresenceRoom(UUID.fromString(host.roomId()), guest.credential()),
+            new PresenceRoom(UUID.fromString(other.roomId()), guest.credential()),
+            new PresenceRoom(UUID.randomUUID(), guest.credential()));
+    var answers = rooms.presence(query);
+    // Чужой пропуск к другой встрече — ни слова о ней; несуществующая — «gone».
+    assertThat(answers)
+        .extracting(Presence::roomId)
+        .containsExactly(host.roomId(), query.get(2).roomId().toString());
+    assertThat(answers.get(0))
+        .extracting(Presence::state, Presence::people, Presence::title)
+        .containsExactly("live", 1, "Тестовая встреча");
+    assertThat(answers.get(1).state()).isEqualTo("gone");
+    assertThat(answers.get(1).title()).isNull();
+
+    // Ушедший участник видит, что встреча идёт без него: с этим пропуском и возвращаются.
+    command(guest, "leave", null, 0);
+    assertThat(rooms.presence(query.subList(0, 1)).getFirst().state()).isEqualTo("open");
+    command(host, "close", null, 0);
+    assertThat(rooms.presence(query.subList(0, 1)).getFirst().state()).isIn("closed", "gone");
+  }
+
+  @Test
   void olderPublishersAreDiscoveredOnceWithoutReplayingStartOnReconnect() {
     var host = host();
     connected(host);

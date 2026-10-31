@@ -1,5 +1,6 @@
 package dev.mikki.stream.room;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.util.List;
 import java.util.Set;
@@ -30,6 +31,24 @@ public final class Contracts {
       @NotBlank @Size(max = 40) String name) {}
 
   public record Rejoin(@NotNull UUID commandId, @NotBlank @Size(max = 40) String name) {}
+
+  /**
+   * Недавние встречи главной (R148): что с ними сейчас — одним запросом на весь список.
+   *
+   * <p>Список живёт на устройстве, и у каждой строки свой пропуск — тот, с которым человек был во
+   * встрече. По нему ядро и отвечает: чужой пропуск не даёт о комнате ни слова, а имён участников в
+   * ответе нет вовсе — только «идёт или нет» и сколько людей на связи.
+   */
+  public record PresenceQuery(@NotNull @Size(max = 20) List<@Valid PresenceRoom> rooms) {}
+
+  public record PresenceRoom(@NotNull UUID roomId, @NotBlank @Size(max = 300) String credential) {}
+
+  /**
+   * {@code state}: {@code live} — на связи есть люди, {@code open} — встреча открыта, но пуста,
+   * {@code closed} — завершена (сохранённую можно открыть заново из избранного), {@code gone} —
+   * встречи больше нет. У {@code gone} нет ни названия, ни кода.
+   */
+  public record Presence(String roomId, String state, int people, String title, String code) {}
 
   /**
    * Что ведущий может поменять во встрече, которая уже идёт.

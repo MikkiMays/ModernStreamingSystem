@@ -1,4 +1,5 @@
 import type { Admission } from '../api/types';
+import { recordVisit } from './recent-meetings';
 
 const prefix = 'cord:session:';
 export type RecentMeeting = Admission & { visitedAt: number };
@@ -30,6 +31,8 @@ export function recentMeetings(): RecentMeeting[] {
   return rooms.slice(0, 5);
 }
 export function rememberMeeting(admission: Admission) {
+  // Видимый список главной (R148) — от тех же точек: вход, правка во встрече, выход.
+  recordVisit(admission);
   sessionStorage.setItem(
     `${prefix}${admission.roomId}`,
     JSON.stringify({

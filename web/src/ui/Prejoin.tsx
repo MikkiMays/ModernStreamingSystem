@@ -6,6 +6,7 @@ import type { Admission } from '../api/types';
 import type { DeviceChoice } from '../media/session';
 import type { Destination } from './Home';
 import { Avatar, Logo } from './primitives';
+import { clearCreateTitle, readCreateTitle } from '../core/recent-meetings';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { autoJoinEnabled, favoriteApi } from '../core/favorites';
 import { servicesApi } from '../core/services';
@@ -37,7 +38,9 @@ export function Prejoin({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(localStorage.getItem('cord:name') ?? '');
-  const [title, setTitle] = useState(() => t(($) => $.prejoin.defaultTitle));
+  // «Создать снова» из недавних (R148) приносит прежнее название — один раз, на этот показ.
+  const [title, setTitle] = useState(() => readCreateTitle() ?? t(($) => $.prejoin.defaultTitle));
+  useEffect(() => clearCreateTitle(), []);
   const [settings, setSettings] = useState(false);
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [integrationsAllowed, setIntegrationsAllowed] = useState(true);

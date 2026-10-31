@@ -2797,6 +2797,61 @@
         ],
         "type": "object"
       },
+      "Presence": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "people": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PresenceQuery": {
+        "properties": {
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/PresenceRoom"
+            },
+            "maxItems": 20,
+            "minItems": 0,
+            "type": "array"
+          }
+        },
+        "required": [
+          "rooms"
+        ],
+        "type": "object"
+      },
+      "PresenceRoom": {
+        "properties": {
+          "credential": {
+            "maxLength": 300,
+            "minLength": 0,
+            "type": "string"
+          },
+          "roomId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential",
+          "roomId"
+        ],
+        "type": "object"
+      },
       "Quality": {
         "properties": {
           "bitrateKbps": {
@@ -6059,6 +6114,39 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/presence": {
+      "post": {
+        "operationId": "presence",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresenceQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Presence"
+                  },
+                  "type": "array"
                 }
               }
             },
