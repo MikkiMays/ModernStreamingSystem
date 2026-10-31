@@ -96,7 +96,9 @@ function excalidrawFonts(): Plugin {
       if (!id.includes('@excalidraw/excalidraw/dist/') || !code.includes('"ASSETS_FALLBACK_URL"')) return;
       const next = code.replace(
         /("ASSETS_FALLBACK_URL",\s*)`https:\/\/esm\.sh\/.*?\/dist\/prod\/`/s,
-        (_, head: string) => `${head}${JSON.stringify(`/${excalidrawAssets}`)}`,
+        // Абсолютный: Excalidraw берёт его основанием `new URL(путь, основание)`, относительное там — ошибка.
+        (_, head: string) =>
+          `${head}(globalThis.location?.origin ?? '') + ${JSON.stringify(`/${excalidrawAssets}`)}`,
       );
       if (next === code) this.error(`Excalidraw ${excalidrawVersion}: запасной адрес шрифтов не найден`);
       return { code: next, map: null };
