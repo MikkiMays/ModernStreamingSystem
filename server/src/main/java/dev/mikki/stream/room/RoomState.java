@@ -325,6 +325,14 @@ public class RoomState {
     /** A small square image as a data URI, or null. Lives and dies with the room. */
     public String avatar;
 
+    /**
+     * «Звук встречи» выключен (R156): человек сейчас никого не слышит — остальные видят у него
+     * наушники. {@code NON_NULL}: у остальных поля нет вовсе, комната пишется как раньше (откат).
+     */
+    @com.fasterxml.jackson.annotation.JsonInclude(
+        com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    public Boolean deafened;
+
     public String secretHash;
     public boolean owner;
     public String service;

@@ -8,7 +8,17 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { MicOff, MonitorUp, MonitorX, PinOff, WifiLow, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import {
+  HeadphoneOff,
+  MicOff,
+  MonitorUp,
+  MonitorX,
+  PinOff,
+  WifiLow,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+} from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
@@ -351,7 +361,12 @@ export function Stage({ meeting }: { meeting: Meeting }) {
             рядом остаётся отдельным знаком — на цвет полагаться нельзя. */}
         <VoiceRing meeting={meeting} id={person.id} />
         <div className="person-caption">
-          {!mic && <MicOff size={16} aria-label={t(($) => $.stage.micOff)} />}
+          {/* Наушники (R156): человек выключил у себя звук встречи и сейчас никого не слышит. */}
+          {person.deafened ? (
+            <HeadphoneOff size={16} aria-label={t(($) => $.stage.deafened)} />
+          ) : (
+            !mic && <MicOff size={16} aria-label={t(($) => $.stage.micOff)} />
+          )}
           <span>
             {person.name}
             {self ? t(($) => $.stage.you) : ''}

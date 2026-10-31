@@ -224,7 +224,14 @@ export class MediaSession {
   });
   readonly tracks = new Store<MediaTile[]>([]);
   readonly volumes = new Store<Record<string, number>>({});
-  readonly deafened = new Store(false);
+  /**
+   * «Звук встречи» выключен (R156, Р-40) — как «Отключить звук» у Discord. Голоса, музыка и звук
+   * показа глушит `AudioLayer`, плеер кинозала и сигналы — сами по настройке; микрофон выключает
+   * {@link setDeafened}. Начинается с сохранённого: выбор помнится между встречами.
+   */
+  readonly deafened = new Store(readPreferences().deafened);
+  /** Был ли включён микрофон, когда выключили звук встречи: включая звук, его возвращают. */
+  private micBeforeDeafen = false;
   /** Что мы отдаём прямо сейчас, по измерению, а не по настройке. */
   readonly outbound = new Store<OutboundVideo | null>(null);
   /**
@@ -1489,7 +1496,36 @@ export class MediaSession {
    * побеждает последнее желание: пока идёт одно переключение, следующее ждёт и сверяется заново.
    * Без сигналов: щелчок на каждое нажатие клавиши рации мешал бы, а удержание человек и так чувствует.
    */
+  /**
+   * Выключить или включить «звук встречи» (R156) — как у Discord: выключая, выключаем и микрофон,
+   * запомнив, был ли он включён; включая — возвращаем его каким был. Сигнал звучит до того, как
+   * сигналы замолчат, и после того, как заговорят.
+   */
+  async setDeafened(value: boolean) {
+    if (this.disposed || value === this.deafened.get()) return;
+    if (value) {
+      this.micBeforeDeafen = this.state.get().microphone;
+      signal('mic-off');
+      this.deafened.set(true);
+      this.saveSettings({ deafened: true });
+      if (this.state.get().microphone) await this.setMicrophone(false);
+    } else {
+      this.deafened.set(false);
+      this.saveSettings({ deafened: false });
+      signal('mic-on');
+      const restore = this.micBeforeDeafen;
+      this.micBeforeDeafen = false;
+      if (restore && !this.state.get().microphone) await this.setMicrophone(true);
+    }
+  }
+  /** Вход с выключенным звуком встречи: микрофон с предвхода включится, когда включат звук. */
+  holdMicrophoneUntilHeard(wanted: boolean) {
+    this.micBeforeDeafen ||= wanted;
+  }
   setMicrophone(on: boolean): Promise<void> {
+    // «Нажми и говори» при выключенном звуке встречи молчит, как у Discord: включает звук только
+    // явное нажатие на микрофон (`toggle`).
+    if (on && this.deafened.get()) return Promise.resolve();
     this.micTarget = on;
     this.micSetting ??= this.reconcileMicrophone().finally(() => {
       this.micSetting = undefined;
@@ -1529,6 +1565,12 @@ export class MediaSession {
       const brought = !!deviceId;
       deviceId ||= this.preferences.get().devices[kind] || undefined;
       if (kind === 'microphone') {
+        // Включить микрофон при выключенном звуке встречи — значит включить и звук (как у Discord).
+        if (!this.state.get().microphone && this.deafened.get()) {
+          this.micBeforeDeafen = false;
+          this.deafened.set(false);
+          this.saveSettings({ deafened: false });
+        }
         await this.room.localParticipant.setMicrophoneEnabled(
           !this.state.get().microphone,
           audioCapture(this.preferences.get().audio, deviceId),

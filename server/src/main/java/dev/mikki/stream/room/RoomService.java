@@ -863,7 +863,8 @@ public class RoomService {
                         m.service,
                         m.screenId,
                         m.screenStarted,
-                        m.viewingScreenId))
+                        m.viewingScreenId,
+                        Boolean.TRUE.equals(m.deafened)))
             .toList();
     var messages =
         rooms
@@ -1033,6 +1034,15 @@ public class RoomService {
             case "profile.avatar" -> {
               member.avatar = avatar(command.text());
               emit(room, "room.changed", EventPayload.changed());
+            }
+            // «Звук встречи» (R156): человек выключил или включил у себя звук встречи. Ни прав,
+            // ни правил — это его собственное состояние; остальные видят наушники на плитке.
+            case "self.deafen" -> {
+              var deafened = "true".equals(command.text()) ? Boolean.TRUE : null;
+              if (!java.util.Objects.equals(member.deafened, deafened)) {
+                member.deafened = deafened;
+                emit(room, "room.changed", EventPayload.changed());
+              }
             }
             case "close" -> {
               Permissions.require(room, member, Action.ROOM_CLOSE);

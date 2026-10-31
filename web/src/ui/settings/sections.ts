@@ -179,6 +179,7 @@ export const ROWS = {
   'appearance-theme': { section: 'appearance' },
   'appearance-language': { section: 'appearance' },
   'hotkey-mic': { section: 'hotkeys' },
+  'hotkey-deafen': { section: 'hotkeys' },
   'hotkey-ptt': { section: 'hotkeys', only: 'desktop', feature: 'ptt' },
   'hotkey-other': { section: 'hotkeys' },
   'desktop-tray': { section: 'desktop', only: 'desktop', feature: 'tray' },

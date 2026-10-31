@@ -319,3 +319,17 @@ describe('шумоподавление по умолчанию — «Усиле�
     expect(readPreferences().audio.suppression).toBe('browser');
   });
 });
+
+it('«звук встречи»: по умолчанию включён, сочетание — Ctrl+Shift+D, снятое сочетание помнится (R156)', () => {
+  expect(readPreferences()).toMatchObject({
+    deafened: false,
+    deafenHotkey: { code: 'KeyD', ctrl: true, shift: true, alt: false, meta: false },
+  });
+  savePreferences({ deafened: true, deafenHotkey: null });
+  expect(readPreferences()).toMatchObject({ deafened: true, deafenHotkey: null });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ deafened: 'yes', deafenHotkey: { code: 'Escape' } }),
+  );
+  expect(readPreferences()).toMatchObject({ deafened: false, deafenHotkey: { code: 'KeyD' } });
+});

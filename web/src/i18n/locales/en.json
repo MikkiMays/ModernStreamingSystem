@@ -315,6 +315,11 @@
         "label": "Share preview",
         "hint": "Viewers see a thumbnail without opening the share",
         "keywords": "preview thumbnail screen share stream"
+      },
+      "hotkey-deafen": {
+        "label": "Meeting sound",
+        "hint": "Turn off or on — together with the microphone",
+        "keywords": "headphones deafen mute sound"
       }
     },
     "title": "Settings",
@@ -394,7 +399,11 @@
         "taken": "Another program already uses this shortcut: it works in the Cord window, but pick another one for the background.",
         "duplicate": "This shortcut is already assigned to another Cord action.",
         "windowOnly": "Right now this shortcut works only in the Cord window."
-      }
+      },
+      "deafenTaken": "The microphone already uses this shortcut — choose another one.",
+      "deafenChangeLabel": "Change meeting sound shortcut",
+      "deafenAssignLabel": "Assign meeting sound shortcut",
+      "deafenResetLabel": "Reset meeting sound shortcut"
     },
     "media": {
       "kind": {
@@ -630,6 +639,9 @@
       "done": "Meeting link copied",
       "failed": "Couldn't copy the meeting link",
       "copy": "Copy"
+    },
+    "deafened": {
+      "title": "Meeting sound is off — you can't hear anyone"
     }
   },
   "chess": {
@@ -2199,7 +2211,8 @@
       "muteForAll": "Mute microphone for everyone",
       "remove": "Remove from meeting",
       "actions": "Actions: {{name}}"
-    }
+    },
+    "deafened": "Meeting sound off"
   },
   "dock": {
     "media": "Microphone and camera",
@@ -2235,7 +2248,8 @@
       }
     },
     "pip": "Pop out",
-    "pipClose": "Pop back in"
+    "pipClose": "Pop back in",
+    "sound": "Meeting sound"
   },
   "invite": {
     "dialog": {
@@ -2453,7 +2467,8 @@
     "attachment": {
       "list": "Message attachments",
       "remove": "Remove {{name}}"
-    }
+    },
+    "deafened": "Meeting sound off"
   },
   "home": {
     "entry": {

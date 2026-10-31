@@ -81,7 +81,7 @@ export function usePlayback({
     if (!source || !element) return;
     let alive = true;
     echo.suppress();
-    element.volume = Math.max(0, Math.min(1, preferences.watchVolume / 100));
+    element.volume = watchLevel(preferences);
     element.playbackRate = 1;
     const fail = (message: string) => {
       if (!alive) return;
@@ -148,8 +148,8 @@ export function usePlayback({
   }, [source]);
 
   useEffect(() => {
-    if (video.current) video.current.volume = Math.max(0, Math.min(1, preferences.watchVolume / 100));
-  }, [preferences.watchVolume]);
+    if (video.current) video.current.volume = watchLevel(preferences);
+  }, [preferences.watchVolume, preferences.deafened]);
 
   /**
    * `<video>` сообщил об ошибке. У HLS и DASH отказ приходит от движка, а у файла — только
@@ -192,4 +192,9 @@ export function usePlayback({
     chooseVoice,
     chooseLevel,
   };
+}
+
+/** Громкость плеера кинозала, 0–1: своя ручка, а «звук встречи» (R156) глушит и его. */
+function watchLevel(preferences: Pick<Preferences, 'watchVolume' | 'deafened'>) {
+  return preferences.deafened ? 0 : Math.max(0, Math.min(1, preferences.watchVolume / 100));
 }

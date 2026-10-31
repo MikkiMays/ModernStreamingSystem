@@ -167,7 +167,10 @@ export function signal(cue: Cue) {
  * что звучит «от приложения», а не от собеседников.
  */
 export function soundVolume(): number {
-  return Math.max(0, Math.min(1, readPreferences().soundVolume / 100));
+  const preferences = readPreferences();
+  // «Звук встречи» выключен (R156) — молчат и сигналы, и звуки столов.
+  if (preferences.deafened) return 0;
+  return Math.max(0, Math.min(1, preferences.soundVolume / 100));
 }
 
 let listening = false;

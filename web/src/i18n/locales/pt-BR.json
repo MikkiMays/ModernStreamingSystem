@@ -315,6 +315,11 @@
         "label": "Prévia do compartilhamento",
         "hint": "Quem assiste vê uma miniatura sem abrir",
         "keywords": "prévia miniatura compartilhamento de tela stream"
+      },
+      "hotkey-deafen": {
+        "label": "Som da reunião",
+        "hint": "Desligar ou ligar, junto com o microfone",
+        "keywords": "fones ensurdecer silenciar som"
       }
     },
     "title": "Configurações",
@@ -394,7 +399,11 @@
         "taken": "Outro programa já usa este atalho: ele funciona na janela do Cord, mas escolha outro para o segundo plano.",
         "duplicate": "Este atalho já está atribuído a outra ação do Cord.",
         "windowOnly": "Por enquanto este atalho só funciona na janela do Cord."
-      }
+      },
+      "deafenTaken": "O microfone já usa este atalho — escolha outro.",
+      "deafenChangeLabel": "Alterar o atalho do som da reunião",
+      "deafenAssignLabel": "Atribuir atalho ao som da reunião",
+      "deafenResetLabel": "Redefinir o atalho do som da reunião"
     },
     "media": {
       "kind": {
@@ -631,6 +640,9 @@
       "done": "Link da reunião copiado",
       "failed": "Não foi possível copiar o link da reunião",
       "copy": "Copiar"
+    },
+    "deafened": {
+      "title": "O som da reunião está desligado: você não ouve ninguém"
     }
   },
   "chess": {
@@ -2226,7 +2238,8 @@
       "muteForAll": "Desligar o microfone para todos",
       "remove": "Remover da reunião",
       "actions": "Ações: {{name}}"
-    }
+    },
+    "deafened": "Som da reunião desligado"
   },
   "dock": {
     "media": "Microfone e câmera",
@@ -2263,7 +2276,8 @@
       }
     },
     "pip": "Abrir em janela flutuante",
-    "pipClose": "Sair da janela flutuante"
+    "pipClose": "Sair da janela flutuante",
+    "sound": "Som da reunião"
   },
   "invite": {
     "dialog": {
@@ -2482,7 +2496,8 @@
     "attachment": {
       "list": "Anexos da mensagem",
       "remove": "Remover {{name}}"
-    }
+    },
+    "deafened": "Som da reunião desligado"
   },
   "home": {
     "entry": {

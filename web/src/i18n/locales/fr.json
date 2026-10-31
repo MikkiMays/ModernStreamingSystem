@@ -315,6 +315,11 @@
         "label": "Aperçu du partage",
         "hint": "Les spectateurs voient une miniature sans l'ouvrir",
         "keywords": "aperçu miniature partage d'écran stream"
+      },
+      "hotkey-deafen": {
+        "label": "Son de la réunion",
+        "hint": "Couper ou rétablir, avec le micro",
+        "keywords": "casque sourdine deafen son"
       }
     },
     "title": "Paramètres",
@@ -394,7 +399,11 @@
         "taken": "Un autre programme utilise déjà ce raccourci : il fonctionne dans la fenêtre de Cord, mais choisissez-en un autre pour l'arrière-plan.",
         "duplicate": "Ce raccourci est déjà attribué à une autre action de Cord.",
         "windowOnly": "Pour l'instant, ce raccourci ne fonctionne que dans la fenêtre de Cord."
-      }
+      },
+      "deafenTaken": "Ce raccourci est déjà celui du micro — choisissez-en un autre.",
+      "deafenChangeLabel": "Modifier le raccourci du son de la réunion",
+      "deafenAssignLabel": "Attribuer un raccourci au son de la réunion",
+      "deafenResetLabel": "Réinitialiser le raccourci du son de la réunion"
     },
     "media": {
       "kind": {
@@ -631,6 +640,9 @@
       "done": "Lien de la réunion copié",
       "failed": "Impossible de copier le lien de la réunion",
       "copy": "Copier"
+    },
+    "deafened": {
+      "title": "Le son de la réunion est coupé : vous n’entendez personne"
     }
   },
   "chess": {
@@ -2226,7 +2238,8 @@
       "muteForAll": "Couper le micro pour tous",
       "remove": "Retirer de la réunion",
       "actions": "Actions : {{name}}"
-    }
+    },
+    "deafened": "Son de la réunion coupé"
   },
   "dock": {
     "media": "Micro et caméra",
@@ -2263,7 +2276,8 @@
       }
     },
     "pip": "Afficher en mini-fenêtre",
-    "pipClose": "Quitter la mini-fenêtre"
+    "pipClose": "Quitter la mini-fenêtre",
+    "sound": "Son de la réunion"
   },
   "invite": {
     "dialog": {
@@ -2482,7 +2496,8 @@
     "attachment": {
       "list": "Pièces jointes du message",
       "remove": "Retirer {{name}}"
-    }
+    },
+    "deafened": "Son de la réunion coupé"
   },
   "home": {
     "entry": {

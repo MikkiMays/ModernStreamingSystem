@@ -147,6 +147,8 @@ export class Meeting {
       watchWindowState((state) => this.windowState.set(state)),
       this.windowState.subscribe(this.attend),
       this.chatOpen.subscribe(this.attend),
+      // «Звук встречи» (R156): остальные видят наушники — ядро узнаёт о каждом переключении.
+      this.media.deafened.subscribe(this.tellDeafened),
       // Показ, который мы смотрим, снят с публикации — просмотр закрывается сразу, не по снимку (R81).
       this.media.screenGone.subscribe(() => {
         const gone = this.media.screenGone.get();
@@ -165,7 +167,12 @@ export class Meeting {
           this.initialDevicesApplied = true;
           // Без сигнала: человек включил микрофон ещё на предпросмотре, а услышал только что
           // собственный вход — два звука подряд об одном и том же событии.
-          if (this.choices.micOn) void this.media.toggle('microphone', this.choices.microphone, false);
+          // Звук встречи выключен с прошлого раза (R156): микрофон ждёт, пока звук включат, а
+          // остальные сразу видят наушники.
+          if (this.media.deafened.get()) this.tellDeafened();
+          if (this.choices.micOn && this.media.deafened.get()) this.media.holdMicrophoneUntilHeard(true);
+          if (this.choices.micOn && !this.media.deafened.get())
+            void this.media.toggle('microphone', this.choices.microphone, false);
           // Телефон: микрофон захватывается и выключенным — иначе разговор в фоне не держит ничто
           // (W5, E12). На ПК `holdMicrophone` ничего не делает.
           else void this.media.holdMicrophone(this.choices.microphone);
@@ -560,6 +567,12 @@ export class Meeting {
     if (provider) this.stageAway.set(null);
     this.settleStage();
   }
+  private tellDeafened = () => {
+    if (this.disposed) return;
+    void this.command('self.deafen', String(this.media.deafened.get())).catch(() => {
+      /* Ядро без R156 команды не знает — наушники просто не видны остальным. */
+    });
+  };
   async leave() {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     this.end(t(($) => $.meeting.end.left));

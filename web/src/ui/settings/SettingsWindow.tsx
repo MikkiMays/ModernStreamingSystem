@@ -281,6 +281,8 @@ export function SettingsWindow({
             change={(micHotkey) => void change({ micHotkey })}
             mode={preferences.micHotkeyMode}
             changeMode={(micHotkeyMode) => void change({ micHotkeyMode })}
+            deafen={preferences.deafenHotkey}
+            changeDeafen={(deafenHotkey) => void change({ deafenHotkey })}
           />
         );
       case 'desktop':

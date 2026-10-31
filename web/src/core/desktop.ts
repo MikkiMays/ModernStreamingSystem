@@ -134,12 +134,15 @@ const desktopHotkeys: {
   mic: Hotkey | null;
   overlay: Hotkey | null;
   lock: Hotkey | null;
+  /** «Звук встречи» (R156): действие `deafen` оболочка знает с E01-B2. */
+  deafen: Hotkey | null;
   paused: boolean;
   micMode: MicHotkeyMode;
 } = {
   mic: null,
   overlay: null,
   lock: null,
+  deafen: null,
   paused: false,
   micMode: 'toggle',
 };
@@ -148,6 +151,7 @@ function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
   if ('hotkey' in data) desktopHotkeys.mic = (data.hotkey as Hotkey | null | undefined) ?? null;
   if ('overlay' in data) desktopHotkeys.overlay = (data.overlay as Hotkey | null | undefined) ?? null;
   if ('lock' in data) desktopHotkeys.lock = (data.lock as Hotkey | null | undefined) ?? null;
+  if ('deafen' in data) desktopHotkeys.deafen = (data.deafen as Hotkey | null | undefined) ?? null;
   if ('paused' in data) desktopHotkeys.paused = data.paused === true;
   if ('mode' in data) desktopHotkeys.micMode = data.mode === 'hold' ? 'hold' : 'toggle';
   const widget = api.features.includes('overlay.widget');
@@ -156,6 +160,8 @@ function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
   const mic = known(desktopHotkeys.mic);
   const overlay = known(desktopHotkeys.overlay);
   const lock = widget ? desktopHotkeys.lock : null;
+  // Кнопок мыши у «звука встречи» нет — без Raw Input оболочка их не зарегистрирует.
+  const deafen = known(desktopHotkeys.deafen);
   const { paused, micMode } = desktopHotkeys;
   const hold = micMode === 'hold' && api.features.includes('ptt');
   api.send('hotkeys.configure', {
@@ -171,6 +177,7 @@ function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
             : []),
           ...(overlay ? [{ action: 'overlay.toggle', mode: 'toggle', key: overlay }] : []),
           ...(lock ? [{ action: 'overlay.lock', mode: 'toggle', key: lock }] : []),
+          ...(deafen ? [{ action: 'deafen', mode: 'toggle', key: deafen }] : []),
         ],
   });
 }
@@ -209,6 +216,7 @@ export interface DesktopCommand {
     | 'theme.changed'
     | 'microphone.toggle'
     | 'microphone.hold'
+    | 'deafen.toggle'
     | 'hotkey.status'
     | 'session.token'
     | 'settings.open'
@@ -326,6 +334,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
         if (data.action === 'mic.toggle' && data.phase !== 'up') relay({ type: 'microphone.toggle' });
         if (data.action === 'ptt' && (data.phase === 'down' || data.phase === 'up'))
           relay({ type: 'microphone.hold', phase: data.phase });
+        if (data.action === 'deafen' && data.phase !== 'up') relay({ type: 'deafen.toggle' });
       }),
       api.on('hotkeys.status', (data) => {
         // В наборе микрофон — одним из двух действий: переключение или «нажми и говори».

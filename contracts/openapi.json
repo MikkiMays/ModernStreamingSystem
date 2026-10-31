@@ -751,7 +751,8 @@
               "gartic.guess",
               "gartic.submit",
               "gartic.reveal",
-              "presence.confirm"
+              "presence.confirm",
+              "self.deafen"
             ],
             "type": "string"
           },
@@ -2581,6 +2582,9 @@
         "properties": {
           "avatar": {
             "type": "string"
+          },
+          "deafened": {
+            "type": "boolean"
           },
           "generation": {
             "format": "int64",
