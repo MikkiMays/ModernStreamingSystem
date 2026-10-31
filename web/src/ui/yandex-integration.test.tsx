@@ -22,7 +22,7 @@ function fakeApi() {
       interval: 5,
       status: 'pending' as const,
     })),
-    poll: vi.fn(() => new Promise<never>(() => {})),
+    poll: vi.fn((_id: string): Promise<unknown> => new Promise(() => {})),
     cancel: vi.fn(async () => undefined),
     connectToken: vi.fn(async () => ({ connected: true, name: 'Гость Яндекса' })),
     disconnect: vi.fn(),
