@@ -68,3 +68,4 @@
 - [`cord-web-client`](codex-skills/cord-web-client/SKILL.md) — Cord React/Vite web client: TypeScript, Base UI, accessibility and client-side performance.
 - [`cord-windows-bridge`](codex-skills/cord-windows-bridge/SKILL.md) — Cord Windows client: WinUI, the WebView2 bridge, deep links and installer compatibility.
 - `memory/cord-npm-lockfile-wasm.md` — npm install на хосте рвёт вложенные записи wasm в lock-файле; проверка npm ci в образе.
+- [Тост Base UI — role="dialog"](memory/cord-toast-is-dialog.md) — «открыто окно?» только через `modalOpen()`, иначе тост глушит горячие клавиши
