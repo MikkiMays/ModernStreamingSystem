@@ -320,6 +320,11 @@
         "label": "Meeting sound",
         "hint": "Turn off or on — together with the microphone",
         "keywords": "headphones deafen mute sound"
+      },
+      "camera-background": {
+        "label": "Background",
+        "hint": "Blur or a picture behind you",
+        "keywords": "background blur virtual backdrop"
       }
     },
     "title": "Settings",
@@ -2056,7 +2061,8 @@
       "skip": {
         "ad": "Skip the ad for everyone",
         "adShort": "Skip ad",
-        "adLabel": "Ad in the stream"
+        "adLabel": "Ad in the stream",
+        "intro": "Skip 85 seconds for everyone"
       },
       "adSkipped": "Ad skipped for everyone",
       "exitFullscreen": "Exit full screen",
@@ -2757,6 +2763,10 @@
       },
       "telegram": {
         "hint": "Meetings and music from your Telegram chat"
+      },
+      "any-game": {
+        "name": "Any game",
+        "hint": "Browser games for the whole meeting"
       }
     },
     "music": {
@@ -3538,5 +3548,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "up to {{fps}} fps",
     "share": "Share"
+  },
+  "background": {
+    "title": "Background",
+    "none": "No background",
+    "blurLight": "Light blur",
+    "blurStrong": "Strong blur",
+    "builtin": {
+      "graphite": "Graphite",
+      "mist": "Mist",
+      "dawn": "Dawn",
+      "forest": "Forest",
+      "sea": "Sea",
+      "sand": "Sand"
+    },
+    "custom": "Your photo",
+    "upload": "Upload your photo",
+    "replace": "Replace photo",
+    "uploadFailed": "Couldn't open this photo",
+    "notHere": "Backgrounds aren't available on this device — the camera goes as is"
   }
 }

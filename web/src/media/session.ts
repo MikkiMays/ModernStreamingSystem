@@ -54,6 +54,13 @@ import {
 } from '../core/preferences';
 import { signal } from '../core/sounds';
 import { MicSentinel } from './mic-sentinel';
+import {
+  allowed,
+  backgroundSupport,
+  CameraBackground,
+  NO_BACKGROUND,
+  type BackgroundSupport,
+} from './background-effect';
 import { recallVolume, rememberVolume } from '../core/volumes';
 import { SpeechDownmix } from './downmix';
 import { receivedLevel, waitForPause } from './speech-pause';
@@ -1024,6 +1031,23 @@ export class MediaSession {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (track instanceof LocalVideoTrack) track.mediaStreamTrack.contentHint = cameraHint;
     void this.enforceCameraRate();
+    // Фон в видео (R153) — после каждой публикации камеры: включение, смена камеры, смена кодека.
+    void this.applyBackground();
+  }
+  private readonly background = new CameraBackground();
+  /** Что умеет устройство — спрашивается, только когда фон выбран: обработка грузится лениво. */
+  private backgroundSupported: Promise<BackgroundSupport> | null = null;
+  /** Поставить выбранный фон на камеру; где нельзя (iPhone, слабый телефон) — камера как есть. */
+  private async applyBackground() {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    if (!(track instanceof LocalVideoTrack) || this.disposed) return;
+    const choice = this.preferences.get().background;
+    if (choice.kind === 'none' && !this.background.active) return;
+    this.backgroundSupported ??= backgroundSupport();
+    const support = await this.backgroundSupported;
+    await this.background
+      .apply(track, allowed(choice, support) ? choice : NO_BACKGROUND)
+      .catch((error) => console.warn('[cord] background effect failed', error));
   }
   /**
    * Потребовать у камеры выбранную частоту, а не попросить.
@@ -1783,7 +1807,12 @@ export class MediaSession {
    * хранилища, а не то, что человек только что передвинул.
    */
   private settingsChanged = () => {
-    if (!this.disposed) this.preferences.set(readPreferences());
+    if (this.disposed) return;
+    const before = this.preferences.get().background;
+    this.preferences.set(readPreferences());
+    // Фон поменяли (меню камеры, настройки) — на лету, без переопубликации (R153).
+    if (JSON.stringify(before) !== JSON.stringify(this.preferences.get().background))
+      void this.applyBackground();
   };
   saveSettings(patch: Partial<Preferences>) {
     const next = savePreferences(patch);

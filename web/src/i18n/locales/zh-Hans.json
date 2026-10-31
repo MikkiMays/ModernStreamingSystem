@@ -320,6 +320,11 @@
         "label": "会议声音",
         "hint": "关闭或打开——连同麦克风",
         "keywords": "耳机 静音 听不到 声音"
+      },
+      "camera-background": {
+        "label": "背景",
+        "hint": "模糊或身后的图片",
+        "keywords": "背景 模糊 虚拟"
       }
     },
     "title": "设置",
@@ -2031,7 +2036,8 @@
       "skip": {
         "ad": "为所有人跳过广告",
         "adShort": "跳过广告",
-        "adLabel": "流中的广告"
+        "adLabel": "流中的广告",
+        "intro": "为所有人跳过 85 秒"
       },
       "adSkipped": "已为所有人跳过广告",
       "exitFullscreen": "退出全屏",
@@ -2726,6 +2732,10 @@
       },
       "telegram": {
         "hint": "从你的 Telegram 群聊发起会议和音乐"
+      },
+      "any-game": {
+        "name": "任意游戏",
+        "hint": "全会议一起玩网页游戏"
       }
     },
     "music": {
@@ -3498,5 +3508,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "最高 {{fps}} fps",
     "share": "共享"
+  },
+  "background": {
+    "title": "背景",
+    "none": "无背景",
+    "blurLight": "轻度模糊",
+    "blurStrong": "强度模糊",
+    "builtin": {
+      "graphite": "石墨",
+      "mist": "薄雾",
+      "dawn": "晨曦",
+      "forest": "森林",
+      "sea": "大海",
+      "sand": "沙滩"
+    },
+    "custom": "自己的照片",
+    "upload": "上传自己的照片",
+    "replace": "更换照片",
+    "uploadFailed": "无法打开这张照片",
+    "notHere": "此设备不支持背景——摄像头保持原样"
   }
 }

@@ -7,6 +7,7 @@ import {
   type ScreenProfile,
 } from '../media/profiles';
 import { cameraLevel, nearestLevel } from '../media/capabilities';
+import { backgroundChoice, type BackgroundChoice } from '../media/background-effect';
 import type { DeviceChoice } from '../media/session';
 import {
   defaultDeafenHotkey,
@@ -125,6 +126,8 @@ export interface Preferences {
   audio: AudioPreferences;
   /** Как расставить участников на сцене. Принадлежит смотрящему, а не комнате. */
   layout: StageLayout;
+  /** Фон в видео (R153): без фона, размытие или картинка — своё у устройства. */
+  background: BackgroundChoice;
   /**
    * Громкость совместного просмотра, 0–100. Тоже своя у каждого: ролик звучит у всех из своего
    * плеера, и договариваться о громкости не с кем — как и о громкости собеседника.
@@ -263,6 +266,7 @@ export function readPreferences(): Preferences {
           : 1,
     },
     layout: stageLayouts.includes(data.layout as StageLayout) ? data.layout! : 'grid',
+    background: backgroundChoice(data.background),
     watchVolume:
       typeof data.watchVolume === 'number' && Number.isFinite(data.watchVolume)
         ? Math.max(0, Math.min(100, Math.round(data.watchVolume)))

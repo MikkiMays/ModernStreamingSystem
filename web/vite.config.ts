@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -53,11 +54,53 @@ function buildMeta(): Plugin {
   };
 }
 
+/**
+ * Фон в видео (R153): wasm MediaPipe — со своего сервера, а не с jsdelivr. По умолчанию
+ * `@livekit/track-processors` тянет его с CDN, а модель — с googleapis, и CSP шлюза закрыла бы и то и
+ * другое (ослаблять её нельзя). Модель (250 КБ) лежит в `public/mediapipe/`, а wasm (~18 МБ) в
+ * репозиторий не кладём: в dev он отдаётся из `node_modules`, в сборку копируется рядом.
+ */
+function mediapipeAssets(): Plugin {
+  const source = fileURLToPath(new URL('./node_modules/@mediapipe/tasks-vision/wasm/', import.meta.url));
+  const files = [
+    'vision_wasm_internal.js',
+    'vision_wasm_internal.wasm',
+    'vision_wasm_nosimd_internal.js',
+    'vision_wasm_nosimd_internal.wasm',
+  ];
+  const type = (name: string) => (name.endsWith('.wasm') ? 'application/wasm' : 'text/javascript');
+  return {
+    name: 'cord-mediapipe-assets',
+    configureServer(server) {
+      server.middlewares.use('/mediapipe/wasm/', (request, response, next) => {
+        const name = (request.url ?? '').replace(/^\//, '').split('?')[0]!;
+        if (!files.includes(name)) return next();
+        response.setHeader('Content-Type', type(name));
+        response.end(readFileSync(source + name));
+      });
+    },
+    generateBundle() {
+      for (const name of files)
+        this.emitFile({
+          type: 'asset',
+          fileName: `mediapipe/wasm/${name}`,
+          source: readFileSync(source + name),
+        });
+    },
+  };
+}
+
 export default defineConfig({
   define: {
     __CORD_VERSION__: JSON.stringify(version),
   },
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss(), buildMeta()],
+  plugins: [
+    react(),
+    babel({ presets: [reactCompilerPreset()] }),
+    tailwindcss(),
+    buildMeta(),
+    mediapipeAssets(),
+  ],
   server: { proxy },
   preview: { proxy },
   /*

@@ -320,6 +320,11 @@
         "label": "Meeting-Ton",
         "hint": "Aus- oder einschalten – zusammen mit dem Mikrofon",
         "keywords": "Kopfhörer stumm deafen Ton"
+      },
+      "camera-background": {
+        "label": "Hintergrund",
+        "hint": "Weichzeichnen oder ein Bild hinter Ihnen",
+        "keywords": "Hintergrund weichzeichnen virtuell"
       }
     },
     "title": "Einstellungen",
@@ -2056,7 +2061,8 @@
       "skip": {
         "ad": "Werbung für alle überspringen",
         "adShort": "Werbung überspringen",
-        "adLabel": "Werbung im Stream"
+        "adLabel": "Werbung im Stream",
+        "intro": "85 Sekunden für alle überspringen"
       },
       "adSkipped": "Werbung für alle übersprungen",
       "exitFullscreen": "Vollbild beenden",
@@ -2757,6 +2763,10 @@
       },
       "telegram": {
         "hint": "Meetings und Musik aus deinem Telegram-Chat"
+      },
+      "any-game": {
+        "name": "Beliebiges Spiel",
+        "hint": "Browserspiele für das ganze Meeting"
       }
     },
     "music": {
@@ -3538,5 +3548,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "bis {{fps}} fps",
     "share": "Teilen"
+  },
+  "background": {
+    "title": "Hintergrund",
+    "none": "Kein Hintergrund",
+    "blurLight": "Leicht weichzeichnen",
+    "blurStrong": "Stark weichzeichnen",
+    "builtin": {
+      "graphite": "Graphit",
+      "mist": "Nebel",
+      "dawn": "Morgenrot",
+      "forest": "Wald",
+      "sea": "Meer",
+      "sand": "Sand"
+    },
+    "custom": "Eigenes Foto",
+    "upload": "Eigenes Foto hochladen",
+    "replace": "Foto ersetzen",
+    "uploadFailed": "Dieses Foto lässt sich nicht öffnen",
+    "notHere": "Hintergründe sind auf diesem Gerät nicht verfügbar – die Kamera bleibt, wie sie ist"
   }
 }

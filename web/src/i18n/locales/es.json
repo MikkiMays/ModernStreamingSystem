@@ -320,6 +320,11 @@
         "label": "Sonido de la reunión",
         "hint": "Apagar o encender, junto con el micrófono",
         "keywords": "auriculares ensordecer silenciar sonido"
+      },
+      "camera-background": {
+        "label": "Fondo",
+        "hint": "Desenfoque o una imagen detrás de ti",
+        "keywords": "fondo desenfoque virtual"
       }
     },
     "title": "Ajustes",
@@ -2081,7 +2086,8 @@
       "skip": {
         "ad": "Saltar el anuncio para todos",
         "adShort": "Saltar anuncio",
-        "adLabel": "Anuncio en la emisión"
+        "adLabel": "Anuncio en la emisión",
+        "intro": "Saltar 85 segundos para todos"
       },
       "adSkipped": "Anuncio saltado para todos",
       "exitFullscreen": "Salir de pantalla completa",
@@ -2788,6 +2794,10 @@
       },
       "telegram": {
         "hint": "Reuniones y música desde tu chat de Telegram"
+      },
+      "any-game": {
+        "name": "Cualquier juego",
+        "hint": "Juegos de navegador para toda la reunión"
       }
     },
     "music": {
@@ -3578,5 +3588,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "hasta {{fps}} fps",
     "share": "Compartir"
+  },
+  "background": {
+    "title": "Fondo",
+    "none": "Sin fondo",
+    "blurLight": "Desenfoque suave",
+    "blurStrong": "Desenfoque fuerte",
+    "builtin": {
+      "graphite": "Grafito",
+      "mist": "Niebla",
+      "dawn": "Amanecer",
+      "forest": "Bosque",
+      "sea": "Mar",
+      "sand": "Arena"
+    },
+    "custom": "Tu foto",
+    "upload": "Subir tu foto",
+    "replace": "Cambiar foto",
+    "uploadFailed": "No se pudo abrir esta foto",
+    "notHere": "Los fondos no están disponibles en este dispositivo: la cámara va tal cual"
   }
 }

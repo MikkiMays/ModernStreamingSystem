@@ -320,6 +320,11 @@
         "label": "Son de la réunion",
         "hint": "Couper ou rétablir, avec le micro",
         "keywords": "casque sourdine deafen son"
+      },
+      "camera-background": {
+        "label": "Arrière-plan",
+        "hint": "Flou ou image derrière vous",
+        "keywords": "arrière-plan flou virtuel fond"
       }
     },
     "title": "Paramètres",
@@ -2081,7 +2086,8 @@
       "skip": {
         "ad": "Passer la pub pour tous",
         "adShort": "Passer la pub",
-        "adLabel": "Publicité dans le flux"
+        "adLabel": "Publicité dans le flux",
+        "intro": "Passer 85 secondes pour tous"
       },
       "adSkipped": "Pub passée pour tous",
       "exitFullscreen": "Quitter le plein écran",
@@ -2788,6 +2794,10 @@
       },
       "telegram": {
         "hint": "Réunions et musique depuis votre discussion Telegram"
+      },
+      "any-game": {
+        "name": "N'importe quel jeu",
+        "hint": "Jeux de navigateur pour toute la réunion"
       }
     },
     "music": {
@@ -3578,5 +3588,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "jusqu’à {{fps}} fps",
     "share": "Partager"
+  },
+  "background": {
+    "title": "Arrière-plan",
+    "none": "Aucun arrière-plan",
+    "blurLight": "Flou léger",
+    "blurStrong": "Flou fort",
+    "builtin": {
+      "graphite": "Graphite",
+      "mist": "Brume",
+      "dawn": "Aurore",
+      "forest": "Forêt",
+      "sea": "Mer",
+      "sand": "Sable"
+    },
+    "custom": "Votre photo",
+    "upload": "Importer votre photo",
+    "replace": "Remplacer la photo",
+    "uploadFailed": "Impossible d’ouvrir cette photo",
+    "notHere": "Les arrière-plans ne sont pas disponibles sur cet appareil : la caméra reste telle quelle"
   }
 }
