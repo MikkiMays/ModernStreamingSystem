@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { TrackEvent } from 'livekit-client';
 import {
+  Armchair,
   ArrowRightLeft,
   Check,
   ChevronLeft,
@@ -353,6 +354,53 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           : t(($) => $.durak.guidance.none);
   const seated = table.seats.filter((seat) => seat.memberId).length;
   const frozenSeconds = Math.max(0, Math.ceil((table.pausedRemaining ?? 0) / 1000));
+  /*
+    Лоток под столом (R129): рука и одно место для действия — всегда видно, без прокрутки. Главная кнопка
+    стоит по центру под рукой и не прыгает между ходами: у защитника это «Беру», у остальных «Бито»;
+    недоступна — остаётся на месте приглушённой. Зрителю на том же месте — «Сесть за стол», ведущему
+    между партиями — «Раздать». Рядом тише — «Отменить» выбор карты, слева — что делать сейчас, одной строкой.
+  */
+  const between = table.phase !== 'bout';
+  const freeSeat = table.seats.some((seat) => !seat.memberId);
+  const canSit = mySeat === null && freeSeat;
+  const playing =
+    table.phase === 'bout' && !!you && !!me && !me.out && (hand.length > 0 || !!you.actions.length);
+  const turnAction: 'take' | 'pass' = mySeat !== null && mySeat === table.defender ? 'take' : 'pass';
+  const dealButton = host && between && (
+    <button
+      className={canSit ? 'durak-aside-act' : 'durak-act'}
+      data-kind="deal"
+      disabled={!connected || pending || seated < 2}
+      onClick={() => send('durak.deal')}
+    >
+      <Play size={canSit ? 16 : 20} /> {t(($) => $.durak.deal)}
+    </button>
+  );
+  const note = refusal
+    ? refusal
+    : pending
+      ? t(($) => $.durak.hint.saving)
+      : focusChoice
+        ? guidance
+        : paused
+          ? ''
+          : playing && you?.turn
+            ? t(($) => $.durak.hint.turn)
+            : mySeat === null
+              ? canSit
+                ? !table.seatingOpen
+                  ? t(($) => $.durak.settings.seating.closed)
+                  : between
+                    ? ''
+                    : t(($) => $.durak.dock.nextDeal)
+                : t(($) => $.durak.hand.watching)
+              : between
+                ? host
+                  ? ''
+                  : t(($) => $.durak.hand.waiting)
+                : !playing && !me?.out
+                  ? t(($) => $.durak.dock.nextDeal)
+                  : '';
 
   return (
     <div
@@ -371,66 +419,59 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             {table.trumpSuit ? ` · ${trumpName(t, table)}` : ''}
           </small>
         </div>
-        <span className="durak-bar-spacer" />
-        {/* Музыка во встрече — мини-плеером в шапке стола, перед кнопками стола (R128). */}
-        <IntegrationBarSlot />
-        {table.score.length > 0 && (
-          <IconButton label={t(($) => $.durak.score.title)} onClick={() => setSheet('score')}>
-            <ListOrdered size={20} />
-          </IconButton>
-        )}
-        {host && table.phase !== 'bout' && (
-          <button
-            className="button primary small"
-            disabled={!connected || pending || seated < 2}
-            onClick={() => send('durak.deal')}
-          >
-            <Play size={16} /> {t(($) => $.durak.deal)}
-          </button>
-        )}
-        {host && pauseSupported && table.phase === 'bout' && (
+        {/* Чей ход и сколько осталось — плашкой посередине шапки, как у покера: отдельная полоса над
+            сукном отнимала у стола 46 px высоты. */}
+        <TurnStatus meeting={meeting} table={table} label={says} connected={connected} />
+        <div className="durak-bar-tools">
+          {/* Музыка во встрече — мини-плеером в шапке стола, перед кнопками стола (R128). */}
+          <IntegrationBarSlot />
+          {table.score.length > 0 && (
+            <IconButton label={t(($) => $.durak.score.title)} onClick={() => setSheet('score')}>
+              <ListOrdered size={20} />
+            </IconButton>
+          )}
+          {host && pauseSupported && table.phase === 'bout' && (
+            <IconButton
+              label={paused ? t(($) => $.durak.pause.resume) : t(($) => $.durak.pause.pauseGame)}
+              disabled={!connected || pending}
+              onClick={() => send('durak.settings', { option: paused ? 'resume' : 'pause' })}
+            >
+              {paused ? <Play size={20} /> : <Pause size={20} />}
+            </IconButton>
+          )}
           <IconButton
-            label={paused ? t(($) => $.durak.pause.resume) : t(($) => $.durak.pause.pauseGame)}
-            disabled={!connected || pending}
-            onClick={() => send('durak.settings', { option: paused ? 'resume' : 'pause' })}
+            label={t(($) => $.durak.settings.title)}
+            onClick={() => {
+              clearSelection();
+              setSheet('settings');
+            }}
           >
-            {paused ? <Play size={20} /> : <Pause size={20} />}
+            <Settings2 size={20} />
           </IconButton>
-        )}
-        <IconButton
-          label={t(($) => $.durak.settings.title)}
-          onClick={() => {
-            clearSelection();
-            setSheet('settings');
-          }}
-        >
-          <Settings2 size={20} />
-        </IconButton>
-        {/* Выход к участникам (R121) — рядом с полным экраном: обе кнопки про вид, а не про игру. */}
-        <StageExitButton variant="bar" />
-        <IconButton label={full ? t(($) => $.durak.exitFull) : t(($) => $.durak.full)} onClick={toggleFull}>
-          {full ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-        </IconButton>
+          {/* Выход к участникам (R121) — рядом с полным экраном: обе кнопки про вид, а не про игру. */}
+          <StageExitButton variant="bar" />
+          <IconButton label={full ? t(($) => $.durak.exitFull) : t(($) => $.durak.full)} onClick={toggleFull}>
+            {full ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+          </IconButton>
+        </div>
       </header>
-      <TurnStatus
-        meeting={meeting}
-        table={table}
-        label={refusal || says}
-        error={!!refusal}
-        connected={connected}
-      />
       <div className="durak-table">
         <div className="durak-arena" ref={tableGeometry.ref}>
           <div
             className="durak-felt"
             data-drop={tableTarget ? 'table' : undefined}
             data-choice={focusChoice || undefined}
+            data-crowd={spots.length >= 3 || undefined}
           >
             <CardMotion meeting={meeting} events={dealing} spots={spots} />
             {/* Знак заведения в середине сукна — как на покерном столе: раздача идёт на столе Cord. */}
             <CordMark className="durak-felt-mark" />
             <div className="durak-focus-shade" aria-hidden="true" />
-            <div className="durak-mat" data-focus={focusChoice || undefined}>
+            <div
+              className="durak-mat"
+              data-focus={focusChoice || undefined}
+              style={{ '--pairs': Math.max(1, table.table.length) } as CSSProperties}
+            >
               {table.phase === 'bout' && <Stock table={table} />}
               {table.phase === 'bout' && (
                 <div
@@ -570,144 +611,134 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             )}
           </div>
         </div>
-        <div className="durak-hand-band">
-          <div className="durak-hand-caption">
-            {picked ? (
-              <button aria-label={t(($) => $.durak.hand.cancelSelection)} onClick={clearSelection}>
-                <X size={12} /> {t(($) => $.durak.hand.cancel)}
+        <div className="durak-tray" data-hand={hand.length > 0 || undefined}>
+          {/* Руки нет (зритель, ждём раздачи, вышел из партии) — полоса схлопнута, и сукну достаётся её
+              высота; карты пришли — она плавно раскрывается, а кнопка лотка остаётся на месте. */}
+          <div className="durak-hand-band" data-empty={hand.length === 0 || undefined}>
+            {handOverflow && (
+              <button
+                className="durak-hand-scroll is-left"
+                aria-label={t(($) => $.durak.hand.left)}
+                onClick={() => handScroller.current?.scrollBy({ left: -220 })}
+              >
+                <ChevronLeft size={20} />
               </button>
-            ) : (
-              <span>
-                {hand.length
-                  ? t(($) => $.durak.hand.yours)
-                  : mySeat === null
-                    ? t(($) => $.durak.hand.watching)
-                    : t(($) => $.durak.hand.waiting)}
+            )}
+            <div
+              ref={handScroller}
+              className="durak-hand"
+              aria-label={t(($) => $.durak.hand.label)}
+              hidden={mySeat === null}
+              data-large={hand.length > 10 || undefined}
+              data-dealing={fanning || undefined}
+              style={{ '--dealt': `${dealtAgo}ms`, '--count': hand.length } as CSSProperties}
+            >
+              {hand.map((card, index) => {
+                const { angle, lift: raise } = fanAngle(index, hand.length);
+                return (
+                  <button
+                    key={card}
+                    className="durak-hand-card"
+                    data-durak-hand-card={card}
+                    data-held={drag?.card === card || pendingDrag?.card === card || undefined}
+                    data-picked={picked === card || undefined}
+                    disabled={!canPlay}
+                    onClick={(event) => {
+                      if (event.detail === 0) {
+                        setRefusal('');
+                        setPicked(picked === card ? null : card);
+                      }
+                    }}
+                    onPointerDown={(event) => lift(card, event)}
+                    onPointerMove={move}
+                    onPointerUp={drop}
+                    onPointerCancel={cancelDrag}
+                    onLostPointerCapture={() => {
+                      if (dragRef.current) cancelDrag();
+                    }}
+                    aria-label={faceOf(t, card).label}
+                    aria-pressed={picked === card}
+                    aria-describedby={picked === card ? 'durak-selection-instruction' : undefined}
+                    style={{ '--angle': `${angle}deg`, '--lift': raise, '--i': index } as CSSProperties}
+                  >
+                    <Card card={card} />
+                  </button>
+                );
+              })}
+            </div>
+            {handOverflow && (
+              <button
+                className="durak-hand-scroll is-right"
+                aria-label={t(($) => $.durak.hand.right)}
+                onClick={() => handScroller.current?.scrollBy({ left: 220 })}
+              >
+                <ChevronRight size={20} />
+              </button>
+            )}
+            {picked && (
+              <span id="durak-selection-instruction" className="sr-only">
+                {t(($) => $.durak.hand.instruction, { guidance })}
               </span>
             )}
-            {mySeat !== null && table.phase === 'bout' && (
-              <span className="durak-hand-count">{t(($) => $.durak.cards, { count: hand.length })}</span>
-            )}
           </div>
-          {focusChoice && (
-            <p className="durak-guidance" role="status">
-              {guidance}
+          <div className="durak-dock" data-has-note={note ? true : undefined}>
+            {/*
+              Что делать сейчас — одной строкой у кнопки: отказ хода, «сохраняем», что делать с выбранной
+              картой, «выберите карту». Только когда это про ваше действие (R27): «следите за игрой»
+              повторяло бы то, что видно на сукне.
+            */}
+            <p className="durak-dock-note" data-tone={refusal ? 'error' : focusChoice ? 'guide' : undefined}>
+              {refusal ? (
+                <span role="alert">{note}</span>
+              ) : focusChoice ? (
+                <span role="status">{note}</span>
+              ) : (
+                <span>{note}</span>
+              )}
             </p>
-          )}
-          {handOverflow && (
-            <button
-              className="durak-hand-scroll is-left"
-              aria-label={t(($) => $.durak.hand.left)}
-              onClick={() => handScroller.current?.scrollBy({ left: -220 })}
-            >
-              <ChevronLeft size={20} />
-            </button>
-          )}
-          <div
-            ref={handScroller}
-            className="durak-hand"
-            aria-label={t(($) => $.durak.hand.label)}
-            data-large={hand.length > 10 || undefined}
-            data-dealing={fanning || undefined}
-            style={{ '--dealt': `${dealtAgo}ms` } as CSSProperties}
-          >
-            {hand.map((card, index) => {
-              const { angle, lift: raise } = fanAngle(index, hand.length);
-              return (
+            <div className="durak-actions">
+              {canSit ? (
                 <button
-                  key={card}
-                  className="durak-hand-card"
-                  data-durak-hand-card={card}
-                  data-held={drag?.card === card || pendingDrag?.card === card || undefined}
-                  data-picked={picked === card || undefined}
-                  disabled={!canPlay}
-                  onClick={(event) => {
-                    if (event.detail === 0) {
-                      setRefusal('');
-                      setPicked(picked === card ? null : card);
-                    }
-                  }}
-                  onPointerDown={(event) => lift(card, event)}
-                  onPointerMove={move}
-                  onPointerUp={drop}
-                  onPointerCancel={cancelDrag}
-                  onLostPointerCapture={() => {
-                    if (dragRef.current) cancelDrag();
-                  }}
-                  aria-label={faceOf(t, card).label}
-                  aria-pressed={picked === card}
-                  aria-describedby={picked === card ? 'durak-selection-instruction' : undefined}
-                  style={{ '--angle': `${angle}deg`, '--lift': raise, '--i': index } as CSSProperties}
+                  className="durak-act"
+                  data-kind="sit"
+                  disabled={!table.seatingOpen || !connected || pending}
+                  onClick={() => send('durak.sit')}
                 >
-                  <Card card={card} />
+                  <Armchair size={20} /> {t(($) => $.durak.sit)}
                 </button>
-              );
-            })}
+              ) : (
+                dealButton
+              )}
+              {playing && (
+                <button
+                  className="durak-act"
+                  data-kind={turnAction}
+                  disabled={!canPlay || !you!.actions.includes(turnAction)}
+                  onClick={() => send('durak.act', { option: turnAction })}
+                >
+                  {turnAction === 'take' ? <Hand size={20} /> : <Check size={20} />}{' '}
+                  {turnAction === 'take' ? t(($) => $.durak.actions.take) : t(($) => $.durak.actions.pass)}
+                </button>
+              )}
+            </div>
+            <div className="durak-dock-aside">
+              {picked ? (
+                <button
+                  className="durak-aside-act"
+                  data-kind="cancel"
+                  aria-label={t(($) => $.durak.hand.cancelSelection)}
+                  title={t(($) => $.durak.hand.cancelSelection)}
+                  onClick={clearSelection}
+                >
+                  <X size={16} /> <span>{t(($) => $.durak.hand.cancel)}</span>
+                </button>
+              ) : (
+                canSit && dealButton
+              )}
+            </div>
           </div>
-          {handOverflow && (
-            <button
-              className="durak-hand-scroll is-right"
-              aria-label={t(($) => $.durak.hand.right)}
-              onClick={() => handScroller.current?.scrollBy({ left: 220 })}
-            >
-              <ChevronRight size={20} />
-            </button>
-          )}
-          {picked && (
-            <span id="durak-selection-instruction" className="sr-only">
-              {t(($) => $.durak.hand.instruction, { guidance })}
-            </span>
-          )}
         </div>
       </div>
-      <footer className="durak-controls">
-        {mySeat === null && table.seats.some((seat) => !seat.memberId) ? (
-          <button
-            className="button primary"
-            disabled={!table.seatingOpen || !connected || pending}
-            onClick={() => send('durak.sit')}
-          >
-            {t(($) => $.durak.sit)}
-          </button>
-        ) : (
-          /*
-            Подсказка под рукой — только когда она про ваше действие (R27): «следите за игрой» и
-            «карты останутся на местах» на паузе повторяли то, что и так видно на сукне.
-          */
-          <span className="durak-controls-hint">
-            {pending
-              ? t(($) => $.durak.hint.saving)
-              : paused
-                ? ''
-                : picked
-                  ? t(($) => $.durak.hint.target)
-                  : you?.turn
-                    ? t(($) => $.durak.hint.turn)
-                    : ''}
-          </span>
-        )}
-        <div className="durak-actions">
-          {you?.actions.includes('take') && (
-            <button
-              className="durak-act"
-              disabled={!canPlay}
-              onClick={() => send('durak.act', { option: 'take' })}
-            >
-              <Hand size={20} /> {t(($) => $.durak.actions.take)}
-            </button>
-          )}
-          {you?.actions.includes('pass') && (
-            <button
-              className="durak-act"
-              data-kind="pass"
-              disabled={!canPlay}
-              onClick={() => send('durak.act', { option: 'pass' })}
-            >
-              <Check size={20} /> {t(($) => $.durak.actions.pass)}
-            </button>
-          )}
-        </div>
-      </footer>
       {(drag || (pendingDrag && hand.includes(pendingDrag.card) && connected && !paused)) && (
         <div
           ref={dragLayer}
@@ -858,17 +889,19 @@ function dragTransform(drag: Drag) {
   return `translate3d(${drag.x - drag.width / 2}px, ${drag.y - drag.height / 2}px, 0) rotate(${drag.angle}deg)`;
 }
 
+/**
+ * Чей ход — плашкой посередине шапки стола (R129, как у покера): что происходит за столом и сколько
+ * секунд осталось. Отказ хода сюда не пишется — он у кнопки лотка, там, куда смотрит игравший.
+ */
 function TurnStatus({
   meeting,
   table,
   label,
-  error,
   connected,
 }: {
   meeting: Meeting;
   table: Table;
   label: string;
-  error: boolean;
   connected: boolean;
 }) {
   const { t } = useTranslation();
@@ -885,12 +918,10 @@ function TurnStatus({
     Math.ceil((table.paused ? (table.pausedRemaining ?? 0) : table.deadline - now) / 1000),
   );
   return (
-    <div
-      className="durak-turn"
-      data-active={(table.you?.turn && !table.paused) || undefined}
-      data-error={error || undefined}
-    >
-      <strong role={error ? 'alert' : 'status'}>{label}</strong>
+    <div className="durak-turn" data-active={(table.you?.turn && !table.paused) || undefined}>
+      <strong role="status" title={label}>
+        {label}
+      </strong>
       {(table.paused || running) && (
         <span
           aria-label={
@@ -1086,6 +1117,7 @@ function Seat({
       className="durak-seat"
       data-game-seat={seat.index}
       data-side={spot.side}
+      data-half={spot.x < 40 ? 'start' : spot.x > 60 ? 'end' : undefined}
       data-away={seat.away || undefined}
       data-out={seat.out || undefined}
       data-mine={mine || undefined}

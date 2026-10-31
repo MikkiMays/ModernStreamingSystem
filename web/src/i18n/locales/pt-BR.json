@@ -1682,7 +1682,6 @@
     "hand": {
       "cancelSelection": "Cancelar a seleção",
       "cancel": "Cancelar",
-      "yours": "Sua mão",
       "watching": "Você está assistindo ao jogo",
       "waiting": "Aguardando a distribuição",
       "left": "Cartas à esquerda",
@@ -1692,12 +1691,14 @@
     },
     "hint": {
       "saving": "Salvando a jogada…",
-      "target": "Escolha o alvo destacado na mesa",
       "turn": "Escolha uma carta ou arraste-a para a mesa"
     },
     "actions": {
       "take": "Pegar",
       "pass": "Pronto"
+    },
+    "dock": {
+      "nextDeal": "Você joga a partir da próxima distribuição"
     },
     "turn": {
       "left_one": "Resta {{seconds}} segundo",

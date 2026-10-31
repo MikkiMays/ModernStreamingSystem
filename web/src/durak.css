@@ -1,18 +1,25 @@
 /* Cord scene chrome follows Poker; the bright hand and paired cards belong to Durak.
    The root scope wins over the older cross-game polish rules without changing Poker.
    Стол стоит на `.media-stage` (обёртка в `Stage.tsx`): панели, текст и кнопки — смысловые токены
-   сцены, своё у дурака — сукно `--felt-teal*` и колода `--card-*` из `styles/tokens.css`. */
+   сцены, своё у дурака — сукно `--felt-teal*` и колода `--card-*` из `styles/tokens.css`.
+
+   Раскладка по высоте (R129). Стол больше не прокручивается: «Бито» на 1280×720 уезжало за край, и до
+   кнопки приходилось листать. Корень — контейнер по размеру (`durak`): шапка и лоток (рука и кнопка
+   хода) получают своё, рука считается от высоты стола (`--hand-w`), а сукну достаётся остаток —
+   ужимается оно, а не кнопка. `overflow: clip`, а не `hidden`: стол не становится областью прокрутки, и
+   фокус или `scrollIntoView` не сдвинут его содержимое. */
 .durak.durak-refined[data-phase] {
   --card-w: clamp(48px, 6.6cqw, 76px);
   --card-r: var(--radius-2);
   --game-accent: var(--accent);
+  container: durak / size;
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
   height: 100%;
   min-height: 0;
-  overflow: auto;
+  overflow: clip;
   gap: 0;
   border-radius: var(--radius-4);
   color: var(--text);
@@ -30,18 +37,33 @@
     outline: var(--focus-outline);
     outline-offset: var(--focus-offset);
   }
+  /*
+    Шапка: название и правила слева, чей ход — плашкой посередине (как у покера), кнопки стола справа.
+    Название сжимается первым (`flex-basis: 0`): при переносе строк флекс сначала переносит, а потом
+    сжимает, и полный экран на телефоне уезжал на вторую строку один.
+  */
   & .durak-bar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1) var(--space-3);
     flex-shrink: 0;
-    min-height: 62px;
-    padding: 8px 16px;
+    min-height: 56px;
+    padding: 8px 12px 8px 16px;
     border-bottom: var(--hairline) solid var(--line);
   }
   & .durak-mode {
+    flex: 0 1 auto;
     display: grid;
     gap: var(--space-0-5);
+    min-width: 88px;
+  }
+  & .durak-bar-tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    flex: 0 0 auto;
     min-width: 0;
   }
   & .durak-mode b {
@@ -54,9 +76,6 @@
     text-overflow: ellipsis;
     font-size: var(--text-xs);
     color: var(--muted);
-  }
-  & .durak-bar-spacer {
-    flex: 1;
   }
   /* Кнопки полосы стола — шкалой набора (R28): 40, на узком 36 и 32 (было 42, 38 и 34). */
   & .durak-bar .icon-button {
@@ -75,46 +94,66 @@
   & .durak-bar .icon-button:disabled {
     opacity: 0.45;
   }
+  /* Чей ход — плашкой посередине шапки; ваш ход — акцентом стола. Длинное «Подкидывают: …» сокращается
+     многоточием, а секунды остаются. */
   & .durak-turn {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    gap: var(--space-4);
-    min-height: 46px;
-    padding: 10px 18px;
+    justify-content: center;
+    gap: var(--space-2);
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 52%;
+    margin-inline: auto;
+    min-height: 34px;
+    padding: 4px 14px;
+    border: var(--hairline) solid transparent;
+    border-radius: var(--radius-full);
     color: var(--muted);
     font-size: var(--text-sm);
   }
   & .durak-turn strong {
+    min-width: 0;
+    overflow: hidden;
     font-weight: 500;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   & .durak-turn > span {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     flex-shrink: 0;
+    color: var(--text-secondary);
     font-size: var(--text-base);
     font-variant-numeric: tabular-nums;
   }
   & .durak-turn[data-active] {
     color: var(--text);
     background: var(--accent-soft);
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
   }
-  & .durak-turn[data-error] {
-    color: var(--danger);
-    background: var(--danger-soft);
+  & .durak-turn[data-active] strong {
+    font-weight: 600;
   }
+  & .durak-turn[data-active] > span {
+    color: var(--text);
+  }
+  /*
+    Стол и лоток под ним. Стол занимает всё, что осталось от шапки и лотка (`minmax(0, 1fr)`), и
+    ужимается сам; лоток — своей высоты. Сверху — запас под кольцо хода верхнего места: лицо сидит
+    на краю сукна.
+  */
   & .durak-table {
     position: relative;
-    container-type: inline-size;
-    flex: 1 0 auto;
+    container: durak-table / inline-size;
+    flex: 1 1 0;
     display: grid;
-    grid-template-rows: minmax(250px, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     min-width: 0;
-    min-height: min-content;
-    gap: var(--space-5);
-    padding: 8px 28px 0;
+    min-height: 0;
+    gap: var(--space-2);
+    padding: 14px 20px 0;
     background: none;
     border: 0;
     box-shadow: none;
@@ -122,9 +161,9 @@
   & .durak-arena {
     position: relative;
     min-width: 0;
-    min-height: 250px;
+    min-height: 0;
     /* Контейнер по высоте: по ней считается, какого размера карты боя ещё помещаются. */
-    container-type: size;
+    container: durak-felt / size;
   }
   /*
     Поле боя — между местом соперника и своим, а не поверх них.
@@ -136,9 +175,18 @@
     в два ряда, — вдвое меньше.
   */
   & .durak-mat {
-    --seat-room: 86px;
-    /* `--deck-row` — строка колоды и отбоя над боем на телефоне; на широком столе они по бокам. */
-    --bout-w: min(var(--card-w), calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px)) / 1.8));
+    /* Место сидит лицом на 11 % высоты сукна от края (`core/game-layout.ts`), под лицом — имя и роль:
+       столько сукна оно и занимает. На низком сукне имя уходит вбок от лица (ниже) — и места меньше. */
+    --seat-room: calc(11cqh + clamp(18px, min(2.9cqw, 10cqh), 30px) + 44px);
+    /* Ширина середины стола (колода, бой, отбой) — доля сукна. */
+    --mat-w: 64cqw;
+    /* `--deck-row` — строка колоды и отбоя над боем на телефоне; на широком столе они по бокам. Бой в
+       одну строку не шире середины без колоды и отбоя: пары (`--pairs`) делят её поровну. */
+    --bout-w: min(
+      var(--card-w),
+      calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px)) / 1.8),
+      calc((var(--mat-w) - 9cqw - 64px) / (var(--pairs, 1) * 1.4))
+    );
   }
   & .durak-bout {
     --card-w: max(34px, var(--bout-w));
@@ -147,7 +195,7 @@
     position: relative;
     width: 100%;
     height: 100%;
-    min-height: 250px;
+    min-height: 0;
     overflow: visible;
     border-radius: 46% / 45%;
     border: 6px solid var(--surface-1);
@@ -203,7 +251,7 @@
     left: 50%;
     top: 47%;
     translate: -50% -50%;
-    width: 64%;
+    width: var(--mat-w);
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
@@ -484,7 +532,8 @@
   */
   & .durak-seat-face {
     position: relative;
-    width: clamp(42px, 5.8cqw, 60px);
+    /* Не шире 5,8 % сукна и не выше пятой части его высоты: на низком столе лицо не налезает на бой. */
+    width: clamp(36px, min(5.8cqw, 20cqh), 60px);
     aspect-ratio: 1;
     /* Увеличенное лицо (T11) растёт наружу, от сукна: опора — край, обращённый к середине. */
     scale: var(--face-zoom, 1);
@@ -687,45 +736,32 @@
     margin-top: 4px;
   }
 
+  /*
+    Лоток под столом (R129): рука и одно место для действия. Лоток своей высоты и всегда внутри стола —
+    до кнопки не листают ни на какой высоте окна. Рука — от высоты стола: карта ростом в четверть стола
+    (`--hand-w`, ширина = высота / 1,42), не больше 118 px.
+  */
+  & .durak-tray {
+    --hand-w: clamp(48px, 16.9cqh, 118px);
+    /* Сколько ширины у веера: стол без полей руки (в низком столе — ещё без колонки кнопки). */
+    --hand-room: (100cqw - 28px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
   & .durak-hand-band {
     position: relative;
     min-width: 0;
+    height: calc(var(--hand-w) * 1.42 + 22px);
     border-top: var(--hairline) solid var(--line);
+    transition: height var(--motion-slow) var(--ease-standard);
   }
-  & .durak-hand-caption {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    min-height: 46px;
-    padding-top: 7px;
-    color: var(--muted);
-    font-size: var(--text-xs);
-  }
-  & .durak-hand-caption button {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    border: 0;
-    padding: 0 var(--space-1);
-    min-height: var(--control-xs);
-    color: var(--accent);
-    background: none;
-    font-size: var(--text-xs);
-    cursor: pointer;
-  }
-  & .durak-guidance {
-    position: absolute;
-    top: -33px;
-    left: 0;
-    right: 0;
-    margin: 0;
-    padding: 5px 12px;
-    background: var(--bg);
-    color: var(--accent);
-    font-size: var(--text-xs);
-    text-align: center;
-    z-index: 10;
+  /* Руки нет — полоса схлопнута, сукну достаётся её высота; раздали — раскрывается плавно, пока карты
+     встают веером. */
+  & .durak-hand-band[data-empty] {
+    height: 0;
+    overflow: hidden;
+    border-top-color: transparent;
   }
   & .durak-hand {
     position: relative;
@@ -739,13 +775,18 @@
     overflow-y: hidden;
     width: 100%;
     max-width: 100%;
-    min-height: 186px;
-    padding: 25px 20px 12px;
+    height: 100%;
+    min-height: 0;
+    /* Сверху — запас на подъём выбранной карты (12 px) и на наклон веера. */
+    padding: 16px 20px 6px;
     scroll-padding-inline: 30px;
     overscroll-behavior-x: contain;
   }
+  & .durak-hand[hidden] {
+    display: none;
+  }
   & .durak-hand-card {
-    --card-w: 106px;
+    --card-w: var(--hand-w);
     --card-r: 10px;
     position: relative;
     flex-shrink: 0;
@@ -753,7 +794,14 @@
     border: 0;
     border-radius: var(--card-r);
     background: none;
-    margin-inline: -9px;
+    /* Нахлёст — от числа карт и ширины стола: веер встаёт в ширину без прокрутки руки, пока соседняя
+       закрывает не больше двух третей карты (угол с номиналом виден); дальше — стрелки. На широком столе
+       — прежний лёгкий нахлёст. */
+    margin-inline: clamp(
+      calc(var(--hand-w) * -0.32),
+      calc((var(--hand-room) - var(--count, 6) * var(--hand-w)) / (2 * max(1, var(--count, 6) - 1))),
+      calc(var(--hand-w) * -0.085)
+    );
     rotate: clamp(-4deg, var(--angle), 4deg);
     translate: 0 calc(var(--lift, 0) * -0.4px);
     transform-origin: bottom center;
@@ -771,7 +819,6 @@
   & .durak-hand[data-large] .durak-hand-card {
     rotate: none;
     translate: none;
-    margin-inline: -14px;
   }
   & .durak-hand-card .durak-card {
     box-shadow:
@@ -806,9 +853,6 @@
       animation-delay: calc(var(--i, 0) * 70ms + 200ms - var(--dealt, 0ms));
     }
   }
-  & .durak-hand-count {
-    font-variant-numeric: tabular-nums;
-  }
   & .durak-hand-card:disabled {
     opacity: 1;
   }
@@ -834,52 +878,121 @@
   & .durak-hand-scroll.is-right {
     right: -14px;
   }
-  & .durak-controls {
-    display: flex;
+  /*
+    Строка действия: главная кнопка ровно по центру под рукой, слева от неё — что делать сейчас (одной
+    строкой, к кнопке), справа — тихая вторая («Отменить» выбор, «Раздать» у зрителя-ведущего). Строка
+    есть всегда, даже пустая: кнопки не прыгают между ходами, а появление «Сесть за стол» или «Раздать»
+    не двигает стол.
+  */
+  & .durak-dock {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas: 'note main aside';
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    flex-shrink: 0;
-    min-height: 62px;
-    padding: 8px 20px 12px;
-    border-top: var(--hairline) solid var(--line);
+    gap: var(--space-1) var(--space-3);
+    min-height: 64px;
+    padding: 6px 0 10px;
   }
-  & .durak-controls-hint {
+  & .durak-dock-note {
+    grid-area: note;
+    justify-self: end;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    overflow: hidden;
     color: var(--muted);
-    font-size: var(--text-xs);
-    line-height: 1.4;
+    font-size: var(--text-sm);
+    line-height: 1.35;
+    text-align: end;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  & .durak-dock-note[data-tone='guide'] {
+    color: var(--accent);
+    font-weight: 550;
+  }
+  & .durak-dock-note[data-tone='error'] {
+    color: var(--danger);
+    font-weight: 550;
   }
   & .durak-actions {
+    grid-area: main;
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  & .durak-dock-aside {
+    grid-area: aside;
+    justify-self: start;
     display: flex;
     gap: var(--space-2);
-    flex-shrink: 0;
+    min-width: 0;
   }
+  /*
+    Главная кнопка — заливкой акцента, крупно: 48 в высоту, не уже 176. Ширина одна у «Беру», «Бито»,
+    «Сесть за стол» и «Раздать», и смена хода меняет надпись, а не место. Недоступна — остаётся на месте
+    контуром и приглушённым текстом: видно, что действие есть, но не сейчас.
+  */
   & .durak-act {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    min-width: 102px;
-    min-height: var(--touch-target);
-    border: var(--hairline) solid var(--line-strong);
+    min-width: 176px;
+    min-height: var(--control-touch);
+    padding: 0 24px;
+    border: var(--hairline) solid var(--accent-fill);
     border-radius: var(--radius-3);
-    padding: 10px 20px;
-    background: var(--surface-2);
-    color: var(--text);
-    font-size: var(--text-base);
-    font-weight: 600;
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    font-size: var(--text-md);
+    font-weight: 650;
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: var(--shadow-1);
     cursor: pointer;
-  }
-  & .durak-act[data-kind='pass'] {
-    color: var(--text);
-    background: var(--accent-soft);
-    border-color: var(--accent);
+    transition:
+      background-color var(--motion-fast) var(--ease-standard),
+      color var(--motion-fast) var(--ease-standard),
+      border-color var(--motion-fast) var(--ease-standard),
+      scale var(--motion-fast) var(--ease-standard);
   }
   & .durak-act:hover:not(:disabled) {
-    background: var(--surface-3);
+    background: var(--accent-fill-hover);
+    border-color: var(--accent-fill-hover);
+  }
+  & .durak-act:active:not(:disabled) {
+    background: var(--accent-fill-active);
+    scale: 0.98;
   }
   & .durak-act:disabled {
-    opacity: 0.45;
+    border-color: var(--line-strong);
+    background: transparent;
+    color: var(--text-disabled);
+    box-shadow: none;
+    opacity: 1;
+  }
+  & .durak-aside-act {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: var(--touch-target);
+    padding: 0 14px;
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-3);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 550;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  & .durak-aside-act:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+  & .durak-aside-act:disabled {
+    color: var(--text-disabled);
   }
   & .durak-drag-card {
     position: fixed;
@@ -1259,12 +1372,8 @@
   .durak.durak-refined[data-phase] {
     --card-w: 52px;
     & .durak-bar {
-      padding: 8px 10px;
-      gap: var(--space-0-5);
-      flex-wrap: wrap;
-    }
-    & .durak-mode {
-      margin-right: 4px;
+      padding: 6px 8px 6px 12px;
+      gap: var(--space-1) var(--space-2);
     }
     & .durak-mode b {
       font-size: var(--text-base);
@@ -1272,80 +1381,27 @@
     & .durak-mode small {
       font-size: var(--text-xs);
     }
+    & .durak-mode {
+      min-width: 64px;
+    }
+    & .durak-bar-tools {
+      gap: var(--space-0-5);
+    }
     & .durak-bar .icon-button {
       width: var(--control-md);
       min-width: var(--control-md);
       min-height: var(--control-md);
       height: var(--control-md);
     }
-    & .durak-turn {
-      padding: 9px 12px;
-      gap: var(--space-2);
-      font-size: var(--text-xs);
-    }
     & .durak-table {
-      min-height: min-content;
-      grid-template-rows: minmax(305px, 1fr) auto;
-      padding: 8px 18px 0;
-      gap: var(--space-5);
-    }
-    /* Узкое сукно: с третьей пары бой идёт в два ряда, и каждому ряду достаётся половина
-       полосы между местами. С пятой — поле шире, чтобы в ряд вставали три пары. */
-    & .durak-mat {
-      --seat-room: 84px;
-      --deck-row: 44px;
-      grid-template-columns: 1fr 1fr;
-      grid-template-areas:
-        'deck discard'
-        'bout bout'
-        'place place';
-      gap: var(--space-2);
-    }
-    /* На телефоне колода и отбой — строкой над боем: по бокам ему не хватило бы ширины. */
-    & .durak-stock,
-    & .durak-discard {
-      --card-w: 22px;
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-    }
-    & .durak-stock-count {
-      min-width: 0;
-      padding: 2px 6px;
-    }
-    & .durak-bout:is([data-pairs='3'], [data-pairs='4'], [data-pairs='5'], [data-pairs='6']) {
-      --card-w: max(
-        30px,
-        min(var(--bout-w), calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px) - 8px) / 3.6))
-      );
-      gap: var(--space-2) var(--space-1);
-    }
-    & .durak-mat:has(> .durak-bout:is([data-pairs='5'], [data-pairs='6'])) {
-      width: 90%;
-    }
-    & .durak-arena {
-      min-height: 305px;
-    }
-    & .durak-felt {
-      border-width: 4px;
-      border-radius: 38% / 25%;
-    }
-    & .durak-felt::before {
-      inset: 13px;
-    }
-    & .durak-mat {
-      width: 63%;
-      top: 48%;
-    }
-    & .durak-bout {
-      gap: var(--space-2) 0;
+      padding: 12px 12px 0;
     }
     & .durak-seat {
       width: 86px;
       max-width: 27%;
     }
     & .durak-seat-face {
-      width: 42px;
+      width: clamp(32px, 20cqh, 42px);
       font-size: var(--text-md);
     }
     & .durak-seat-name {
@@ -1361,39 +1417,24 @@
     & .durak-stock-count small {
       font-size: var(--text-xs);
     }
+    /* Карта руки на телефоне — не шире 84 px: шесть карт веером встают в ширину экрана. */
+    & .durak-tray {
+      --hand-w: clamp(44px, 16.9cqh, 84px);
+    }
     & .durak-hand {
-      min-height: 160px;
-      padding: 22px 5px 12px;
+      padding: 16px 6px 6px;
     }
     & .durak-hand-card {
-      --card-w: 84px;
       --card-r: 8px;
-      margin-inline: -12px;
-    }
-    & .durak-hand[data-large] .durak-hand-card {
-      margin-inline: -13px;
-    }
-    & .durak-hand-caption {
-      padding-top: 4px;
     }
     & .durak-hand-scroll.is-left {
-      left: -12px;
+      left: -8px;
     }
     & .durak-hand-scroll.is-right {
-      right: -12px;
-    }
-    & .durak-controls {
-      padding: 8px 12px 12px;
-      gap: var(--space-2);
-    }
-    & .durak-controls-hint {
-      font-size: var(--text-xs);
-      max-width: 25ch;
+      right: -8px;
     }
     & .durak-act {
-      min-width: 82px;
-      padding: 10px 13px;
-      font-size: var(--text-sm);
+      min-width: 156px;
     }
     & .durak-drag-card .durak-card-rank {
       font-size: var(--text-lg);
@@ -1408,34 +1449,347 @@
 }
 @media (max-width: 380px) {
   .durak.durak-refined[data-phase] {
-    & .durak-mode {
-      flex: 1;
-      min-width: 96px;
-    }
-    & .durak-bar-spacer {
-      display: none;
-    }
     & .durak-bar .icon-button {
       width: var(--control-sm);
       min-width: var(--control-sm);
     }
     & .durak-table {
-      padding-inline: 14px;
-    }
-    & .durak-mat {
-      width: 64%;
-    }
-    & .durak-guidance {
-      font-size: var(--text-xs);
+      padding-inline: 8px;
     }
     & .durak-seat-name {
       font-size: var(--text-xs);
     }
     & .durak-seat-face {
-      width: 38px;
+      width: clamp(32px, 20cqh, 38px);
     }
   }
 }
+
+/*
+  Подгонка под место (R129) — по размерам самого стола, а не окна: одно и то же окно даёт столу разную
+  высоту с панелью встречи, лентой зрителей и в клиенте Windows. Блоки стоят после правил по ширине окна
+  и перебивают их порядком, а не весом.
+*/
+.durak.durak-refined[data-phase] {
+  /* Узкое сукно (телефон стоя): колода и отбой — строкой над боем, по бокам ему не хватило бы ширины;
+     с третьей пары бой идёт в два ряда, с пятой — поле шире, чтобы в ряд вставали три пары. */
+  @container durak-felt (max-aspect-ratio: 7 / 5) {
+    & .durak-mat {
+      --seat-room: calc(11cqh + 62px);
+      --deck-row: 44px;
+      --mat-w: 63cqw;
+      /* Колода и отбой здесь над боем, а пары с третьей идут в два ряда: предел по ширине не нужен. */
+      --bout-w: min(var(--card-w), calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px)) / 1.8));
+      top: 48%;
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        'deck discard'
+        'bout bout'
+        'place place';
+      gap: var(--space-2);
+    }
+    & .durak-stock,
+    & .durak-discard {
+      --card-w: 22px;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    & .durak-stock-count {
+      min-width: 0;
+      padding: 2px 6px;
+    }
+    & .durak-bout {
+      gap: var(--space-2) 0;
+    }
+    & .durak-bout:is([data-pairs='3'], [data-pairs='4'], [data-pairs='5'], [data-pairs='6']) {
+      --card-w: max(
+        30px,
+        min(var(--bout-w), calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px) - 8px) / 3.6))
+      );
+      gap: var(--space-2) var(--space-1);
+    }
+    & .durak-mat:has(> .durak-bout:is([data-pairs='5'], [data-pairs='6'])) {
+      --mat-w: 90cqw;
+    }
+    /* Трое и больше: верхние места сидят по углам, ровно над строкой колоды — она уходит под бой. */
+    & .durak-felt[data-crowd] .durak-mat {
+      top: 52%;
+      grid-template-areas:
+        'bout bout'
+        'deck discard'
+        'place place';
+    }
+    & .durak-felt {
+      border-width: 4px;
+      border-radius: 38% / 25%;
+    }
+    & .durak-felt::before {
+      inset: 13px;
+    }
+  }
+
+  /*
+    Невысокое сукно (до 1280×800, телефон стоя и боком): имя и роль — сбоку от лица, а не под ним. Место
+    занимает по высоте одно лицо, и бою между верхним и своим местом остаётся вдвое больше сукна.
+  */
+  @container durak-felt (max-height: 380px) {
+    & .durak-mat {
+      --seat-room: calc(11cqh + clamp(18px, min(2.9cqw, 10cqh), 30px) + 4px);
+    }
+    & .durak-seat {
+      width: auto;
+      max-width: none;
+    }
+    & .durak-seat :is(.durak-seat-name, .durak-seat-role) {
+      position: absolute;
+      left: calc(100% + 6px);
+      max-width: 128px;
+      white-space: nowrap;
+    }
+    & .durak-seat-name {
+      bottom: 50%;
+      margin-bottom: 1px;
+    }
+    & .durak-seat-role {
+      top: 50%;
+      min-height: 0;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    & .durak-seat[data-side='right'] :is(.durak-seat-name, .durak-seat-role) {
+      left: auto;
+      right: calc(100% + 6px);
+      text-align: end;
+    }
+  }
+  /*
+    Трое и больше на широком сукне: угловые места садятся на 20 и 80 % ширины — ровно туда, где лежали
+    колода и отбой. Середина стола уже (46 %), колода и отбой мельче, а подписи угловых мест — наружу,
+    от середины.
+  */
+  @container durak-felt (min-aspect-ratio: 7 / 5) {
+    & .durak-felt[data-crowd] .durak-mat {
+      --mat-w: 46cqw;
+    }
+    & .durak-felt[data-crowd] :is(.durak-stock, .durak-discard) {
+      --card-w: clamp(28px, 3.4cqw, 44px);
+    }
+  }
+  @container durak-felt (max-height: 380px) and (min-aspect-ratio: 7 / 5) {
+    &
+      .durak-seat:is([data-side='top'], [data-side='bottom'])[data-half='start']
+      :is(.durak-seat-name, .durak-seat-role) {
+      left: auto;
+      right: calc(100% + 6px);
+      text-align: end;
+    }
+  }
+  /* Совсем низкое (телефон боком): верхнее и своё лицо садятся на край сукна, середина — бою; число
+     карт колоды и отбоя — сбоку от стопки, а не под ней. */
+  @container durak-felt (max-height: 170px) {
+    & .durak-mat {
+      --seat-room: calc(4cqh + 22px);
+      row-gap: 0;
+    }
+    & .durak-stock,
+    & .durak-discard {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+    & .durak-stock-count {
+      min-width: 0;
+      padding: 2px 6px;
+    }
+    & .durak-seat[data-side='top'] {
+      translate: -50% calc(-50% - 7cqh);
+    }
+    & .durak-seat[data-side='bottom'] {
+      translate: -50% calc(-50% + 7cqh);
+    }
+    /* Своя роль и так в плашке хода («Ваш ход: …»), а под своим лицом здесь уже лоток. */
+    & .durak-seat[data-mine] .durak-seat-role {
+      display: none;
+    }
+  }
+
+  /* Узкий стол (телефон, панель встречи рядом): чей ход — своей строкой под названием и кнопками. */
+  @container durak (max-width: 980px) {
+    & .durak-mode {
+      flex: 1 1 0;
+    }
+    & .durak-turn {
+      order: 3;
+      flex-basis: 100%;
+      max-width: none;
+      min-height: 30px;
+    }
+  }
+  /* Узкий лоток: что делать — строкой над кнопкой (место под строку есть всегда, чтобы стол не дёргался,
+     когда подсказка появляется и уходит), кнопка — по центру, вторая — справа от неё. */
+  @container durak-table (max-width: 620px) {
+    & .durak-dock {
+      grid-template-areas:
+        'note note note'
+        '. main aside';
+      padding-top: 4px;
+    }
+    & .durak-dock-note {
+      justify-self: center;
+      min-height: 1.35em;
+      font-size: var(--text-xs);
+      text-align: center;
+    }
+    & .durak-dock {
+      column-gap: var(--space-2);
+    }
+    /* «Отменить» выбор на телефоне — значком 44 × 44: подписи не хватило бы места справа от главной
+       кнопки, а сдвигать главную нельзя. Имя — у диктора и в подсказке. */
+    & .durak-aside-act[data-kind='cancel'] {
+      justify-content: center;
+      width: var(--touch-target);
+      padding: 0;
+    }
+    & .durak-aside-act[data-kind='cancel'] > span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+  /* Тесная шапка (панель встречи рядом, телефон боком): у музыки и «Все участники» — только значки,
+     имена остаются у диктора. Плашке хода — место хотя бы под «Ваш ход». */
+  @container durak (max-width: 700px) {
+    & .durak-bar .music-offer[data-placement='bar'] .music-offer__label,
+    & .durak-bar .stage-exit--bar .stage-exit__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    & .durak-bar .music-offer[data-placement='bar'] .music-offer__chip {
+      padding: 0 var(--space-2);
+    }
+    & .durak-bar .music-mini[data-placement='bar'] :is(.music-mini__text, .music-mini__step) {
+      display: none;
+    }
+    & .durak-bar .stage-exit.stage-exit--bar {
+      width: var(--control-sm);
+      padding: 0;
+      justify-content: center;
+    }
+  }
+
+  /*
+    Низкий стол — телефон боком (667×375, 844×390): шапка в одну строку без правил под названием, рука
+    мельче, а кнопка хода — в конце той же полосы, что и рука: отдельная строка под ней отняла бы у сукна
+    треть высоты. Зрителю «Сесть за стол» — по-прежнему по центру под столом.
+  */
+  @container durak (max-height: 360px) {
+    & .durak-bar {
+      flex-wrap: nowrap;
+      min-height: 44px;
+      padding-block: 4px;
+    }
+    & .durak-mode small {
+      display: none;
+    }
+    & .durak-bar .icon-button {
+      width: var(--control-sm);
+      min-width: var(--control-sm);
+      min-height: var(--control-sm);
+      height: var(--control-sm);
+    }
+    & .durak-turn {
+      order: 0;
+      flex-basis: auto;
+      min-width: 96px;
+      max-width: 46%;
+      min-height: 30px;
+      padding: 2px 10px;
+    }
+    & .durak-bar .music-offer[data-placement='bar'] .music-offer__label,
+    & .durak-bar .stage-exit--bar .stage-exit__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    & .durak-bar .music-offer[data-placement='bar'] .music-offer__chip {
+      padding: 0 var(--space-2);
+    }
+    & .durak-bar .music-mini[data-placement='bar'] :is(.music-mini__text, .music-mini__step) {
+      display: none;
+    }
+    & .durak-bar .stage-exit.stage-exit--bar {
+      width: var(--control-sm);
+      padding: 0;
+      justify-content: center;
+    }
+    & .durak-table {
+      gap: var(--space-1);
+    }
+    & .durak-tray {
+      --hand-w: clamp(40px, 16.9cqh, 64px);
+    }
+    & .durak-tray[data-hand] {
+      --hand-room: (100cqw - 300px);
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: var(--space-3);
+    }
+    & .durak-tray[data-hand] .durak-hand-band {
+      height: calc(var(--hand-w) * 1.42 + 16px);
+    }
+    & .durak-tray[data-hand] .durak-hand {
+      padding: 12px 6px 4px;
+    }
+    & .durak-tray[data-hand] .durak-dock {
+      grid-template-columns: auto auto;
+      grid-template-areas:
+        'note note'
+        'main aside';
+      justify-items: center;
+      min-height: 0;
+      padding: 0 0 4px;
+    }
+    & .durak-tray[data-hand] .durak-dock-note {
+      justify-self: center;
+      max-width: 240px;
+      min-height: 1.35em;
+      font-size: var(--text-xs);
+      text-align: center;
+    }
+    & .durak-dock {
+      min-height: 52px;
+      padding: 4px 0 6px;
+    }
+    & .durak-act {
+      min-width: 132px;
+      min-height: var(--touch-target);
+      padding: 0 16px;
+      font-size: var(--text-base);
+    }
+  }
+}
+
+/* Стол во весь экран там, где настоящего полного экрана нет (iPhone): та же замена, что у покера. */
+.durak.durak-refined[data-full='true'] {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loader);
+  border-radius: 0;
+  background: var(--stage-bg);
+}
+
 .games-score {
   display: grid;
   gap: var(--space-1);

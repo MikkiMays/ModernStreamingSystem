@@ -113,7 +113,10 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
       let moved = false;
       for (const page of [host, guest] as Page[]) {
         if (await page.locator('.durak[data-phase="over"]').count()) break;
-        const take = page.locator('.durak-actions').getByRole('button', { name: 'Беру', exact: true });
+        // R129: кнопка хода стоит на месте всегда, недоступная — приглушена; ход — только доступная.
+        const take = page
+          .locator('.durak-actions')
+          .getByRole('button', { name: 'Беру', exact: true, disabled: false });
         if (await take.count()) {
           await take.click({ timeout: 10000 });
           // A click sends an asynchronous room command. Do not click the same old snapshot
@@ -123,7 +126,9 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
           moved = true;
           continue;
         }
-        const pass = page.locator('.durak-actions').getByRole('button', { name: 'Бито', exact: true });
+        const pass = page
+          .locator('.durak-actions')
+          .getByRole('button', { name: 'Бито', exact: true, disabled: false });
         if (await pass.count()) {
           await pass.click({ timeout: 10000 });
           await expect(pass).toHaveCount(0, { timeout: 10000 });
@@ -148,7 +153,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
               for (const page of [host, guest]) {
                 const ready = await page.locator('.durak').evaluate((table) => {
                   if (table.getAttribute('data-phase') === 'over') return true;
-                  if (table.querySelector('.durak-actions .durak-act')) return true;
+                  if (table.querySelector('.durak-actions .durak-act:enabled')) return true;
                   return !!(
                     table.querySelector('.durak-turn[data-active]') &&
                     !table.querySelector('.durak-pair') &&

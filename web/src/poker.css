@@ -2006,9 +2006,10 @@
   На телефоне стол разворачивается: экран там выше, чем шире, и ландшафтный овал оставлял под
   собой пустую половину. Пропорции меняются вместе с направлением полёта карт — иначе они
   летели бы мимо центра. Борт и дорожка становятся тоньше: на трёхстах девяноста пикселях
-  каждый процент ширины на счету.
+  каждый процент ширины на счету. Телефон боком (R129) — не разворачивается: там экран шире, чем
+  выше, и портретный овал на 667×375 был ростом с палец.
 */
-@media (max-width: 700px) {
+@media (max-width: 700px) and (max-aspect-ratio: 1 / 1) {
   /* Узкий стол стоит портретом, и лоток под ним на всю ширину: иначе кнопки хода не влезают.
      Верхний ряд портретного овала сидит внутри сукна, запас над ним не нужен. */
   .poker-under {
@@ -2179,6 +2180,75 @@
       opacity: 0;
       transform: translateY(18px);
     }
+  }
+}
+/*
+  Низкое окно — телефон боком (R129). Полоса стола переносилась на три-четыре строки («Пауза» во всю
+  ширину, состояние стола отдельно), и сукну не оставалось ни пикселя, а кнопки хода уезжали под пульт
+  звонка. Здесь полоса — одна строка: подписи кнопок уходят к диктору, «чей ход» сокращается
+  многоточием. Запасы над сукном и под ним те же: места сидят на борту, наполовину снаружи.
+*/
+@media (max-height: 500px) and (min-width: 561px) {
+  .poker {
+    gap: var(--space-1);
+  }
+  .poker-bar {
+    flex-wrap: nowrap;
+    gap: var(--space-1) var(--space-2);
+    padding: 4px 8px;
+  }
+  .poker-bar:has(.poker-status) {
+    flex-wrap: nowrap;
+  }
+  .poker-view-label,
+  .poker-seated,
+  .poker-level {
+    display: none;
+  }
+  .poker-mode small {
+    display: none;
+  }
+  .poker-host-actions {
+    width: auto;
+    flex: none;
+    flex-wrap: nowrap;
+    margin-left: 0;
+  }
+  .poker-host-actions .button {
+    flex: none;
+  }
+  .poker-bar .game-turn {
+    order: 0;
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 30px;
+    padding: 2px 10px;
+    overflow: hidden;
+  }
+  .poker-bar .game-turn strong {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .poker-bar .music-offer[data-placement='bar'] .music-offer__label,
+  .poker-bar .stage-exit--bar .stage-exit__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .poker-bar .music-offer[data-placement='bar'] .music-offer__chip {
+    padding: 0 var(--space-2);
+  }
+  .poker-bar .music-mini[data-placement='bar'] :is(.music-mini__text, .music-mini__step) {
+    display: none;
+  }
+  .poker-bar .stage-exit.stage-exit--bar {
+    width: var(--control-sm);
+    padding: 0;
+    justify-content: center;
   }
 }
 @media (max-width: 860px) {

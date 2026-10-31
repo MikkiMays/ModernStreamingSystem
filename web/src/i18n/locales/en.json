@@ -1662,7 +1662,6 @@
     "hand": {
       "cancelSelection": "Cancel selection",
       "cancel": "Cancel",
-      "yours": "Your hand",
       "watching": "You're watching the game",
       "waiting": "Waiting for the deal",
       "left": "Cards to the left",
@@ -1672,12 +1671,14 @@
     },
     "hint": {
       "saving": "Saving the move…",
-      "target": "Pick the highlighted target on the table",
       "turn": "Pick a card or drag it to the table"
     },
     "actions": {
       "take": "Take",
       "pass": "Done"
+    },
+    "dock": {
+      "nextDeal": "You'll play from the next deal"
     },
     "turn": {
       "left_one": "{{seconds}} second left",
