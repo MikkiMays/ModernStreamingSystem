@@ -17,15 +17,15 @@ import type { Panel } from './Sidebar';
  * - `overlay.levels` — ступень и уровень голоса каждого при каждом изменении (до 30 раз в секунду, без
  *   прежнего дросселя 100 мс). Это сообщение preload кладёт прямо в порты окон оболочки, мимо main;
  *   измеритель в клиенте — `AudioWorklet` (`media/levels.ts`): он работает, и когда Cord спрятан;
- * - `mini.state` — название встречи, микрофон, камера, показ, непрочитанные, сколько людей и связь со
- *   звуком (`status`: идёт или восстанавливается, `remaining` — сколько секунд ещё ждать); сразу, как
- *   что-то поменялось. Пока связь восстанавливается, нажатия микрофона, камеры и показа встреча не
+ * - `mini.state` — название встречи, микрофон, «звук встречи» (`deafened`, R156), камера, показ,
+ *   непрочитанные, сколько людей и связь со звуком (`status`: идёт или восстанавливается, `remaining` —
+ *   сколько секунд ещё ждать); сразу, как что-то поменялось. Пока связь восстанавливается, нажатия микрофона, камеры и показа встреча не
  *   исполняет (как пульт) — мини-окно по `status` гасит эти кнопки, а не принимает их впустую.
  * Оболочка до R63 (без флага `overlay.widget`) получает прежнее `overlay.state` — имена и ступени
  * без аватаров, не чаще 10 раз в секунду.
  *
- * Что приходит: `mini.action {id}` — нажатие в мини-окне (микрофон, камера, показ, участники, чат,
- * настройки, выход) и `golive {id, name}` — «Показать игру»: показ окна игры с тем же качеством, что
+ * Что приходит: `mini.action {id}` — нажатие в мини-окне (микрофон, «звук встречи», камера, показ,
+ * участники, чат, настройки, выход; «Микрофон» и «Звук встречи» меню трея — тоже) и `golive {id, name}` — «Показать игру»: показ окна игры с тем же качеством, что
  * выбрано в окне показа, в режиме «Плавность» и со звуком игры. Жест для `getDisplayMedia` оболочка
  * дала странице сама, поэтому показ начинается без окна выбора.
  *
@@ -138,6 +138,8 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
         room: meeting.admission.snapshot.title.slice(0, 80),
         self: meeting.admission.participantId,
         mic: media.microphone,
+        // «Звук встречи» (R156): кнопка с наушниками в мини-окне и «Звук встречи» в меню трея.
+        deafened: meeting.media.deafened.get(),
         camera: media.camera,
         screen: media.screen,
         unread: meeting.unread.get(),
@@ -154,6 +156,7 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
     const changed = () => publish();
     const stops = [
       meeting.media.state.subscribe(changed),
+      meeting.media.deafened.subscribe(changed),
       meeting.unread.subscribe(changed),
       meeting.snapshot.subscribe(changed),
       onDesktopEvent('mini.resync', () => publish(true)),
@@ -187,6 +190,13 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
           // Цель, а не переключение: если микрофон сейчас переключается, она дождётся его (≤ 5 с).
           await meeting.media.setMicrophone(want);
           return meeting.media.state.get().microphone === want ? ok : ignored('failed');
+        case 'deafen': {
+          // «Звук встречи» (R156): `want` — нужное «звук выключен». Связи не ждёт: звук глушит и
+          // возвращает сама страница, а микрофон вслед за ним — как пульт (Р-40).
+          const target = want ?? !meeting.media.deafened.get();
+          if (meeting.media.deafened.get() !== target) await meeting.media.setDeafened(target);
+          return meeting.media.deafened.get() === target ? ok : ignored('failed');
+        }
         case 'camera':
           if (!live()) return ignored('link');
           if (want === undefined) {

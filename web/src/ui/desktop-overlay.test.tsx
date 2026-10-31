@@ -67,6 +67,8 @@ function fakeMeeting() {
     ended: new Store(false),
     media: {
       state: new Store({ status: 'connected', microphone: true, camera: false, screen: false }),
+      deafened: new Store(false),
+      setDeafened: vi.fn(async (_value: boolean) => {}),
       tracks: new Store([{ participantId: 'p-2', source: 'microphone', muted: false }]),
       speaking: new Store<string[]>([]),
       levels: { state: levels, watchAll: (listener: () => void) => levels.subscribe(listener) },
@@ -138,6 +140,7 @@ describe('окна оболочки поверх других программ (
         room: 'Пятница',
         self: 'p-1',
         mic: true,
+        deafened: false,
         camera: false,
         screen: false,
         unread: 2,
@@ -303,6 +306,52 @@ describe('окна оболочки поверх других программ (
     expect(meeting.media.toggle).toHaveBeenCalledWith('microphone');
     expect(meeting.media.setMicrophone).not.toHaveBeenCalled();
     expect(sent(api, 'mini.ack')).toEqual([]);
+  });
+
+  it('«Звук встречи» (R156): в состоянии мини-окна и трея — сразу, как сменился', () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    expect(sent(api, 'mini.state').at(-1)).toMatchObject({ deafened: false, seq: 1 });
+    act(() => meeting.media.deafened.set(true));
+    expect(sent(api, 'mini.state').at(-1)).toMatchObject({ deafened: true, seq: 2 });
+  });
+
+  it('«Звук встречи» (R156): нажатие с нужным состоянием — ставится, уже так — ничего; ответ mini.ack; связи не ждёт', async () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    meeting.media.setDeafened.mockImplementation(async (value: boolean) => {
+      meeting.media.deafened.set(value);
+    });
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    api.emit('mini.action', { id: 'deafen', want: true, seq: 11 });
+    await act(async () => {});
+    expect(meeting.media.setDeafened).toHaveBeenCalledWith(true);
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 11, result: 'ok' });
+    // Мини-окно не успело увидеть новое состояние и просит то же — уже так.
+    api.emit('mini.action', { id: 'deafen', want: true, seq: 12 });
+    await act(async () => {});
+    expect(meeting.media.setDeafened).toHaveBeenCalledTimes(1);
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 12, result: 'ok' });
+    // Связь восстанавливается — звук встречи всё равно включается: его возвращает сама страница.
+    meeting.media.state.set({ ...meeting.media.state.get(), status: 'recovering' });
+    api.emit('mini.action', { id: 'deafen', want: false, seq: 13 });
+    await act(async () => {});
+    expect(meeting.media.setDeafened).toHaveBeenLastCalledWith(false);
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 13, result: 'ok' });
+    // Без want (как «переключить») — наоборот от нынешнего.
+    api.emit('mini.action', { id: 'deafen', seq: 14 });
+    await act(async () => {});
+    expect(meeting.media.setDeafened).toHaveBeenLastCalledWith(true);
+  });
+
+  it('«Звук встречи» (R156): не встал — ignored failed, мини-окно перестаёт ждать', async () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    api.emit('mini.action', { id: 'deafen', want: true, seq: 5 });
+    await act(async () => {});
+    expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 5, result: 'ignored', reason: 'failed' });
   });
 
   it('«Показать игру» (R104): окно игры — «Плавность», 60 fps и звук игры, без окна выбора', async () => {
