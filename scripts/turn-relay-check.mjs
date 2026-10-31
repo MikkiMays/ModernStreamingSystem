@@ -17,9 +17,15 @@
  * публичных адресов: им харнесс доказывает, что без правил дыра была.
  *
  * Обёртка с одноразовым LiveKit в Docker — `scripts/turn-relay-check.sh` (её зовёт CI).
+ *
+ * Путь VPN и закрытых сетей (R149, Р-50): `--transport=tls --turn=turn.<домен>:443` — то же самое по
+ * TURN/TLS через edge по SNI, как браузер, у которого открыт только TCP 443. Сигналинг — боевой
+ * (`--signal=wss://<домен>`); вдобавок проверяется, что `join` объявляет `turns:<имя>:443`.
  */
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { createSocket } from 'node:dgram';
+import { EventEmitter } from 'node:events';
+import { connect } from 'node:tls';
 import { readFileSync } from 'node:fs';
 
 const MAGIC = 0x2112a442;
@@ -99,6 +105,37 @@ export function parse(message) {
     transaction: message.subarray(8, 20),
     attributes,
   };
+}
+
+/**
+ * TURN поверх TLS (RFC 5766 §2.1): те же сообщения STUN потоком, граница — по длине в заголовке. Снаружи —
+ * как UDP-сокет `dgram` (`send`, `on/off('message')`, `close`), чтобы проверки ниже не различали транспорт.
+ */
+export function stunStream(stream) {
+  const messages = new EventEmitter();
+  let pending = Buffer.alloc(0);
+  stream.on('data', (chunk) => {
+    pending = Buffer.concat([pending, chunk]);
+    while (pending.length >= 20) {
+      const size = 20 + pending.readUInt16BE(2);
+      if (pending.length < size) break;
+      messages.emit('message', pending.subarray(0, size));
+      pending = pending.subarray(size);
+    }
+  });
+  return {
+    on: (event, listener) => messages.on(event, listener),
+    off: (event, listener) => messages.off(event, listener),
+    send: (message) => stream.write(message),
+    close: () => stream.destroy(),
+  };
+}
+
+function tlsSocket(host, port, servername) {
+  return new Promise((resolve, reject) => {
+    const stream = connect({ host, port, servername, rejectUnauthorized: true }, () => resolve(stunStream(stream)));
+    stream.once('error', (error) => reject(new Error(`TLS к ${servername}:${port}: ${error.message}`)));
+  });
 }
 
 /** Один запрос — один ответ по тому же номеру транзакции. */
@@ -202,11 +239,14 @@ async function credentials(signal, key, secret) {
     socket.binaryType = 'arraybuffer';
     const timer = setTimeout(() => (socket.close(), reject(new Error('сигналинг не прислал join за 15 с'))), 15000);
     socket.onmessage = (event) => {
-      const found = turnCredentials(Buffer.from(event.data));
+      const data = Buffer.from(event.data);
+      const found = turnCredentials(data);
       if (!found) return;
       clearTimeout(timer);
       socket.close();
-      resolve(found);
+      // Серверов ICE в `join` может быть несколько (UDP и TLS — разными записями): адреса — со всего ответа.
+      const urls = data.toString('latin1').match(/turns?:[A-Za-z0-9.-]+:\d+(\?transport=(udp|tcp))?/g) ?? [];
+      resolve({ ...found, urls: [...new Set([...found.urls, ...urls])] });
     };
     socket.onerror = () => (clearTimeout(timer), reject(new Error(`сигналинг ${signal} недоступен`)));
   });
@@ -243,9 +283,11 @@ async function main() {
   const signal = args.signal ?? 'ws://127.0.0.1:7880';
   const [host, port] = (args.turn ?? '127.0.0.1:3478').split(':');
   const expectOpen = 'expect-open' in args;
+  const tls = args.transport === 'tls';
+  if (args.transport && !['udp', 'tls'].includes(args.transport)) throw new Error('--transport — udp или tls');
   if (!key || !secret || !peer) throw new Error('Нужны --key, --secret и --peer (или --env=.env)');
 
-  const socket = createSocket('udp4');
+  const socket = tls ? await tlsSocket(host, Number(port), args.sni ?? host) : createSocket('udp4');
   const results = [];
   const check = (name, ok, detail) => {
     results.push(ok);
@@ -259,6 +301,10 @@ async function main() {
     const nonce = anonymous.attributes.get(ATTR.NONCE);
 
     const creds = await credentials(signal, key, secret);
+    if (tls) {
+      const advertised = `turns:${args.sni ?? host}:${port}?transport=tcp`;
+      check(`join объявляет ${advertised}`, creds.urls.includes(advertised), creds.urls.join(' '));
+    }
     const longTerm = createHash('md5').update(`${creds.username}:${realm}:${creds.credential}`).digest();
     const auth = (current) => [
       [ATTR.USERNAME, Buffer.from(creds.username)],

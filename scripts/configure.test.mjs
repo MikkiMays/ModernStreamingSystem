@@ -54,6 +54,28 @@ test('configuration keeps media internal, shares external 443, and cannot overwr
   }
 });
 
+test('TURN/TLS только в strict: в simple и ip SFU его не объявляет и сертификата не держит', async () => {
+  // LiveKit 1.13 объявляет `turns:<domain>:443` при любом включённом TLS (живой join стенда, 01.11.2026):
+  // с одним именем 443 — это HTTPS, и браузер получил бы мёртвый кандидат.
+  const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+  for (const args of [['--domain=meet.example.test', '--ip=192.0.2.1'], ['--mode=ip', '--ip=192.0.2.1']]) {
+    const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
+    try {
+      const run = spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
+      assert.equal(run.status, 0, run.stderr);
+      const sfu = JSON.parse(await readFile(join(directory, 'infra/generated/livekit.json'), 'utf8'));
+      assert.equal(sfu.turn.enabled, true, args.join(' '));
+      assert.equal(sfu.turn.udp_port, 3478);
+      for (const key of ['tls_port', 'external_tls', 'cert_file', 'key_file'])
+        assert.equal(key in sfu.turn, false, `${args.join(' ')}: ${key}`);
+      assert.doesNotMatch(run.stdout, /5349/);
+      assert.match(run.stdout, /TCP 7881/);
+    } finally {
+      await rm(directory, { recursive: true });
+    }
+  }
+});
+
 test('cohost custom ports agree between edge, gateway environment and SFU callbacks', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
   try {

@@ -188,12 +188,9 @@ services:
     image: livekit/livekit-server:v1.13.6@sha256:e37d68f172556d02aa77968b9fc55ef481468c0315fa38e4fa6c56ce72e3a815
     network_mode: host
     command: --config /etc/livekit.json
-    # Outside strict mode LiveKit terminates TURN/TLS itself, because it hardcodes the
-    # advertised port to 443 whenever TLS is terminated upstream. scripts/turn-cert.mjs
-    # keeps this certificate in step with the one Caddy issued.
+    # Сертификата у SFU нет: TURN/TLS только в strict, и TLS с него снимает edge (scripts/edge-config.mjs).
     volumes:
       - ./infra/generated/livekit.json:/etc/livekit.json:ro
-      - ./infra/generated/tls:/etc/tls:ro
     # SFU — первым на процессор (MEDIA-DIAGNOSIS §6, R107): на этой ВМ звонки делят 4 vCPU со сборками,
     # тестами и службами, и когда процессора не хватает, пакеты речи уходят пачкой — у слушателей это
     # обрывы по 150–400 мс. Вес 4096 против 1024 по умолчанию; от ООМ — последним. Память — гигабайт и

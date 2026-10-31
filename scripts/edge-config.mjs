@@ -54,8 +54,12 @@ function legacyHosts(args, ports, taken) {
  *
  * simple — one DNS name. The gateway already separates the app and `/rtc` by path,
  *   so signaling does not need a name of its own. TURN/TLS cannot share 443 with
- *   HTTPS under a single name (the edge routes by SNI and both would match), so
- *   LiveKit terminates TURN/TLS itself on 5349.
+ *   HTTPS under a single name (the edge routes by SNI and both would match), and
+ *   LiveKit 1.13 advertises `turns:<domain>:443` whenever TURN/TLS is on at all —
+ *   whatever `tls_port` and `external_tls` say (seen live on the stand, 01.11.2026).
+ *   A TURN/TLS listener on 5349 would therefore only hand browsers a dead candidate,
+ *   so this mode has none: TURN over UDP 3478 and ICE/TCP 7881 only.
+ *   Networks that allow nothing but 443 need strict.
  * strict — three DNS names. Distinct SNI lets TURN/TLS share the external 443,
  *   which is the only thing that traverses firewalls allowing nothing but 443.
  * ip — no DNS at all. A self-signed certificate carrying the IP in a SAN. Browsers
@@ -116,10 +120,10 @@ export function resolveTopology(args) {
       legacy,
       legacyPort: port,
       ports,
-      // LiveKit holds the certificate itself, so it advertises turns:<domain>:5349
-      // instead of the 443 it hardcodes whenever TLS is terminated upstream.
+      // No TURN/TLS here: LiveKit would advertise it on 443, which is the HTTPS edge
+      // under this one name (see above).
       externalTls: false,
-      turnTlsPort: TURN_TLS_PORT,
+      turnTlsPort: 0,
       scheme: "https",
       origin: `https://${domain}`,
     };
@@ -139,8 +143,9 @@ export function resolveTopology(args) {
     legacy,
     legacyPort: port,
     ports,
+    // No TURN/TLS: LiveKit would advertise turns:<ip>:443, and 443 is the HTTPS edge.
     externalTls: false,
-    turnTlsPort: TURN_TLS_PORT,
+    turnTlsPort: 0,
     scheme: "https",
     origin: `https://${host}`,
   };

@@ -1301,3 +1301,12 @@ electron-builder с собственными страницами, Squirrel с �
   доски — в Postgres (`room_board_files`, каскадом с комнатой), а не в `FILES_ROOT`: уходят с комнатой без
   отдельной уборки; (5) доска живёт в памяти одного ядра — до нескольких узлов (Р-27) этого хватает, сцена пишется
   раз в 3 с и при уходе последнего.
+- **Р-52. TURN/TLS только в `strict`; стенд — в `strict` (01.11.2026):** LiveKit 1.13.6 объявляет
+  `turns:<turn.domain>:443` при любом включённом TURN/TLS — и при `external_tls: false`, `tls_port: 5349`
+  (живой `join` стенда в `simple`: `turns:cord.nikg.tech:443`). Под одним именем 443 — это HTTPS, так что в
+  `simple`/`ip` TURN/TLS браузерам не работал никогда, а только давал мёртвый кандидат. Решение: `configure.mjs`
+  включает TURN/TLS только в `strict` (в `simple`/`ip` — UDP 3478 и ICE/TCP 7881), SFU не держит сертификата ни в
+  одном режиме (`turn-cert.sh` — заглушка для старых cron), 5349 снаружи закрыт всегда; `setup.sh --domain`
+  ставит `strict` сам, если `rtc.` и `turn.` домена уже указывают на машину. Владелец добавил DNS
+  `rtc.`/`turn.cord.nikg.tech` — стенд переведён в `strict`, путь проверяется
+  `scripts/turn-relay-check.mjs --transport=tls --turn=turn.<домен>:443`.

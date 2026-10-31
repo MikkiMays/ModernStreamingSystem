@@ -123,6 +123,20 @@ configure() {
   fi
 }
 
+# Три имени — и TURN/TLS на 443 для VPN и сетей, где открыт только 443. С одним именем его нет
+# (LiveKit объявляет TURN/TLS на 443, а там HTTPS), поэтому если rtc.<домен> и turn.<домен> уже
+# указывают на эту машину, ставим strict сами.
+if [[ "$MODE" == simple ]]; then
+  points_here() { getent ahostsv4 "$1" 2>/dev/null | awk '{print $1}' | grep -qx "$PUBLIC_IP"; }
+  if points_here "rtc.$DOMAIN" && points_here "turn.$DOMAIN"; then
+    MODE=strict APP="$DOMAIN" RTC="rtc.$DOMAIN" TURN="turn.$DOMAIN"
+    note "rtc.$DOMAIN and turn.$DOMAIN point here — using strict mode (TURN over TLS on 443)."
+  else
+    note "Without rtc.$DOMAIN and turn.$DOMAIN there is no TURN over TLS on 443: networks that"
+    note "allow only 443 (VPN, offices) get no media. Add both A records and re-run to fix that."
+  fi
+fi
+
 step "Generating configuration"
 MONITORING_ARGS=()
 [[ $MONITORING -eq 1 ]] && MONITORING_ARGS=(--monitoring)
@@ -149,7 +163,7 @@ if [[ $SKIP_FIREWALL -eq 0 ]] && command -v ufw >/dev/null; then
   SSH_PORT="$SSH_PORT" bash scripts/firewall.sh
 else
   step "Skipping the firewall"
-  note "Open 443/tcp, 3478/udp, 7882/udp and — outside strict mode — 5349/tcp yourself."
+  note "Open 80/tcp (not in --ip-only), 443/tcp, 7881/tcp, 3478/udp and 7882/udp yourself."
 fi
 
 # The media SFU reads all WebRTC over a single UDP socket. The kernel caps a socket's receive
@@ -216,22 +230,6 @@ note "Core is healthy."
 
 ORIGIN="$(sed -n 's/^PUBLIC_URL=//p' .env | head -1)"
 
-if [[ "$MODE" == simple ]]; then
-  step "Installing the issued certificate for TURN"
-  note "Waiting for Caddy to finish the certificate order."
-  SYNCED=0
-  for _ in $(seq 1 24); do
-    set +e; bash scripts/turn-cert.sh; RC=$?; set -e
-    # 2 means the order has not completed yet; anything else is final.
-    [[ $RC -ne 2 ]] && { SYNCED=$RC; break; }
-    sleep 5
-  done
-  if [[ $SYNCED -ne 0 ]]; then
-    note "WARNING: no certificate for TURN yet. Relay over TLS stays unavailable until"
-    note "the order completes. Re-run later: sudo bash scripts/turn-cert.sh"
-  fi
-fi
-
 step "Checking the public address"
 if curl -fsS --max-time 15 -k "$ORIGIN/api/v1/capabilities" >/dev/null 2>&1; then
   note "$ORIGIN answers."
@@ -270,17 +268,6 @@ if [[ "$MODE" == ip ]]; then
 WARNING
 fi
 
-if [[ "$MODE" == simple ]]; then
-  cat <<RENEWAL
-  Add the certificate sync to cron so TURN keeps working after renewal:
-
-    (crontab -l 2>/dev/null; echo "17 4 * * * cd $PWD && bash scripts/turn-cert.sh >> /var/log/cord-turn-cert.log 2>&1") | crontab -
-
-  It restarts the SFU only when the certificate actually changed, which ends
-  any call in progress at that moment. Pick an hour when nobody is talking.
-
-RENEWAL
-fi
 
 if grep -q '^COMPOSE_PROFILES=.*monitoring' .env 2>/dev/null; then
   cat <<MONITORING

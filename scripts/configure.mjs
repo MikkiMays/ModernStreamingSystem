@@ -2,12 +2,7 @@ import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile, readFile, access } from "node:fs/promises";
 import { resolve } from "node:path";
-import {
-  createEdge,
-  resolveTopology,
-  TURN_CERT,
-  TURN_KEY,
-} from "./edge-config.mjs";
+import { createEdge, resolveTopology } from "./edge-config.mjs";
 import { peerRules } from "./turn-guard.mjs";
 
 const args = Object.fromEntries(
@@ -97,15 +92,14 @@ const { ports, app, rtc, turn, ip, mode } = topology;
 
 await mkdir("infra/generated/tls", { recursive: true });
 
-// LiveKit needs a certificate on disk before it will start TURN/TLS, and in simple
-// mode Caddy has not finished the ACME order yet. Write a self-signed certificate now
-// so the SFU boots; scripts/turn-cert.mjs replaces it with the issued one afterwards.
-// In ip mode this self-signed certificate is the real, permanent one.
+// ip mode: the edge serves HTTPS on the bare address with this self-signed certificate
+// (IP in the SAN). The SFU holds no certificate in any mode: TURN/TLS exists only in
+// strict, where the edge terminates it.
 const certExists = await access(`infra/generated/tls/turn.crt`).then(
   () => true,
   () => false,
 );
-if (!certExists) {
+if (mode === "ip" && !certExists) {
   const subject = mode === "ip" ? ip : turn;
   const san = mode === "ip" ? `IP:${ip}` : `DNS:${turn}`;
   execFileSync(
@@ -238,12 +232,11 @@ const livekit = {
   turn: {
     enabled: true,
     domain: turn,
-    tls_port: topology.turnTlsPort,
     udp_port: 3478,
-    external_tls: topology.externalTls,
-    // Whenever TLS is terminated upstream LiveKit advertises turns:<domain>:443
-    // unconditionally, so it may only hold its own certificate in the other modes.
-    ...(topology.externalTls ? {} : { cert_file: TURN_CERT, key_file: TURN_KEY }),
+    // TURN/TLS — только в strict: edge снимает TLS с `turn.*` на 443 и отдаёт его сюда, на 5349.
+    // LiveKit 1.13 объявляет `turns:<domain>:443` при любом включённом TLS — в simple/ip это был бы
+    // мёртвый кандидат на HTTPS-edge (живой `join` стенда, 01.11.2026), поэтому там TLS нет вовсе.
+    ...(topology.turnTlsPort ? { tls_port: topology.turnTlsPort, external_tls: topology.externalTls } : {}),
     per_user_relay_allocation_limit: 12,
     // Relay — только к SFU этой машины, не в интернет (A12, `turn-guard.mjs`): иначе учётка TURN любого
     // вошедшего пересылала бы UDP куда угодно с адреса сервера. Проверка живым LiveKit —
@@ -340,13 +333,16 @@ await writeFile(
 
 const notes = {
   simple: `One DNS name. Point an A record for ${app} at ${ip}.
-Open TCP 80, TCP 443, TCP 5349, UDP 3478 and UDP 7882.`,
+Open TCP 80, TCP 443, TCP 7881, UDP 3478 and UDP 7882.
+TURN over TLS on 443 (VPN, networks that allow only 443) needs strict mode:
+add rtc.${app} and turn.${app} records and re-run with --app/--rtc/--turn.`,
   strict: `Three DNS names. Point A records for ${app}, ${rtc} and ${turn} at ${ip}.
 Open TCP 80, TCP 443, TCP 7881, UDP 3478 and UDP 7882.`,
   ip: `No DNS. The certificate is self-signed and carries IP:${ip}.
 Every browser shows a one-time warning that has to be accepted before camera,
 microphone and screen sharing become available.
-Open TCP 443, TCP 5349, UDP 3478 and UDP 7882.`,
+Open TCP 443, TCP 7881, UDP 3478 and UDP 7882.
+There is no TURN over TLS without DNS names: networks that allow only 443 get no media.`,
 };
 console.log(`Mode: ${mode}
 ${notes[mode]}

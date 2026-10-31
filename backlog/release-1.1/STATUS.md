@@ -11,7 +11,7 @@
 | R146 | Яндекс и общие настройки | готово в волне B: хранилище оболочки (`shared-preferences.json`, токен — `safeStorage`), веб — список общих ключей, устройства по названию, браузер — фрагмент `#cord-prefs` (только с Referer из каталога, без токена); выпуск — клиент 1.1.0 | web `shared-preferences.test.ts` (21), Windows `shared-preferences`, `preload-merge`, `messages` |
 | R147 | Связь | готово в волне A; проверка на телефоне — владелец | `mic-sentinel.test.ts` (6) |
 | R148 | Главная | готово в волне A | `recent-meetings.test.ts`, `RecentMeetings.test.tsx`, e2e `home-recent.spec.ts`, ядро `presence…` |
-| R149 | Связь | частично: `ACCESS_NETWORK_STATE` в APK (волна A); TURN/TLS 443 — ждёт DNS владельца (Р-50); конфиг SFU (Р-34) — при выкатке |  |
+| R149 | Связь | готово 01.11: `ACCESS_NETWORK_STATE` в APK (волна A); стенд в `strict` — TURN/TLS на 443 по SNI `turn.cord.nikg.tech` (Р-50, Р-52); в `simple`/`ip` TURN/TLS больше не объявляется (был мёртвым кандидатом); живьём с VPN — владелец | `turn-relay-check.mjs --transport=tls` на стенде, `configure.test.mjs` |
 | R150 | Быстрые / Кинозал | готово в волне A: «+85» (в `main`), новый фильм у всех, лестница автозапуска, плашка рекламы эфира | `autoplay.test.ts`, `stage-view.test.ts` |
 | R151 | Связь | готово в волне A: опоздавший сигнал — не потеря, «вежливый» HLS; живьём — владелец | `hls.test.ts` |
 | R152 | Кодеки | готово в волне A (веб, ядро, Grafana); клиент Windows — в выпуске 1.1.0 (аппаратный AV1 по белому списку видеокарт); живой замер на видеокарте — владелец | `codec-policy.test.ts` и др. (203), `docs/codecs.md` |
