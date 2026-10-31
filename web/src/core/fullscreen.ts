@@ -177,14 +177,16 @@ export function useFullscreen(
       publish();
       return;
     }
-    const request = element.requestFullscreen({ navigationUI: 'hide' });
-    void request.then(() => lockLandscape(element));
-    void request.catch(() => {
-      if (mountedTargets.has(element) && !document.fullscreenElement) {
-        fallbackTarget = element;
-        publish();
-      }
-    });
+    // Одна цепочка на успех и отказ: вторая ветка `.then` без своего отказа всплывала бы наружу.
+    void Promise.resolve(element.requestFullscreen({ navigationUI: 'hide' })).then(
+      () => lockLandscape(element),
+      () => {
+        if (mountedTargets.has(element) && !document.fullscreenElement) {
+          fallbackTarget = element;
+          publish();
+        }
+      },
+    );
   }, [target, video]);
   return { ...current, toggle };
 }
