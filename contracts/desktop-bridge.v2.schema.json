@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:cord:contracts:desktop-bridge.v2",
   "title": "Мост v2 клиента Windows (Electron) — window.cordDesktop",
-  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language, R103 — трей: state.language, chat.open, app.settings.notifications, коды hotkeys.status; R62 — игры: games.*, game.active; R63 — виджет говорящих: overlay.roster, overlay.levels, overlay.lock, значения виджета в app.settings; R93 — мини-окно звонка: mini.state, mini.action, app.settings.mini; R104 — golive; R137 — мини-окно 1.0.11: mini.action {want, seq}, ответ mini.ack, событие mini.resync, mini.state.seq; R138 — оболочка 1.0.11 не объявляет thumbar и badge, в app.settings они всегда false); остальные нагрузки — в messages.ts.",
+  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language, R103 — трей: state.language, chat.open, app.settings.notifications, коды hotkeys.status; R62 — игры: games.*, game.active; R63 — виджет говорящих: overlay.roster, overlay.levels, overlay.lock, значения виджета в app.settings; R93 — мини-окно звонка: mini.state, mini.action, app.settings.mini; R104 — golive; R137 — мини-окно 1.0.11: mini.action {want, seq}, ответ mini.ack, событие mini.resync, mini.state.seq; R138 — оболочка 1.0.11 не объявляет thumbar и badge, в app.settings они всегда false; волна 1.1: R146 — общие настройки для всех серверов: флаг prefs.shared, protocol.minor 1, Bootstrap.shared и yandexMusicToken, preferences.changed {shared, seed}; R156 — «Звук встречи»: mini.state.deafened, mini.action deafen); остальные нагрузки — в messages.ts.",
   "type": "object",
   "required": ["protocol", "features", "app", "bootstrap"],
   "properties": {
@@ -28,7 +28,11 @@
       "required": ["major", "minor"],
       "properties": {
         "major": { "const": 2 },
-        "minor": { "type": "integer", "minimum": 0 }
+        "minor": {
+          "description": "0 — до 1.1.0; 1 — общие настройки (R146): Bootstrap.shared, Bootstrap.yandexMusicToken, флаг prefs.shared.",
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "feature": {
@@ -56,7 +60,8 @@
         "games",
         "overlay.widget",
         "mini",
-        "golive"
+        "golive",
+        "prefs.shared"
       ]
     },
     "language": {
@@ -92,6 +97,160 @@
           "type": "integer",
           "minimum": 24,
           "maximum": 96
+        },
+        "shared": {
+          "description": "Общие для всех серверов настройки (R146, флаг prefs.shared): значение последней записи каждого ключа с любого сервера, без секрета. Preload кладёт их в cord:preferences:v1 и cord:name до первого скрипта, кроме devices (названия устройств — их сверяет веб, web/src/core/shared-preferences.ts). Пусто — общего у оболочки ещё нет: первая страница новой версии присылает своё с seed: true. Оболочка до 1.1.0 поля не шлёт.",
+          "$ref": "#/$defs/sharedValues"
+        },
+        "yandexMusicToken": {
+          "description": "Токен Яндекс Музыки (R157) из общего секрета оболочки (safeStorage) — только серверам подписанного каталога; null — токена нет или сервер не из каталога; пустая строка — отключён.",
+          "anyOf": [{ "type": "string", "maxLength": 1000, "pattern": "^[\\x21-\\x7e]*$" }, { "type": "null" }]
+        }
+      }
+    },
+    "hotkey": {
+      "description": "Сочетание модели E03: код клавиши или кнопки мыши Mouse3–Mouse5 и модификаторы.",
+      "type": "object",
+      "required": ["code", "ctrl", "alt", "shift", "meta"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^(Key[A-Z]|Digit[0-9]|F([1-9]|1[0-9]|2[0-4])|Space|Backquote|Mouse[3-5])$"
+        },
+        "ctrl": { "type": "boolean" },
+        "alt": { "type": "boolean" },
+        "shift": { "type": "boolean" },
+        "meta": { "type": "boolean" }
+      }
+    },
+    "hotkeyOrNull": { "anyOf": [{ "$ref": "#/$defs/hotkey" }, { "type": "null" }] },
+    "level": {
+      "type": "object",
+      "required": ["resolution", "fps"],
+      "additionalProperties": false,
+      "properties": {
+        "resolution": { "type": "integer", "minimum": 1, "maximum": 4320 },
+        "fps": { "type": "integer", "minimum": 1, "maximum": 240 }
+      }
+    },
+    "sharedValues": {
+      "description": "Общие настройки по белому списку (R146, Р-39) — поля cord:preferences:v1 веба; оболочка проверяет каждое (messages.ts, validSharedValue) и отказывает всему сообщению за чужой ключ, тип или размер. Своё у сервера (избранное, недавние, сессия, пароль сервера, громкости участников, кеш возможностей, активная встреча) сюда не входит. devices — выбранные устройства по названию (deviceId Chromium солит по origin). Качество — желаемое: веб сводит его к потолку сервера при чтении.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language": { "anyOf": [{ "$ref": "#/$defs/language" }, { "type": "null" }] },
+        "name": { "type": "string", "maxLength": 40 },
+        "avatar": {
+          "type": "string",
+          "maxLength": 3500,
+          "pattern": "^(|data:image/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+)$"
+        },
+        "audio": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "suppression": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,23}$" },
+            "suppressionChosen": { "type": "boolean" },
+            "echoCancellation": { "type": "boolean" },
+            "autoGainControl": { "type": "boolean" },
+            "gain": { "type": "number", "minimum": 0, "maximum": 2 }
+          }
+        },
+        "outputVolume": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "soundVolume": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "notificationSounds": { "type": "boolean" },
+        "gameSounds": { "type": "object" },
+        "micHotkey": { "$ref": "#/$defs/hotkeyOrNull" },
+        "micHotkeyMode": { "enum": ["toggle", "hold"] },
+        "overlayHotkey": { "$ref": "#/$defs/hotkeyOrNull" },
+        "overlayLockHotkey": { "$ref": "#/$defs/hotkeyOrNull" },
+        "deafened": { "type": "boolean" },
+        "deafenHotkey": { "$ref": "#/$defs/hotkeyOrNull" },
+        "layout": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,23}$" },
+        "watchVolume": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "watchAudio": { "type": "string", "maxLength": 24 },
+        "watchSubtitles": { "type": "string", "maxLength": 32 },
+        "screen": {
+          "type": "object",
+          "required": ["resolution", "fps"],
+          "additionalProperties": false,
+          "properties": {
+            "resolution": { "type": "integer", "minimum": 1, "maximum": 4320 },
+            "fps": { "type": "integer", "minimum": 1, "maximum": 240 },
+            "mode": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,23}$" },
+            "preview": { "type": "boolean" },
+            "audio": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,23}$" }
+          }
+        },
+        "camera": { "$ref": "#/$defs/level" },
+        "pokerHints": { "type": "boolean" },
+        "pokerFeed": { "type": "boolean" },
+        "showPing": { "type": "boolean" },
+        "cinemaLinks": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "type": "string", "maxLength": 2000, "pattern": "^[hH][tT][tT][pP][sS]?://" }
+        },
+        "lastPlatform": { "type": "object" },
+        "devices": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "camera": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "microphone": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "speaker": { "type": "string", "minLength": 1, "maxLength": 200 }
+          }
+        }
+      }
+    },
+    "sharedEntry": {
+      "description": "Запись общей настройки: значение и когда его записали (мс эпохи) — «последний пишущий» по ключу; время из будущего оболочка срезает до «сейчас».",
+      "type": "object",
+      "required": ["value", "at"],
+      "additionalProperties": false,
+      "properties": { "value": {}, "at": { "type": "integer", "minimum": 0 } }
+    },
+    "preferencesChanged": {
+      "description": "Страница → оболочка (preferences.changed). Прежняя форма — showPing и notificationSounds. С флагом prefs.shared (R146) — shared: только изменившиеся общие ключи белого списка ({value, at}, значения — как в sharedValues) и токен Яндекс Музыки (секрет оболочка хранит отдельно, зашифрованным); seed: true — перенос со старой версии (общее у оболочки было пусто): оболочка берёт только ключи, которых у неё нет, и не берёт пустой токен. Сообщение ≤ 16 КиБ — веб шлёт пачками. Оболочка → страница (то же имя, R146): {shared: {ключ: значение}} — у оболочки значение новее присланного.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "showPing": { "type": "boolean" },
+        "notificationSounds": { "type": "boolean" },
+        "seed": { "const": true },
+        "shared": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "language": { "$ref": "#/$defs/sharedEntry" },
+            "name": { "$ref": "#/$defs/sharedEntry" },
+            "avatar": { "$ref": "#/$defs/sharedEntry" },
+            "audio": { "$ref": "#/$defs/sharedEntry" },
+            "outputVolume": { "$ref": "#/$defs/sharedEntry" },
+            "soundVolume": { "$ref": "#/$defs/sharedEntry" },
+            "notificationSounds": { "$ref": "#/$defs/sharedEntry" },
+            "gameSounds": { "$ref": "#/$defs/sharedEntry" },
+            "micHotkey": { "$ref": "#/$defs/sharedEntry" },
+            "micHotkeyMode": { "$ref": "#/$defs/sharedEntry" },
+            "overlayHotkey": { "$ref": "#/$defs/sharedEntry" },
+            "overlayLockHotkey": { "$ref": "#/$defs/sharedEntry" },
+            "deafened": { "$ref": "#/$defs/sharedEntry" },
+            "deafenHotkey": { "$ref": "#/$defs/sharedEntry" },
+            "layout": { "$ref": "#/$defs/sharedEntry" },
+            "watchVolume": { "$ref": "#/$defs/sharedEntry" },
+            "watchAudio": { "$ref": "#/$defs/sharedEntry" },
+            "watchSubtitles": { "$ref": "#/$defs/sharedEntry" },
+            "screen": { "$ref": "#/$defs/sharedEntry" },
+            "camera": { "$ref": "#/$defs/sharedEntry" },
+            "pokerHints": { "$ref": "#/$defs/sharedEntry" },
+            "pokerFeed": { "$ref": "#/$defs/sharedEntry" },
+            "showPing": { "$ref": "#/$defs/sharedEntry" },
+            "cinemaLinks": { "$ref": "#/$defs/sharedEntry" },
+            "lastPlatform": { "$ref": "#/$defs/sharedEntry" },
+            "devices": { "$ref": "#/$defs/sharedEntry" },
+            "yandexMusicToken": { "$ref": "#/$defs/sharedEntry" }
+          }
         }
       }
     },
@@ -345,16 +504,20 @@
           "description": "Номер состояния (R137): растёт, когда состояние меняется; страница повторяет последнее раз в 5 с и по mini.resync с тем же номером. Оболочка до 1.0.11 его отбрасывает.",
           "type": "integer",
           "minimum": 0
+        },
+        "deafened": {
+          "description": "«Звук встречи» выключен (R156): кнопка с наушниками в мини-окне (между микрофоном и камерой) и пункт «Звук встречи» в меню трея. Без поля (веб до R156) — ни кнопки, ни пункта.",
+          "type": "boolean"
         }
       }
     },
     "miniAction": {
-      "description": "Оболочка → страница (mini.action, R93): нажатие в мини-окне. mic, camera, leave — встреча исполняет, не поднимая окно; screen — остановить показ или (окно Cord уже впереди) открыть окно выбора; people, chat — панель; settings — настройки (звук). С 1.0.11 (R137): want — нужное состояние микрофона, камеры или показа (без него — переключить, как раньше), seq — номер нажатия, на который страница отвечает mini.ack. Так же шлёт «Микрофон» меню трея (R138).",
+      "description": "Оболочка → страница (mini.action, R93): нажатие в мини-окне. mic, camera, leave — встреча исполняет, не поднимая окно; screen — остановить показ или (окно Cord уже впереди) открыть окно выбора; people, chat — панель; settings — настройки (звук). С 1.0.11 (R137): want — нужное состояние микрофона, камеры или показа (без него — переключить, как раньше), seq — номер нажатия, на который страница отвечает mini.ack. Так же шлёт «Микрофон» меню трея (R138). deafen (R156) — «звук встречи» из мини-окна и меню трея: want — нужное «звук выключен»; связи не ждёт.",
       "type": "object",
       "required": ["id"],
       "additionalProperties": false,
       "properties": {
-        "id": { "enum": ["mic", "camera", "screen", "people", "chat", "settings", "leave"] },
+        "id": { "enum": ["mic", "deafen", "camera", "screen", "people", "chat", "settings", "leave"] },
         "want": { "type": "boolean" },
         "seq": { "type": "integer", "minimum": 0 }
       }
