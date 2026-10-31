@@ -29,6 +29,15 @@ export interface Sample {
   /** Сколько раз за интервал начиналась заглушка: частые короткие — опоздания, одна — обрыв. */
   concealmentEvents: number;
   implementation: string;
+  /**
+   * Кодирует или декодирует железо (`powerEfficientEncoder` / `powerEfficientDecoder`); `null` — браузер
+   * не говорит (R152).
+   */
+  powerEfficient?: boolean | null;
+  /** Профиль кодека — `sdpFmtpLine` (`profile-level-id=640032`, `profile-id=0`); `null` — нет. */
+  fmtp?: string | null;
+  /** Режим слоёв отдачи (`L1T3`, `L3T3_KEY`); у приёма и у H.264 без слоёв — `null`. */
+  scalabilityMode?: string | null;
   at: number;
 }
 /**
@@ -149,6 +158,15 @@ export class StatsSampler {
           (receiving ? stat.decoderImplementation : stat.encoderImplementation) ??
             t(($) => $.diagnostics.sampler.implementationHidden),
         ),
+        powerEfficient: (() => {
+          const value = receiving ? stat.powerEfficientDecoder : stat.powerEfficientEncoder;
+          return typeof value === 'boolean' ? value : null;
+        })(),
+        fmtp: (() => {
+          const line = report.get(stat.codecId)?.sdpFmtpLine;
+          return typeof line === 'string' && line ? line : null;
+        })(),
+        scalabilityMode: !receiving && typeof stat.scalabilityMode === 'string' ? stat.scalabilityMode : null,
         at: stat.timestamp,
       });
       history.set(stat.id, current);
