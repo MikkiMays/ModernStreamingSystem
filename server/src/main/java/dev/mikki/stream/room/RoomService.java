@@ -755,7 +755,8 @@ public class RoomService {
             current.you(),
             current.startedAt(),
             current.endsAt(),
-            current.cinemaTraffic());
+            current.cinemaTraffic(),
+            current.board());
     return new Admission(
         room.id,
         member.id,
@@ -911,7 +912,8 @@ public class RoomService {
             : new RoomYou(Permissions.granted(room, viewer), presenceBy(room, viewer)),
         room.startedAt,
         room.endsAt,
-        room.cinemaTraffic);
+        room.cinemaTraffic,
+        boardView(room));
   }
 
   /**
@@ -1005,7 +1007,9 @@ public class RoomService {
         // Сколько встреча идёт — не её жизнь, а её часы: их видно и из-за двери.
         current.startedAt(),
         current.endsAt(),
-        current.cinemaTraffic());
+        current.cinemaTraffic(),
+        // Доска — тоже жизнь встречи: из-за двери её не видно.
+        null);
   }
 
   @Transactional
@@ -1156,7 +1160,8 @@ public class RoomService {
                   Occupant.NEW_GAME,
                   Occupant.OTHER_SERVICE,
                   Occupant.POKER_TABLE,
-                  Occupant.DURAK_TABLE);
+                  Occupant.DURAK_TABLE,
+                  Occupant.BOARD);
               if (command.provider() == null
                   || command.kind() == null
                   || command.contentId() == null
@@ -1228,7 +1233,8 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               Permissions.require(room, member, Action.POKER_OPEN);
-              stageBusy(room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.DURAK_TABLE);
+              stageBusy(
+                  room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.DURAK_TABLE, Occupant.BOARD);
               if (room.poker != null) throw Problem.conflict("POKER_OPEN", "Стол уже открыт");
               room.poker =
                   dev.mikki.stream.game.Table.open(
@@ -1288,7 +1294,8 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               Permissions.require(room, member, Action.DURAK_OPEN);
-              stageBusy(room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.POKER_TABLE);
+              stageBusy(
+                  room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.POKER_TABLE, Occupant.BOARD);
               if (room.durak != null) throw Problem.conflict("DURAK_OPEN", "Стол уже открыт");
               room.durak =
                   dev.mikki.stream.game.Durak.open(
@@ -1434,6 +1441,52 @@ public class RoomService {
                 }
                 default -> throw new IllegalStateException("Unhandled drawing command");
               }
+            }
+            /*
+             Доска (R159). Сцену занимает так же, как кинозал и столы: открыть её поверх них нельзя,
+             и наоборот. Штрихи в комнату не идут — у них свой сокет (`events.BoardSocket`), мимо
+             замка и записи комнаты; здесь только жизнь доски: открыть, закрыть, кому рисовать,
+             очистить.
+            */
+            case "board.open" -> {
+              requireActive(room, member);
+              requireOpen(room);
+              Permissions.require(room, member, Action.BOARD_OPEN);
+              if (room.board != null) throw Problem.conflict("BOARD_OPEN", "Доска уже открыта");
+              stageBusy(
+                  room,
+                  Occupant.NEW_GAME,
+                  Occupant.CINEMA,
+                  Occupant.POKER_TABLE,
+                  Occupant.DURAK_TABLE);
+              var board = new RoomState.Board();
+              board.openedBy = member.id;
+              board.openedAt = now();
+              board.drawers = drawers(command.option(), RoomState.Board.ALL);
+              room.board = board;
+              events.publishEvent(new BoardChanged(room.id));
+            }
+            case "board.close" -> {
+              requireActive(room, member);
+              board(room);
+              Permissions.require(room, member, Action.BOARD_CLOSE);
+              room.board = null;
+              events.publishEvent(new BoardChanged(room.id));
+            }
+            case "board.settings" -> {
+              requireActive(room, member);
+              var board = board(room);
+              // Право — по тому, что было до смены: при «рисует ведущий» участник не вернёт себе
+              // перо той же командой.
+              Permissions.require(room, member, Action.BOARD_SETTINGS);
+              board.drawers = drawers(command.option(), null);
+              events.publishEvent(new BoardChanged(room.id));
+            }
+            case "board.clear" -> {
+              requireActive(room, member);
+              board(room);
+              Permissions.require(room, member, Action.BOARD_CLEAR);
+              events.publishEvent(new BoardCleared(room.id, member.id));
             }
             case "message.send" -> {
               requireActive(room, member);
@@ -1621,7 +1674,8 @@ public class RoomService {
         "Во встрече уже открыта игра. Сначала закройте её"),
     OTHER_SERVICE(
         r -> r.members.values().stream().anyMatch(m -> m.service != null && m.occupiesSeat()),
-        "Во встрече уже есть другая интеграция. Сначала уберите её");
+        "Во встрече уже есть другая интеграция. Сначала уберите её"),
+    BOARD(r -> r.board != null, "Во встрече открыта доска. Сначала закройте её");
 
     private final Predicate<RoomState> present;
     private final String message;
@@ -1639,7 +1693,7 @@ public class RoomService {
   }
 
   private static void gameStageAvailable(RoomState room) {
-    stageBusy(room, Occupant.NEW_GAME);
+    stageBusy(room, Occupant.NEW_GAME, Occupant.BOARD);
     if (room.watch != null || room.poker != null || room.durak != null)
       throw Problem.conflict("INTEGRATION_BUSY", "Сначала закройте текущую игру или кинозал");
   }
@@ -1673,6 +1727,26 @@ public class RoomService {
   private static dev.mikki.stream.game.Chess chess(RoomState room) {
     if (room.chess == null) throw Problem.conflict("CHESS_CLOSED", "Шахматная доска уже закрыта");
     return room.chess;
+  }
+
+  /** Доска, которая точно открыта. Команда без неё — опоздание, а не ошибка. */
+  private static RoomState.Board board(RoomState room) {
+    if (room.board == null) throw Problem.conflict("BOARD_CLOSED", "Доска уже закрыта");
+    return room.board;
+  }
+
+  /** Кто рисует: {@code all} или {@code host}; пусто — {@code fallback}, а без него — отказ. */
+  private static String drawers(String option, String fallback) {
+    if ((option == null || option.isBlank()) && fallback != null) return fallback;
+    if (RoomState.Board.ALL.equals(option) || RoomState.Board.HOST.equals(option)) return option;
+    throw new Problem(400, "BOARD_DRAWERS", "Выберите, кто рисует на доске");
+  }
+
+  private static Contracts.BoardView boardView(RoomState room) {
+    var board = room.board;
+    return board == null
+        ? null
+        : new Contracts.BoardView(board.openedBy, board.openedAt, board.drawers);
   }
 
   private static dev.mikki.stream.game.Gartic gartic(RoomState room) {
@@ -1788,6 +1862,9 @@ public class RoomService {
     room.durak = null;
     room.chess = null;
     room.gartic = null;
+    // Доска закрывается, а её сцена остаётся в `room_boards`: у сохранённой встречи она ждёт
+    // возвращения, у несохранённой уходит вместе с комнатой.
+    room.board = null;
     games.forget(room.id);
     freezeHistory(room, room.closedAt);
     room.members

@@ -55,7 +55,19 @@ public final class Permissions {
     POKER_HOST(room -> room.poker == null ? null : room.poker.hostId),
     DURAK_HOST(room -> room.durak == null ? null : room.durak.hostId),
     CHESS_HOST(room -> room.chess == null ? null : room.chess.hostId),
-    GARTIC_HOST(room -> room.gartic == null ? null : room.gartic.hostId);
+    GARTIC_HOST(room -> room.gartic == null ? null : room.gartic.hostId),
+    /**
+     * Рисовать на доске (R159): любой участник, а когда доска «рисует ведущий» — только создатель
+     * встречи. Без открытой доски рисовать нечего.
+     */
+    BOARD_DRAW,
+    /**
+     * Очистить доску и сменить, кто рисует: класс интеграций, пока рисуют все; при «рисует ведущий»
+     * — только создатель, иначе участник вернул бы себе перо той же кнопкой.
+     */
+    BOARD_MANAGE,
+    /** Закрыть доску: кто её открыл и создатель встречи — запасной выход, если открывший ушёл. */
+    BOARD_CLOSE;
 
     private final Function<RoomState, String> host;
 
@@ -75,6 +87,14 @@ public final class Permissions {
       return switch (this) {
         case CREATOR -> role == Role.CREATOR;
         case INTEGRATIONS -> role == Role.CREATOR || room.integrationsAllowed;
+        case BOARD_DRAW -> room.board != null && (role == Role.CREATOR || !room.board.hostOnly());
+        case BOARD_MANAGE ->
+            room.board != null
+                && (role == Role.CREATOR || (!room.board.hostOnly() && room.integrationsAllowed));
+        case BOARD_CLOSE ->
+            room.board != null
+                && (role == Role.CREATOR
+                    || (memberId != null && memberId.equals(room.board.openedBy)));
         default -> true;
       };
     }
@@ -86,6 +106,11 @@ public final class Permissions {
 
   private static Problem gameHostOnly() {
     return Problem.conflict("GAME_HOST_ONLY", "Это действие доступно ведущему игры");
+  }
+
+  private static Problem boardOwnerOnly() {
+    return Problem.conflict(
+        "BOARD_OWNER_ONLY", "Закрыть доску может тот, кто её открыл, или создатель встречи");
   }
 
   /**
@@ -135,7 +160,16 @@ public final class Permissions {
     CHESS_OPEN("chess.open", Rule.INTEGRATIONS),
     CHESS_MANAGE("chess.manage", Rule.CHESS_HOST, Permissions::gameHostOnly),
     GARTIC_OPEN("gartic.open", Rule.INTEGRATIONS),
-    GARTIC_MANAGE("gartic.manage", Rule.GARTIC_HOST, Permissions::gameHostOnly);
+    GARTIC_MANAGE("gartic.manage", Rule.GARTIC_HOST, Permissions::gameHostOnly),
+    /** Принести доску на сцену — как стол или кинозал (R159). */
+    BOARD_OPEN("board.open", Rule.INTEGRATIONS),
+    /** Рисовать: правки сцены по сокету доски. Кому нельзя — смотрит доску без пера. */
+    BOARD_DRAW("board.draw", Rule.BOARD_DRAW),
+    /** Кто рисует: все или только создатель встречи. */
+    BOARD_SETTINGS("board.settings", Rule.BOARD_MANAGE),
+    /** Очистить доску у всех — и «Заменить доску» файлом. */
+    BOARD_CLEAR("board.clear", Rule.BOARD_MANAGE),
+    BOARD_CLOSE("board.close", Rule.BOARD_CLOSE, Permissions::boardOwnerOnly);
 
     private final String wire;
     private final Rule rule;

@@ -31,16 +31,36 @@ public class RequestGuard extends OncePerRequestFilter {
           "/api/v1/capabilities",
           "/api/v1/session",
           "/api/v1/events",
+          // Сокет доски (R159) — как сокет событий: заголовка на нём нет, первый пакет несёт
+          // пропуск.
+          "/api/v1/board",
           "/api/v1/proof",
           "/api/v1/support",
           "/api/v1/catalog");
 
+  /**
+   * Картинка доски (R159): единственное тело больше 16 КиБ, которое ядро принимает само, — до
+   * {@code stream.board.max-file-bytes}. Его не копирует фильтр: предел и проверку содержимого
+   * держит ручка ({@code BoardController}), читая не больше предела.
+   */
+  private static final java.util.regex.Pattern BOARD_FILE =
+      java.util.regex.Pattern.compile(
+          "/api/v1/rooms/[0-9a-f-]{36}/board/files/[A-Za-z0-9_-]{1,64}");
+
   private final StreamProperties config;
   private final ServerAccess access;
+  private final long boardFileBytes;
 
   public RequestGuard(StreamProperties config, ServerAccess access) {
+    this(config, access, dev.mikki.stream.board.BoardProperties.defaults());
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public RequestGuard(
+      StreamProperties config, ServerAccess access, dev.mikki.stream.board.BoardProperties board) {
     this.config = config;
     this.access = access;
+    this.boardFileBytes = board.maxFileBytes();
   }
 
   @Override
@@ -70,6 +90,15 @@ public class RequestGuard extends OncePerRequestFilter {
           .getWriter()
           .write(
               "{\"code\":\"SERVER_PASSWORD_REQUIRED\",\"detail\":\"Подключитесь к серверу: нужен пароль\"}");
+      return;
+    }
+    if ("PUT".equals(request.getMethod())
+        && BOARD_FILE.matcher(request.getRequestURI()).matches()) {
+      if (request.getContentLengthLong() > boardFileBytes) {
+        response.sendError(413);
+        return;
+      }
+      chain.doFilter(request, response);
       return;
     }
     if (request.getContentLengthLong() > 16384) {

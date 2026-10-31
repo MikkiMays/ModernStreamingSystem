@@ -55,7 +55,7 @@ public final class Contracts {
    * разобранным на имена.
    */
   public static final String COMMAND_TYPES =
-      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|screen\\.preview|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm";
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|screen\\.preview|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm|board\\.open|board\\.close|board\\.settings|board\\.clear";
 
   /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
   private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
@@ -312,7 +312,19 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          Integer cinemaTraffic) {}
+          Integer cinemaTraffic,
+      /**
+       * Доска на сцене (R159): кто открыл и кому рисовать; {@code null} — закрыта. Сама сцена в
+       * снимок не ложится — она приезжает сокетом доски ({@code /api/v1/board}).
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          BoardView board) {}
+
+  /**
+   * Открытая доска глазами участника: кто открыл, когда и кому рисовать ({@code all}/{@code host}).
+   */
+  public record BoardView(String openedBy, long openedAt, String drawers) {}
 
   /**
    * Права участника — готовым ответом, а не правилом для пересчёта.

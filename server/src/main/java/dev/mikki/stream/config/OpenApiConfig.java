@@ -85,7 +85,8 @@ public class OpenApiConfig {
               "GarticStroke",
               "GarticEntry",
               "GarticAlbum",
-              "GarticGuess")) {
+              "GarticGuess",
+              "BoardView")) {
         var schema = schemas.get(name);
         if (schema != null && schema.getProperties() != null)
           schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
@@ -99,7 +100,8 @@ public class OpenApiConfig {
       schemas
           .get("Snapshot")
           .getRequired()
-          .removeAll(List.of("chess", "gartic", "you", "startedAt", "endsAt", "cinemaTraffic"));
+          .removeAll(
+              List.of("chess", "gartic", "you", "startedAt", "endsAt", "cinemaTraffic", "board"));
       // «Вы ещё здесь?» спрашивают не всегда (A2, E10-B).
       schemas.get("RoomYou").getRequired().remove("presenceBy");
       // Обслуживание (W1b) — поле новое: веб новее ядра (пока выкатка идёт) не должен его
@@ -147,7 +149,8 @@ public class OpenApiConfig {
                       "you",
                       "startedAt",
                       "endsAt",
-                      "cinemaTraffic")),
+                      "cinemaTraffic",
+                      "board")),
               Map.entry("ChessView", List.of("white", "black", "result", "winner", "drawOffer")),
               Map.entry("GarticView", List.of("drawerId", "you", "answer", "hint", "revealed")),
               Map.entry("GarticYou", List.of("prompt", "previous")),

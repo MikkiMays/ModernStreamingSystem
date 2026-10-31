@@ -20,6 +20,7 @@ final class Activity {
     if (room.durak != null) kinds.add("durak");
     if (room.chess != null) kinds.add("chess");
     if (room.gartic != null) kinds.add("gartic");
+    if (room.board != null) kinds.add("board");
     return kinds;
   }
 
