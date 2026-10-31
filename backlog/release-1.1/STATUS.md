@@ -5,10 +5,10 @@
 
 | № | Пакет | Состояние | Доказательство |
 | --- | --- | --- | --- |
-| R143 | Загрузка | готово в волне A (`merge/wave-a`): ядро, веб, Grafana; окно «Серверы» клиента — пакет 1.1.0 (агент) | `LoadMeterTest`, `NeighborLoadTest`, `load-bars.test.tsx` |
+| R143 | Загрузка | готово, выкачено в волне A (ядро, веб, Grafana); доля встреч — только занятые (волна B); окно «Серверы» — клиент 1.1.0 | `LoadMeterTest`, `NeighborLoadTest`, `load-bars.test.tsx`, Windows `servers-status` |
 | R144 | Кинозал | готово в волне A: одна цель у полного экрана, iPhone — родной плеер, Android — поворот | `fullscreen.test.tsx` (8) |
 | R145 | Быстрые | готово в волне A: шумодав «Усиленное» по умолчанию (выкачено в `main`), ответ про значок в «Поддержке» (Р-49) | `preferences.test.ts`, `support` |
-| R146 | Яндекс и общие настройки | в работе (агент, пакет клиента 1.1.0) |  |
+| R146 | Яндекс и общие настройки | готово в волне B: хранилище оболочки (`shared-preferences.json`, токен — `safeStorage`), веб — список общих ключей, устройства по названию, браузер — фрагмент `#cord-prefs` (только с Referer из каталога, без токена); выпуск — клиент 1.1.0 | web `shared-preferences.test.ts` (21), Windows `shared-preferences`, `preload-merge`, `messages` |
 | R147 | Связь | готово в волне A; проверка на телефоне — владелец | `mic-sentinel.test.ts` (6) |
 | R148 | Главная | готово в волне A | `recent-meetings.test.ts`, `RecentMeetings.test.tsx`, e2e `home-recent.spec.ts`, ядро `presence…` |
 | R149 | Связь | частично: `ACCESS_NETWORK_STATE` в APK (волна A); TURN/TLS 443 — ждёт DNS владельца (Р-50); конфиг SFU (Р-34) — при выкатке |  |
@@ -16,12 +16,12 @@
 | R151 | Связь | готово в волне A: опоздавший сигнал — не потеря, «вежливый» HLS; живьём — владелец | `hls.test.ts` |
 | R152 | Кодеки | готово в волне A (веб, ядро, Grafana); клиент Windows — ветка `review/r152-codecs` Windows, выпуск 1.1.0; живой замер на видеокарте — владелец | `codec-policy.test.ts` и др. (203), `docs/codecs.md` |
 | R153 | Фон | готово в волне A | `background-effect.test.ts`, `background-picker.test.tsx` |
-| R154 | Доска | в работе (агент, доска) |  |
+| R154 | Доска | готово в волне B: «Сохранить в чат» (PNG + `.cord-board`), «Открыть на доске», «Скачать», «Открыть файл»; живьём через tusd — после выкатки | `board` тесты, e2e `board.spec.ts` |
 | R155 | Быстрые | готово, в `main` | `seat-video-css.test.ts` |
-| R156 | Звук встречи | готово в волне A (веб, ядро); мини-окно и трей — пакет клиента 1.1.0 (агент) | `call-dock.test.tsx`, ядро `deafened…`, e2e `call-footer.spec.ts` |
-| R157 | Яндекс и общие настройки | готово в волне A (службы, веб); общий секрет в клиенте — пакет 1.1.0 (агент) | `test_yandex.py`, `yandex-integration.test.tsx` |
+| R156 | Звук встречи | готово: веб и ядро выкачены в волне A; мини-окно и трей — клиент 1.1.0 (волна B) | `call-dock.test.tsx`, ядро `deafened…`, Windows `mini-policy`, `tray-menu` |
+| R157 | Яндекс и общие настройки | готово: службы и веб выкачены в волне A; общий зашифрованный секрет в клиенте — 1.1.0 | `test_yandex.py`, `yandex-integration.test.tsx` |
 | R158 | Быстрые | готово, в `main` | `integration-shelf.test.ts` |
-| R159 | Доска | в работе (агент, доска) |  |
+| R159 | Доска | готово в волне B: Excalidraw 0.18.1 лениво (345 КБ gzip), сокет `/api/v1/board`, слияние по элементу, `room_boards` (V14), права `board.*`, курсоры, лазер, маркер и стикер, «следовать»; задержка — в «Диагностике» | ядро `BoardRoomTest` (11), `BoardSocketTest` (8), `PermissionsTest` (45); веб 36 файлов / 295 тестов; e2e — на стенде |
 
 ## Проверка владельцем
 
