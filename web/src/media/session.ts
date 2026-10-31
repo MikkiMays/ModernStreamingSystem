@@ -14,6 +14,7 @@ import {
   type LocalTrack,
   createLocalAudioTrack,
   RemoteAudioTrack,
+  ConnectionState,
 } from 'livekit-client';
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from '../core/store';
@@ -52,6 +53,7 @@ import {
   type Preferences,
 } from '../core/preferences';
 import { signal } from '../core/sounds';
+import { MicSentinel } from './mic-sentinel';
 import { recallVolume, rememberVolume } from '../core/volumes';
 import { SpeechDownmix } from './downmix';
 import { receivedLevel, waitForPause } from './speech-pause';
@@ -159,6 +161,9 @@ export interface OutboundVideo {
   settling: boolean;
 }
 
+/** Сколько ждать опоздавший сигнал, пока медиа идёт, прежде чем считать связь потерянной (R151). */
+export const SIGNAL_GRACE_MS = 8_000;
+
 /** Network Information API: есть в Chrome на Android, нет в Safari и Firefox. */
 function connection(): EventTarget | undefined {
   return (navigator as Navigator & { connection?: EventTarget }).connection;
@@ -178,10 +183,17 @@ function createAudioContext(): AudioContext | null {
       ? (window.AudioContext ?? (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
       : undefined;
   if (!Context) return null;
+  // 48 кГц (R147): обработчик шумодава (`CordAudioProcessor`) работает на этом же контексте, а при
+  // другой частоте (Android — 44,1, гарнитура Bluetooth — 16) заводил свой, второй, — и его в фоне не
+  // будил никто: отправитель слал тишину при «живом» микрофоне. Один контекст — один будильник.
   try {
-    return new Context({ latencyHint: 'interactive' });
+    return new Context({ latencyHint: 'interactive', sampleRate: 48000 });
   } catch {
-    return null;
+    try {
+      return new Context({ latencyHint: 'interactive' });
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -448,6 +460,16 @@ export class MediaSession {
   private upstreamSampling = false;
   private screenGeneration = 0;
   private liveTimer?: ReturnType<typeof setInterval>;
+  /** Сторож микрофона после фона (R147): раз в секунду и сразу по возвращении на экран. */
+  private micTimer?: ReturnType<typeof setInterval>;
+  private readonly micSentinel = new MicSentinel({
+    track: () =>
+      this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track as
+        LocalAudioTrack | undefined,
+    wanted: () => !this.disposed && this.state.get().microphone,
+    visible: () => typeof document === 'undefined' || !document.hidden,
+    restarted: (reason) => console.info('[cord] microphone re-acquired', { reason }),
+  });
   private liveSampling = false;
   private liveHealth = new Map<string, LiveHealth>();
   /** Камеры, у которых кадры из сети могли остановиться без слова SFU (R119, `video-silence.ts`). */
@@ -458,6 +480,9 @@ export class MediaSession {
   /** Сумма принятых байт по всем дорожкам на прошлом опросе: растёт — медиа идёт. */
   private lastInboundBytes = 0;
   private lastAudioBytes = 0;
+  /** Когда в последний раз шли байты медиа: свидетель живого пути при опоздавшем сигнале (R151). */
+  private lastFlowAt = 0;
+  private signalGrace?: ReturnType<typeof setTimeout>;
   /** Голоса, чья переподписка ждёт паузы говорящего. */
   private pausing = new Set<string>();
   private resetting = new Set<string>();
@@ -512,7 +537,7 @@ export class MediaSession {
     });
     this.room
       .on(RoomEvent.Reconnecting, this.lost)
-      .on(RoomEvent.SignalReconnecting, this.lost)
+      .on(RoomEvent.SignalReconnecting, this.signalLost)
       .on(RoomEvent.Reconnected, this.connected)
       .on(RoomEvent.Connected, this.connected)
       .on(RoomEvent.Disconnected, (reason) => {
@@ -601,6 +626,7 @@ export class MediaSession {
     );
     window.addEventListener('cord:preferences', this.settingsChanged);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
+    this.micTimer = setInterval(() => void this.micSentinel.check(), 1000);
     // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
     // свёрнутое окно с музыкой чаще всего и слушают.
     this.playoutTimer = setInterval(() => void this.tunePlayout(), 2000);
@@ -712,6 +738,7 @@ export class MediaSession {
       const inbound = inboundBytes(this.playout.reports);
       const flowing = inbound > this.lastInboundBytes;
       this.lastInboundBytes = inbound;
+      if (flowing) this.lastFlowAt = Date.now();
       const audio = inboundBytes(this.playout.reports, 'audio');
       this.audioFlowing = audio > this.lastAudioBytes;
       this.lastAudioBytes = audio;
@@ -1280,6 +1307,8 @@ export class MediaSession {
         restored: info.restored,
       });
     if (this.state.get().status === 'connected') void this.audio.wake();
+    // Микрофон, который система заглушила или отобрала, пока Cord был в фоне (R147).
+    void this.micSentinel.check();
     this.wake.refresh();
     // SDK по возвращении перезапускает заглушённый телефоном микрофон; рассказ о перерыве — когда
     // новая дорожка уже живая.
@@ -1376,8 +1405,27 @@ export class MediaSession {
       this.refreshTracks();
     }
   }
+  /**
+   * Переподключается только сигнал (R151). На Wi-Fi под тяжёлым кинозалом сокет сигнала опаздывает, а
+   * медиа идёт как шло — и раньше это сразу становилось «потерей»: плитка «Восстанавливаем связь» у всех,
+   * пауза видео, ICE restart. Пока байты медиа идут и ICE жив, ждём сигнал {@link SIGNAL_GRACE_MS}: вернулся
+   * — ничего не было; не вернулся — это уже потеря.
+   */
+  private signalLost = () => {
+    if (this.disposed) return;
+    const flowing = Date.now() - this.lastFlowAt < 5_000 && this.playout.link?.ice === 'connected';
+    if (!flowing) {
+      this.lost();
+      return;
+    }
+    clearTimeout(this.signalGrace);
+    this.signalGrace = setTimeout(() => {
+      if (!this.disposed && this.room.state !== ConnectionState.Connected) this.lost();
+    }, SIGNAL_GRACE_MS);
+  };
   private lost = () => {
     if (this.disposed) return;
+    clearTimeout(this.signalGrace);
     this.liveHealth.clear();
     this.videoSilence.clear();
     // Застывшее у всех объясняет плашка восстановления, а не «слабая связь» на каждой плитке.
@@ -1405,6 +1453,7 @@ export class MediaSession {
   };
   private connected = () => {
     if (this.disposed) return;
+    clearTimeout(this.signalGrace);
     this.pathRetry.wake();
     if (this.recovery.active && this.recovery.remaining() <= 0) {
       this.dispose();
@@ -1658,6 +1707,15 @@ export class MediaSession {
           this.micBeforeDeafen = false;
           this.deafened.set(false);
           this.saveSettings({ deafened: false });
+        }
+        // Удержанный в фоне микрофон телефона (W5) система могла заглушить (R147): LiveKit при
+        // включении перезахватывает только кончившуюся дорожку, а заглушённая «живая» оставалась
+        // немой — перезахватить её до того, как включить. Кончившуюся перезахватит сам LiveKit.
+        if (!this.state.get().microphone) {
+          const held = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+          const raw = held?.mediaStreamTrack;
+          if (held && raw && raw.muted && raw.readyState === 'live')
+            await held.restartTrack().catch(() => {});
         }
         await this.room.localParticipant.setMicrophoneEnabled(
           !this.state.get().microphone,
@@ -2449,6 +2507,8 @@ export class MediaSession {
     this.videoSilence.clear();
     this.lastLiveReset.clear();
     clearInterval(this.liveTimer);
+    clearInterval(this.micTimer);
+    clearTimeout(this.signalGrace);
     clearInterval(this.playoutTimer);
     clearInterval(this.deadlineTimer);
     clearTimeout(this.reconnectTimer);
