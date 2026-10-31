@@ -3435,6 +3435,10 @@
         "network": {
           "q": "The connection drops, video looks blocky",
           "a": "Pause downloads and streams on the same connection; a cable or Wi‑Fi close to the router is noticeably steadier.\nVPNs and corporate networks sometimes get in the way of a direct connection — without them, sound and video lag less.\nIn the meeting, open “Settings and actions → Diagnostics”: it shows the path, loss and delay — you can attach them to your request."
+        },
+        "micBadge": {
+          "q": "A red microphone icon floats over games and windows",
+          "a": "This icon isn't drawn by Cord but by your graphics card software or Windows — you can turn it off.\nNVIDIA App / GeForce Experience: Alt+Z → Settings → HUD layout → “Status indicator” → off.\nAMD Software: Alt+R → Settings → General → “Overlay” — turn off the recording and microphone indicators.\nXbox Game Bar: Win+G → Settings → General — clear “Show recording indicator”.\nCord's own on-top items are only the speaking widget (overlay: “Settings → Overlay”) and the call mini window at the bottom right (“Settings → Windows”)."
         }
       }
     },

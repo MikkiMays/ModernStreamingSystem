@@ -3475,6 +3475,10 @@
         "network": {
           "q": "La connessione si interrompe, il video è a blocchi",
           "a": "Metti in pausa download e streaming sulla stessa connessione; un cavo o il Wi‑Fi vicino al router sono molto più stabili.\nVPN e reti aziendali a volte ostacolano la connessione diretta — senza di esse audio e video arrivano con meno ritardo.\nNella riunione apri «Impostazioni e azioni → Diagnostica»: lì vedi percorso, perdite e ritardo — puoi allegarli alla richiesta."
+        },
+        "micBadge": {
+          "q": "Sopra giochi e finestre compare un’icona rossa del microfono",
+          "a": "Questa icona non la disegna Cord, ma il software della scheda video o Windows: puoi disattivarla.\nNVIDIA App / GeForce Experience: Alt+Z → Impostazioni → Layout HUD → «Indicatore di stato» → disattivato.\nAMD Software: Alt+R → Impostazioni → Generale → «Overlay»: disattiva gli indicatori di registrazione e microfono.\nXbox Game Bar: Win+G → Impostazioni → Generale: deseleziona «Mostra indicatore di registrazione».\nDi Cord restano in primo piano solo il widget di chi parla (overlay: «Impostazioni → Overlay») e la mini finestra di chiamata in basso a destra («Impostazioni → Windows»)."
         }
       }
     },
