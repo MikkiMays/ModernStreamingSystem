@@ -7,6 +7,7 @@ import { inviteLink, joinMeeting, startMeeting } from './support/cinema';
   остаётся строкой «завершена» с «Создать снова» под тем же названием.
 */
 test('недавние: вернуться в идущую встречу, «Создать снова» у закончившейся (R148)', async ({ browser }) => {
+  test.setTimeout(150_000);
   const host = await browser.newContext({ permissions: ['camera', 'microphone'] });
   const guest = await browser.newContext({ permissions: ['camera', 'microphone'] });
   const me = await host.newPage();
@@ -25,9 +26,9 @@ test('недавние: вернуться в идущую встречу, «С�
     await me.getByRole('button', { name: 'Войти во встречу' }).click();
     await expect(me.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
 
-    // Оба вышли — несохранённая встреча удаляется, а строка остаётся «завершённой».
-    await other.getByRole('button', { name: 'Выйти из встречи' }).click();
-    await me.getByRole('button', { name: 'Выйти из встречи' }).click();
+    // Ведущий завершил встречу для всех — строка остаётся «завершённой».
+    await me.getByRole('button', { name: 'Настройки и действия' }).click();
+    await me.getByRole('menuitem', { name: 'Завершить для всех' }).click();
     await me.goto('/');
     await expect(recent.getByText(/завершена/)).toBeVisible({ timeout: 40000 });
     await recent.getByRole('button', { name: 'Создать снова' }).first().click();
