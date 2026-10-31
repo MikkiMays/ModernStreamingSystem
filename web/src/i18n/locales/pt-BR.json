@@ -447,7 +447,8 @@
       "leaveFirst": "Saia da reunião primeiro",
       "change": "Trocar de servidor",
       "forget": "Esquecer senha",
-      "here": "Você está aqui"
+      "here": "Você está aqui",
+      "shared": "As configurações valem para todos os servidores. Salas, favoritos e reuniões recentes são separados em cada servidor."
     },
     "sounds": {
       "cues": "Alertas",

@@ -447,7 +447,8 @@
       "leaveFirst": "Verlasse zuerst das Meeting",
       "change": "Server wechseln",
       "forget": "Passwort vergessen",
-      "here": "Du bist hier"
+      "here": "Du bist hier",
+      "shared": "Die Einstellungen gelten für alle Server. Räume, Favoriten und letzte Meetings hat jeder Server für sich."
     },
     "sounds": {
       "cues": "Signale",

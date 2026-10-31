@@ -447,7 +447,8 @@
       "leaveFirst": "Prima esci dalla riunione",
       "change": "Cambia server",
       "forget": "Dimentica la password",
-      "here": "Sei qui"
+      "here": "Sei qui",
+      "shared": "Le impostazioni sono comuni a tutti i server. Stanze, preferiti e riunioni recenti sono separati per ogni server."
     },
     "sounds": {
       "cues": "Segnali",

@@ -447,7 +447,8 @@
       "leaveFirst": "Leave the meeting first",
       "change": "Change server",
       "forget": "Forget password",
-      "here": "You’re here"
+      "here": "You’re here",
+      "shared": "Settings are shared by all servers. Rooms, Favorites and recent meetings are separate on each server."
     },
     "sounds": {
       "cues": "Alerts",

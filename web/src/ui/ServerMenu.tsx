@@ -4,14 +4,17 @@ import { Check } from 'lucide-react';
 import { loadServerCatalog, serverName, type CatalogServer } from '../core/catalog';
 import { currentServerUrl } from '../core/servers';
 import { useCatalogLoad } from '../core/server-load';
+import { goToServer } from '../core/shared-preferences';
 import { locale } from '../i18n';
 import { Button, LoadBars, Menu, MenuContent, MenuItem, MenuTrigger, type ButtonProps } from './kit';
 import './server-menu.css';
 
 /**
  * «Сменить сервер» в браузере (R136): серверы Cord из каталога этой установки, а выбор — просто
- * переход на сайт того сервера. Встречи, избранное и имя принадлежат серверу и с ним не переезжают;
- * там свой вход. Текущий сервер стоит в списке отмеченным, чтобы было видно, где вы сейчас.
+ * переход на сайт того сервера. Настройки общие (R146): несекретные едут с переходом во фрагменте
+ * адреса (`goToServer`, `core/shared-preferences.ts`); встречи, избранное и недавние у каждого
+ * сервера свои, и вход там свой. Текущий сервер стоит в списке отмеченным, чтобы было видно, где вы
+ * сейчас.
  *
  * Каталога нет или в нём только этот сервер — кнопки нет: выбирать не из чего. В приложении для
  * Windows эта кнопка не нужна — у него свой список серверов (`servers.open`).
@@ -68,7 +71,7 @@ export function ServerMenu({
               icon={current ? <Check /> : null}
               disabled={current}
               className="server-menu__item"
-              onClick={() => location.assign(server.url)}
+              onClick={() => goToServer(server.url)}
             >
               <span className="server-menu__name">{serverName(server, language)}</span>
               <span className="server-menu__host">

@@ -400,3 +400,71 @@ describe('видеокарта и аппаратный AV1 (R152)', () => {
     expect(parseShellGpu({ devices: 'x' })).toBeNull();
   });
 });
+
+/*
+  Общие настройки (R146, Р-39): то, что шлёт `core/shared-preferences.ts`, проходит схему оболочки —
+  она отказывает всему сообщению за чужой ключ, тип или размер (`messages.ts`, validSharedValue).
+*/
+describe('общие настройки для всех серверов (R146)', () => {
+  it('флаг prefs.shared, протокол minor 1, Bootstrap.shared и yandexMusicToken', () => {
+    expect(contract.$defs.feature!.enum).toContain('prefs.shared');
+    const bootstrap = {
+      profile: '',
+      theme: 'system',
+      language: null,
+      showPing: false,
+      notificationSounds: true,
+      autoConnect: true,
+      shared: { name: 'Ника', deafened: true, devices: { microphone: 'USB Mic' } },
+      yandexMusicToken: 'y0_AgAAAA',
+    };
+    expect(errors(bootstrap, def('bootstrap'))).toEqual([]);
+    expect(errors({ ...bootstrap, yandexMusicToken: null, shared: {} }, def('bootstrap'))).toEqual([]);
+    expect(
+      errors({ ...bootstrap, shared: { favorites: [] } }, def('bootstrap')),
+      'избранное — своё у сервера',
+    ).not.toEqual([]);
+    expect(errors({ ...bootstrap, yandexMusicToken: 't'.repeat(1001) }, def('bootstrap'))).not.toEqual([]);
+    expect(errors({ major: 2, minor: 1 }, def('protocol'))).toEqual([]);
+  });
+
+  it('preferences.changed {shared, seed}: записи {value, at}, белый список ключей', async () => {
+    const { sharedValues } = await import('./shared-preferences');
+    const values = sharedValues(readPreferences());
+    const shared = Object.fromEntries(
+      Object.entries({ ...values, yandexMusicToken: 'y0_AgAAAA', devices: { camera: 'HD Webcam' } }).map(
+        ([key, value]) => [key, { value, at: 1_793_451_200_000 }],
+      ),
+    );
+    expect(errors({ shared, seed: true }, def('preferencesChanged'))).toEqual([]);
+    for (const [key, entry] of Object.entries(shared))
+      if (key !== 'yandexMusicToken' && key !== 'devices')
+        expect(errors({ [key]: entry.value }, def('sharedValues')), key).toEqual([]);
+    expect(errors({ showPing: true, notificationSounds: false }, def('preferencesChanged'))).toEqual([]);
+    expect(errors({ shared: { favorites: { value: [], at: 1 } } }, def('preferencesChanged'))).not.toEqual(
+      [],
+    );
+    expect(
+      errors({ shared: { name: { value: 'Ника' } } }, def('preferencesChanged')),
+      'без времени',
+    ).not.toEqual([]);
+    expect(errors({ shared: {}, seed: 'yes' }, def('preferencesChanged'))).not.toEqual([]);
+  });
+
+  it('фон в видео (R153) — общий: размытие, встроенный фон или своё фото; чужой вид — отказ', () => {
+    for (const background of [
+      { kind: 'none' },
+      { kind: 'blur', strength: 'strong' },
+      { kind: 'image', id: 'custom' },
+    ])
+      expect(errors({ background }, def('sharedValues')), JSON.stringify(background)).toEqual([]);
+    expect(errors({ background: { kind: 'video' } }, def('sharedValues'))).not.toEqual([]);
+    expect(errors({ background: { kind: 'image', url: 'https://x' } }, def('sharedValues'))).not.toEqual([]);
+  });
+
+  it('«Звук встречи» (R156): mini.state.deafened и нажатие deafen', () => {
+    expect(errors({ room: 'Пятница', deafened: true }, def('miniState'))).toEqual([]);
+    expect(errors({ deafened: 'yes' }, def('miniState'))).not.toEqual([]);
+    expect(errors({ id: 'deafen', want: true, seq: 4 }, def('miniAction'))).toEqual([]);
+  });
+});

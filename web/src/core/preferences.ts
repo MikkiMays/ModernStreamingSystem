@@ -228,6 +228,16 @@ export function readPreferences(): Preferences {
   } catch {
     /* Use defaults. */
   }
+  return parsePreferences(data, localStorage.getItem('cord:name'));
+}
+/**
+ * Запись настроек → настройки: всё по схеме, незнакомое и испорченное — умолчанием. Имя — из
+ * `storedName` (`cord:name`), а без него — из самой записи. Тем же разбором общие настройки
+ * (`shared-preferences.ts`) сводят пришедшее с другого сервера к допустимому здесь.
+ */
+export function parsePreferences(source: unknown, storedName: string | null = null): Preferences {
+  const data: Partial<Preferences> =
+    source && typeof source === 'object' && !Array.isArray(source) ? (source as Partial<Preferences>) : {};
   const devices: DeviceChoice = {};
   for (const kind of ['camera', 'microphone', 'speaker'] as const)
     if (typeof data.devices?.[kind] === 'string') devices[kind] = data.devices[kind];
@@ -287,10 +297,7 @@ export function readPreferences(): Preferences {
         return typeof id === 'string' && /^[a-z][a-z-]{0,31}$/.test(id) ? [[area, id]] : [];
       }),
     ),
-    name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
-      0,
-      40,
-    ),
+    name: (storedName ?? (typeof data.name === 'string' ? data.name : '')).slice(0, 40),
     // The server checks this again before showing it to anyone; this only keeps a corrupt
     // entry from being sent in the first place.
     avatar:
@@ -316,6 +323,36 @@ export function readPreferences(): Preferences {
           : { ...defaultDeafenHotkey },
   };
 }
+/**
+ * Кто ещё узнаёт о сохранённом: общие для всех серверов настройки клиента Windows (R146,
+ * `shared-preferences.ts`), когда у оболочки есть флаг `prefs.shared`. Пока его нет — оболочке уходят
+ * только PING и сигналы, как раньше.
+ */
+type PreferencesSync = (before: Preferences, after: Preferences, patch: Partial<Preferences>) => void;
+let sync: PreferencesSync | null = null;
+export function setPreferencesSync(next: PreferencesSync | null) {
+  sync = next;
+}
+/**
+ * Записать в хранилище этого сервера, не сообщая оболочке: так ложится то, что пришло от неё самой
+ * (общие настройки с другого сервера) или найдено по названию устройства.
+ */
+export function writeLocalPreferences(patch: Record<string, unknown>) {
+  let data: Record<string, unknown> = {};
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(key) ?? '{}');
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) data = saved as Record<string, unknown>;
+  } catch {
+    /* Испорченная запись — собирается заново. */
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...data, ...patch }));
+    if (typeof patch.name === 'string') localStorage.setItem('cord:name', patch.name.trim().slice(0, 40));
+  } catch {
+    /* Хранилище недоступно — останется прежнее. */
+  }
+  window.dispatchEvent(new Event('cord:preferences'));
+}
 export function savePreferences(patch: Partial<Preferences>): Preferences {
   const current = readPreferences();
   // Уровень показа приходит и без режима/превью (ряды качества знают только кадр и частоту):
@@ -332,6 +369,11 @@ export function savePreferences(patch: Partial<Preferences>): Preferences {
     /* Still apply for this call. */
   }
   window.dispatchEvent(new Event('cord:preferences'));
+  // Общие настройки (R146): оболочке — изменившиеся общие ключи, пачкой и не на каждый шаг ползунка.
+  if (sync) {
+    sync(current, readPreferences(), patch);
+    return next;
+  }
   // Оболочке нужны только PING и сигналы — и только когда они поменялись: ползунок громкости
   // иначе слал бы IPC на каждый шаг перетаскивания (R14).
   if (next.showPing !== current.showPing || next.notificationSounds !== current.notificationSounds)
