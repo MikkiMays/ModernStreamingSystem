@@ -315,6 +315,11 @@
         "label": "Share preview",
         "hint": "Viewers see a thumbnail without opening the share",
         "keywords": "preview thumbnail screen share stream"
+      },
+      "camera-background": {
+        "label": "Background",
+        "hint": "Blur or a picture behind you",
+        "keywords": "background blur virtual backdrop"
       }
     },
     "title": "Settings",
@@ -3484,5 +3489,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "up to {{fps}} fps",
     "share": "Share"
+  },
+  "background": {
+    "title": "Background",
+    "none": "No background",
+    "blurLight": "Light blur",
+    "blurStrong": "Strong blur",
+    "builtin": {
+      "graphite": "Graphite",
+      "mist": "Mist",
+      "dawn": "Dawn",
+      "forest": "Forest",
+      "sea": "Sea",
+      "sand": "Sand"
+    },
+    "custom": "Your photo",
+    "upload": "Upload your photo",
+    "replace": "Replace photo",
+    "uploadFailed": "Couldn't open this photo",
+    "notHere": "Backgrounds aren't available on this device — the camera goes as is"
   }
 }

@@ -315,6 +315,11 @@
         "label": "Anteprima della condivisione",
         "hint": "Chi guarda vede una miniatura senza aprirla",
         "keywords": "anteprima miniatura condivisione schermo stream"
+      },
+      "camera-background": {
+        "label": "Sfondo",
+        "hint": "Sfocatura o un’immagine dietro di te",
+        "keywords": "sfondo sfocatura virtuale"
       }
     },
     "title": "Impostazioni",
@@ -3523,5 +3528,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "fino a {{fps}} fps",
     "share": "Condividi"
+  },
+  "background": {
+    "title": "Sfondo",
+    "none": "Nessuno sfondo",
+    "blurLight": "Sfocatura leggera",
+    "blurStrong": "Sfocatura forte",
+    "builtin": {
+      "graphite": "Grafite",
+      "mist": "Nebbia",
+      "dawn": "Alba",
+      "forest": "Foresta",
+      "sea": "Mare",
+      "sand": "Sabbia"
+    },
+    "custom": "La tua foto",
+    "upload": "Carica la tua foto",
+    "replace": "Sostituisci foto",
+    "uploadFailed": "Impossibile aprire questa foto",
+    "notHere": "Gli sfondi non sono disponibili su questo dispositivo: la videocamera resta com’è"
   }
 }

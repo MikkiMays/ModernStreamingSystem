@@ -315,6 +315,11 @@
         "label": "Aperçu du partage",
         "hint": "Les spectateurs voient une miniature sans l'ouvrir",
         "keywords": "aperçu miniature partage d'écran stream"
+      },
+      "camera-background": {
+        "label": "Arrière-plan",
+        "hint": "Flou ou image derrière vous",
+        "keywords": "arrière-plan flou virtuel fond"
       }
     },
     "title": "Paramètres",
@@ -3523,5 +3528,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "jusqu’à {{fps}} fps",
     "share": "Partager"
+  },
+  "background": {
+    "title": "Arrière-plan",
+    "none": "Aucun arrière-plan",
+    "blurLight": "Flou léger",
+    "blurStrong": "Flou fort",
+    "builtin": {
+      "graphite": "Graphite",
+      "mist": "Brume",
+      "dawn": "Aurore",
+      "forest": "Forêt",
+      "sea": "Mer",
+      "sand": "Sable"
+    },
+    "custom": "Votre photo",
+    "upload": "Importer votre photo",
+    "replace": "Remplacer la photo",
+    "uploadFailed": "Impossible d’ouvrir cette photo",
+    "notHere": "Les arrière-plans ne sont pas disponibles sur cet appareil : la caméra reste telle quelle"
   }
 }

@@ -204,6 +204,7 @@ export const ROWS = {
   'output-volume': { section: 'audio', anchor: 'output' },
   'camera-preview': { section: 'video', anchor: 'camera' },
   'camera-device': { section: 'video', anchor: 'camera' },
+  'camera-background': { section: 'video', anchor: 'camera' },
   'camera-resolution': { section: 'video', anchor: 'camera' },
   'camera-fps': { section: 'video', anchor: 'camera' },
   'screen-resolution': { section: 'video', anchor: 'screen' },

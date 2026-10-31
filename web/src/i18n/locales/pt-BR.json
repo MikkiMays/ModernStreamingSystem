@@ -315,6 +315,11 @@
         "label": "Prévia do compartilhamento",
         "hint": "Quem assiste vê uma miniatura sem abrir",
         "keywords": "prévia miniatura compartilhamento de tela stream"
+      },
+      "camera-background": {
+        "label": "Fundo",
+        "hint": "Desfoque ou uma imagem atrás de você",
+        "keywords": "fundo desfoque virtual"
       }
     },
     "title": "Configurações",
@@ -3523,5 +3528,24 @@
     "fps": "{{fps}} fps",
     "fpsUpTo": "até {{fps}} fps",
     "share": "Compartilhar"
+  },
+  "background": {
+    "title": "Fundo",
+    "none": "Sem fundo",
+    "blurLight": "Desfoque leve",
+    "blurStrong": "Desfoque forte",
+    "builtin": {
+      "graphite": "Grafite",
+      "mist": "Névoa",
+      "dawn": "Aurora",
+      "forest": "Floresta",
+      "sea": "Mar",
+      "sand": "Areia"
+    },
+    "custom": "Sua foto",
+    "upload": "Enviar sua foto",
+    "replace": "Trocar foto",
+    "uploadFailed": "Não foi possível abrir esta foto",
+    "notHere": "Fundos não estão disponíveis neste dispositivo — a câmera segue como está"
   }
 }

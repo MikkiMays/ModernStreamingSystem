@@ -1,3 +1,4 @@
+import { BackgroundSubmenu } from './BackgroundPicker';
 import { Check, SwitchCamera, Video, ZoomIn } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TrackEvent } from 'livekit-client';
@@ -60,7 +61,9 @@ export function CameraFlip({ meeting, disabled }: { meeting: Meeting; disabled?:
 export function CameraSubmenu({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<MediaDeviceInfo[] | null>(null);
-  const chosen = useStore(meeting.media.preferences).devices.camera;
+  const preferences = useStore(meeting.media.preferences);
+  const chosen = preferences.devices.camera;
+  const background = preferences.background;
   // Подменю живёт, пока открыто «ещё»: список читается при каждом открытии — камеру могли
   // подключить между ними.
   useEffect(() => {
@@ -102,6 +105,12 @@ export function CameraSubmenu({ meeting }: { meeting: Meeting }) {
         ))}
       </MenuRadioGroup>
       <MenuZoom meeting={meeting} />
+      <MenuSeparator />
+      {/* Фон в видео (R153) — на лету, без переопубликации камеры. */}
+      <BackgroundSubmenu
+        value={background}
+        onChange={(choice) => meeting.media.saveSettings({ background: choice })}
+      />
     </MenuSubmenu>
   );
 }
