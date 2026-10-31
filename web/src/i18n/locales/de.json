@@ -2041,7 +2041,6 @@
       "toStart": "Für alle an den Anfang",
       "sync": "Mit dem Raum synchronisieren",
       "skip": {
-        "intro": "85 Sekunden für alle überspringen",
         "ad": "Werbung für alle überspringen",
         "adShort": "Werbung überspringen",
         "adLabel": "Werbung im Stream"
@@ -2691,10 +2690,6 @@
       "music": {
         "name": "Musik",
         "hint": "Eine gemeinsame Warteschlange für das ganze Meeting"
-      },
-      "any-game": {
-        "name": "Beliebiges Spiel",
-        "hint": "Browserspiele für das ganze Meeting"
       },
       "standup": {
         "name": "Stand-up-Bühne",

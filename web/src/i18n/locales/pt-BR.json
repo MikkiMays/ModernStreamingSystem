@@ -2066,7 +2066,6 @@
       "toStart": "Ir ao início para todos",
       "sync": "Sincronizar com a sala",
       "skip": {
-        "intro": "Pular 85 segundos para todos",
         "ad": "Pular o anúncio para todos",
         "adShort": "Pular anúncio",
         "adLabel": "Anúncio na transmissão"
@@ -2721,10 +2720,6 @@
       "music": {
         "name": "Música",
         "hint": "Uma fila compartilhada para a reunião toda"
-      },
-      "any-game": {
-        "name": "Qualquer jogo",
-        "hint": "Jogos de navegador para a reunião toda"
       },
       "standup": {
         "name": "Palco de stand-up",

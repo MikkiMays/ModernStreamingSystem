@@ -2,13 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
 import { SHELF, musicHint, shelfHint, shelfName, telegramNote } from './integration-shelf';
 
-describe('витрина интеграций (T30, T08, T12, T13)', () => {
+describe('витрина интеграций (T30, T12, T13, R158)', () => {
   it('порядок: игры, кинозал, музыка, затем «Скоро», Telegram — в самом низу', () => {
     expect(SHELF.map((item) => item.id)).toEqual([
       'games',
       'cinema',
       'music',
-      'any-game',
       'standup',
       'board',
       'telegram',
@@ -21,7 +20,6 @@ describe('витрина интеграций (T30, T08, T12, T13)', () => {
   it('у каждой «Скоро» — одна строка о том, что это будет', () => {
     const soon = SHELF.filter((item) => item.soon);
     expect(soon.map((item) => shelfName(t, item.id))).toEqual([
-      'Любая игра',
       'Сцена стендап',
       'Доска рисования',
       'Telegram',

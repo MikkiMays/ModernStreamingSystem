@@ -44,6 +44,12 @@
   height: 100%;
   object-fit: cover;
 }
+/* Кадр поверх лица, вне сетки (R155): портретная камера телефона не сдвигает и не тянет лицо. */
+.game-person-face video {
+  position: absolute;
+  inset: 0;
+  object-position: 50% 35%;
+}
 .game-person[data-speaking] .game-person-face {
   outline-color: var(--speaking);
 }

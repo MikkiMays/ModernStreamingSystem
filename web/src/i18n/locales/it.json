@@ -2066,7 +2066,6 @@
       "toStart": "All'inizio per tutti",
       "sync": "Allineati alla stanza",
       "skip": {
-        "intro": "Salta 85 secondi per tutti",
         "ad": "Salta la pubblicità per tutti",
         "adShort": "Salta la pubblicità",
         "adLabel": "Pubblicità nel flusso"
@@ -2721,10 +2720,6 @@
       "music": {
         "name": "Musica",
         "hint": "Una coda comune per tutta la riunione"
-      },
-      "any-game": {
-        "name": "Qualsiasi gioco",
-        "hint": "Giochi nel browser per tutta la riunione"
       },
       "standup": {
         "name": "Palco stand-up",

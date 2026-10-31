@@ -2041,7 +2041,6 @@
       "toStart": "Back to the start for everyone",
       "sync": "Sync to the room",
       "skip": {
-        "intro": "Skip 85 seconds for everyone",
         "ad": "Skip the ad for everyone",
         "adShort": "Skip ad",
         "adLabel": "Ad in the stream"
@@ -2691,10 +2690,6 @@
       "music": {
         "name": "Music",
         "hint": "One shared queue for the whole meeting"
-      },
-      "any-game": {
-        "name": "Any game",
-        "hint": "Browser games for the whole meeting"
       },
       "standup": {
         "name": "Stand-up stage",
