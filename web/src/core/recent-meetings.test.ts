@@ -58,6 +58,8 @@ describe('недавние встречи на устройстве (R148)', () 
     expect(listRecent(1000 + CREDENTIAL_MS - 1)[0]!.credential).toBe('a-member.secret');
     const later = listRecent(1000 + CREDENTIAL_MS + 1)[0]!;
     expect(later.credential).toBeUndefined();
+    // И на диске его нет — не только в том, что вернули.
+    expect(localStorage.getItem('cord:recent:v1')).not.toContain('a-member.secret');
     expect(later.roomId).toBe('a');
   });
 

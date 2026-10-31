@@ -229,6 +229,13 @@ public class RoomSocket extends TextWebSocketHandler {
    */
   @org.springframework.context.event.EventListener
   public void preview(ScreenPreview preview) {
+    // Не в потоке команды: она держит замок строки комнаты, а сокет зрителя держит свой замок, пока
+    // ждёт
+    // ту же строку, — замки навстречу друг другу, и встреча вставала намертво (ревью 01.11.2026).
+    fanOut.execute(() -> sendPreview(preview));
+  }
+
+  private void sendPreview(ScreenPreview preview) {
     for (var c : sockets.values())
       if (preview.roomId().equals(c.roomId) && !preview.participantId().equals(c.participantId))
         synchronized (c) {

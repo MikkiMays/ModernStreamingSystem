@@ -251,6 +251,30 @@ describe('нажми и говори: setMicrophone', () => {
     }
   });
 
+  it('звук встречи выключили, пока микрофон включался, — микрофон выключается, а со звуком возвращается', async () => {
+    const { media } = micFixture();
+    const inner = media as unknown as { deviceBusy: Set<string>; micHeading: boolean | undefined };
+    try {
+      // Включение в пути (захват, окно разрешения): `state` ещё «выключен».
+      inner.deviceBusy.add('microphone');
+      inner.micHeading = true;
+      const deafen = media.setDeafened(true);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      media.state.set({ ...media.state.get(), microphone: true });
+      inner.micHeading = undefined;
+      inner.deviceBusy.delete('microphone');
+      await deafen;
+      expect(media.deafened.get()).toBe(true);
+      expect(media.state.get().microphone).toBe(false);
+      await media.setDeafened(false);
+      expect(media.state.get().microphone).toBe(true);
+    } finally {
+      // Звук встречи сохраняется в настройках — не оставить его выключенным следующему тесту.
+      await media.setDeafened(false);
+      media.dispose();
+    }
+  });
+
   it('уже в нужном состоянии — ничего не делает', async () => {
     const { media, toggle } = micFixture();
     try {

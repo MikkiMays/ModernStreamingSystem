@@ -155,6 +155,27 @@ class BoardRoomTest {
   }
 
   @Test
+  void deletedElementsCountAgainstTheSceneSizeButDeletingALiveOneAlwaysWorks() {
+    // Новый элемент сразу удалённым нёс до 64 КБ и мимо предела сцены — 20 000 таких выедали память
+    // ядра.
+    var small = room(100, 100, 600, 32);
+    var big = ",\"text\":\"" + "я".repeat(150) + "\"";
+    assertThat(small.apply(batch(el("t", 1, 1, false, "text", big)), "anna").accepted())
+        .isEqualTo(1);
+    assertThat(small.apply(batch(el("ghost", 1, 1, true, "text", big)), "anna").rejected())
+        .extracting(BoardRoom.Rejected::code)
+        .containsExactly("BOARD_FULL");
+    // А удалить живой элемент полной сцены — можно: удаление почти не меняет его размер.
+    assertThat(small.apply(batch(el("t", 2, 1, true, "text", big)), "anna").accepted())
+        .isEqualTo(1);
+    // Удалённый же расти дальше не может.
+    var bigger = ",\"text\":\"" + "я".repeat(400) + "\"";
+    assertThat(small.apply(batch(el("t", 3, 1, true, "text", bigger)), "anna").rejected())
+        .extracting(BoardRoom.Rejected::code)
+        .containsExactly("BOARD_FULL");
+  }
+
+  @Test
   void limitsRefuseGrowthButNotDeletion() {
     var room = room(2, 3, 1 << 20, 32);
     room.apply(batch(el("a", 1, 1), el("b", 1, 1)), "anna");

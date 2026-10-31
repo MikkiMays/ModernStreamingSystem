@@ -455,6 +455,8 @@ export class MediaSession {
   private lingeringAudio?: ScreenAudioLink;
   /** «Нажми и говори»: каким микрофон должен стать — побеждает последнее нажатие или отпускание. */
   private micTarget = false;
+  /** Куда идёт переключение микрофона, пока оно идёт (захват, окно разрешения): `state` его ещё не знает. */
+  private micHeading: boolean | undefined;
   private micSetting?: Promise<void>;
   private deviceBusy = new Set<string>();
   private wanted = { microphone: false, camera: false };
@@ -1664,19 +1666,23 @@ export class MediaSession {
    */
   async setDeafened(value: boolean) {
     if (this.disposed || value === this.deafened.get()) return;
+    // Намерение, а не мгновенное состояние: идущее переключение микрофона (захват, окно разрешения)
+    // ещё не дошло до `state`, и без этого звук встречи выключался при микрофоне, который через миг
+    // включался (ревью 01.11.2026). `setMicrophone` сам дождётся переключения и сведёт к цели.
+    const intended = this.micHeading ?? this.state.get().microphone;
     if (value) {
-      this.micBeforeDeafen = this.state.get().microphone;
+      this.micBeforeDeafen = intended;
       signal('mic-off');
       this.deafened.set(true);
       this.saveSettings({ deafened: true });
-      if (this.state.get().microphone) await this.setMicrophone(false);
+      await this.setMicrophone(false);
     } else {
       this.deafened.set(false);
       this.saveSettings({ deafened: false });
       signal('mic-on');
       const restore = this.micBeforeDeafen;
       this.micBeforeDeafen = false;
-      if (restore && !this.state.get().microphone) await this.setMicrophone(true);
+      if (restore) await this.setMicrophone(true);
     }
   }
   /** Вход с выключенным звуком встречи: микрофон с предвхода включится, когда включат звук. */
@@ -1696,12 +1702,14 @@ export class MediaSession {
   private async reconcileMicrophone() {
     // Переключение руками (кнопка в пульте) ещё идёт — подождать его, но не бесконечно.
     for (let waited = 0; !this.disposed && waited < 100;) {
-      if (this.micTarget === this.state.get().microphone) return;
+      // Сначала дождаться идущего переключения, потом сравнивать: пока оно идёт, `state` прежний, и
+      // «уже как надо» по нему — ошибка (звук встречи выключили, пока микрофон включался).
       if (this.deviceBusy.has('microphone')) {
         waited++;
         await new Promise((resolve) => setTimeout(resolve, 50));
         continue;
       }
+      if (this.micTarget === this.state.get().microphone) return;
       const before = this.state.get().microphone;
       await this.toggle('microphone', undefined, false);
       // Не переключился (нет доступа, нет устройства) — ошибку уже показали, не долбим.
@@ -1719,6 +1727,7 @@ export class MediaSession {
   async toggle(kind: 'microphone' | 'camera', deviceId?: string, announce = true) {
     if (this.deviceBusy.has(kind) || this.disposed) return;
     this.deviceBusy.add(kind);
+    if (kind === 'microphone') this.micHeading = !this.state.get().microphone;
     try {
       const reusedCamera =
         kind === 'camera' && !!this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
@@ -1794,6 +1803,7 @@ export class MediaSession {
     } catch (error) {
       this.report(error);
     } finally {
+      if (kind === 'microphone') this.micHeading = undefined;
       this.deviceBusy.delete(kind);
     }
   }

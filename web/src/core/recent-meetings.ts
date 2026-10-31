@@ -64,21 +64,25 @@ export function listRecent(now = Date.now()): RecentEntry[] {
   }
   if (cache && cache.raw === raw && now < cache.until) return cache.entries;
   let entries: RecentEntry[] = [];
+  let expired = false;
   try {
     const saved = JSON.parse(raw ?? 'null') as { profile?: string; items?: unknown } | null;
     if (saved?.profile === profileSecret() && Array.isArray(saved.items))
       entries = saved.items
         .filter(valid)
-        .map((entry) =>
-          entry.credentialUntil && entry.credentialUntil > now
-            ? entry
-            : { ...entry, credential: undefined, participantId: undefined, credentialUntil: undefined },
-        )
+        .map((entry) => {
+          if (!entry.credential || (entry.credentialUntil && entry.credentialUntil > now)) return entry;
+          expired = true;
+          return { ...entry, credential: undefined, participantId: undefined, credentialUntil: undefined };
+        })
         .sort((a, b) => b.lastAt - a.lastAt)
         .slice(0, RECENT_MAX);
   } catch {
     entries = [];
   }
+  // Пропуск хранится не дольше суток — и на диске тоже, а не только в том, что отдаём (ревью 01.11.2026):
+  // кто не заходит в новые встречи, держал бы его в хранилище, пока жива комната.
+  if (expired) raw = persist(entries) ?? raw;
   const until = Math.min(
     Infinity,
     ...entries.flatMap((entry) => (entry.credentialUntil ? [entry.credentialUntil] : [])),
@@ -87,15 +91,19 @@ export function listRecent(now = Date.now()): RecentEntry[] {
   return entries;
 }
 
-function write(entries: RecentEntry[]) {
+/** Записать список; вернуть записанное или null, если хранилище закрыто. */
+function persist(entries: RecentEntry[]): string | null {
+  const text = JSON.stringify({ profile: profileSecret(), items: entries.slice(0, RECENT_MAX) });
   try {
-    localStorage.setItem(
-      KEY,
-      JSON.stringify({ profile: profileSecret(), items: entries.slice(0, RECENT_MAX) }),
-    );
+    localStorage.setItem(KEY, text);
+    return text;
   } catch {
-    /* Хранилище закрыто — список просто не запомнится. */
+    return null; // Хранилище закрыто — список просто не запомнится.
   }
+}
+
+function write(entries: RecentEntry[]) {
+  persist(entries);
   window.dispatchEvent(new Event(CHANGED));
 }
 

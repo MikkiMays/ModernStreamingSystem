@@ -4,6 +4,7 @@ import type { Meeting } from '../../core/meeting';
 import { readPreferences } from '../../core/preferences';
 import { Store } from '../../core/store';
 import { AudioSection } from './AudioSection';
+import { loadSdk } from '../../media/sdk';
 
 /*
   «Микрофон» (R141): шкала уровня живёт сама, пока раздел открыт, — без кнопки «Проверить». Проба —
@@ -113,15 +114,12 @@ afterEach(() => {
 });
 
 const meter = () => screen.getByRole('meter', { name: 'Уровень микрофона' });
-// SDK проверка берёт по требованию (`await import('livekit-client')`), а импорт в vitest — цепочка
-// неизвестной длины. Ждём так же: несколько импортов подряд — цепочка компонента (возобновить AudioContext,
-// импорт, захват, состояние) успевает дойти до разметки и на медленной машине CI, где одного не хватало.
+// SDK проверка берёт по требованию — одним обещанием на страницу (`media/sdk.ts`): дождаться того же
+// объекта, что ждёт компонент, и отпустить микрозадачи — захват, уровень и состояние доходят до разметки.
 const settle = () =>
   act(async () => {
-    for (let i = 0; i < 8; i++) {
-      await import('livekit-client');
-      await Promise.resolve();
-    }
+    await loadSdk();
+    for (let i = 0; i < 20; i++) await Promise.resolve();
   });
 
 function section(meeting?: Meeting, preferences = readPreferences()) {

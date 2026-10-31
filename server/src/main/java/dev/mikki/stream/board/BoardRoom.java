@@ -32,6 +32,12 @@ import java.util.regex.Pattern;
  */
 public final class BoardRoom {
   /**
+   * Сколько удаление может прибавить к элементу (версия, отметка времени) и всё равно пройти сверх
+   * предела.
+   */
+  static final int DELETION_SLACK_BYTES = 256;
+
+  /**
    * Что можно рисовать. Встраиваемых рамок (embeddable, iframe) и ИИ-рамок здесь нет — их не
    * пускаем.
    */
@@ -171,9 +177,16 @@ public final class BoardRoom {
       boolean wasLive = existing != null && !existing.deleted();
       boolean isLive = !candidate.deleted();
       long nextBytes = bytes - (existing == null ? 0 : existing.size()) + candidate.size();
+      // Удалить живой элемент можно всегда (запас — на метаданные удаления). Всё остальное, что
+      // раздувает
+      // сцену сверх предела, — отказ, и удалённое тоже: новый элемент сразу с isDeleted нёс до 64
+      // КБ любого
+      // поля, и 20 000 таких за пару минут выедали память ядра (ревью 01.11.2026).
+      boolean deletion =
+          wasLive && !isLive && candidate.size() <= existing.size() + DELETION_SLACK_BYTES;
       if ((existing == null && elements.size() >= limits.maxIds())
           || (isLive && !wasLive && live >= limits.maxElements())
-          || (isLive && nextBytes > limits.maxSceneBytes() && nextBytes > bytes)) {
+          || (!deletion && nextBytes > limits.maxSceneBytes() && nextBytes > bytes)) {
         rejected.add(new Rejected(candidate.id(), candidate.version(), "BOARD_FULL"));
         continue;
       }

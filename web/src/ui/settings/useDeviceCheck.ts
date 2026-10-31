@@ -3,6 +3,7 @@ import type { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import type { Preferences } from '../../core/preferences';
 import { t } from '../../i18n';
 import { audioCapture, CordAudioProcessor, needsAudioProcessor } from '../../media/audio';
+import { loadSdk } from '../../media/sdk';
 import { touchFirst } from '../../media/profiles';
 
 /** Сколько длится проба микрофона: запись, затем она же сразу звучит и пропадает. */
@@ -133,7 +134,7 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
       context.current = ctx;
       await ctx.resume();
       // SDK — по требованию: проверку зовут главная и прихожая, и тянуть его в их загрузку незачем.
-      const { createLocalAudioTrack } = await import('livekit-client');
+      const { createLocalAudioTrack } = await loadSdk();
       const track = await createLocalAudioTrack(
         audioCapture(preferences.audio, preferences.devices.microphone),
       );
@@ -208,7 +209,7 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
     setBusy('camera');
     let acquired: LocalVideoTrack | undefined;
     try {
-      const { createLocalVideoTrack } = await import('livekit-client');
+      const { createLocalVideoTrack } = await loadSdk();
       const track = await createLocalVideoTrack({
         // Проверка — тоже включение камеры: на телефоне фронтальная, а не запомненная (Р-35).
         ...(touchFirst() ? { facingMode: 'user' } : { deviceId: preferences.devices.camera || undefined }),

@@ -285,6 +285,10 @@ public class BoardSocket extends TextWebSocketHandler {
               BoardRooms.broadcast(
                   hub, peer, Json.write(Map.of("type", "joined", "from", member.id)));
             });
+    // Сокет закрылся, пока шёл вход (проход recheck через пять секунд, вытеснение тем же
+    // участником): тогда
+    // afterConnectionClosed доски ещё не видел — убрать здесь, иначе на ней остался бы призрак.
+    if (!peers.containsKey(peer.session.getId())) boards.detach(peer.hub, peer);
   }
 
   /** Пропущенное пачками и {@code synced} — или вся сцена. Вызывать под замком доски. */
