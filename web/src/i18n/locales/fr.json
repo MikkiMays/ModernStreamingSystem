@@ -2513,6 +2513,33 @@
       "privacy": "Sans compte. Les réunions ne sont pas enregistrées.",
       "about": "À propos",
       "help": "Aide"
+    },
+    "recent": {
+      "title": "Récentes",
+      "clear": "Effacer",
+      "clearTitle": "Effacer les réunions récentes ?",
+      "clearText": "La liste des réunions récentes de cet appareil sera supprimée. Les réunions elles-mêmes et vos favoris ne changent pas.",
+      "clearConfirm": "Effacer",
+      "cancel": "Annuler",
+      "rejoin": "Revenir",
+      "again": "Recréer",
+      "byCode": "Rejoindre avec un code",
+      "ended": "terminée",
+      "people_one": "{{count}} personne",
+      "people_many": "{{count}} personnes",
+      "people_other": "{{count}} personnes",
+      "today": "aujourd’hui, {{time}}",
+      "yesterday": "hier, {{time}}",
+      "more": "Tout afficher ({{count}})",
+      "less": "Afficher moins",
+      "menu": "Actions : {{title}}",
+      "copyCode": "Copier le code",
+      "copied": "Code copié",
+      "copyFailed": "Impossible de copier le code",
+      "favorite": "Ajouter aux favoris",
+      "favorited": "Réunion ajoutée aux favoris",
+      "forget": "Retirer des récentes",
+      "failed": "Impossible de revenir dans la réunion"
     }
   },
   "prejoin": {

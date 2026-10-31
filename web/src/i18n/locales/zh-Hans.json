@@ -2455,6 +2455,31 @@
       "privacy": "无需账号。会议不会被录制。",
       "about": "关于",
       "help": "帮助"
+    },
+    "recent": {
+      "title": "最近",
+      "clear": "清除",
+      "clearTitle": "清除最近的会议？",
+      "clearText": "将删除此设备上的最近会议列表。会议本身和收藏不会改变。",
+      "clearConfirm": "清除",
+      "cancel": "取消",
+      "rejoin": "返回",
+      "again": "再次创建",
+      "byCode": "用会议码加入",
+      "ended": "已结束",
+      "people_other": "{{count}} 人",
+      "today": "今天 {{time}}",
+      "yesterday": "昨天 {{time}}",
+      "more": "显示全部（{{count}}）",
+      "less": "收起",
+      "menu": "操作：{{title}}",
+      "copyCode": "复制会议码",
+      "copied": "会议码已复制",
+      "copyFailed": "无法复制会议码",
+      "favorite": "加入收藏",
+      "favorited": "会议已加入收藏",
+      "forget": "从最近中移除",
+      "failed": "无法返回会议"
     }
   },
   "prejoin": {

@@ -2484,6 +2484,32 @@
       "privacy": "No account. Meetings aren’t recorded.",
       "about": "About",
       "help": "Help"
+    },
+    "recent": {
+      "title": "Recent",
+      "clear": "Clear",
+      "clearTitle": "Clear recent meetings?",
+      "clearText": "The list of recent meetings on this device will be removed. The meetings themselves and your favorites stay as they are.",
+      "clearConfirm": "Clear",
+      "cancel": "Cancel",
+      "rejoin": "Rejoin",
+      "again": "Start again",
+      "byCode": "Join with code",
+      "ended": "ended",
+      "people_one": "{{count}} person",
+      "people_other": "{{count}} people",
+      "today": "today, {{time}}",
+      "yesterday": "yesterday, {{time}}",
+      "more": "Show all ({{count}})",
+      "less": "Show less",
+      "menu": "Actions: {{title}}",
+      "copyCode": "Copy code",
+      "copied": "Code copied",
+      "copyFailed": "Couldn't copy the code",
+      "favorite": "Add to favorites",
+      "favorited": "Meeting added to favorites",
+      "forget": "Remove from recent",
+      "failed": "Couldn't rejoin the meeting"
     }
   },
   "prejoin": {

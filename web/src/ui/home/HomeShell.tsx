@@ -6,6 +6,7 @@ import type { Admission } from '../../api/types';
 import type { Destination } from '../../core/invitation';
 import { HOME_NAV_DOCKED } from '../breakpoints';
 import { HomeEntry } from '../HomeEntry';
+import { RecentMeetings } from './RecentMeetings';
 import { InstallHint } from '../InstallHint';
 import { IconButton, ResizeHandle, ToastProvider, usePanelCollapsed, usePanelWidth } from '../kit';
 import { Logo } from '../brand/Logo';
@@ -170,6 +171,8 @@ export function HomeShell({
           <main className="home-stage__main">
             {active[0] && <ActiveMeetingNotice meeting={active[0]} onResume={onResume} />}
             <HomeEntry onCreate={onCreate} onJoin={join} />
+            {/* Недавние (R148) — под входом; пустой список блока не рисует. */}
+            <RecentMeetings onCreate={onCreate} onJoin={join} />
           </main>
           <footer className="home-stage__foot">
             <span className="home-privacy">

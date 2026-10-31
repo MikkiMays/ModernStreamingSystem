@@ -2484,6 +2484,32 @@
       "privacy": "Ohne Konto. Meetings werden nicht aufgezeichnet.",
       "about": "Über Cord",
       "help": "Hilfe"
+    },
+    "recent": {
+      "title": "Zuletzt",
+      "clear": "Leeren",
+      "clearTitle": "Letzte Meetings leeren?",
+      "clearText": "Die Liste der letzten Meetings auf diesem Gerät wird gelöscht. Die Meetings selbst und Ihre Favoriten bleiben unverändert.",
+      "clearConfirm": "Leeren",
+      "cancel": "Abbrechen",
+      "rejoin": "Zurückkehren",
+      "again": "Neu starten",
+      "byCode": "Mit Code beitreten",
+      "ended": "beendet",
+      "people_one": "{{count}} Person",
+      "people_other": "{{count}} Personen",
+      "today": "heute, {{time}}",
+      "yesterday": "gestern, {{time}}",
+      "more": "Alle anzeigen ({{count}})",
+      "less": "Weniger anzeigen",
+      "menu": "Aktionen: {{title}}",
+      "copyCode": "Code kopieren",
+      "copied": "Code kopiert",
+      "copyFailed": "Code konnte nicht kopiert werden",
+      "favorite": "Zu Favoriten",
+      "favorited": "Meeting in den Favoriten",
+      "forget": "Aus „Zuletzt“ entfernen",
+      "failed": "Zurückkehren ins Meeting fehlgeschlagen"
     }
   },
   "prejoin": {

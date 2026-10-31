@@ -984,6 +984,38 @@ public class RoomService {
             watch.revision);
   }
 
+  /**
+   * Что с недавними встречами человека (R148). Комнату, которой нет, или историю, которая уже
+   * удалена, ядро называет {@code gone}; на чужой или отозванный пропуск не отвечает ничего — так
+   * пачка пропусков не становится способом узнать о чужих встречах. Ушедший участник годится: его
+   * пропуск и есть тот, с которым возвращаются ({@code rejoin}).
+   */
+  public List<Contracts.Presence> presence(List<Contracts.PresenceRoom> query) {
+    var answers = new ArrayList<Contracts.Presence>();
+    for (var item : query) {
+      var id = item.roomId().toString();
+      try {
+        var room = read(id);
+        authenticate(room, item.credential(), true);
+        var people =
+            (int)
+                room.members.values().stream()
+                    .filter(
+                        m ->
+                            m.human()
+                                && (m.status == RoomState.Status.CONNECTED
+                                    || m.status == RoomState.Status.RECOVERING))
+                    .count();
+        var state = room.closedAt != null ? "closed" : people > 0 ? "live" : "open";
+        answers.add(new Contracts.Presence(id, state, people, room.title, room.code));
+      } catch (Problem refused) {
+        if (refused.status() == 404 || refused.status() == 410)
+          answers.add(new Contracts.Presence(id, "gone", 0, null, null));
+      }
+    }
+    return answers;
+  }
+
   public Snapshot snapshot(String roomId, String credential) {
     var room = read(roomId);
     return snapshotFor(room, authenticate(room, credential));
