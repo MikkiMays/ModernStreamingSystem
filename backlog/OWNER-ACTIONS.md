@@ -40,7 +40,12 @@
    `contracts/catalog-keys.json` и `desktop/build/catalog-keys.json`, выпуск клиента, затем `sign`. Срок
    нынешнего каталога — до 2027-04-18.
    Ответ:
-7. **Подпись установщика Windows** — сертификат OV/EV или Azure Trusted Signing. Без него SmartScreen.
+7. **DNS для VPN (R149, Р-50).** Чтобы звонок шёл там, где открыт только TCP 443 (VPN, офисные сети), TURN/TLS
+   нужен на 443 — это режим `strict` с тремя именами. Записи A: `rtc.cord.nikg.tech` и `turn.cord.nikg.tech` →
+   108.165.32.75; для `cordcam.ru` — `rtc.cordcam.ru` и `turn.cordcam.ru` → 157.22.241.114 (DNS only, без прокси).
+   После записей стенд переводится в `strict` одной командой (`configure.mjs --refresh`) и перезапуском edge и SFU.
+   Ответ:
+7a. **Подпись установщика Windows** — сертификат OV/EV или Azure Trusted Signing. Без него SmartScreen.
    Ответ:
 8. **Живые проверки, которых не сделать на сервере** — список релиза 1.1: `release-1.1/STATUS.md` →
    «Проверка владельцем» (захват показа 1080p60 с видеокарты и кодек в «Диагностике», микрофон Android в
