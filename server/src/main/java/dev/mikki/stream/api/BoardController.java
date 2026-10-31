@@ -51,7 +51,7 @@ public class BoardController {
   }
 
   @PutMapping("/{fileId}")
-  public ResponseEntity<Void> put(
+  public ResponseEntity<Void> putBoardFile(
       @PathVariable UUID id,
       @PathVariable String fileId,
       @RequestHeader("Authorization") String credential,
@@ -87,7 +87,7 @@ public class BoardController {
   }
 
   @GetMapping("/{fileId}")
-  public ResponseEntity<byte[]> get(
+  public ResponseEntity<byte[]> boardFile(
       @PathVariable UUID id,
       @PathVariable String fileId,
       @RequestHeader("Authorization") String credential) {
