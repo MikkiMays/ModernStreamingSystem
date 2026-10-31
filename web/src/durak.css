@@ -556,10 +556,14 @@
     font-size: inherit;
     flex-basis: auto;
   }
+  /* Кадр поверх лица, вне сетки (R155): портретная камера телефона не вытягивает лицо в овал. */
   & .durak-seat-face video {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: 50% 35%;
     border-radius: inherit;
   }
   & .durak-seat[data-side='top'] .durak-seat-face {
