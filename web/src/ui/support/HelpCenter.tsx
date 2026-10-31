@@ -18,6 +18,7 @@ const TOPIC_OF: Record<FaqId, SupportTopic> = {
   screen: 'screen',
   smartscreen: 'windows',
   network: 'network',
+  micBadge: 'windows',
 };
 
 type HelpTab = 'faq' | 'check' | 'write';
