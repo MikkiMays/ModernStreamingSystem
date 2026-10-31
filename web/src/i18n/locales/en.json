@@ -1269,7 +1269,8 @@
     },
     "encoder": {
       "screen": "The encoder is overloaded. Switching your screen to a compatible codec.",
-      "camera": "The encoder is overloaded. Switching your camera to a compatible codec."
+      "camera": "The encoder is overloaded. Switching your camera to a compatible codec.",
+      "cpuHint": "Your processor cannot keep up with encoding the video. We do not lower the quality: close heavy apps or pick a lower quality in settings."
     },
     "link": {
       "paths": {
@@ -2845,10 +2846,18 @@
     "rtt": "RTT to the media server",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Codec profile",
+    "layers": "Layers",
+    "singleLayer": "Single layer",
     "bufferRx": "Receive buffer",
     "encode": "Frame encoding",
     "decode": "Frame decoding",
     "implementation": "Video engine",
+    "engine": {
+      "hw": "hardware",
+      "sw": "software",
+      "unknown": "not disclosed"
+    },
     "limitation": "Limitation",
     "limits": {
       "none": "None detected",
@@ -2856,6 +2865,17 @@
       "bandwidth": "Bandwidth",
       "unknown": "No data from the sender"
     },
+    "choice": {
+      "label": "Why this codec",
+      "hardware": "Best hardware codec on this machine",
+      "software": "No hardware encoder — the CPU encodes",
+      "viewers": "A viewer cannot decode the codec above",
+      "fallback": "The watchdog stepped down from the codec above",
+      "baseline": "The encoder did not answer — compatible default",
+      "backup": "plus {{codec}} for viewers without this codec"
+    },
+    "fallbacks": "Codec switches",
+    "fallbacksValue": "Watchdog fallbacks: {{fallbacks}} · switches in total: {{switches}}",
     "stuck": {
       "title": "Picture or sound frozen?",
       "text": "We'll refresh the tracks you receive from other participants. There may be a short pause.",

@@ -1283,7 +1283,8 @@
     },
     "encoder": {
       "screen": "O codificador está sobrecarregado. Mudando a tela para um codec compatível.",
-      "camera": "O codificador está sobrecarregado. Mudando a câmera para um codec compatível."
+      "camera": "O codificador está sobrecarregado. Mudando a câmera para um codec compatível.",
+      "cpuHint": "O processador não está dando conta de codificar o vídeo. Não reduzimos a qualidade: feche programas pesados ou escolha uma qualidade menor nas configurações."
     },
     "link": {
       "paths": {
@@ -2877,10 +2878,18 @@
     "rtt": "RTT até o servidor de mídia",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Perfil do codec",
+    "layers": "Camadas",
+    "singleLayer": "Camada única",
     "bufferRx": "Buffer de recepção",
     "encode": "Codificação do quadro",
     "decode": "Decodificação do quadro",
     "implementation": "Motor de vídeo",
+    "engine": {
+      "hw": "por hardware",
+      "sw": "por software",
+      "unknown": "não informado"
+    },
     "limitation": "Limitação",
     "limits": {
       "none": "Nenhuma detectada",
@@ -2888,6 +2897,17 @@
       "bandwidth": "Banda",
       "unknown": "Sem dados do remetente"
     },
+    "choice": {
+      "label": "Por que este codec",
+      "hardware": "O melhor codec por hardware desta máquina",
+      "software": "Sem codificador por hardware — o processador codifica",
+      "viewers": "Algum espectador não decodifica o codec acima",
+      "fallback": "O vigia recuou do codec acima",
+      "baseline": "O codificador não respondeu — padrão compatível",
+      "backup": "mais {{codec}} para quem não tem este codec"
+    },
+    "fallbacks": "Trocas de codec",
+    "fallbacksValue": "Recuos do vigia: {{fallbacks}} · trocas no total: {{switches}}",
     "stuck": {
       "title": "Imagem ou som travados?",
       "text": "Vamos atualizar o recebimento das faixas dos outros participantes. Pode haver uma pausa curta.",

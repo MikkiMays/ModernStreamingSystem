@@ -1255,7 +1255,8 @@
     },
     "encoder": {
       "screen": "编码器负载过高。正在将屏幕切换为兼容的编解码器。",
-      "camera": "编码器负载过高。正在将摄像头切换为兼容的编解码器。"
+      "camera": "编码器负载过高。正在将摄像头切换为兼容的编解码器。",
+      "cpuHint": "处理器来不及编码视频。我们不会降低画质：请关闭占用资源较多的程序，或在设置中选择较低的画质。"
     },
     "link": {
       "paths": {
@@ -2813,10 +2814,18 @@
     "rtt": "到媒体服务器的 RTT",
     "ms": "{{value}} 毫秒",
     "codec": "编解码器",
+    "profile": "编解码器配置",
+    "layers": "分层",
+    "singleLayer": "单层",
     "bufferRx": "接收缓冲",
     "encode": "单帧编码",
     "decode": "单帧解码",
     "implementation": "视频引擎",
+    "engine": {
+      "hw": "硬件",
+      "sw": "软件",
+      "unknown": "未公开"
+    },
     "limitation": "限制因素",
     "limits": {
       "none": "未发现",
@@ -2824,6 +2833,17 @@
       "bandwidth": "网络带宽",
       "unknown": "发送方无数据"
     },
+    "choice": {
+      "label": "为何选择此编解码器",
+      "hardware": "本机最佳的硬件编解码器",
+      "software": "没有硬件编码器，由处理器编码",
+      "viewers": "有观众无法解码更高一级的编解码器",
+      "fallback": "监控已从更高一级的编解码器回退",
+      "baseline": "编码器未响应，使用兼容的默认值",
+      "backup": "并为不支持此编解码器的观众附带 {{codec}}"
+    },
+    "fallbacks": "编解码器切换",
+    "fallbacksValue": "监控回退：{{fallbacks}} 次 · 共切换：{{switches}} 次",
     "stuck": {
       "title": "画面或声音卡住了？",
       "text": "我们会刷新其他参与者轨道的接收，可能会短暂停顿。",

@@ -2,6 +2,8 @@ import { ConnectionQuality } from 'livekit-client';
 import type { Admission, Command, RoomEvent, Snapshot } from '../api/types';
 import { ApiError, RoomApi } from '../api/client';
 import { MediaSession, type DeviceChoice } from '../media/session';
+import { decodableCodecs, decodesOption, parseDecodes } from '../media/decode-caps';
+import { currentPlatform } from '../media/platform';
 import { ControlChannel } from './control';
 import { Store } from './store';
 import { Uploader } from './uploader';
@@ -278,6 +280,18 @@ export class Meeting {
     this.media.setServiceParticipants(
       snapshot.participants.filter((person) => person.service).map((person) => person.id),
     );
+    // Зрители своей камеры и показа — люди на связи, кроме себя; у кого `decodes` нет, тот ещё не
+    // сообщил (его прикроет запасной кодек).
+    this.media.setViewerDecodes(
+      snapshot.participants
+        .filter(
+          (person) =>
+            person.id !== this.admission.participantId &&
+            !person.service &&
+            ['JOINING', 'CONNECTED', 'RECOVERING'].includes(person.status),
+        )
+        .map((person) => parseDecodes(person.decodes)),
+    );
     // Громкость принадлежит встрече, а не сессии: вернувшегося и заново добавленную музыку
     // слышно так же, как их попросили звучать в прошлый раз. См. `core/volumes.ts`.
     this.media.rememberPeople(
@@ -298,12 +312,32 @@ export class Meeting {
       this.end(t(($) => $.meeting.end.left));
       return;
     }
+    this.reportDecodes(self);
     if (
       ['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status) &&
       this.media.state.get().status === 'idle'
     )
       void this.media.start();
   };
+  /** Набор кодеков уже ушёл (или ушёл бы) в этот вход — один раз на вход. */
+  private decodesReported = false;
+  /**
+   * Что декодирует этот браузер — чтобы издатели не брали кодек, которого он не покажет (R152). Один
+   * раз, когда вход допущен к медиа (ожидающему у двери ядро команду не примет), и только если ядро
+   * набора ещё не знает. Старое ядро команды не знает — отказ ничего не меняет: прикроет запасной кодек.
+   */
+  private reportDecodes(self: Snapshot['participants'][number]) {
+    if (this.decodesReported || self.decodes || !['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status))
+      return;
+    this.decodesReported = true;
+    void decodableCodecs(currentPlatform().mobile)
+      .then((codecs) =>
+        codecs.length
+          ? this.command('media.decode', undefined, undefined, { option: decodesOption(codecs) })
+          : null,
+      )
+      .catch(() => {});
+  }
   private resolveRevocation = () => {
     void this.resolveEnd(t(($) => $.meeting.end.revoked));
   };

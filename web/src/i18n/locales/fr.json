@@ -1283,7 +1283,8 @@
     },
     "encoder": {
       "screen": "L'encodeur est surchargé. Passage de l'écran à un codec compatible.",
-      "camera": "L'encodeur est surchargé. Passage de la caméra à un codec compatible."
+      "camera": "L'encodeur est surchargé. Passage de la caméra à un codec compatible.",
+      "cpuHint": "Le processeur n’arrive pas à encoder la vidéo à temps. Nous ne baissons pas la qualité : fermez les programmes lourds ou choisissez une qualité inférieure dans les réglages."
     },
     "link": {
       "paths": {
@@ -2877,10 +2878,18 @@
     "rtt": "RTT vers le serveur média",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Profil du codec",
+    "layers": "Couches",
+    "singleLayer": "Une seule couche",
     "bufferRx": "Tampon de réception",
     "encode": "Encodage d'une image",
     "decode": "Décodage d'une image",
     "implementation": "Moteur vidéo",
+    "engine": {
+      "hw": "matériel",
+      "sw": "logiciel",
+      "unknown": "non communiqué"
+    },
     "limitation": "Limitation",
     "limits": {
       "none": "Aucune détectée",
@@ -2888,6 +2897,17 @@
       "bandwidth": "Bande passante",
       "unknown": "Pas de données de l'émetteur"
     },
+    "choice": {
+      "label": "Pourquoi ce codec",
+      "hardware": "Le meilleur codec matériel de cette machine",
+      "software": "Pas d’encodeur matériel — le processeur encode",
+      "viewers": "Un spectateur ne décode pas le codec supérieur",
+      "fallback": "Le gardien a rétrogradé depuis le codec supérieur",
+      "baseline": "L’encodeur n’a pas répondu — codec compatible par défaut",
+      "backup": "plus {{codec}} pour les spectateurs sans ce codec"
+    },
+    "fallbacks": "Changements de codec",
+    "fallbacksValue": "Replis du gardien : {{fallbacks}} · changements au total : {{switches}}",
     "stuck": {
       "title": "Image ou son figés ?",
       "text": "Nous allons actualiser la réception des pistes des autres participants. Une courte pause est possible.",

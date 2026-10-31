@@ -1283,7 +1283,8 @@
     },
     "encoder": {
       "screen": "El codificador está saturado. Cambiamos la pantalla a un códec compatible.",
-      "camera": "El codificador está saturado. Cambiamos la cámara a un códec compatible."
+      "camera": "El codificador está saturado. Cambiamos la cámara a un códec compatible.",
+      "cpuHint": "El procesador no da abasto para codificar el vídeo. No bajamos la calidad: cierra programas pesados o elige una calidad menor en los ajustes."
     },
     "link": {
       "paths": {
@@ -2877,10 +2878,18 @@
     "rtt": "RTT al servidor de medios",
     "ms": "{{value}} ms",
     "codec": "Códec",
+    "profile": "Perfil del códec",
+    "layers": "Capas",
+    "singleLayer": "Una capa",
     "bufferRx": "Búfer de recepción",
     "encode": "Codificación del fotograma",
     "decode": "Decodificación del fotograma",
     "implementation": "Motor de vídeo",
+    "engine": {
+      "hw": "por hardware",
+      "sw": "por software",
+      "unknown": "no revelado"
+    },
     "limitation": "Limitación",
     "limits": {
       "none": "No detectada",
@@ -2888,6 +2897,17 @@
       "bandwidth": "Ancho de banda",
       "unknown": "Sin datos del emisor"
     },
+    "choice": {
+      "label": "Por qué este códec",
+      "hardware": "El mejor códec por hardware de este equipo",
+      "software": "No hay codificador por hardware: codifica el procesador",
+      "viewers": "Algún espectador no decodifica el códec superior",
+      "fallback": "El vigilante bajó desde el códec superior",
+      "baseline": "El codificador no respondió: compatible por defecto",
+      "backup": "además {{codec}} para quien no tenga este códec"
+    },
+    "fallbacks": "Cambios de códec",
+    "fallbacksValue": "Retrocesos del vigilante: {{fallbacks}} · cambios en total: {{switches}}",
     "stuck": {
       "title": "¿Se congeló la imagen o el sonido?",
       "text": "Actualizaremos la recepción de pistas de los demás participantes. Puede haber una breve pausa.",
