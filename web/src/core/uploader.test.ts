@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import type { RoomApi } from '../api/client';
+import { ApiError, type RoomApi } from '../api/client';
 import type { Attachment } from '../api/types';
 import { Uploader } from './uploader';
 
@@ -81,4 +81,57 @@ it('send waits for the running upload, then for its own (R94)', async () => {
   expect(api.reserve).toHaveBeenLastCalledWith('second.png', 1, expect.any(String));
   spies.uploads[1]!.onError!(new Error('сеть'));
   expect(await second).toBe(false);
+});
+
+it('второй файл подряд ждёт, пока ядро отметит первый готовым (UPLOAD_BUSY — гонка с крюком tusd, R154)', async () => {
+  vi.useFakeTimers();
+  try {
+    spies.start.mockClear();
+    spies.uploads.length = 0;
+    let busy = 2;
+    const api = {
+      reserve: vi.fn(async (name: string) => {
+        if (name === 'board.cord-board' && busy-- > 0)
+          throw new ApiError(409, 'UPLOAD_BUSY', 'Дождитесь завершения текущей загрузки');
+        return { id: name, uploadId: null } as Attachment;
+      }),
+    } as unknown as RoomApi;
+    const uploader = new Uploader(api, vi.fn());
+    const png = uploader.send(new File(['a'], 'board.png'));
+    const doc = uploader.send(new File(['b'], 'board.cord-board'));
+    await vi.waitFor(() => expect(spies.uploads).toHaveLength(1));
+    spies.uploads[0]!.onSuccess!();
+    expect(await png).toBe(true);
+    // Два отказа «ещё идёт» — и резерв с тем же идентификатором команды проходит.
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(spies.uploads).toHaveLength(2));
+    const calls = vi.mocked(api.reserve).mock.calls.filter(([name]) => name === 'board.cord-board');
+    expect(calls).toHaveLength(3);
+    expect(new Set(calls.map(([, , id]) => id)).size).toBe(1);
+    spies.uploads[1]!.onSuccess!();
+    expect(await doc).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('настоящая занятость — ошибка после повторов, без вечного ожидания', async () => {
+  vi.useFakeTimers();
+  try {
+    spies.uploads.length = 0;
+    const api = {
+      reserve: vi.fn(async () => {
+        throw new ApiError(409, 'UPLOAD_BUSY', 'Дождитесь завершения текущей загрузки');
+      }),
+    } as unknown as RoomApi;
+    const uploader = new Uploader(api, vi.fn());
+    const sent = uploader.send(new File(['a'], 'file.txt'));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await sent).toBe(false);
+    expect(api.reserve).toHaveBeenCalledTimes(6);
+    expect(uploader.state.get().status).toBe('error');
+    expect(spies.uploads).toHaveLength(0);
+  } finally {
+    vi.useRealTimers();
+  }
 });

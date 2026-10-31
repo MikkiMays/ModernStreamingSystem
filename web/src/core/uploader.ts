@@ -1,7 +1,14 @@
 import { Upload } from 'tus-js-client';
-import type { RoomApi } from '../api/client';
+import { ApiError, type RoomApi } from '../api/client';
 import { Store } from './store';
 import { t } from '../i18n';
+
+/**
+ * Паузы перед повтором резерва при `409 UPLOAD_BUSY` (≈4,5 с всего). Загрузка у нас «готова», как только tus
+ * отдал последний кусок, а ядро отмечает её готовой, только когда придёт крюк tusd: следующий файл подряд
+ * («Сохранить в чат» доски — картинка и сам файл, R154) мог застать в ядре ещё «идущую» загрузку.
+ */
+const BUSY_RETRY_MS = [150, 300, 600, 1200, 2400];
 
 export class Uploader {
   readonly state = new Store<{
@@ -36,7 +43,7 @@ export class Uploader {
     this.congestionPaused = this.networkPoor;
     this.state.set({ name: file.name, progress: 0, status: this.networkPoor ? 'paused' : 'uploading' });
     try {
-      const attachment = await this.api.reserve(file.name, file.size, commandId);
+      const attachment = await this.reserve(file, commandId, generation);
       if (this.stopped || generation !== this.generation) {
         await this.api.cancel(attachment.id);
         return;
@@ -76,6 +83,22 @@ export class Uploader {
     } finally {
       if (generation === this.generation) this.reserving = false;
     }
+  }
+  /**
+   * Резерв места под файл. Отказ «предыдущая загрузка ещё идёт» сразу после своей же загрузки — гонка с
+   * крюком tusd, а не настоящая занятость: короткие повторы с тем же `commandId` (ядро не помнит отказы).
+   */
+  private async reserve(file: File, commandId: string, generation: number) {
+    for (const pause of BUSY_RETRY_MS) {
+      try {
+        return await this.api.reserve(file.name, file.size, commandId);
+      } catch (error) {
+        const busy = error instanceof ApiError && error.code === 'UPLOAD_BUSY';
+        if (!busy || this.stopped || generation !== this.generation) throw error;
+        await new Promise((resolve) => setTimeout(resolve, pause));
+      }
+    }
+    return this.api.reserve(file.name, file.size, commandId);
   }
   /**
    * Загрузить файл и дождаться конца (R94): вложение из превью над полем уходит первым, подпись к нему —
