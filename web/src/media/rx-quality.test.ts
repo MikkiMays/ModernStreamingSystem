@@ -123,4 +123,50 @@ describe('сводка приёма раз в 10 с (rooms/{id}/quality)', () =>
       tracks: [{ kind: 'media', concealed: 0, total: 0, events: 0, lost: 0, targetMs: 800, delayMs: null }],
     });
   });
+  it('отдача (R152): секунды по источнику, кодеку и железу, ограничения и смены кодека — в той же сводке', () => {
+    const rx = new RxQuality();
+    rx.observe([], 0);
+    const camera = { source: 'camera', codec: 'av1', hw: 'hw', cpuSeconds: 0, otherSeconds: 0 } as const;
+    rx.observeTx({ ...camera, seconds: 3, bandwidthSeconds: 0.5 });
+    rx.observeTx({ ...camera, seconds: 3.1, bandwidthSeconds: 1 });
+    rx.observeTx({
+      source: 'screen',
+      codec: 'h264',
+      hw: 'sw',
+      seconds: 3,
+      cpuSeconds: 4,
+      bandwidthSeconds: -1,
+      otherSeconds: 0,
+    });
+    rx.observeTx({ ...camera, seconds: 0, bandwidthSeconds: 0 });
+    rx.noteSwitches([{ source: 'screen', from: 'h265', to: 'h264', reason: 'cpu' }]);
+    expect(rx.flush(5_000)).toBeNull();
+    expect(rx.flush(INTERVAL_MS)).toEqual({
+      tracks: [],
+      tx: [
+        { ...camera, seconds: 6.1, bandwidthSeconds: 1.5 },
+        // Ограничение не дольше самой отдачи; отрицательное — ноль.
+        {
+          source: 'screen',
+          codec: 'h264',
+          hw: 'sw',
+          seconds: 3,
+          cpuSeconds: 3,
+          bandwidthSeconds: 0,
+          otherSeconds: 0,
+        },
+      ],
+      switches: [{ source: 'screen', from: 'h265', to: 'h264', reason: 'cpu' }],
+    });
+    // Окно началось заново; переподключение отдачу не теряет.
+    rx.observeTx({ ...camera, seconds: 2, bandwidthSeconds: 0 });
+    rx.reset();
+    rx.observe([], 2 * INTERVAL_MS);
+    expect(rx.flush(3 * INTERVAL_MS)).toEqual({
+      tracks: [],
+      tx: [{ ...camera, seconds: 2, bandwidthSeconds: 0 }],
+    });
+    // Ни приёма, ни отдачи — сводки нет.
+    expect(rx.flush(4 * INTERVAL_MS)).toBeNull();
+  });
 });

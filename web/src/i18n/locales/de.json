@@ -1269,7 +1269,8 @@
     },
     "encoder": {
       "screen": "Der Encoder ist überlastet. Der Bildschirm wechselt zu einem kompatiblen Codec.",
-      "camera": "Der Encoder ist überlastet. Die Kamera wechselt zu einem kompatiblen Codec."
+      "camera": "Der Encoder ist überlastet. Die Kamera wechselt zu einem kompatiblen Codec.",
+      "cpuHint": "Der Prozessor kommt mit dem Kodieren des Videos nicht hinterher. Wir senken die Qualität nicht: Schließe aufwendige Programme oder wähle in den Einstellungen eine niedrigere Qualität."
     },
     "link": {
       "paths": {
@@ -2840,10 +2841,18 @@
     "rtt": "RTT zum Medienserver",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Codec-Profil",
+    "layers": "Ebenen",
+    "singleLayer": "Eine Ebene",
     "bufferRx": "Empfangspuffer",
     "encode": "Kodierung pro Bild",
     "decode": "Dekodierung pro Bild",
     "implementation": "Video-Engine",
+    "engine": {
+      "hw": "Hardware",
+      "sw": "Software",
+      "unknown": "nicht angegeben"
+    },
     "limitation": "Begrenzung",
     "limits": {
       "none": "Keine erkannt",
@@ -2851,6 +2860,17 @@
       "bandwidth": "Bandbreite",
       "unknown": "Keine Daten vom Sender"
     },
+    "choice": {
+      "label": "Warum dieser Codec",
+      "hardware": "Bester Hardware-Codec auf diesem Gerät",
+      "software": "Kein Hardware-Encoder — der Prozessor kodiert",
+      "viewers": "Ein Zuschauer kann den höheren Codec nicht dekodieren",
+      "fallback": "Der Wächter ist vom höheren Codec zurückgegangen",
+      "baseline": "Der Encoder hat nicht geantwortet — kompatibler Standard",
+      "backup": "zusätzlich {{codec}} für Zuschauer ohne diesen Codec"
+    },
+    "fallbacks": "Codec-Wechsel",
+    "fallbacksValue": "Rückfälle des Wächters: {{fallbacks}} · Wechsel insgesamt: {{switches}}",
     "stuck": {
       "title": "Bild oder Ton hängt?",
       "text": "Wir aktualisieren den Empfang der Spuren der anderen Teilnehmer. Eine kurze Pause ist möglich.",

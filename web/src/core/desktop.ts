@@ -62,6 +62,15 @@ export function isDesktop(): boolean {
 }
 
 /**
+ * Какая оболочка: Electron (мост v2) или WinUI (WebView2, v1). Кодекам это важно (R152): ключи
+ * Chromium вроде аппаратного AV1 для WebRTC ставит только своя оболочка, WebView2 — обычный Edge.
+ */
+export function desktopShell(): 'electron' | 'webview' | null {
+  if (typeof window === 'undefined') return null;
+  return v2() ? 'electron' : window.chrome?.webview ? 'webview' : null;
+}
+
+/**
  * Возможности WinUI (v1), выраженные теми же флагами: сочетание, серверы, обновление, рукопожатие и
  * своя боковая панель с избранным (`sidebar`) — у Electron её нет, главную рисует веб целиком.
  */

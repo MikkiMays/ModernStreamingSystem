@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BackupCodecPolicy } from 'livekit-client';
+import type { PublishShape } from './codec-policy';
 import {
   cameraCapture,
   cameraOptions,
@@ -6,10 +8,18 @@ import {
   fitSource,
   forcedCameraConstraints,
   modeOf,
+  policyLevel,
+  policySourceOf,
   screenHint,
   screenOptions,
   targetBitrate,
 } from './profiles';
+
+/** Формы публикации так, как их отдаёт `codec-policy.ts`. */
+const av1: PublishShape = { codec: 'av1', scalabilityMode: 'L1T3', simulcast: false, backup: 'h264' };
+const vp9: PublishShape = { codec: 'vp9', scalabilityMode: 'L1T3', simulcast: false, backup: 'h264' };
+const h264: PublishShape = { codec: 'h264', simulcast: false, backup: 'vp8' };
+const vp8: PublishShape = { codec: 'vp8', simulcast: false, backup: false };
 
 describe('screen profiles', () => {
   it('preserves portrait, ultrawide and conventional source geometry', () => {
@@ -24,11 +34,13 @@ describe('screen profiles', () => {
    * же размера — временные слои у VP9/AV1.
    */
   it('отдаёт выбранный уровень одним слоем без понижения разрешения', () => {
-    const options = screenOptions({ resolution: 1440, fps: 60 }, 'av1');
+    const options = screenOptions({ resolution: 1440, fps: 60 }, av1);
     expect(options.screenShareEncoding?.maxBitrate).toBe(16000000);
     expect(options.screenShareEncoding?.maxFramerate).toBe(60);
     expect(options.screenShareEncoding?.priority).toBe('high');
     expect(options.backupCodec).toEqual({ codec: 'h264' });
+    // Запасной — рядом, а не вместо: один зритель без AV1 не переводит комнату на H.264 (Р-47).
+    expect(options.backupCodecPolicy).toBe(BackupCodecPolicy.SIMULCAST);
     expect(options.simulcast).toBe(false);
     expect(options.screenShareSimulcastLayers).toBeUndefined();
     expect(options.degradationPreference).toBe('maintain-resolution');
@@ -46,12 +58,12 @@ describe('screen profiles', () => {
     expect(modeOf({ mode: 'sharp' })).toBe('sharp');
     // Оба режима — screencast и без понижения разрешения: разница только в полосе и кодеке.
     for (const mode of ['sharp', 'smooth'] as const) {
-      const options = screenOptions({ resolution: 1080, fps: 30, mode }, 'vp9');
+      const options = screenOptions({ resolution: 1080, fps: 30, mode }, vp9);
       expect(options.degradationPreference).toBe('maintain-resolution');
       expect(options.simulcast).toBe(false);
     }
     expect(
-      screenOptions({ resolution: 1080, fps: 30, mode: 'sharp' }, 'vp9').screenShareEncoding?.maxBitrate,
+      screenOptions({ resolution: 1080, fps: 30, mode: 'sharp' }, vp9).screenShareEncoding?.maxBitrate,
     ).toBe(4000000);
   });
 
@@ -64,13 +76,16 @@ describe('screen profiles', () => {
   });
 
   it('у H.264 и VP8 временных слоёв не просит, но и разрешение не трогает', () => {
-    for (const codec of ['h264', 'vp8'] as const) {
-      const options = screenOptions({ resolution: 1080, fps: 30 }, codec);
+    for (const shape of [h264, vp8]) {
+      const options = screenOptions({ resolution: 1080, fps: 30 }, shape);
       expect(options.scalabilityMode).toBeUndefined();
       expect(options.simulcast).toBe(false);
       expect(options.degradationPreference).toBe('maintain-resolution');
-      expect(options.backupCodec).toBe(false);
     }
+    // У H.264 запасной — VP8 для зрителя без H.264; у VP8 запасного нет.
+    expect(screenOptions({ resolution: 1080, fps: 30 }, h264).backupCodec).toEqual({ codec: 'vp8' });
+    expect(screenOptions({ resolution: 1080, fps: 30 }, vp8).backupCodec).toBe(false);
+    expect(screenOptions({ resolution: 1080, fps: 30 }, vp8).backupCodecPolicy).toBeUndefined();
   });
 
   /**
@@ -78,42 +93,53 @@ describe('screen profiles', () => {
    * подпоркой 360p на 15 кадров при выставленных 720p30.
    */
   it('камера отдаёт один слой — выбранный, временные слои только у VP9/AV1', () => {
-    const camera = cameraOptions({ resolution: 1080, fps: 60 }, 'h264');
+    const camera = cameraOptions({ resolution: 1080, fps: 60 }, h264);
     expect(camera.simulcast).toBe(false);
     expect(camera.videoSimulcastLayers).toBeUndefined();
     expect(camera.scalabilityMode).toBeUndefined();
     expect(camera.videoEncoding).toEqual({ maxBitrate: 10000000, maxFramerate: 60 });
-    const svc = cameraOptions({ resolution: 720, fps: 30 }, 'vp9');
+    const svc = cameraOptions({ resolution: 720, fps: 30 }, vp9);
     expect(svc.scalabilityMode).toBe('L1T3');
     expect(svc.backupCodec).toEqual({ codec: 'h264' });
+    expect(svc.backupCodecPolicy).toBe(BackupCodecPolicy.SIMULCAST);
   });
 
-  it('десктоп публикует камеру пространственными слоями, телефон и веб — одним (Р-36)', () => {
-    // По умолчанию (не десктоп) — один слой, как в Р-32.
-    const web = cameraOptions({ resolution: 720, fps: 30 }, 'vp9');
-    expect(web.scalabilityMode).toBe('L1T3');
-    expect(web.simulcast).toBe(false);
-    // Десктоп + VP9 — K-SVC L3T3_KEY, simulcast выключен (слои внутри одного потока).
-    const vp9 = cameraOptions({ resolution: 720, fps: 30 }, 'vp9', true);
-    expect(vp9.scalabilityMode).toBe('L3T3_KEY');
-    expect(vp9.simulcast).toBe(false);
-    // Десктоп + H.264 — обычный simulcast, scalabilityMode не ставим.
-    const h264 = cameraOptions({ resolution: 720, fps: 30 }, 'h264', true);
-    expect(h264.simulcast).toBe(true);
-    expect(h264.scalabilityMode).toBeUndefined();
+  it('слои — ровно те, что решила политика: simulcast клиента Windows, K-SVC только программному (Р-47)', () => {
+    const layered = cameraOptions({ resolution: 720, fps: 30 }, { ...h264, simulcast: true });
+    expect(layered.simulcast).toBe(true);
+    expect(layered.scalabilityMode).toBeUndefined();
+    const ksvc = cameraOptions({ resolution: 720, fps: 30 }, { ...vp9, scalabilityMode: 'L3T3_KEY' });
+    expect(ksvc).toMatchObject({ scalabilityMode: 'L3T3_KEY', simulcast: false });
+    const rid = screenOptions({ resolution: 1080, fps: 60 }, { ...av1, simulcast: true });
+    expect(rid).toMatchObject({ scalabilityMode: 'L1T3', simulcast: true });
+    expect(
+      cameraOptions({ resolution: 720, fps: 30 }, { codec: 'h265', simulcast: false, backup: 'h264' }),
+    ).toMatchObject({ videoCodec: 'h265', simulcast: false, backupCodec: { codec: 'h264' } });
   });
 
-  it('десктоп даёт и показу пространственные слои, по умолчанию — один (X10/Р-36)', () => {
-    expect(screenOptions({ resolution: 1080, fps: 30 }, 'vp9').scalabilityMode).toBe('L1T3');
-    const vp9 = screenOptions({ resolution: 1080, fps: 30 }, 'vp9', true);
-    expect(vp9.scalabilityMode).toBe('L3T3_KEY');
-    expect(vp9.simulcast).toBe(false);
-    expect(screenOptions({ resolution: 1080, fps: 30 }, 'h264', true).simulcast).toBe(true);
+  it('уровень для вопроса кодировщику — тот, что пойдёт в сеть', () => {
+    expect(policyLevel('camera', { resolution: 480, fps: 30 })).toEqual({
+      width: 854,
+      height: 480,
+      fps: 30,
+      bitrate: 1200000,
+    });
+    expect(policyLevel('screen', { resolution: 1080, fps: 60, mode: 'sharp' })).toEqual({
+      width: 1920,
+      height: 1080,
+      fps: 60,
+      bitrate: 4000000,
+    });
+    // У камеры режима показа нет: «чёткость», оставшаяся в записи, полосу камеры не меняет.
+    expect(policyLevel('camera', { resolution: 720, fps: 30, mode: 'sharp' }).bitrate).toBe(3000000);
+    expect(policySourceOf('screen', { mode: 'sharp' })).toBe('screen-sharp');
+    expect(policySourceOf('screen', {})).toBe('screen-smooth');
+    expect(policySourceOf('camera', { mode: 'sharp' })).toBe('camera');
   });
 
   /** «Авто» нет: любой уровень — выбранный, и держит размер кадра, а не торгуется им. */
   it('публикует выбранное сразу и держит кадр у экрана и у камеры', () => {
-    const screen = screenOptions({ resolution: 720, fps: 30 }, 'vp8');
+    const screen = screenOptions({ resolution: 720, fps: 30 }, vp8);
     expect(screen.screenShareEncoding).toMatchObject({ maxBitrate: 3000000, maxFramerate: 30 });
     expect(screen.degradationPreference).toBe('maintain-resolution');
     const camera = cameraOptions({ resolution: 720, fps: 30 });

@@ -821,6 +821,26 @@ public class RoomService {
       throw new Problem(410, "SESSION_ENDED", "Сессия завершена. Войдите в комнату снова");
   }
 
+  /**
+   * Кодеки, которые знает {@code media.decode}, — в порядке лестницы издателя ({@code
+   * codec-policy.ts}).
+   */
+  static final List<String> DECODE_CODECS = List.of("av1", "h265", "vp9", "h264", "vp8");
+
+  /**
+   * Набор кодеков из {@code option} команды {@code media.decode}: слова через дефис, только из
+   * {@link #DECODE_CODECS}, без повторов, по порядку лестницы. Пусто или незнакомое слово —
+   * некорректная команда: в снимок кладётся только то, что издатель поймёт.
+   */
+  static List<String> decodes(String option) {
+    if (option == null || option.isBlank())
+      throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+    var named = List.of(option.split("-"));
+    if (!DECODE_CODECS.containsAll(named))
+      throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+    return DECODE_CODECS.stream().filter(named::contains).toList();
+  }
+
   public void requireOpen(RoomState room) {
     if (room.closedAt != null) throw new Problem(410, "ROOM_CLOSED", "Встреча завершена");
   }
@@ -863,7 +883,8 @@ public class RoomService {
                         m.service,
                         m.screenId,
                         m.screenStarted,
-                        m.viewingScreenId))
+                        m.viewingScreenId,
+                        m.decodes))
             .toList();
     var messages =
         rooms
@@ -1081,6 +1102,19 @@ public class RoomService {
               } else if (target.status == WAITING) {
                 admitWaiting(room, target);
               }
+            }
+            /*
+             Что декодирует браузер участника (R152): набор кодеков словом в option —
+             «av1-h265-vp9-h264-vp8». Издатели по нему выбирают основной кодек, поэтому смена
+             набора — изменение комнаты; тот же набор повторно (после переподключения) — тишина.
+            */
+            case "media.decode" -> {
+              requireActive(room, member);
+              var decodes = decodes(command.option());
+              // Тот же набор (после переподключения) — не изменение комнаты: ни события, ни записи.
+              if (decodes.equals(member.decodes))
+                return new Ack(command.commandId(), true, room.sequence, null);
+              member.decodes = decodes;
             }
             case "screen.preview" -> {
               requireActive(room, member);

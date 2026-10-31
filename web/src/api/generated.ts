@@ -933,7 +933,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "screen.preview" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal" | "presence.confirm";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "screen.preview" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "media.decode" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal" | "presence.confirm";
             under?: string;
         };
         Connect: {
@@ -1457,6 +1457,7 @@ export interface components {
         };
         Participant: {
             avatar: string;
+            decodes?: string[];
             /** Format: int64 */
             generation: number;
             id: string;
@@ -1623,6 +1624,7 @@ export interface components {
             /** Format: int32 */
             lossySeconds?: number;
             path: string;
+            publishCodec?: string;
             /** Format: int32 */
             rttMs?: number;
             /** Format: int32 */
@@ -1667,7 +1669,9 @@ export interface components {
             presenceBy?: null | number;
         };
         RxSummary: {
+            switches?: components["schemas"]["TxSwitch"][];
             tracks: components["schemas"]["RxTrack"][];
+            tx?: components["schemas"]["TxTrack"][];
         };
         RxTrack: {
             /** Format: int64 */
@@ -1890,6 +1894,25 @@ export interface components {
             chat: string;
             /** @enum {string} */
             status: "NEW" | "OPEN" | "DONE";
+        };
+        TxSwitch: {
+            from: string;
+            reason: string;
+            source: string;
+            to: string;
+        };
+        TxTrack: {
+            /** Format: double */
+            bandwidthSeconds?: number;
+            codec: string;
+            /** Format: double */
+            cpuSeconds?: number;
+            hw: string;
+            /** Format: double */
+            otherSeconds?: number;
+            /** Format: double */
+            seconds?: number;
+            source: string;
         };
         Watch: {
             /** Format: int64 */

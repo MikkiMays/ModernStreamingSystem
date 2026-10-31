@@ -8,6 +8,7 @@ import { decideNotification, type NotifyContext } from './desktop-notify';
 import { desktopPageState } from './desktop-state';
 import { hotkeyStatusText, type HotkeyStatus } from './desktop';
 import type { Meeting } from './meeting';
+import { parseShellGpu } from '../media/codec-probe';
 
 /*
   Мост v2 клиента Windows — копия контракта в ядре (`contracts/desktop-bridge.v2.schema.json`).
@@ -359,5 +360,43 @@ describe('оверлей в игре, игры и мини-окно (R62, R63, R
 
   it('hotkeys.status знает разблокировку оверлея', () => {
     expect(errors({ status: { 'overlay.lock': 'global-raw' } }, def('hotkeysStatus'))).toEqual([]);
+  });
+});
+
+describe('видеокарта и аппаратный AV1 (R152)', () => {
+  const answer = {
+    devices: [
+      {
+        vendorId: 0x10de,
+        deviceId: 0x2786,
+        name: 'NVIDIA GeForce RTX 4070',
+        driver: '32.0.15.6094',
+        active: true,
+      },
+      { vendorId: 0x8086, deviceId: 0x46a0, name: '', driver: '', active: false },
+    ],
+    encoders: null,
+    av1hw: { enabled: true, allowed: true },
+  };
+
+  it('имена: флаги app.gpu и codec.av1hw, запрос app.gpu', () => {
+    expect(contract.$defs.feature!.enum).toEqual(expect.arrayContaining(['app.gpu', 'codec.av1hw']));
+    expect(contract.$defs.pageCall!.enum).toContain('app.gpu');
+  });
+
+  it('ответ оболочки проходит схему, и веб читает из него поставщиков и ключ AV1', () => {
+    expect(errors(answer, def('appGpu'))).toEqual([]);
+    expect(errors({ ...answer, encoders: ['av1', 'h264'] }, def('appGpu'))).toEqual([]);
+    expect(errors({ ...answer, encoders: ['hevc'] }, def('appGpu'))).not.toEqual([]);
+    expect(errors({ ...answer, av1hw: { enabled: true } }, def('appGpu'))).not.toEqual([]);
+    expect(parseShellGpu(answer)).toEqual({
+      vendors: ['nvidia', 'intel'],
+      av1hw: true,
+      source: 'shell',
+      identity: 'nvidia:2786:NVIDIA GeForce RTX 4070/32.0.15.6094;intel:46a0:/',
+    });
+    // Старая оболочка или чужой ответ — подсказки нет, веб спросит WebGL.
+    expect(parseShellGpu(null)).toBeNull();
+    expect(parseShellGpu({ devices: 'x' })).toBeNull();
   });
 });

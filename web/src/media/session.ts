@@ -12,18 +12,13 @@ import {
   DisconnectReason,
   type Participant,
   type LocalTrack,
-  type VideoCodec,
   createLocalAudioTrack,
   RemoteAudioTrack,
 } from 'livekit-client';
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from '../core/store';
 import { RecoveryWindow } from '../core/recovery';
-import { isDesktop } from '../core/desktop';
 import {
-  chooseCodec,
-  chooseCameraCodec,
-  fallbackCodec,
   cameraHint,
   fitSource,
   screenHint,
@@ -33,8 +28,19 @@ import {
   touchFirst,
   cameraOptions,
   forcedCameraConstraints,
+  policyLevel,
+  policySourceOf,
   type ScreenProfile,
 } from './profiles';
+import { probeQueries, sameShape, svcSimulcastServer, type CodecDecision, type Codec } from './codec-policy';
+import {
+  CodecPlanner,
+  type CodecInfo,
+  type PlanInput,
+  type PlannerAction,
+  type PublishSource,
+} from './codec-planner';
+import { gpuHint, policyPlatform, probeEncoders, sendableCodecs, watchCpuPressure } from './codec-probe';
 import { rememberLayout, retune } from './retune';
 import { settleMs } from './capabilities';
 import { readScreenSample, ScreenReadiness } from './screen-ready';
@@ -59,7 +65,7 @@ import {
   type ScreenAudioEvent,
   type ScreenAudioSource,
 } from './capture';
-import { EncoderHealth } from './encoder-health';
+import { readUpstream, upstreamDelta, type UpstreamReading } from './encoder-health';
 import { LiveHealth } from './live-health';
 import { VideoPauses } from './video-pause';
 import { VideoSilence } from './video-silence';
@@ -69,7 +75,7 @@ import { LocalNetworks } from './local-networks';
 import { udpOpen } from './udp-probe';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
-import { CallQuality, type CallReport } from './call-quality';
+import { CallQuality, codecOf, type CallReport } from './call-quality';
 import { RxQuality, type RxSummary } from './rx-quality';
 import { waitForPublishPermissions } from './publish-permissions';
 import { PreviewImages, ScreenPreviewSource, encodePreview, decodePreview } from './screen-preview';
@@ -403,23 +409,19 @@ export class MediaSession {
    * выбрали. Хранилище, а не поле: превью камеры в настройках показывает ту же камеру, что включится.
    */
   readonly cameraChosen = new Store(false);
-  private codec: VideoCodec = 'vp8';
   /**
-   * Кодек камеры. Здесь годами стоял жёсткий VP8, который почти нигде не кодируется железом —
-   * отсюда и «заявлено 60 fps, идёт 40». Выбирается один раз на сессию: смена кодека требует
-   * переговоров, и делать это по ходу разговора ради одного и того же ответа незачем.
+   * Кодек и слои камеры и показа на всю встречу (R152, `codec-planner.ts`): решение политики, сторож у
+   * каждого свой, окно 30 с между переопубликациями. Переподключение планировщик не пересоздаёт — иначе
+   * обнулялась бы память отступов и кодек прыгал после каждого resume.
    */
-  private cameraCodec: VideoCodec = 'vp8';
-  private cameraCodecChosen?: Promise<VideoCodec>;
-  /** Основной кодек камеры, выбранный по силам машины (`chooseCameraCodec`): на него сторож возвращает. */
-  private cameraPreferredCodec?: VideoCodec;
-  /** Камера сейчас на запасном H.264 после отступа сторожа, а не по изначальному выбору. */
-  private cameraFellBack = false;
-  /** То же для показа: выбранный кодек и флаг отступа (общий сторож — `EncoderHealth`). */
-  private screenPreferredCodec?: VideoCodec;
-  private screenFellBack = false;
-  /** Десктоп публикует камеру и показ пространственными слоями (Р-36); телефон и веб — одним (Р-32). */
-  private readonly spatialDesktop = isDesktop();
+  private readonly codecs = new CodecPlanner();
+  /** Решение для камеры перед первой публикацией — одно на сессию, пока уровень тот же. */
+  private cameraPlanned?: Promise<CodecDecision>;
+  /** Что о машине нужно политике (платформа, видеокарта, ядра) — спрашивается один раз. */
+  private codecEnv?: Promise<Omit<PlanInput, 'source' | 'level' | 'probe' | 'svcSimulcast'>>;
+  /** Последний отчёт отдачи по источнику: от него разности для сторожа и сводки. */
+  private upstreamReadings = new Map<PublishSource, UpstreamReading>();
+  private stopCpuWatch: () => void = () => {};
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
   /** Звук показа от оболочки (E01-B3) — у идущего показа и у кончившегося, что ждёт опоздавшую дорожку. */
@@ -437,8 +439,6 @@ export class MediaSession {
   private fullRetry = 0;
   private qualityTimer?: ReturnType<typeof setInterval>;
   private upstreamSampling = false;
-  private upstreamCounters?: { at: number; bytes: number };
-  private encoderHealth = new EncoderHealth();
   private screenGeneration = 0;
   private liveTimer?: ReturnType<typeof setInterval>;
   private liveSampling = false;
@@ -500,7 +500,7 @@ export class MediaSession {
         deviceId: this.preferences.get().devices.microphone || undefined,
       },
       audioOutput: { deviceId: this.preferences.get().devices.speaker || undefined },
-      publishDefaults: cameraOptions(this.cameraProfile, 'vp8', this.spatialDesktop),
+      publishDefaults: cameraOptions(this.cameraProfile),
       reconnectPolicy: { nextRetryDelayInMs: ({ retryCount }) => this.recovery.delay(retryCount) },
     });
     this.room
@@ -843,22 +843,107 @@ export class MediaSession {
     return null;
   }
   /**
-   * Какой кодек камере по силам на этой машине.
+   * Какой кодек и какие слои камере по силам на этой машине (`codec-policy.ts`).
    *
-   * Спрашивается один раз и переиспользуется: `mediaCapabilities.encodingInfo` — это опрос
-   * платформы, а не устройства, и от кадра к кадру ответ не меняется. Отказ ответа означает
-   * прежний VP8, то есть худшее, что могло случиться, и есть нынешнее поведение.
+   * Решается один раз перед первой публикацией и переиспользуется: ответ кодировщика от кадра к
+   * кадру не меняется. Дальше кодек меняют только сторож, состав зрителей и смена уровня — через
+   * планировщик. Отказ опроса — VP8, как было до политики.
    */
   private ensureCameraCodec() {
-    this.cameraCodecChosen ??= chooseCameraCodec(this.cameraProfile)
-      .then((codec) => {
-        this.cameraCodec = codec;
-        this.cameraPreferredCodec = codec;
-        this.cameraFellBack = false;
-        return codec;
-      })
-      .catch(() => this.cameraCodec);
-    return this.cameraCodecChosen;
+    this.cameraPlanned ??= this.planCodec('camera', this.cameraProfile, true).catch(
+      () => this.codecs.current('camera') ?? this.codecs.plan('camera', this.blindInput('camera'), true),
+    );
+    return this.cameraPlanned;
+  }
+  /** Платформа, видеокарта, ядра, что браузер умеет отдавать — один раз за сессию. */
+  private codecEnvironment() {
+    this.codecEnv ??= (async () => {
+      const gpu = await gpuHint().catch(() => null);
+      return {
+        platform: policyPlatform(),
+        gpu,
+        cores: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined,
+        sendable: sendableCodecs(),
+      };
+    })();
+    return this.codecEnv;
+  }
+  /** Вход политики без ответов кодировщика — когда спросить не удалось: H.264 или VP8, как раньше. */
+  private blindInput(kind: PublishSource): PlanInput {
+    const profile = kind === 'camera' ? this.cameraProfile : this.profile;
+    return {
+      source: policySourceOf(kind, profile),
+      platform: 'desktop',
+      level: policyLevel(kind, profile),
+      probe: {},
+      sendable: sendableCodecs(),
+    };
+  }
+  /**
+   * Спросить кодировщик под этот уровень и решить (`codec-planner.ts`). Вопросы — ровно те режимы,
+   * что могут уйти в сеть (`probeQueries`), с тем же кадром, частотой и битрейтом.
+   */
+  private async planCodec(kind: PublishSource, profile: ScreenProfile, initial: boolean) {
+    const env = await this.codecEnvironment();
+    const source = policySourceOf(kind, profile);
+    const level = policyLevel(kind, profile);
+    const probe = await probeEncoders(
+      probeQueries({ source, platform: env.platform }),
+      level,
+      (env.gpu as { identity?: string } | null)?.identity ?? '',
+    );
+    const decision = this.codecs.plan(
+      kind,
+      { ...env, source, level, probe, svcSimulcast: svcSimulcastServer(this.room.serverInfo?.version) },
+      initial,
+    );
+    console.info('[cord] codec', kind, {
+      codec: decision.codec,
+      hw: decision.hw,
+      mode: decision.scalabilityMode ?? null,
+      simulcast: decision.simulcast,
+      backup: decision.backup,
+      reason: decision.reason,
+      skipped: decision.skipped.map((skip) => `${skip.codec}:${skip.hw ? 'hw' : 'sw'}:${skip.why}`),
+      gpu: env.gpu?.vendors ?? null,
+    });
+    return decision;
+  }
+  /** Что «Диагностика» показывает о выборе кодека своей камеры или показа. */
+  codecInfo(source: PublishSource): CodecInfo | null {
+    return this.codecs.info(source);
+  }
+  /**
+   * Что декодируют зрители (поле `decodes` участников снимка, R152). Издатель держит основной кодек,
+   * только если его декодируют все, иначе — H.264 рядом или ступень ниже; не чаще раза в 30 с.
+   */
+  setViewerDecodes(viewers: readonly (readonly Codec[] | null)[]) {
+    for (const action of this.codecs.setViewers(viewers)) this.applyCodecAction(action);
+  }
+  /** Сменить кодек источника, как решил планировщик: та же дорожка, тот же уровень, другая публикация. */
+  private applyCodecAction(action: PlannerAction) {
+    if (action.kind === 'hint') {
+      // Р-19: ниже некуда — ничего не понижаем, только говорим.
+      this.report(new Error(t(($) => $.media.encoder.cpuHint)));
+      return;
+    }
+    if (action.kind !== 'switch') return;
+    console.info('[cord] codec switch', {
+      source: action.source,
+      from: action.from,
+      to: action.decision.codec,
+      hw: action.decision.hw,
+      reason: action.reason,
+    });
+    if (action.source === 'camera') {
+      void this.switchCameraCodec();
+      if (action.reason === 'cpu' || action.reason === 'encode-time')
+        this.report(new Error(t(($) => $.media.encoder.camera)));
+    } else {
+      void this.setProfile(this.profile);
+      if (action.reason === 'cpu' || action.reason === 'encode-time')
+        this.report(new Error(t(($) => $.media.encoder.screen)));
+    }
   }
   /** Что камера умеет на самом деле — чтобы не просить у неё невозможного молча. */
   private cameraCapabilities() {
@@ -895,7 +980,10 @@ export class MediaSession {
     if (remembered) delete remembered.zoom;
   }
   private cameraOptionsNow() {
-    return cameraOptions(this.cameraProfile, this.cameraCodec, this.spatialDesktop);
+    return cameraOptions(this.cameraProfile, this.codecs.current('camera'));
+  }
+  private screenOptionsNow(profile = this.profile) {
+    return screenOptions(profile, this.codecs.current('screen'));
   }
   /** Подсказать кодировщику, что в этом кадре важнее — движение или резкость. */
   private applyCameraHint() {
@@ -1469,7 +1557,7 @@ export class MediaSession {
         )
           continue;
         await this.room.localParticipant.publishTrack(track, {
-          ...screenOptions(this.profile, this.codec, this.spatialDesktop),
+          ...this.screenOptionsNow(),
           source: track.source,
           ...(track.kind === Track.Kind.Audio
             ? { audioPreset: { maxBitrate: 128000 }, forceStereo: true, dtx: false }
@@ -1837,7 +1925,7 @@ export class MediaSession {
       await waitForPublishPermissions(this.room, [Track.Source.ScreenShareAudio], link.abort.signal);
       if (stale()) return;
       const publication = await this.room.localParticipant.publishTrack(track, {
-        ...screenOptions(this.profile, this.codec, this.spatialDesktop),
+        ...this.screenOptionsNow(),
         source: Track.Source.ScreenShareAudio,
         audioPreset: { maxBitrate: 128000 },
         forceStereo: true,
@@ -1923,9 +2011,13 @@ export class MediaSession {
       // Screencast-режим Chromium (R91): кодировщик не понижает разрешение и не включает
       // quality scaler — при нехватке полосы сбрасывает кадры, а не чёткость.
       video.contentHint = screenHint;
-      this.codec = await chooseCodec(profile);
-      this.screenPreferredCodec = this.codec;
-      this.screenFellBack = false;
+      await this.planCodec('screen', profile, true).catch(() =>
+        this.codecs.plan(
+          'screen',
+          { ...this.blindInput('screen'), source: policySourceOf('screen', profile) },
+          true,
+        ),
+      );
       this.profile = profile;
       if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
       const reservation = await this.api.screen(true);
@@ -1942,7 +2034,7 @@ export class MediaSession {
       if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
       for (const track of stream.getTracks()) {
         const publication = await this.room.localParticipant.publishTrack(track, {
-          ...screenOptions(profile, this.codec, this.spatialDesktop),
+          ...this.screenOptionsNow(profile),
           source: track.kind === 'video' ? Track.Source.ScreenShare : Track.Source.ScreenShareAudio,
           ...(track.kind === 'audio'
             ? { audioPreset: { maxBitrate: 128000 }, forceStereo: true, dtx: false }
@@ -1970,7 +2062,7 @@ export class MediaSession {
       this.videoChangedAt.screen = performance.now();
       this.refreshTracks();
       this.syncPreview();
-      this.upstreamCounters = undefined;
+      this.upstreamReadings.delete('screen');
       stream = undefined;
       // Зрителям показ открывается после кадра целевого качества (T48): сначала верхний слой
       // должен закодировать кадр того размера, который просили, или кончиться окно разгона, —
@@ -2038,9 +2130,9 @@ export class MediaSession {
     this.screenPublishAbort?.abort();
     this.closeScreenAudio();
     this.screenGeneration++;
-    // Счётчики байтов принадлежали экрану; следующий интервал должен считаться заново,
-    // иначе первый замер камеры вычтет из своих байтов чужие.
-    this.upstreamCounters = undefined;
+    // Решение кодека принадлежало этому показу; память отступов сторожа — встрече, она остаётся.
+    this.codecs.stop('screen');
+    this.upstreamReadings.delete('screen');
     this.previewSource.stop();
     const tracks = this.screenTracks;
     this.screenTracks = [];
@@ -2070,30 +2162,47 @@ export class MediaSession {
     this.videoChangedAt.camera = performance.now();
     this.preferences.set(savePreferences({ camera: profile }));
     this.cameraChange = this.cameraChange.then(async () => {
-      if (this.disposed || !this.wanted.camera) return;
       const publication = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
       const track = publication?.track;
-      if (!(track instanceof LocalVideoTrack)) return;
+      if (this.disposed || !this.wanted.camera || !(track instanceof LocalVideoTrack)) {
+        // Камера не идёт — решение кодека принято под прежний уровень: включение решит заново.
+        this.cameraPlanned = undefined;
+        return;
+      }
       this.deviceBusy.add('camera');
       try {
+        // Новый уровень — решение кодека заново: программный VP9 годится до 720p30, и 1080p60 на нём
+        // было бы скрытой деградацией. Новая форма — переопубликация той же дорожки (ниже), прежняя —
+        // подстройка на месте.
+        const before = this.codecs.current('camera');
+        this.cameraPlanned = this.planCodec('camera', profile, false).catch(
+          () => this.codecs.current('camera') ?? this.codecs.plan('camera', this.blindInput('camera'), true),
+        );
+        const after = await this.cameraPlanned;
+        if (this.disposed) return;
+        const reshaped = !!before && !sameShape(before, after);
         // На месте — та же дорожка и тот же отправитель: захват меняет кадр и частоту сам
         // (`applyConstraints`), кодировщик получает новую полосу (`setParameters`). У зрителя кадр
         // меняется внутри потока — плитка не гаснет, у себя камера не выключается. Переопубликация
         // (ниже) — только если на месте нельзя.
         await this.enforceCameraRate();
         if (this.disposed) return;
-        if (await this.retuneCamera(track, profile)) {
+        if (!reshaped && (await this.retuneCamera(track, profile))) {
           // Полное переподключение публикует дорожку заново по этим параметрам — пусть по новым.
           if (publication) publication.options = { ...publication.options, ...this.cameraOptionsNow() };
           this.cameraProfilePending = false;
           this.refreshTracks();
           return;
         }
-        await track.restartTrack({
-          ...this.cameraRestartNow(),
-          deviceId: this.preferences.get().devices.camera || undefined,
-        });
-        if (this.disposed) return;
+        // Другой кодек — захват уже под новый уровень (`enforceCameraRate`), нужна только новая
+        // публикация. Тот же кодек, но на месте не вышло — перезахват.
+        if (!reshaped) {
+          await track.restartTrack({
+            ...this.cameraRestartNow(),
+            deviceId: this.preferences.get().devices.camera || undefined,
+          });
+          if (this.disposed) return;
+        }
         await this.room.localParticipant.unpublishTrack(track, false);
         if (this.disposed) return;
         await this.room.localParticipant.publishTrack(track, {
@@ -2166,11 +2275,16 @@ export class MediaSession {
       });
       track.mediaStreamTrack.contentHint = screenHint;
       if (this.disposed || generation !== this.screenGeneration) return;
+      // Новый уровень или режим — решение заново: «Чёткость» берёт другую лестницу, а программная
+      // ступень не годится выше своего потолка. Смену кодека по сторожу планировщик уже решил — тут
+      // то же решение и выйдет.
+      await this.planCodec('screen', profile, false).catch(() => undefined);
+      if (this.disposed || generation !== this.screenGeneration) return;
       this.videoChangedAt.screen = performance.now();
       await this.room.localParticipant.unpublishTrack(track, false);
       if (this.disposed || generation !== this.screenGeneration) return;
       await this.room.localParticipant.publishTrack(track, {
-        ...screenOptions(profile, this.codec, this.spatialDesktop),
+        ...this.screenOptionsNow(profile),
         source: Track.Source.ScreenShare,
       });
       if (this.disposed || generation !== this.screenGeneration) {
@@ -2195,112 +2309,86 @@ export class MediaSession {
    */
   private startUpstreamMonitor() {
     clearInterval(this.qualityTimer);
-    this.encoderHealth = new EncoderHealth();
-    this.upstreamCounters = undefined;
+    // Сторож и память отступов — встрече, а не соединению: после resume счётчики байтов те же, после
+    // полного переподключения — новые, и разности начнутся со следующего замера.
+    this.codecs.reconnected();
+    this.upstreamReadings.clear();
+    this.stopCpuWatch();
+    this.stopCpuWatch = watchCpuPressure((tight) => this.codecs.setCpuTight(tight));
     this.qualityTimer = setInterval(() => void this.sampleUpstream(), 3000);
   }
-  /** Дорожка, по которой судим об отдаче: показываемый экран важнее камеры. */
-  private leadingVideo(): { track: LocalVideoTrack; source: 'camera' | 'screen' } | null {
+  /** Свои опубликованные видео: экран (если идёт) первым — по нему плашка, — затем камера. */
+  private publishedVideo(): { track: LocalVideoTrack; source: PublishSource }[] {
+    const result: { track: LocalVideoTrack; source: PublishSource }[] = [];
     const screen = this.screenTracks.find((t) => t instanceof LocalVideoTrack);
-    if (screen instanceof LocalVideoTrack) return { track: screen, source: 'screen' };
+    if (screen instanceof LocalVideoTrack) result.push({ track: screen, source: 'screen' });
     const camera = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-    return camera instanceof LocalVideoTrack ? { track: camera, source: 'camera' } : null;
+    if (camera instanceof LocalVideoTrack) result.push({ track: camera, source: 'camera' });
+    return result;
   }
+  /**
+   * Замер отдачи раз в 3 с: плашка «что уходит в сеть» — по ведущей дорожке, сторож кодека — у
+   * камеры и у показа свой (R152), сводка отдачи для метров — по обоим.
+   */
   private async sampleUpstream() {
     if (this.disposed || this.upstreamSampling || this.state.get().status !== 'connected') return;
-    const leading = this.leadingVideo();
-    if (!leading) {
-      this.upstreamCounters = undefined;
+    const published = this.publishedVideo();
+    if (!published.length) {
+      this.upstreamReadings.clear();
       if (this.outbound.get()) this.outbound.set(null);
       return;
     }
     this.upstreamSampling = true;
     const cycle = this.connectionCycle;
     try {
-      const report = await leading.track.getRTCStatsReport();
-      if (this.disposed || cycle !== this.connectionCycle) return;
-      let limitation = 'none';
-      let named = false;
-      let width = 0;
-      let height = 0;
-      let fps = 0;
-      let bytes = 0;
-      let at = 0;
-      let dormant = false;
-      report?.forEach((stat) => {
-        if (stat.type !== 'outbound-rtp' || (stat.kind ?? stat.mediaType) !== 'video') return;
-        if (typeof stat.qualityLimitationReason === 'string') named = true;
-        if (typeof stat.qualityLimitationReason === 'string' && stat.qualityLimitationReason !== 'none')
-          limitation = stat.qualityLimitationReason;
-        bytes += Number(stat.bytesSent ?? 0);
-        at = Math.max(at, Number(stat.timestamp ?? 0));
-        if (stat.active === false) dormant = true;
-        // Слоёв может быть несколько; «что мы отдаём» — это самый крупный из них.
-        const frame = Number(stat.frameWidth ?? 0);
-        if (frame >= width) {
-          width = frame;
-          height = Number(stat.frameHeight ?? 0);
-          fps = Number(stat.framesPerSecond ?? 0);
+      for (const [index, { track, source }] of published.entries()) {
+        const report = await track.getRTCStatsReport().catch(() => undefined);
+        if (this.disposed || cycle !== this.connectionCycle) return;
+        if (!report) continue;
+        const reading = readUpstream(report);
+        const delta = upstreamDelta(this.upstreamReadings.get(source), reading);
+        this.upstreamReadings.set(source, reading);
+        const targetFps = source === 'screen' ? this.profile.fps : this.cameraProfile.fps;
+        if (index === 0 && reading.width)
+          this.outbound.set({
+            source,
+            width: reading.width,
+            height: reading.height,
+            fps: Math.round(reading.fps),
+            mbps: delta.seconds > 0 ? (delta.bytes * 8) / delta.seconds / 1000000 : 0,
+            limitation: reading.limitation,
+            targetFps,
+            sourceFps: track.mediaStreamTrack?.getSettings?.().frameRate,
+            dormant: reading.dormant,
+            settling: performance.now() - this.videoChangedAt[source] < this.settleMs,
+          });
+        if (!(delta.seconds > 0) || !reading.top) continue;
+        const codec = codecOf(reading.top.mime);
+        if (codec) {
+          this.callQuality.notePublished(codec, delta.bytes);
+          this.rxQuality.observeTx({
+            source,
+            codec,
+            hw: reading.top.software === null ? 'unknown' : reading.top.software ? 'sw' : 'hw',
+            seconds: delta.seconds,
+            cpuSeconds: delta.limited.cpu,
+            bandwidthSeconds: delta.limited.bandwidth,
+            otherSeconds: delta.limited.other,
+          });
         }
-      });
-      if (!named) limitation = 'unknown';
-      const previous = this.upstreamCounters;
-      const seconds = previous && at > previous.at ? (at - previous.at) / 1000 : 0;
-      this.upstreamCounters = { at, bytes };
-      if (width)
-        this.outbound.set({
-          source: leading.source,
-          width,
-          height,
-          fps: Math.round(fps),
-          mbps: seconds > 0 ? Math.max(0, ((bytes - previous!.bytes) * 8) / seconds / 1000000) : 0,
-          limitation,
-          targetFps: leading.source === 'screen' ? this.profile.fps : this.cameraProfile.fps,
-          sourceFps: leading.track.mediaStreamTrack?.getSettings?.().frameRate,
-          dormant,
-          settling: performance.now() - this.videoChangedAt[leading.source] < this.settleMs,
-        });
-      // Новые кодеки (VP9/AV1) красивее и экономят канал, но кодируются дороже. Сторож
-      // (`EncoderHealth`) держит их, пока процессор тянет, отступает на H.264 после трёх жалоб
-      // `cpu` подряд и возвращает обратно, когда процессор устойчиво освободился: хороший канал —
-      // не повод отступать (R91/X10), а один всплеск нагрузки — не повод застрять на запасном.
-      const onScreen = leading.source === 'screen';
-      const current = onScreen ? this.codec : this.cameraCodec;
-      const advanced = current === 'av1' || current === 'vp9';
-      const fellBack = onScreen ? this.screenFellBack : this.cameraFellBack;
-      const move = this.encoderHealth.observe(limitation, advanced, fellBack);
-      if (move === 'fallback') {
-        const safe = fallbackCodec();
-        if (onScreen) {
-          this.screenPreferredCodec ??= this.codec;
-          this.codec = safe;
-          this.screenFellBack = true;
-          void this.setProfile(this.profile);
-          this.report(new Error(t(($) => $.media.encoder.screen)));
-        } else {
-          this.cameraPreferredCodec ??= this.cameraCodec;
-          this.cameraCodec = safe;
-          this.cameraCodecChosen = Promise.resolve(safe);
-          this.cameraFellBack = true;
-          void this.switchCameraCodec();
-          this.report(new Error(t(($) => $.media.encoder.camera)));
-        }
-      } else if (move === 'restore') {
-        // Процессор отпустил — тихо возвращаем основной кодек: качество растёт, пугать нечем.
-        if (onScreen) {
-          this.codec = this.screenPreferredCodec ?? this.codec;
-          this.screenFellBack = false;
-          void this.setProfile(this.profile);
-        } else {
-          const back = this.cameraPreferredCodec ?? this.cameraCodec;
-          this.cameraCodec = back;
-          this.cameraCodecChosen = Promise.resolve(back);
-          this.cameraFellBack = false;
-          void this.switchCameraCodec();
-        }
+        // Сторож (`codec-planner.ts`): `cpu` или время кадра три раза подряд, или «аппаратный» стал
+        // программным — ступень ниже по лестнице; на программном H.264 — подсказка. Хороший канал
+        // не повод менять кодек (R91/X10), жалобы `bandwidth` ничего не понижают.
+        this.applyCodecAction(
+          this.codecs.observe(source, {
+            limitation: reading.limitation,
+            encodeMs: delta.encodeMs,
+            targetFps,
+            software: reading.top.software,
+          }),
+        );
       }
-      // Жалобы кодировщика (`bandwidth`/`cpu`) ничего не понижают (R91/X10): выбранные
-      // разрешение и частота — нижняя граница, они видны в плашке отдачи и остаются.
+      this.rxQuality.noteSwitches(this.codecs.takeSwitches());
     } catch {
       // Статистика — не право говорить: её отсутствие ничего не должно остановить.
     } finally {
@@ -2323,6 +2411,7 @@ export class MediaSession {
     clearInterval(this.deadlineTimer);
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
+    this.stopCpuWatch();
     window.removeEventListener('online', this.network);
     connection()?.removeEventListener?.('change', this.network);
     this.lifecycle.dispose();

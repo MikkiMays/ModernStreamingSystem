@@ -707,6 +707,7 @@
               "view.close",
               "view.playing",
               "microphone.mute",
+              "media.decode",
               "profile.avatar",
               "watch.open",
               "watch.play",
@@ -2582,6 +2583,12 @@
           "avatar": {
             "type": "string"
           },
+          "decodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "generation": {
             "format": "int64",
             "type": "integer"
@@ -3064,6 +3071,10 @@
             "pattern": "direct-udp|direct-tcp|relay-udp|relay-tcp|unknown",
             "type": "string"
           },
+          "publishCodec": {
+            "pattern": "vp8|vp9|h264|h265|av1|other",
+            "type": "string"
+          },
           "rttMs": {
             "format": "int32",
             "maximum": 60000,
@@ -3233,11 +3244,27 @@
       },
       "RxSummary": {
         "properties": {
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/TxSwitch"
+            },
+            "maxItems": 8,
+            "minItems": 0,
+            "type": "array"
+          },
           "tracks": {
             "items": {
               "$ref": "#/components/schemas/RxTrack"
             },
             "maxItems": 8,
+            "minItems": 0,
+            "type": "array"
+          },
+          "tx": {
+            "items": {
+              "$ref": "#/components/schemas/TxTrack"
+            },
+            "maxItems": 4,
             "minItems": 0,
             "type": "array"
           }
@@ -3996,6 +4023,79 @@
         "required": [
           "chat",
           "status"
+        ],
+        "type": "object"
+      },
+      "TxSwitch": {
+        "properties": {
+          "from": {
+            "pattern": "vp8|vp9|h264|h265|av1",
+            "type": "string"
+          },
+          "reason": {
+            "pattern": "cpu|encode-time|software|restore|viewers|level",
+            "type": "string"
+          },
+          "source": {
+            "pattern": "camera|screen",
+            "type": "string"
+          },
+          "to": {
+            "pattern": "vp8|vp9|h264|h265|av1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "reason",
+          "source",
+          "to"
+        ],
+        "type": "object"
+      },
+      "TxTrack": {
+        "properties": {
+          "bandwidthSeconds": {
+            "format": "double",
+            "maximum": 60,
+            "minimum": 0,
+            "type": "number"
+          },
+          "codec": {
+            "pattern": "vp8|vp9|h264|h265|av1|other",
+            "type": "string"
+          },
+          "cpuSeconds": {
+            "format": "double",
+            "maximum": 60,
+            "minimum": 0,
+            "type": "number"
+          },
+          "hw": {
+            "pattern": "hw|sw|unknown",
+            "type": "string"
+          },
+          "otherSeconds": {
+            "format": "double",
+            "maximum": 60,
+            "minimum": 0,
+            "type": "number"
+          },
+          "seconds": {
+            "format": "double",
+            "maximum": 60,
+            "minimum": 0,
+            "type": "number"
+          },
+          "source": {
+            "pattern": "camera|screen",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codec",
+          "hw",
+          "source"
         ],
         "type": "object"
       },

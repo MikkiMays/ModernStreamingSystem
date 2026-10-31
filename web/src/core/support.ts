@@ -112,6 +112,7 @@ export function callReportText(report: CallReport | null): string {
     `lossy: ${report.lossySeconds} s`,
     `freezes: ${report.freezes} (${report.freezeSeconds} s)`,
     `codec: ${report.codec ?? 'n/a'}`,
+    `publish codec: ${report.publishCodec ?? 'n/a'}`,
   ].join('\n');
 }
 

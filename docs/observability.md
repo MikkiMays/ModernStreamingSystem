@@ -199,6 +199,9 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_rx_target_ms`, `cord_rx_delay_ms` | histogram 60…2500 мс | `kind` | запас буфера, который просит клиент, и его фактическая задержка |
 | `cord_rx_concealment_events_total` | counter | `kind` | **слышимые провалы**: начала заглушки; на дашборде — в минуту |
 | `cord_rx_packets_lost_total`, `cord_rx_samples_total`, `cord_rx_concealed_samples_total`, `cord_rx_reports_total` | counter | `kind` / — | потери, отсчёты, сводки |
+| `cord_client_publish_seconds_total` | counter, с | `source=camera\|screen`, `codec=vp8\|vp9\|h264\|h265\|av1\|other`, `hw=hw\|sw\|unknown` | своя отдача в той же 10-секундной сводке (`tx`, R152): сколько секунд каким кодеком и в железе ли — доли кодеков и HW/SW на «Cord — медиа» (`docs/codecs.md`) |
+| `cord_client_tx_limited_seconds_total` | counter, с | `source`, `reason=cpu\|bandwidth\|other` | секунды, когда кодировщик отдачи ограничивали процессор, канал или прочее (`qualityLimitationDurations` верхнего слоя) |
+| `cord_client_codec_switch_total` | counter | `source`, `from`, `to`, `reason=cpu\|encode-time\|software\|restore\|viewers\|level` | смены кодека отдачи: сторож, возврат, состав зрителей, смена уровня человеком |
 | `cord_maintenance` | gauge 0/1 | — | обслуживание (дренаж перед выкаткой, `POST /api/v1/admin/maintenance`) |
 | `cord_music_underrun_total`, `cord_music_starved_seconds_total` | counter | — | сторож издателя (служба, по событиям издателя): декодер голодал ≥ 10 кадров; секунды тишины вместо музыки |
 | `cord_music_decoder_restarts_total`, `cord_music_reconnects_total`, `cord_music_tracks_skipped_total` | counter | — | перезапуск ffmpeg после 5 с тишины; издатель поднят заново после обрыва SFU; трек пропущен — источник не отдал |
@@ -514,7 +517,8 @@ Alertmanager 0.34.1, Grafana OSS 13.2.4, node/postgres/redis-экспортер�
   участника.
 - **V12** — столбцы качества в `meeting_stats` (суммы и число итогов по каждой величине, худший оборот,
   секунды с потерями, замирания, итоги через TURN, кодеки словами); звонок одного человека встречей не был
-  (П7) — его итог принят и забыт. Метры `cord_client_reports_total{path}`, `cord_client_rtt_seconds`,
+  (П7) — его итог принят и забыт. С R152 в итоге и кодек своей отдачи (`publishCodec`) — он ложится в
+  те же слова кодеков встречи. Метры `cord_client_reports_total{path}`, `cord_client_rtt_seconds`,
   `cord_client_jitter_seconds`, `cord_client_loss{path}`, `cord_client_freezes_total`.
 - «Активность» → «Качество» (`GET /api/v1/admin/quality?from&to&tz`): средний и худший оборот, потери, доля
   времени с потерями > 5 %, джиттер, приём, замирания в час, доля TURN; оборот по дням, кодеки, последние

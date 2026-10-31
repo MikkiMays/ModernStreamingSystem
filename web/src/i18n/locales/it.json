@@ -1283,7 +1283,8 @@
     },
     "encoder": {
       "screen": "Il codificatore è sovraccarico. Passiamo lo schermo a un codec compatibile.",
-      "camera": "Il codificatore è sovraccarico. Passiamo la videocamera a un codec compatibile."
+      "camera": "Il codificatore è sovraccarico. Passiamo la videocamera a un codec compatibile.",
+      "cpuHint": "Il processore non riesce a codificare il video in tempo. Non abbassiamo la qualità: chiudi i programmi pesanti o scegli una qualità più bassa nelle impostazioni."
     },
     "link": {
       "paths": {
@@ -2872,10 +2873,18 @@
     "rtt": "RTT verso il server multimediale",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "profile": "Profilo del codec",
+    "layers": "Livelli",
+    "singleLayer": "Un solo livello",
     "bufferRx": "Buffer di ricezione",
     "encode": "Codifica del fotogramma",
     "decode": "Decodifica del fotogramma",
     "implementation": "Motore video",
+    "engine": {
+      "hw": "hardware",
+      "sw": "software",
+      "unknown": "non indicato"
+    },
     "limitation": "Limitazione",
     "limits": {
       "none": "Nessuna rilevata",
@@ -2883,6 +2892,17 @@
       "bandwidth": "Banda",
       "unknown": "Nessun dato dal mittente"
     },
+    "choice": {
+      "label": "Perché questo codec",
+      "hardware": "Il miglior codec hardware di questo computer",
+      "software": "Nessun encoder hardware: codifica il processore",
+      "viewers": "Uno spettatore non decodifica il codec superiore",
+      "fallback": "Il controllo è sceso dal codec superiore",
+      "baseline": "L’encoder non ha risposto: codec compatibile predefinito",
+      "backup": "più {{codec}} per chi non ha questo codec"
+    },
+    "fallbacks": "Cambi di codec",
+    "fallbacksValue": "Discese del controllo: {{fallbacks}} · cambi in totale: {{switches}}",
     "stuck": {
       "title": "Immagine o audio bloccati?",
       "text": "Aggiorneremo la ricezione delle tracce degli altri partecipanti. Potrebbe esserci una breve pausa.",

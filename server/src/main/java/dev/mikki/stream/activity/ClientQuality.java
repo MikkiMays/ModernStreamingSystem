@@ -50,7 +50,37 @@ public class ClientQuality {
       @Min(0) @Max(86_400) int freezeSeconds,
       @Min(0) @Max(86_400) int lossySeconds,
       @NotNull @Pattern(regexp = PATHS) String path,
-      @Pattern(regexp = CODECS) String codec) {}
+      @Pattern(regexp = CODECS) String codec,
+      /**
+       * Кодек своей отдачи — тот, которым ушло больше всего (R152); {@code null} — видео не
+       * публиковали или веб старее ядра.
+       */
+      @Pattern(regexp = CODECS) String publishCodec) {
+    public Report(
+        int seconds,
+        Integer rttMs,
+        Double lossPercent,
+        Integer jitterMs,
+        Integer bitrateKbps,
+        int freezes,
+        int freezeSeconds,
+        int lossySeconds,
+        String path,
+        String codec) {
+      this(
+          seconds,
+          rttMs,
+          lossPercent,
+          jitterMs,
+          bitrateKbps,
+          freezes,
+          freezeSeconds,
+          lossySeconds,
+          path,
+          codec,
+          null);
+    }
+  }
 
   private final JdbcClient jdbc;
   private final MeterRegistry registry;
@@ -95,15 +125,19 @@ public class ClientQuality {
                 report.freezes(),
                 Math.min(report.freezeSeconds(), report.seconds()),
                 relay ? 1 : 0,
-                codecs(room, report.codec()),
+                codecs(room, report.codec(), report.publishCodec()),
                 room.id,
                 room.startedAt)
             .update();
     return updated > 0;
   }
 
-  /** Слова кодеков встречи: уже записанные и этот, по алфавиту, без повторов. */
-  private String codecs(RoomState room, String codec) {
+  /**
+   * Слова кодеков встречи: уже записанные, кодек приёма и кодек отдачи этого входа, по алфавиту,
+   * без повторов. Отдача — тоже кодек встречи: её кто-то принимает, даже если сам издатель не
+   * смотрел.
+   */
+  private String codecs(RoomState room, String codec, String publishCodec) {
     var known =
         jdbc.sql("SELECT codecs FROM meeting_stats WHERE room_id=? AND started_at=?")
             .params(room.id, room.startedAt)
@@ -113,6 +147,7 @@ public class ClientQuality {
     var all = new TreeSet<String>();
     if (!known.isBlank()) all.addAll(Arrays.asList(known.split(" ")));
     if (codec != null) all.add(codec);
+    if (publishCodec != null) all.add(publishCodec);
     return String.join(" ", all);
   }
 
