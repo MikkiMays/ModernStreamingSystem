@@ -214,8 +214,10 @@ export function BackgroundSubmenu({
 function choiceLabel(t: ReturnType<typeof useTranslation>['t'], value: BackgroundChoice): string {
   if (value.kind === 'blur')
     return value.strength === 'strong' ? t(($) => $.background.blurStrong) : t(($) => $.background.blurLight);
-  if (value.kind === 'image')
-    return value.id === 'custom' ? t(($) => $.background.custom) : t(($) => $.background.builtin[value.id]);
+  if (value.kind === 'image') {
+    const id = value.id;
+    return id === 'custom' ? t(($) => $.background.custom) : t(($) => $.background.builtin[id]);
+  }
   return t(($) => $.background.none);
 }
 
