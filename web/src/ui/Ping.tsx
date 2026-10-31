@@ -101,11 +101,9 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
           ? '—'
           : t(($) => $.media.ping.ms, { value })}
       {/* Загрузка сервера (R143) — на главной, рядом с пингом; во встрече она ничего не меняет. */}
-      {!meeting && load && (
-        <>
-          {' · '}
-          <LoadBars level={load.level} state={load.state} />
-        </>
+      {/* Разделитель — стилем (`.ping-load::before`): текст пинга остаётся прежним для чтения и тестов. */}
+      {!meeting && load && !disconnected && (
+        <LoadBars className="ping-load" level={load.level} state={load.state} />
       )}
       {video && video.width > 0 && (
         <>
