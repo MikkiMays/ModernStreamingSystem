@@ -81,7 +81,8 @@ import { VideoSilence } from './video-silence';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import { PathRetry, starvedUplink } from './path-retry';
 import { LocalNetworks } from './local-networks';
-import { udpOpen } from './udp-probe';
+import { udpOpen, type IceServerLike } from './udp-probe';
+import { offersTls, readRelayOnly, relayOnlyConfig } from './turn-tls';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { CallQuality, codecOf, type CallReport } from './call-quality';
@@ -119,6 +120,12 @@ export interface MediaState {
   screen: boolean;
   error: string | null;
   quality: ConnectionQuality;
+  /**
+   * Сеть не пропускает звонок (R149): сигнал до SFU дошёл, а путь для звука и видео — нет, и медиа
+   * в этом входе не вставало ни разу. `tls` — сервер предлагал TURN по TLS на 443, и не помог даже
+   * он. Попытки идут дальше сами ({@link BLOCKED_RETRY_MS}); `null` — не тот случай.
+   */
+  blocked: { tls: boolean } | null;
 }
 export interface DeviceChoice {
   microphone?: string;
@@ -170,6 +177,12 @@ export interface OutboundVideo {
 
 /** Сколько ждать опоздавший сигнал, пока медиа идёт, прежде чем считать связь потерянной (R151). */
 export const SIGNAL_GRACE_MS = 8_000;
+/**
+ * Пауза между попытками, пока сеть не пропускает звонок (R149). Сама попытка — до 10 с ожидания ICE
+ * (`peerConnectionTimeout`), и всё это время ядро видит участника в SFU; цикл короче окна
+ * восстановления ядра (20 с), поэтому вход не истекает, пока человек ищет сеть получше.
+ */
+export const BLOCKED_RETRY_MS = 5_000;
 
 /** Network Information API: есть в Chrome на Android, нет в Safari и Firefox. */
 function connection(): EventTarget | undefined {
@@ -246,7 +259,13 @@ export class MediaSession {
     screen: false,
     error: null,
     quality: ConnectionQuality.Unknown,
+    blocked: null,
   });
+  /**
+   * Только TURN по TLS в этом браузере — рычаг поддержки (`turn-tls.ts`, `localStorage['cord:relay']`).
+   * Читается один раз на вход: путь, сменившийся посреди встречи, путал бы и человека, и проверку.
+   */
+  readonly relayOnly = readRelayOnly();
   readonly tracks = new Store<MediaTile[]>([]);
   readonly volumes = new Store<Record<string, number>>({});
   /**
@@ -463,6 +482,10 @@ export class MediaSession {
   private mediaReport: Promise<void> = Promise.resolve();
   private refreshQueued = false;
   private fullRetry = 0;
+  /** Медиа в этом входе уже вставало: дальше любой обрыв — восстановление, а не «сеть не пропускает». */
+  private everConnected = false;
+  /** «Сеть не пропускает звонок» уже сосчитано ядром (`ice-failed`): один раз на вход. */
+  private blockReported = false;
   private qualityTimer?: ReturnType<typeof setInterval>;
   private upstreamSampling = false;
   private screenGeneration = 0;
@@ -566,6 +589,9 @@ export class MediaSession {
           );
           return;
         }
+        // Первый вход ещё идёт: SDK шлёт `Disconnected` до того, как `connect` отвергнет обещание, а
+        // разобрать провал — сеть не пропускает звонок или обычный обрыв — может только `start` (R149).
+        if (this.connecting && !this.everConnected) return;
         this.lost();
         this.scheduleConnect();
       })
@@ -1198,6 +1224,11 @@ export class MediaSession {
     this.connecting = true;
     const generation = this.generation;
     if (!this.recovery.active) this.patch({ status: 'connecting' });
+    // Ответ SFU на вход: пришёл — сигнал дошёл, и провал `connect` после него — это путь медиа (R149).
+    // Серверы из ответа говорят, предлагал ли сервер TURN по TLS.
+    const signal: { servers: readonly IceServerLike[] | null } = { servers: null };
+    const signalled = () => (signal.servers = this.room.engine?.latestJoinResponse?.iceServers ?? []);
+    this.room.on(RoomEvent.SignalConnected, signalled);
     try {
       if (this.recovery.active) await this.api.resume();
       const { url, token } = await this.api.token();
@@ -1211,6 +1242,9 @@ export class MediaSession {
         // значит, «нет»: пауза видео на слабом канале (R117) не наступала никогда, SFU давил в
         // узкий канал нижние слои картинки, и вместе с ними не проходили сигнал и речь.
         subscriberAllowPause: true,
+        ...(this.relayOnly
+          ? { rtcConfig: relayOnlyConfig(() => this.room.engine?.latestJoinResponse?.iceServers) }
+          : {}),
       });
       if (this.disposed || generation !== this.generation) await this.room.disconnect();
     } catch (error) {
@@ -1220,13 +1254,52 @@ export class MediaSession {
           this.onEnd(error.message);
           return;
         }
+        if (!this.everConnected && (signal.servers || this.state.get().blocked)) {
+          this.mediaBlocked(signal.servers);
+          return;
+        }
         this.report(error);
         this.lost();
         this.scheduleConnect();
       }
     } finally {
+      this.room.off(RoomEvent.SignalConnected, signalled);
       this.connecting = false;
     }
+  }
+  /**
+   * Сигнал до SFU дошёл, а медиа не встало — и в этом входе не вставало ни разу (R149): ни UDP, ни
+   * TCP 7881, ни ретранслятор не дали пути. SDK при этом ждёт ICE свои 10 с и бросает «could not
+   * establish pc connection»; раньше это становилось текстом SDK по-английски, отсчётом «Возвращаемся
+   * в разговор» и через двадцать секунд — концом встречи, а человек заходил снова и видел то же.
+   *
+   * Это не обрыв, и окну восстановления здесь не место: человеку нужно время выключить VPN или
+   * сменить сеть. Вместо отсчёта — одна надпись, что не так и что помогает (`blocked`); попытки — раз
+   * в {@link BLOCKED_RETRY_MS} и сразу по смене сети или возвращению на страницу (`nudge`). Обрывы
+   * после первого подключения идут прежним путём — `lost`. Ядро узнаёт о таком входе один раз:
+   * `media.lost` с `option: 'ice-failed'` → `cord_joins_total{door="media",result="ice_failed"}`.
+   */
+  private mediaBlocked(servers: readonly IceServerLike[] | null) {
+    const before = this.state.get().blocked;
+    const tls = servers ? offersTls(servers) : (before?.tls ?? false);
+    if (!before)
+      console.warn('[cord] media path blocked: signal reached the SFU, ICE did not', {
+        tls,
+        relayOnly: this.relayOnly,
+      });
+    // Отсчёт от прежней попытки, где не дошёл и сигнал, здесь ни к чему: сеть та же, и встреча не кончается.
+    if (this.recovery.active) {
+      this.recovery.recovered();
+      clearInterval(this.deadlineTimer);
+      this.deadlineTimer = undefined;
+    }
+    this.patch({ status: 'connecting', blocked: { tls }, error: null });
+    if (!this.blockReported) {
+      this.blockReported = true;
+      this.reportConnection('media.lost', () => !this.everConnected, 'ice-failed');
+    }
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => void this.start(), BLOCKED_RETRY_MS);
   }
   private scheduleConnect() {
     clearTimeout(this.reconnectTimer);
@@ -1253,7 +1326,8 @@ export class MediaSession {
     this.pathRetry.wake();
   }
   private async restartIce() {
-    if (this.disposed || this.room.state !== 'connected') return;
+    // Только TURN по TLS выбран руками (`turn-tls.ts`): искать путь лучше — значит ломать проверку.
+    if (this.disposed || this.relayOnly || this.room.state !== 'connected') return;
     const { path, ordered } = this.link.get();
     // На TCP перезапуск только при открытом UDP: на закрытом он роняет видео на минуты (`udp-probe.ts`).
     if (ordered && !(await udpOpen(this.room.engine?.latestJoinResponse?.iceServers ?? []))) {
@@ -1283,7 +1357,9 @@ export class MediaSession {
     const action = reconnectAction({
       trigger,
       sdk: this.room.state,
-      recovering: this.recovery.active,
+      // Сеть не пропускала звонок (R149): сменилась сеть или вернулись на страницу — пробовать сразу,
+      // как и в окне восстановления, не дожидаясь очередной попытки.
+      recovering: this.recovery.active || this.state.get().blocked !== null,
       connecting: this.connecting,
       sinceNudgeMs: performance.now() - this.lastNudge,
       mediaFlowing,
@@ -1490,6 +1566,7 @@ export class MediaSession {
     this.deadlineTimer = undefined;
     clearTimeout(this.reconnectTimer);
     this.fullRetry = 0;
+    this.everConnected = true;
     const cycle = ++this.connectionCycle;
     this.reportConnection(
       'media.restored',
@@ -1498,7 +1575,12 @@ export class MediaSession {
     void this.restoreTracks(cycle);
     // Звук собеседников: свой контекст переживает переподключение, но мог уснуть, пока его не было.
     if (typeof document === 'undefined' || !document.hidden) void this.audio.wake();
-    this.patch({ status: 'connected', remaining: this.recovery.durationMs / 1000, error: null });
+    this.patch({
+      status: 'connected',
+      remaining: this.recovery.durationMs / 1000,
+      error: null,
+      blocked: null,
+    });
     this.restorePauses();
     this.startUpstreamMonitor();
     this.refreshTracks();
@@ -1529,14 +1611,24 @@ export class MediaSession {
       this.collectTracks();
     });
   };
-  private reportConnection(type: 'media.lost' | 'media.restored', current: () => boolean) {
+  /** `option: 'ice-failed'` — потеря особая: сеть не пропускает звонок, ядро считает такой вход (R149). */
+  private reportConnection(
+    type: 'media.lost' | 'media.restored',
+    current: () => boolean,
+    option?: 'ice-failed',
+  ) {
     this.mediaReport = this.mediaReport
       .then(async () => {
         if (this.disposed || !current()) return;
         const snapshot = await this.api.snapshot();
         const member = snapshot.participants.find((p) => p.id === this.api.admission.participantId);
         if (member && !this.disposed && current())
-          await this.api.command({ type, commandId: crypto.randomUUID(), generation: member.generation });
+          await this.api.command({
+            type,
+            commandId: crypto.randomUUID(),
+            generation: member.generation,
+            ...(option ? { option } : {}),
+          });
       })
       .catch(() => {});
   }

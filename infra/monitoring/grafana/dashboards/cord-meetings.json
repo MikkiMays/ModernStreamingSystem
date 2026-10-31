@@ -514,7 +514,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (result) (rate(cord_joins_total[5m])) * 60",
+          "expr": "sum by (result) (rate(cord_joins_total{door!=\"media\"}[5m])) * 60",
           "legendFormat": "{{result}}",
           "refId": "A",
           "datasource": {
@@ -549,7 +549,7 @@
     {
       "id": 12,
       "type": "timeseries",
-      "title": "Интеграции идут сейчас",
+      "title": "Сеть не пропустила звонок, за час",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -557,6 +557,63 @@
       "gridPos": {
         "x": 12,
         "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(cord_joins_total{door=\"media\",result=\"ice_failed\"}[1h]))",
+          "legendFormat": "медиа не встало (ice_failed)",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "expr": "sum(increase(cord_client_reports_total{path=\"relay-tls\"}[1h]))",
+          "legendFormat": "звонки через TURN/TLS 443",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Интеграции идут сейчас",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
         "w": 12,
         "h": 8
       },
@@ -595,7 +652,7 @@
       }
     },
     {
-      "id": 13,
+      "id": 14,
       "type": "timeseries",
       "title": "Доска: открыто и смотрят",
       "datasource": {
@@ -603,7 +660,7 @@
         "uid": "victoriametrics"
       },
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 28,
         "w": 12,
         "h": 8
@@ -652,7 +709,7 @@
       }
     },
     {
-      "id": 14,
+      "id": 15,
       "type": "timeseries",
       "title": "Доска: правки элементов, в секунду",
       "datasource": {
@@ -660,8 +717,8 @@
         "uid": "victoriametrics"
       },
       "gridPos": {
-        "x": 12,
-        "y": 28,
+        "x": 0,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -709,7 +766,7 @@
       }
     },
     {
-      "id": 15,
+      "id": 16,
       "type": "timeseries",
       "title": "Отказы ядра по коду, в минуту (10 частых)",
       "datasource": {
@@ -718,7 +775,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 44,
         "w": 24,
         "h": 8
       },
@@ -757,7 +814,7 @@
       }
     },
     {
-      "id": 16,
+      "id": 17,
       "type": "timeseries",
       "title": "Блокировки",
       "datasource": {
@@ -766,7 +823,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 52,
         "w": 12,
         "h": 8
       },
@@ -805,7 +862,7 @@
       }
     },
     {
-      "id": 17,
+      "id": 18,
       "type": "timeseries",
       "title": "Версия ядра",
       "datasource": {
@@ -814,7 +871,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 44,
+        "y": 52,
         "w": 12,
         "h": 8
       },

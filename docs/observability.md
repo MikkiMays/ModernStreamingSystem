@@ -160,7 +160,7 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_meetings_ended_total` | counter | `reason=empty\|closed\|expired\|draining` | `Lifecycle` |
 | `cord_meeting_duration_seconds` | histogram 5м/15м/30м/1ч/2ч/4ч | — | при завершении |
 | `cord_meeting_peak_participants` | histogram 2…20 | — | при завершении |
-| `cord_joins_total` | counter | `result=ok\|room_full\|room_limit\|code_invalid\|password_invalid\|forbidden\|draining\|rate_limited\|error`, `client=web\|desktop\|telegram` | вход (`SessionController`, `RoomService`) |
+| `cord_joins_total` | counter | `result=ok\|room_full\|room_limit\|code_invalid\|password_invalid\|forbidden\|draining\|rate_limited\|error`, `client=web\|desktop\|telegram`; `door="media",result="ice_failed"` — вход пропущен, а медиа не встало (R149, ниже) | вход (`SessionController`, `RoomService`); `ice_failed` — `CommandDispatcher` по `media.lost` с `option: ice-failed` |
 | `cord_join_seconds` | timer | — | от выдачи токена до вебхука `participant_joined` |
 | `cord_rate_limiter_fallback_total` | counter | `reason=timeout\|connection\|other\|paused` | `RateLimits`: шаг предела сосчитан в памяти ядра — Redis не ответил (R106, Р-28; `paused` — 5 с после сбоя Redis не спрашивают) |
 | `cord_leaves_total` | counter | `reason=leave\|removed\|timeout\|switched\|closed` | `RoomService`, `MediaService` |
@@ -301,7 +301,8 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
   `JoinFailures`, `ErrorRate` — вместо десятка сообщений одно: «хост замирал N раз, steal X %».
 - **Отбой обязателен:** `send_resolved: true`; `group_wait: 1m`, `group_interval: 5m`, `repeat_interval: 6h`.
 - **Правила:** `CoreDown`, `SfuDown`, `PostgresDown`, `RedisDown`; `DiskFree < 15 %`, `MemAvailable < 10 %`,
-  `CertExpiry < 14d`; `JoinFailures` (доля `cord_joins_total{result!="ok"}` > 20 % за 10 мин), `ErrorRate5xx`;
+  `CertExpiry < 14d`; `JoinFailures` (доля `cord_joins_total{door!="media",result!="ok"}` > 20 % за 10 мин: `ice_failed` —
+  не отказ ядра), `ErrorRate5xx`;
   `PacketLoss` (`livekit_packet_loss_percent` > 5 % десять минут при живых встречах); `HostStalled`, `Watchdog`.
 - **Куда:** `telegram_configs` Alertmanager; бот — уже существующий бот Cord, чат — `ALERT_TELEGRAM_CHAT_ID`
   в `.env` (действие владельца).
@@ -527,7 +528,7 @@ Alertmanager 0.34.1, Grafana OSS 13.2.4, node/postgres/redis-экспортер�
 - `POST /api/v1/rooms/{id}/client-report` — итог звонка одного входа, в конце звонка (конец встречи, уход
   со страницы, `pagehide`; `keepalive`): секунды, медиана оборота, средние потери и джиттер приёма, битрейт
   приёма, замирания картинки, секунды с потерями > 5 %, путь (`direct-udp|direct-tcp|relay-udp|relay-tcp|
-  unknown`) и кодек картинки (`vp8|vp9|h264|h265|av1|other`). Ни имён, ни адресов, ни номеров участников.
+  relay-tls|unknown`; `relay-tls` — TURN по TLS на 443, с R149) и кодек картинки (`vp8|vp9|h264|h265|av1|other`). Ни имён, ни адресов, ни номеров участников.
   Пропуск — участника (годится и после выхода); один итог на вход, 30 в минуту с адреса; заход короче 10 с
   итога не шлёт (`web/src/media/call-quality.ts`, копится из опроса буфера, своего getStats нет).
 - Отличие от плана §4: не метры раз в 30 с от каждого клиента, а один итог на вход — он и ложится в
@@ -541,6 +542,17 @@ Alertmanager 0.34.1, Grafana OSS 13.2.4, node/postgres/redis-экспортер�
 - «Активность» → «Качество» (`GET /api/v1/admin/quality?from&to&tz`): средний и худший оборот, потери, доля
   времени с потерями > 5 %, джиттер, приём, замирания в час, доля TURN; оборот по дням, кодеки, последние
   встречи с итогами. Переподключений и оборота LiveKit здесь нет — они в Grafana.
+
+**Сеть не пропускает звонок (R149, 01.11.2026).**
+- Сигнал до SFU дошёл, а ICE — нет: ни UDP, ни TCP 7881, ни TURN не дали пути, и в этом входе медиа не
+  вставало ни разу (VPN, строгий файрвол, сервер без TURN/TLS на 443). Браузер показывает «Сеть не пропускает
+  звонок» вместо отсчёта восстановления, пробует снова раз в 5 с и сразу по смене сети
+  (`web/src/media/session.ts`, `mediaBlocked`) и один раз на вход шлёт `media.lost` с `option: ice-failed`.
+  Ядро считает это `cord_joins_total{door="media",result="ice_failed"}`: тот же вход уже сосчитан своей дверью
+  с `ok`, поэтому дверь `media` не идёт ни в «Входы по исходу», ни в `JoinFailures`. Своя панель на «Cord —
+  встречи» — «Сеть не пропустила звонок, за час»: рядом звонки, которые довёз TURN/TLS
+  (`cord_client_reports_total{path="relay-tls"}`).
+- Обрыв после первого подключения — по-прежнему восстановление с отсчётом и без этого счёта.
 
 **Не сделано (следующий шаг).**
 - Вторая очередь: VictoriaLogs + Fluent Bit с фильтром приватности; GlitchTip.

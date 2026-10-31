@@ -1,5 +1,15 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp, Headphones, PhoneOff, Users, Wifi, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Headphones,
+  PhoneOff,
+  Users,
+  Wifi,
+  WifiOff,
+  X,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { useMediaQuery, useStore } from './primitives';
@@ -364,6 +374,21 @@ export function MeetingView({
                   <span>{t(($) => $.meeting.view.recoveryText)}</span>
                 </div>
                 <b>{t(($) => $.meeting.view.seconds, { n: media.remaining })}</b>
+              </div>
+            )}
+            {/* Сигнал есть, медиа нет ни разу (R149): что не так и что помогает — без отсчёта, попытки идут сами. */}
+            {!ended && media.blocked && (
+              <div className="recovery-banner media-stage" data-reason="blocked" role="alert">
+                <WifiOff size={20} />
+                <div>
+                  <strong>{t(($) => $.meeting.view.blockedTitle)}</strong>
+                  <span>{t(($) => $.meeting.view.blockedText)}</span>
+                  <span>
+                    {media.blocked.tls
+                      ? t(($) => $.meeting.view.blockedTls)
+                      : t(($) => $.meeting.view.blockedOwner)}
+                  </span>
+                </div>
               </div>
             )}
             {!ended && <PresenceAsk snapshot={snapshot} presence={presence} />}

@@ -1310,3 +1310,14 @@ electron-builder с собственными страницами, Squirrel с �
   ставит `strict` сам, если `rtc.` и `turn.` домена уже указывают на машину. Владелец добавил DNS
   `rtc.`/`turn.cord.nikg.tech` — стенд переведён в `strict`, путь проверяется
   `scripts/turn-relay-check.mjs --transport=tls --turn=turn.<домен>:443`.
+- **Р-53. «Сеть не пропускает звонок» и проверка TURN/TLS (R149, ANALYSIS-MEDIA §E.3, 01.11.2026):** (1) признак —
+  сигнал до SFU дошёл (`RoomEvent.SignalConnected`), а `connect` всё равно не удался, и медиа в этом входе не вставало
+  ни разу; обрывы после первого подключения — прежнее восстановление с отсчётом. (2) Окна восстановления и конца
+  встречи в этом случае нет: надпись с тем, что помогает, попытки раз в 5 с и сразу по смене сети. (3) Счёт — без
+  новой двери и без нового типа команды: `media.lost` с `option: ice-failed` один раз на вход →
+  `cord_joins_total{door="media",result="ice_failed"}`; дверь `media` не идёт в «Входы по исходу» и `JoinFailures`
+  (тот же вход уже сосчитан своей дверью с `ok`). (4) Путь `relay-tls` отдельно от `relay-tcp` — в «Диагностике» и в
+  итоге звонка (`ClientQuality.PATHS`). (5) «Только TURN по TLS» — флаг `localStorage['cord:relay'] = 'tls'` без
+  кнопки в интерфейсе; livekit-client 2.22.4 свои `rtcConfig.iceServers` не сливает с серверными, а подставляет
+  вместо них, учётку TURN знает только ответ на вход — поэтому `iceServers` здесь геттер над
+  `latestJoinResponse` с отбором `turns:`.

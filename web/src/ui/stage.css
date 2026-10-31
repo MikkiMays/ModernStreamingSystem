@@ -538,6 +538,10 @@ button.watch-stream.is-stop:hover {
   color: var(--stage-muted);
   font-size: var(--text-sm);
 }
+/* «Сеть не пропускает звонок» (R149): текста больше, чем у отсчёта, — строка не шире удобной для чтения. */
+.recovery-banner[data-reason='blocked'] {
+  max-width: min(36rem, calc(100% - var(--space-8)));
+}
 .recovery-banner b {
   margin-left: var(--space-4);
   font-size: var(--text-lg);

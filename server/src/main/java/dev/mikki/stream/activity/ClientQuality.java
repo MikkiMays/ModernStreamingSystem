@@ -30,8 +30,11 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ClientQuality {
-  /** Пути связи — как их называет браузер ({@code media/link-quality.ts}). */
-  public static final String PATHS = "direct-udp|direct-tcp|relay-udp|relay-tcp|unknown";
+  /**
+   * Пути связи — как их называет браузер ({@code media/link-quality.ts}). {@code relay-tls} —
+   * ретранслятор по TLS на 443 (R149): по нему видно, кого из людей спас режим {@code strict}.
+   */
+  public static final String PATHS = "direct-udp|direct-tcp|relay-udp|relay-tcp|relay-tls|unknown";
 
   /** Кодеки картинки, которые клиент называет по имени; остальное — {@code other}. */
   public static final String CODECS = "vp8|vp9|h264|h265|av1|other";

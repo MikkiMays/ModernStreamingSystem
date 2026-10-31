@@ -595,6 +595,10 @@
       "requests": "Richieste di accesso: {{n}} · Apri",
       "recoveryTitle": "Ti stiamo riportando nella conversazione",
       "recoveryText": "Controlla la rete. Riproviamo a connetterci automaticamente.",
+      "blockedTitle": "La rete sta bloccando la chiamata",
+      "blockedText": "Il server risponde, ma audio e video non passano: succede dietro una VPN o un firewall rigido. Disattiva la VPN o cambia rete: ci collegheremo da soli.",
+      "blockedTls": "Non è passata nemmeno la via di riserva sulla porta 443.",
+      "blockedOwner": "Se succede a tutti su questa rete, chiedi al proprietario del server di attivare TURN sulla porta 443.",
       "seconds": "{{n}} s",
       "controlRecovering": "Ripristino di chat e controlli. Audio e video continuano a funzionare.",
       "thanks": "Grazie per la conversazione.",
@@ -1382,7 +1386,8 @@
         "direct-udp": "Diretto al server multimediale · UDP",
         "direct-tcp": "Diretto al server multimediale · TCP",
         "relay-udp": "Tramite relay TURN · UDP",
-        "relay-tcp": "Tramite relay TURN · TCP/TLS",
+        "relay-tcp": "Tramite relay TURN · TCP",
+        "relay-tls": "Tramite relay TURN · TLS",
         "unknown": "Percorso sconosciuto"
       },
       "grades": {
@@ -2957,7 +2962,8 @@
       "label": "Audio e video",
       "connected": "Connessi",
       "recovering": "In ripristino",
-      "disconnected": "Non connessi"
+      "disconnected": "Non connessi",
+      "blocked": "Non passano: la rete sta bloccando la chiamata"
     },
     "control": {
       "label": "Chat e controlli",
@@ -2996,6 +3002,7 @@
       "value": "{{p50}} ms, il 95% entro {{p95}} ms"
     },
     "ordered": "I contenuti passano da un relay su TCP/TLS. Questo percorso non perde pacchetti ma li richiede di nuovo, e tutto ciò che arriva dopo aspetta quello in ritardo: all'orecchio suona come «si è zittito, poi ha parlato più in fretta». Il buffer è stato aumentato automaticamente. Se succede spesso, verifica che la rete lasci passare UDP fino al server multimediale: il percorso diretto è molto più regolare.",
+    "relayOnly": "Test TURN/TLS attivo: in questo browser i contenuti multimediali passano solo dal relay sulla porta 443; le altre vie non vengono provate.",
     "videoPaused_one": "Il video è stato messo in pausa {{count}} volta: la tua connessione non reggeva l'immagine, quindi il server ha dato la precedenza a voce e musica. L'immagine torna da sola quando la connessione migliora.",
     "videoPaused_many": "Il video è stato messo in pausa {{count}} volte: la tua connessione non reggeva l'immagine, quindi il server ha dato la precedenza a voce e musica. L'immagine torna da sola quando la connessione migliora.",
     "videoPaused_other": "Il video è stato messo in pausa {{count}} volte: la tua connessione non reggeva l'immagine, quindi il server ha dato la precedenza a voce e musica. L'immagine torna da sola quando la connessione migliora.",

@@ -593,6 +593,10 @@
       "requests": "加入请求：{{n}} · 打开",
       "recoveryTitle": "正在回到对话",
       "recoveryText": "请检查网络。我们会自动重新连接。",
+      "blockedTitle": "网络拦截了通话",
+      "blockedText": "服务器可以连接，但音频和视频无法通过——这常见于 VPN 或严格的防火墙之后。请关闭 VPN 或更换网络：我们会自动连接。",
+      "blockedTls": "连经由 443 端口的备用路径也没有通过。",
+      "blockedOwner": "如果这个网络里的每个人都这样，请让服务器所有者在 443 端口启用 TURN。",
       "seconds": "{{n}} 秒",
       "controlRecovering": "正在恢复聊天和控制。音频和视频仍正常工作。",
       "thanks": "感谢这次交流。",
@@ -1354,7 +1358,8 @@
         "direct-udp": "直连媒体服务器 · UDP",
         "direct-tcp": "直连媒体服务器 · TCP",
         "relay-udp": "经由 TURN 中继 · UDP",
-        "relay-tcp": "经由 TURN 中继 · TCP/TLS",
+        "relay-tcp": "经由 TURN 中继 · TCP",
+        "relay-tls": "经由 TURN 中继 · TLS",
         "unknown": "路径未知"
       },
       "grades": {
@@ -2893,7 +2898,8 @@
       "label": "音频和视频",
       "connected": "已连接",
       "recovering": "正在恢复",
-      "disconnected": "未连接"
+      "disconnected": "未连接",
+      "blocked": "无法通过：网络拦截了通话"
     },
     "control": {
       "label": "聊天和控制",
@@ -2932,6 +2938,7 @@
       "value": "{{p50}} 毫秒，95% 在 {{p95}} 毫秒内"
     },
     "ordered": "媒体正通过 TCP/TLS 中继传输。这条路径不会丢包，而是重新请求丢失的包，之后到达的数据都要等它——听起来就像“先静音，然后语速变快”。缓冲已自动增大。如果反复出现，请检查网络是否允许 UDP 到达媒体服务器：直连路径会平稳得多。",
+    "relayOnly": "TURN/TLS 检查已开启：在此浏览器中，媒体只经由 443 端口的中继传输，不尝试其他路径。",
     "videoPaused_other": "视频已为你暂停 {{count}} 次：你的网络带不动画面，服务器优先保证了语音和音乐。网络好转后画面会自动恢复。",
     "checking": "正在检查…",
     "check": "检查网络",
