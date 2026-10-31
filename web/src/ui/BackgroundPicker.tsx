@@ -12,13 +12,16 @@ import {
   type BackgroundSupport,
   type BuiltinBackground,
 } from '../media/background-effect';
-import { MenuRadioGroup, MenuRadioItem, MenuSubmenu } from './kit';
+import { Button, MenuRadioGroup, MenuRadioItem, MenuSubmenu, Popover } from './kit';
 import './background-picker.css';
 
 const same = (a: BackgroundChoice, b: BackgroundChoice) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Что умеет устройство — один раз на страницу. */
 let supported: Promise<BackgroundSupport> | null = null;
+export function useBackgroundSupport(): BackgroundSupport | null {
+  return useSupport();
+}
 function useSupport(): BackgroundSupport | null {
   const [support, setSupport] = useState<BackgroundSupport | null>(null);
   useEffect(() => {
@@ -204,5 +207,41 @@ export function BackgroundSubmenu({
         ))}
       </MenuRadioGroup>
     </MenuSubmenu>
+  );
+}
+
+/** Подпись выбранного фона одним словом — для кнопки строки настроек. */
+function choiceLabel(t: ReturnType<typeof useTranslation>['t'], value: BackgroundChoice): string {
+  if (value.kind === 'blur')
+    return value.strength === 'strong' ? t(($) => $.background.blurStrong) : t(($) => $.background.blurLight);
+  if (value.kind === 'image')
+    return value.id === 'custom' ? t(($) => $.background.custom) : t(($) => $.background.builtin[value.id]);
+  return t(($) => $.background.none);
+}
+
+/**
+ * «Фон» в строке настроек «Видео» (R153): кнопка с тем, что выбрано, и плитки во всплывающей карточке.
+ * Плитками прямо в строке раздел «Видео» выходил за окно (R101: каждый раздел — без прокрутки).
+ */
+export function BackgroundButton({
+  value,
+  onChange,
+}: {
+  value: BackgroundChoice;
+  onChange: (choice: BackgroundChoice) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Popover
+      title={t(($) => $.background.title)}
+      width={320}
+      trigger={
+        <Button size="sm" variant="secondary" icon={<Sparkles size={16} />}>
+          {choiceLabel(t, value)}
+        </Button>
+      }
+    >
+      <BackgroundPicker value={value} onChange={onChange} />
+    </Popover>
   );
 }

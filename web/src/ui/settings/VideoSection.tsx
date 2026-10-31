@@ -1,4 +1,4 @@
-import { BackgroundPicker } from '../BackgroundPicker';
+import { BackgroundButton, useBackgroundSupport } from '../BackgroundPicker';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Track } from 'livekit-client';
@@ -50,6 +50,7 @@ export function VideoSection({
   const [picked, setPicked] = useState<string>();
   const [shown, setShown] = useState<string>();
   const front = coarse && !picked && !chosen;
+  const backgrounds = useBackgroundSupport();
   return (
     <>
       <SettingGroup title={t(($) => $.settings.anchors.camera)} anchor="camera">
@@ -75,12 +76,15 @@ export function VideoSection({
               />
             </SettingRow>
             {/* Фон в видео (R153): во встрече превью — дорожка встречи, и фон видно сразу. */}
-            <SettingRow id="camera-background" stack>
-              <BackgroundPicker
-                value={preferences.background}
-                onChange={(background) => void change({ background })}
-              />
-            </SettingRow>
+            {backgrounds && backgrounds !== 'none' && (
+              <SettingRow id="camera-background">
+                <BackgroundButton
+                  value={preferences.background}
+                  onChange={(background) => void change({ background })}
+                />
+              </SettingRow>
+            )}
+
             <QualityRows
               kind="camera"
               value={preferences.camera}
