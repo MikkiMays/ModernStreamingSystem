@@ -23,6 +23,7 @@ class FakeStream {
   private tracks: MediaStreamTrack[] = [];
   getTracks = () => this.tracks;
   getVideoTracks = () => this.tracks.filter((track) => track.kind === 'video');
+  getAudioTracks = () => this.tracks.filter((track) => track.kind === 'audio');
   addTrack = (track: MediaStreamTrack) => void this.tracks.push(track);
   removeTrack = (track: MediaStreamTrack) => void (this.tracks = this.tracks.filter((t) => t !== track));
 }
@@ -160,6 +161,36 @@ describe('предвход', () => {
       { roomId: 'r' },
       expect.objectContaining({ cameraOn: true, camera: 'front-camera' }),
     );
+  });
+
+  it('включённый здесь микрофон уходит во встречу той же дорожкой, без второго захвата (R160)', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const microphone = { kind: 'audio', readyState: 'live', stop: vi.fn(), getSettings: () => ({}) };
+    const camera = { kind: 'video', readyState: 'live', stop: vi.fn(), getSettings: () => ({}) };
+    const getUserMedia = vi.mocked(navigator.mediaDevices.getUserMedia);
+    getUserMedia
+      .mockResolvedValueOnce({ getTracks: () => [microphone] } as never)
+      .mockResolvedValueOnce({ getTracks: () => [camera], getVideoTracks: () => [camera] } as never);
+    vi.mocked(publicApi.create).mockResolvedValue({ roomId: 'r' } as never);
+    const onJoin = show();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Включить микрофон' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Включить камеру' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Начать встречу' }));
+    });
+    expect(onJoin).toHaveBeenCalledWith(
+      { roomId: 'r' },
+      expect.objectContaining({ micOn: true, cameraOn: true, microphoneTrack: microphone }),
+    );
+    // Микрофон не останавливается — его публикует встреча; превью камеры — останавливается.
+    expect(microphone.stop).not.toHaveBeenCalled();
+    expect(camera.stop).toHaveBeenCalled();
+    cleanup();
+    expect(microphone.stop).not.toHaveBeenCalled();
   });
 
   it('телефон: камеру выбрали в списке до включения — включается она, а не фронтальная', async () => {
