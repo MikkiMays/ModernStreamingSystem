@@ -266,14 +266,25 @@ class DurakTest {
   }
 
   @Test
-  void theFirstBoutCanBeCappedAtFive() {
+  void theFirstBoutIsAlwaysCappedAtFive() {
+    // R179: первый отбой — пять карт всегда, настройки для этого нет.
     var table = table(2);
-    table.firstFive = true;
-    deal(table, "9h", "", "6s 6h 6c 6d 7s 7h", "As Ks Qs Js Ts 9s");
-    table.boutNumber = 1;
-    // deal() выставляет limit сам; пересчитываем так же, как это делает стол.
-    table.limit = Math.min(Durak.FIRST_ATTACKS, table.seats.get(1).hand.size());
-    assertThat(table.limit).isEqualTo(5);
+    table.deal(T0);
+    assertThat(table.boutNumber).isEqualTo(1);
+    assertThat(table.seats.get(table.defender).hand).hasSize(Durak.HAND);
+    assertThat(table.limit).isEqualTo(Durak.FIRST_ATTACKS);
+    assertThatThrownBy(() -> table.configure("first-five", null, T0))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("Неизвестная настройка");
+  }
+
+  @Test
+  void theStoredFirstFiveSwitchIsIgnored() throws Exception {
+    // Запись комнаты прежнего ядра с полем настройки читается: поле пропускается (`ignoreUnknown`).
+    var read =
+        new com.fasterxml.jackson.databind.ObjectMapper()
+            .readValue("{\"firstFive\":true,\"deckSize\":36}", Durak.class);
+    assertThat(read.deckSize).isEqualTo(36);
   }
 
   @Test

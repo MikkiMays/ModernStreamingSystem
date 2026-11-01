@@ -1826,9 +1826,6 @@
         "all": "Alle",
         "neighbours": "Nachbarn"
       },
-      "first": {
-        "label": "Erster Angriff"
-      },
       "turn": {
         "label": "Zeit pro Zug",
         "paused": "Setz das Spiel fort, um die Zeit zu ändern"

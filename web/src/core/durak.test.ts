@@ -54,7 +54,6 @@ function table(patch: Partial<DurakTable> = {}): DurakTable {
     deckSize: 36,
     transfer: false,
     neighbours: false,
-    firstFive: false,
     turnSeconds: 40,
     seatingOpen: true,
     revision: 1,

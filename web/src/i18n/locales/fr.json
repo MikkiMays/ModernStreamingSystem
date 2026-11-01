@@ -1848,9 +1848,6 @@
         "all": "Tout le monde",
         "neighbours": "Les voisins"
       },
-      "first": {
-        "label": "Première attaque"
-      },
       "turn": {
         "label": "Temps par coup",
         "paused": "Reprenez la partie pour changer le temps"

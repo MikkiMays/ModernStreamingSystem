@@ -1804,9 +1804,6 @@
         "all": "所有人",
         "neighbours": "相邻玩家"
       },
-      "first": {
-        "label": "第一轮进攻"
-      },
       "turn": {
         "label": "每步限时",
         "paused": "继续游戏后才能修改时间"

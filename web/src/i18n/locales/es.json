@@ -1848,9 +1848,6 @@
         "all": "Todos",
         "neighbours": "Vecinos"
       },
-      "first": {
-        "label": "Primer ataque"
-      },
       "turn": {
         "label": "Tiempo por turno",
         "paused": "Reanuda la partida para cambiar el tiempo"

@@ -1848,9 +1848,6 @@
         "all": "Tutti",
         "neighbours": "I vicini"
       },
-      "first": {
-        "label": "Primo attacco"
-      },
       "turn": {
         "label": "Tempo per mossa",
         "paused": "Riprendi la partita per cambiare il tempo"

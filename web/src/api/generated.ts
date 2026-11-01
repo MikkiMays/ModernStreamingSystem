@@ -1162,7 +1162,6 @@ export interface components {
             defender: number;
             /** Format: int32 */
             discarded: number;
-            firstFive: boolean;
             /** Format: int32 */
             handNumber: number;
             hostId: string;

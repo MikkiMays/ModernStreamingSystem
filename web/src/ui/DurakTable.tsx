@@ -1257,16 +1257,6 @@ function Settings({
           onChange={() => set('neighbours')}
         />
         <SettingChoice
-          label={t(($) => $.durak.settings.first.label)}
-          values={[
-            { value: 0, label: t(($) => $.durak.cards, { count: 6 }) },
-            { value: 1, label: t(($) => $.durak.cards, { count: 5 }) },
-          ]}
-          value={table.firstFive ? 1 : 0}
-          disabled={!host || disabled}
-          onChange={() => set('first-five')}
-        />
-        <SettingChoice
           label={t(($) => $.durak.settings.turn.label)}
           hint={table.paused ? t(($) => $.durak.settings.turn.paused) : undefined}
           values={[...new Set([...TURN_STEPS, table.turnSeconds])]

@@ -27,8 +27,6 @@ public record DurakView(
     boolean transfer,
     /** Подкидывают только соседи защитника. */
     boolean neighbours,
-    /** Первый бой партии — не больше пяти карт. */
-    boolean firstFive,
     int turnSeconds,
     boolean seatingOpen,
     long revision,

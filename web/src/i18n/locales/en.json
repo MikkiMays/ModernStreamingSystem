@@ -1826,9 +1826,6 @@
         "all": "Everyone",
         "neighbours": "Neighbors"
       },
-      "first": {
-        "label": "First attack"
-      },
       "turn": {
         "label": "Time per move",
         "paused": "Resume the game to change the time"
