@@ -27,7 +27,6 @@ import { MeetingHeader } from './MeetingHeader';
 import { PresenceAsk, usePresence } from './abuse/Presence';
 import { Button, IconButton, ResizeHandle, ToastProvider, usePanelWidth } from './kit';
 import { InviteCopiedNotice } from './InviteCopiedNotice';
-import { DeafenedNotice } from './DeafenedNotice';
 import { humans } from '../core/people';
 import {
   hotkeyFromMouse,
@@ -576,7 +575,6 @@ export function MeetingView({
           </Suspense>
         )}
         <InviteCopiedNotice meeting={meeting} />
-        <DeafenedNotice meeting={meeting} />
       </div>
     </ToastProvider>
   );

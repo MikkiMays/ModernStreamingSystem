@@ -123,7 +123,7 @@ describe('что общее, а что у сервера своё (R146)', () =>
         'avatar',
         'audio',
         'micHotkey',
-        'deafened',
+        'deafenHotkey',
         'screen',
         'camera',
         'showPing',
@@ -131,6 +131,8 @@ describe('что общее, а что у сервера своё (R146)', () =>
     );
     expect(SECRET_KEYS).toEqual(['yandexMusicToken']);
     expect(SHARED_KEYS).not.toContain('yandexMusicToken');
+    // «Звук встречи» — состояние встречи, а не человека (R161): между серверами не переезжает.
+    expect(SHARED_KEYS).not.toContain('deafened');
   });
 
   it('свои у сервера: избранное, автовход, недавние, сессия, пароль сервера, громкости участников, кеш, вход владельца, встреча', () => {

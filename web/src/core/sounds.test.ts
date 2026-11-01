@@ -132,10 +132,18 @@ it('stays silent, and settled, when the browser never let audio start', async ()
 
 it('«звук встречи» выключен — молчат и сигналы, и звуки столов (R156)', async () => {
   const { savePreferences } = await import('./preferences');
-  const { soundVolume } = await import('./sounds');
-  savePreferences({ soundVolume: 80, deafened: false });
+  const { setMeetingDeafened, soundVolume } = await import('./sounds');
+  savePreferences({ soundVolume: 80 });
   expect(soundVolume()).toBe(0.8);
-  savePreferences({ deafened: true });
+  setMeetingDeafened(true);
   expect(soundVolume()).toBe(0);
-  savePreferences({ deafened: false });
+  setMeetingDeafened(false);
+  expect(soundVolume()).toBe(0.8);
+});
+
+it('«звук встречи» — не настройка: выключенный в записи прошлых версий сигналы не глушит (R161)', async () => {
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ soundVolume: 50, deafened: true }));
+  const { soundVolume } = await import('./sounds');
+  expect(soundVolume()).toBe(0.5);
+  localStorage.removeItem('cord:preferences:v1');
 });

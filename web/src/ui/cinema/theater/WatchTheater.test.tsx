@@ -59,6 +59,7 @@ function meeting() {
     }),
     media: {
       preferences: new Store({ watchVolume: 70, watchAudio: '', watchSubtitles: '' }),
+      deafened: new Store(false),
       saveSettings: vi.fn(),
       report: vi.fn(),
     },
