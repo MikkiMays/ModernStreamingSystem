@@ -1110,7 +1110,10 @@ export class MediaSession {
   /** Подсказать кодировщику, что в этом кадре важнее — движение или резкость. */
   private applyCameraHint() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-    if (track instanceof LocalVideoTrack) track.mediaStreamTrack.contentHint = cameraHint;
+    // Присвоение `contentHint` перенастраивает кодировщик синхронно, даже тем же значением: в профиле
+    // нажатия на камеру это была самая дорогая строка (R163). Ставим, только если подсказка другая.
+    if (track instanceof LocalVideoTrack && track.mediaStreamTrack.contentHint !== cameraHint)
+      track.mediaStreamTrack.contentHint = cameraHint;
     void this.enforceCameraRate();
     // Фон в видео (R153) — после каждой публикации камеры: включение, смена камеры, смена кодека.
     void this.applyBackground();
@@ -2046,8 +2049,10 @@ export class MediaSession {
           this.cameraOptionsNow(),
         );
         this.videoChangedAt.camera = performance.now();
-        this.applyCameraHint();
         if (this.room.localParticipant.isCameraEnabled) {
+          // Подсказка, частота и фон — только включённой камере: после выключения это была работа
+          // впустую, и главный поток после нажатия был занят ещё секунду (R163, профиль на стенде).
+          this.applyCameraHint();
           this.cameraChosen.set(true);
           this.forgetZoom();
           if (front) this.rememberCamera();

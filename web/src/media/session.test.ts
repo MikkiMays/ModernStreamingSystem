@@ -1771,6 +1771,45 @@ describe('первое включение камеры', () => {
     }
   });
 
+  it('подсказку кодировщику ставит включение, и только если она другая; выключение её не трогает (R163)', async () => {
+    phone(false);
+    const { media, room, setCameraEnabled } = mount();
+    const local = (room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+    const hints: string[] = [];
+    const raw = {
+      get contentHint() {
+        return hints.at(-1) ?? '';
+      },
+      set contentHint(value: string) {
+        hints.push(value);
+      },
+      getConstraints: () => ({}),
+      getSettings: () => ({}),
+      getCapabilities: () => ({}),
+      applyConstraints: vi.fn(async () => {}),
+    };
+    const video = Object.create(LocalVideoTrack.prototype) as LocalVideoTrack;
+    Object.defineProperty(video, 'mediaStreamTrack', { value: raw });
+    Object.defineProperty(video, 'constraints', { value: {} });
+    (local.trackPublications as Map<Track.Source, unknown>).set(Track.Source.Camera, {
+      track: video,
+      source: Track.Source.Camera,
+    });
+    try {
+      await media.toggle('camera');
+      expect(hints).toHaveLength(1);
+      media.state.set({ ...media.state.get(), camera: true });
+      await media.toggle('camera');
+      expect(setCameraEnabled.mock.calls.at(-1)![0]).toBe(false);
+      expect(hints).toHaveLength(1);
+      media.state.set({ ...media.state.get(), camera: false });
+      await media.toggle('camera');
+      expect(hints).toHaveLength(1);
+    } finally {
+      media.dispose();
+    }
+  });
+
   it('на компьютере — выбранная в настройках камера, умолчания комнаты не трогаются', async () => {
     phone(false);
     localStorage.setItem('cord:preferences:v1', JSON.stringify({ devices: { camera: 'usb-camera' } }));
