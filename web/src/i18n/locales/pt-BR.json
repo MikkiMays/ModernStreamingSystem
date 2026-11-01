@@ -1789,7 +1789,6 @@
       "instruction": "{{guidance}}. Esc cancela a seleção."
     },
     "hint": {
-      "saving": "Salvando a jogada…",
       "turn": "Escolha uma carta ou arraste-a para a mesa"
     },
     "actions": {

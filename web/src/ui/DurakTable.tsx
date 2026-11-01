@@ -65,6 +65,20 @@ type SheetKind = 'settings' | 'result' | 'score' | null;
  */
 const TURN_STEPS = [15, 30, 45];
 type Command = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
+
+/** Стол, где я уже сижу на месте `joining`, пока ядро не ответило (R178): лишь вид, правила — у ядра. */
+function seatAhead(table: Table, joining: number | null, id: string, name: string): Table {
+  if (joining === null || table.you) return table;
+  const seat = table.seats.find((candidate) => candidate.index === joining);
+  if (!seat || seat.memberId) return table;
+  return {
+    ...table,
+    seats: table.seats.map((candidate) =>
+      candidate.index === joining ? { ...candidate, memberId: id, name } : candidate,
+    ),
+    you: { seat: joining, cards: [], actions: [], turn: false },
+  };
+}
 type Drag = {
   card: string;
   pointer: number;
@@ -82,12 +96,28 @@ type Drag = {
 };
 
 /** The server supplies legal destinations; local state owns only selection, dragging and pending feedback. */
-export default function DurakTable({ meeting, table }: { meeting: Meeting; table: Table }) {
+export default function DurakTable({ meeting, table: served }: { meeting: Meeting; table: Table }) {
   const { t } = useTranslation();
   const tracks = useStore(meeting.media.tracks);
   const snapshot = useStore(meeting.snapshot);
   const connection = useStore(meeting.control.state);
   const connected = connection === 'connected';
+  /*
+    «Сесть за стол» — сразу (R178): место занимается в виде стола, не дожидаясь ответа ядра и нового
+    снимка, — первое свободное, то же, что выберет ядро (`Durak.sit`). Снимок с местом сменяет его сам;
+    ядро отказало — место уходит, а отказ звучит строкой под рукой.
+  */
+  const selfId = meeting.admission.participantId;
+  const selfName = snapshot.participants.find((person) => person.id === selfId)?.name ?? '';
+  const [joining, setJoining] = useState<number | null>(null);
+  const table = useMemo(
+    () => seatAhead(served, joining, selfId, selfName),
+    [served, joining, selfId, selfName],
+  );
+  useEffect(() => {
+    if (joining === null) return;
+    if (served.you || served.seats.find((seat) => seat.index === joining)?.memberId) setJoining(null);
+  }, [served, joining]);
   const you = table.you;
   const mySeat = you?.seat ?? null;
   const host = allowed({ ...snapshot, durak: table }, meeting.admission.participantId, 'durak.manage');
@@ -195,6 +225,17 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
         pendingRef.current = false;
         setPending(false);
       });
+  };
+  /** Сесть: место — сразу, ответ ядра — следом; ход стола этим не занят (`send` ждёт свои ходы). */
+  const sit = () => {
+    const free = served.seats.find((seat) => !seat.memberId);
+    if (!free || !connected || joining !== null) return;
+    setRefusal('');
+    setJoining(free.index);
+    void meeting.command('durak.sit').catch((error: Error) => {
+      setJoining(null);
+      refuse(error.message);
+    });
   };
   const announced = useRef(0);
   useEffect(() => {
@@ -376,31 +417,30 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
       <Play size={canSit ? 16 : 20} /> {t(($) => $.durak.deal)}
     </button>
   );
+  // Пока ход в пути — без надписи (R178): «Сохраняем ход…» человеку ничего не давало.
   const note = refusal
     ? refusal
-    : pending
-      ? t(($) => $.durak.hint.saving)
-      : focusChoice
-        ? guidance
-        : paused
-          ? ''
-          : playing && you?.turn
-            ? t(($) => $.durak.hint.turn)
-            : mySeat === null
-              ? canSit
-                ? !table.seatingOpen
-                  ? t(($) => $.durak.settings.seating.closed)
-                  : between
-                    ? ''
-                    : t(($) => $.durak.dock.nextDeal)
-                : t(($) => $.durak.hand.watching)
-              : between
-                ? host
+    : focusChoice
+      ? guidance
+      : paused
+        ? ''
+        : playing && you?.turn
+          ? t(($) => $.durak.hint.turn)
+          : mySeat === null
+            ? canSit
+              ? !table.seatingOpen
+                ? t(($) => $.durak.settings.seating.closed)
+                : between
                   ? ''
-                  : t(($) => $.durak.hand.waiting)
-                : !playing && !me?.out
-                  ? t(($) => $.durak.dock.nextDeal)
-                  : '';
+                  : t(($) => $.durak.dock.nextDeal)
+              : t(($) => $.durak.hand.watching)
+            : between
+              ? host
+                ? ''
+                : t(($) => $.durak.hand.waiting)
+              : !playing && !me?.out
+                ? t(($) => $.durak.dock.nextDeal)
+                : '';
 
   return (
     <div
@@ -701,8 +741,8 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
                 <button
                   className="durak-act"
                   data-kind="sit"
-                  disabled={!table.seatingOpen || !connected || pending}
-                  onClick={() => send('durak.sit')}
+                  disabled={!table.seatingOpen || !connected}
+                  onClick={sit}
                 >
                   <Armchair size={20} /> {t(($) => $.durak.sit)}
                 </button>

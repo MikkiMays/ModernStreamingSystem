@@ -1789,7 +1789,6 @@
       "instruction": "{{guidance}}. Échap annule la sélection."
     },
     "hint": {
-      "saving": "Enregistrement du coup…",
       "turn": "Choisissez une carte ou glissez-la sur la table"
     },
     "actions": {

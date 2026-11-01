@@ -1769,7 +1769,6 @@
       "instruction": "{{guidance}}. Escape cancels the selection."
     },
     "hint": {
-      "saving": "Saving the move…",
       "turn": "Pick a card or drag it to the table"
     },
     "actions": {

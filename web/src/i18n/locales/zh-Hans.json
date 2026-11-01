@@ -1749,7 +1749,6 @@
       "instruction": "{{guidance}}。按 Esc 取消选择。"
     },
     "hint": {
-      "saving": "正在保存出牌…",
       "turn": "选择一张牌或拖到桌上"
     },
     "actions": {

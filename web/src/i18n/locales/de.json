@@ -1769,7 +1769,6 @@
       "instruction": "{{guidance}}. Escape hebt die Auswahl auf."
     },
     "hint": {
-      "saving": "Zug wird gespeichert…",
       "turn": "Wähle eine Karte oder zieh sie auf den Tisch"
     },
     "actions": {
