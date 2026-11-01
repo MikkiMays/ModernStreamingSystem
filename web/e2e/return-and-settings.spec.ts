@@ -136,7 +136,8 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(host.getByRole('menu')).toHaveCount(0);
     await favorites.getByRole('button', { name: new RegExp(code) }).click();
     await expect(host.getByLabel('Ваше имя')).toHaveCount(0);
-    await expect(host.getByRole('button', { name: 'Выключить микрофон', exact: true })).toBeVisible();
+    // Без предвхода, но и без эфира: микрофон и камера при входе выключены (R161).
+    await expect(host.getByRole('button', { name: 'Включить микрофон', exact: true })).toBeVisible();
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
     await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
