@@ -465,14 +465,18 @@ class Reach:
         client = self._client_for(source.id)
         headers = {"Accept-Encoding": "identity"}
         loop = asyncio.get_running_loop()
-        started = loop.time()
+        deadline = loop.time() + PROBE_TIMEOUT
+        # Когда цикл событий на деле дошёл до срока: своя отметка на тот же миг, что и срок пробы, — без
+        # времени, которое потом уходит на закрытие соединения.
+        reached: list[float] = []
+        mark = loop.call_at(deadline, lambda: reached.append(loop.time()))
         try:
-            async with asyncio.timeout(PROBE_TIMEOUT):
+            async with asyncio.timeout_at(deadline):
                 async with client.stream("GET", source.probe, headers=headers, follow_redirects=False):
                     pass
             ok = True
         except TimeoutError:
-            if loop.time() - started > PROBE_TIMEOUT + PROBE_LATE:
+            if reached and reached[0] - deadline > PROBE_LATE:
                 # Срок сработал с опозданием — значит, всё это время стоял наш цикл событий, а не молчала
                 # площадка: такая проба ничего не говорит о ней и состояния не меняет.
                 state.stalls += 1
@@ -484,6 +488,8 @@ class Reach:
             # Текст исключения в журнал не идёт: в нём бывают адреса с ключами доступа.
             logger.warning("кинозал: проба площадки %s упала: %s", source.id, type(error).__name__)
             return None
+        finally:
+            mark.cancel()
         state.probed_at = self.clock()
         self._probed(state, ok)
         return ok
