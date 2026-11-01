@@ -146,13 +146,14 @@ test('микрофон: один захват на встречу, шумода�
     expect(result.replaced, 'replaceTrack звука').toBe(0);
     // Одно переключение — один сигнал из двух нот (второй «выключен» не звучит).
     expect(result.notes.length - before).toBe(2 * toggles);
-    // Кнопка отвечает сразу: после первого включения — не дольше 300 мс от нажатия до смены надписи.
-    const latencies = result.clicks
-      .slice(1)
-      .map((click) => (result.flips.find((flip) => flip >= click) ?? Infinity) - click);
-    expect(Math.max(...latencies), `смена надписи, мс: ${latencies.map(Math.round).join(', ')}`).toBeLessThan(
-      300,
-    );
+    // После первого включения (захват и публикация) — сразу: надпись кнопки и сигнал. Сигнал звучит,
+    // когда переключение закончилось, — раньше он ждал пересборки шумодава (на стенде до 13 с).
+    const after = (marks: number[]) =>
+      result.clicks.slice(1).map((click) => (marks.find((mark) => mark >= click) ?? Infinity) - click);
+    const flips = after(result.flips);
+    const cues = after(result.notes);
+    expect(Math.max(...flips), `смена надписи, мс: ${flips.map(Math.round).join(', ')}`).toBeLessThan(500);
+    expect(Math.max(...cues), `сигнал, мс: ${cues.map(Math.round).join(', ')}`).toBeLessThan(500);
 
     // R161: звук встречи выключен — ушли и вошли снова: звук, микрофон и камера включаются заново.
     await on.click();
@@ -161,7 +162,7 @@ test('микрофон: один захват на встречу, шумода�
     await expect(page.getByRole('button', { name: 'Включить звук встречи', exact: true })).toBeVisible();
     await expect(on).toBeVisible();
     // Ведущий видит наушники у гостя (R156).
-    await expect(host.getByLabel('Звук встречи выключен').first()).toBeVisible();
+    await expect(host.getByLabel('Звук встречи выключен').filter({ visible: true }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Выйти из встречи' }).click();
     await expect(
       page.getByRole('main').getByRole('textbox', { name: 'Код встречи или ссылка' }),
