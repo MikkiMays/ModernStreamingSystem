@@ -260,8 +260,8 @@
 }
 /* Клавиатура в колонке инструментов: фокус видно (у Excalidraw его не видно вовсе). */
 .board-canvas .excalidraw .ToolIcon input:focus-visible + .ToolIcon__icon {
-  outline: 2px solid var(--palette-blue-500);
-  outline-offset: 1px;
+  outline: var(--hairline-strong) solid var(--palette-blue-500);
+  outline-offset: var(--focus-offset-inset);
 }
 
 /*
@@ -350,15 +350,15 @@
   border-radius: var(--radius-2);
   background: var(--palette-white);
   box-shadow:
-    0 0 0 1px var(--palette-mist-200),
+    0 0 0 var(--hairline) var(--palette-mist-200),
     0 2px 8px -2px color-mix(in srgb, var(--palette-slate-900) 14%, transparent);
   cursor: pointer;
   touch-action: none;
   user-select: none;
 }
 .board-minimap:focus-visible {
-  outline: 2px solid var(--palette-blue-500);
-  outline-offset: 2px;
+  outline: var(--hairline-strong) solid var(--palette-blue-500);
+  outline-offset: var(--focus-offset);
 }
 .board-minimap__scene {
   display: block;
@@ -370,8 +370,8 @@
   top: 0;
   left: 0;
   box-sizing: border-box;
-  border: 1.5px solid var(--palette-blue-500);
-  border-radius: 3px;
+  border: var(--hairline-strong) solid var(--palette-blue-500);
+  border-radius: var(--radius-1);
   background: color-mix(in srgb, var(--palette-blue-500) 8%, transparent);
   pointer-events: none;
 }
