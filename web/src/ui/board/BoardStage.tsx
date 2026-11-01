@@ -68,7 +68,6 @@ import { ExcalidrawCanvas, type BoardPerson } from './excalidraw-canvas';
 import { guardLinks } from './hardening';
 import { boardJson, boardPng, boardSvg, hasContent, saveFile } from './images';
 import { excalidrawLanguage } from './lang';
-import { useShade } from './theme';
 
 /**
  * Доска встречи (R159): Excalidraw на сцене, рисуют все сразу — или только ведущий.
@@ -108,7 +107,6 @@ interface PendingImport {
 function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }) {
   const { t, i18n } = useTranslation();
   const toast = useToast();
-  const shade = useShade();
   const snapshot = useStore(meeting.snapshot);
   const me = meeting.admission.participantId;
   const may = (action: RoomAction) => allowed(snapshot, me, action);
@@ -202,7 +200,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     try {
       const { time, file } = stem();
       const name = t(($) => $.board.chat.file, { time: file });
-      const png = new File([await boardPng(api, shade)], `${name}.png`, { type: 'image/png' });
+      const png = new File([await boardPng(api)], `${name}.png`, { type: 'image/png' });
       const doc = new File([boardJson(api)], `${name}${BOARD_EXTENSION}`, { type: 'application/json' });
       if (!(await meeting.uploader.send(png)) || !(await meeting.uploader.send(doc)))
         throw new Error(t(($) => $.board.chat.failed));
@@ -233,8 +231,8 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     const name = t(($) => $.board.chat.file, { time: stem().file });
     try {
       if (kind === 'board') saveFile(boardJson(api), `${name}${BOARD_EXTENSION}`);
-      else if (kind === 'png') saveFile(await boardPng(api, shade), `${name}.png`);
-      else saveFile(await boardSvg(api, shade), `${name}.svg`);
+      else if (kind === 'png') saveFile(await boardPng(api), `${name}.png`);
+      else saveFile(await boardSvg(api), `${name}.svg`);
     } catch {
       toast.add({ title: t(($) => $.board.exportFailed), type: 'danger' });
     }
@@ -568,7 +566,8 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
         <Excalidraw
           excalidrawAPI={setApi}
           initialData={INITIAL}
-          theme={shade}
+          // Доска светлая при любой теме Cord (владелец, R166): тёмная тема Excalidraw переворачивает холст.
+          theme="light"
           langCode={excalidrawLanguage(i18n.language)}
           viewModeEnabled={!canDraw}
           isCollaborating
@@ -733,6 +732,9 @@ const IDLE = new BoardSync({
   now: () => 0,
 });
 
+/** Фон холста — «слегка белый, не супер белый» (R166): фон страницы Cord в светлой теме (`--palette-mist-50`). */
+const BOARD_BACKGROUND = '#f6f7fa';
+
 /** Как Cord рисует по умолчанию: «аккуратно» (без дрожи), обычным шрифтом, тёмной линией. */
 const INITIAL = {
   appState: {
@@ -740,7 +742,7 @@ const INITIAL = {
     currentItemFontFamily: FONT_FAMILY.Nunito,
     currentItemStrokeColor: '#1e1e1e',
     currentItemStrokeWidth: 2,
-    viewBackgroundColor: '#ffffff',
+    viewBackgroundColor: BOARD_BACKGROUND,
   },
   elements: [],
 };

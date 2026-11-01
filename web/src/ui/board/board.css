@@ -1,9 +1,9 @@
 /*
-  Доска встречи (R159). Только токены `styles/tokens.css`; холст — Excalidraw в теме Cord.
+  Доска встречи (R159). Только токены `styles/tokens.css`; холст — Excalidraw.
 
   Сцена тёмная в обеих темах (`.media-stage`), шапка доски — на ней же, как у столов игр. Холст —
-  «доска»: в светлой теме белый, в тёмной — тёмный (тему Excalidraw берёт из Cord, `theme.ts`). Цвет
-  выделения и кнопок редактора — акцент Cord, шрифт подписей — шрифт Cord.
+  «доска»: светлый при любой теме Cord (владелец, R166: «слегка белой, не супер белой» — фон
+  `BOARD_BACKGROUND`). Цвет выделения и кнопок редактора — светлый акцент Cord, шрифт подписей — шрифт Cord.
 
   Ссылки наружу и чужие входы (библиотека, встраивание страниц, «текст в диаграмму», ИИ) спрятаны
   здесь и убраны сторожем `hardening.ts`: правило продукта — ни одной ссылки наружу.
@@ -121,14 +121,19 @@
   overflow: hidden;
   box-shadow: 0 0 0 var(--hairline) var(--line);
 }
+/*
+  Холст светлый и внутри тёмной сцены: свои поля и полосы прокрутки — светлые, акцент — значения
+  светлой темы из палитры (смысловой `--accent-soft` сцены тёмно-синий и лёг бы пятном на белые кнопки).
+*/
 .board-canvas .excalidraw {
+  color-scheme: light;
   --ui-font: var(--font-sans);
-  --color-primary: var(--accent-fill);
-  --color-primary-darker: var(--accent-fill-hover);
-  --color-primary-darkest: var(--accent-fill-active);
-  --color-primary-hover: var(--accent-fill-hover);
-  --color-primary-light: var(--accent-soft);
-  --color-primary-light-darker: var(--accent-soft);
+  --color-primary: var(--palette-blue-500);
+  --color-primary-darker: var(--palette-blue-650);
+  --color-primary-darkest: var(--palette-blue-700);
+  --color-primary-hover: var(--palette-blue-650);
+  --color-primary-light: var(--palette-blue-50);
+  --color-primary-light-darker: color-mix(in srgb, var(--palette-blue-500) 18%, var(--palette-blue-50));
   height: 100%;
 }
 .board-canvas[data-drop] {
@@ -155,6 +160,65 @@
 .board-canvas .excalidraw [data-testid='toolbar-magicframe'],
 .board-canvas .excalidraw .library-button,
 .excalidraw .HelpDialog .HelpDialog__header {
+  display: none;
+}
+
+/*
+  Раскладка как у Яндекс Досок (владелец, R166: «много места занимает панель слева»): инструменты — узкой
+  колонкой у левого края под меню, свойства — компактной карточкой рядом с ней, и только когда выбран
+  инструмент или фигура (так их показывает сам Excalidraw). Своих настроек раскладки у Excalidraw нет
+  (`UIOptions` — только действия холста), поэтому — стилями поверх 0.18.1 (версия закреплена; при её смене —
+  сверить снимками). Телефон не трогаем: у Excalidraw там своя нижняя панель.
+*/
+.board-canvas .excalidraw:not(.excalidraw--mobile) .shapes-section {
+  position: absolute;
+  left: 0;
+  top: 3.25rem;
+}
+.board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar-container,
+.board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar > .Stack_horizontal {
+  flex-direction: column;
+  align-items: center;
+}
+.board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar {
+  max-height: calc(100vh - 16rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar__divider {
+  width: 1.5rem;
+  height: 1px;
+  margin: 0.25rem 0;
+}
+/* Цифры-клавиши на кнопках и подсказка под полосой (половина — по-английски): у Яндекса их нет, клавиши — в title. */
+.board-canvas .excalidraw:not(.excalidraw--mobile) .ToolIcon__keybinding,
+.board-canvas .excalidraw .HintViewer {
+  display: none;
+}
+.board-canvas .excalidraw:not(.excalidraw--mobile) .selected-shape-actions {
+  margin-left: 3.5rem;
+  margin-top: -0.75rem;
+}
+.board-canvas .excalidraw:not(.excalidraw--mobile) .App-menu__left {
+  width: 10.75rem;
+  padding: 0.5rem 0.625rem;
+}
+.board-canvas .excalidraw .panelColumn {
+  row-gap: 0.5rem;
+}
+.board-canvas .excalidraw .panelColumn .buttonList {
+  column-gap: 0.25rem;
+  row-gap: 0.25rem;
+}
+.board-canvas .excalidraw .color-picker__button {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+/*
+  «Небрежность» (рисованный штрих): доска рисует ровно (`currentItemRoughness: 0`), а в русском переводе
+  Excalidraw этот раздел ещё и подписан «Стиль обводки» — вторым одинаковым заголовком.
+*/
+.board-canvas .excalidraw fieldset:has(input[name='sloppiness']) {
   display: none;
 }
 

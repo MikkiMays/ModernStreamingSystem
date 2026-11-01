@@ -3,11 +3,10 @@ import type { NonDeleted, ExcalidrawElement } from '@excalidraw/excalidraw/eleme
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import { boardDocument, visible, type BoardFileData } from '../../core/board/export';
 import type { BoardElement } from '../../core/board/protocol';
-import type { Shade } from './theme';
 
 /**
  * Доска картинкой и файлом (R154): PNG вдвое крупнее экрана, SVG и `.cord-board` — то, что уходит в чат
- * и на устройство. Фон — по теме человека: тёмная тема даёт тёмную картинку, как на экране.
+ * и на устройство. Доска светлая при любой теме Cord (R166) — и картинка тоже, как на экране.
  */
 
 /** Сторона картинки — не больше этого: дальше браузер не создаст холст. */
@@ -23,10 +22,10 @@ export function hasContent(api: ExcalidrawImperativeAPI): boolean {
   return scene(api).length > 0;
 }
 
-export async function boardPng(api: ExcalidrawImperativeAPI, shade: Shade): Promise<Blob> {
+export async function boardPng(api: ExcalidrawImperativeAPI): Promise<Blob> {
   return exportToBlob({
     elements: scene(api),
-    appState: { ...api.getAppState(), exportBackground: true, exportWithDarkMode: shade === 'dark' },
+    appState: { ...api.getAppState(), exportBackground: true, exportWithDarkMode: false },
     files: api.getFiles(),
     mimeType: 'image/png',
     exportPadding: 24,
@@ -37,10 +36,10 @@ export async function boardPng(api: ExcalidrawImperativeAPI, shade: Shade): Prom
   });
 }
 
-export async function boardSvg(api: ExcalidrawImperativeAPI, shade: Shade): Promise<Blob> {
+export async function boardSvg(api: ExcalidrawImperativeAPI): Promise<Blob> {
   const svg = await exportToSvg({
     elements: scene(api),
-    appState: { ...api.getAppState(), exportBackground: true, exportWithDarkMode: shade === 'dark' },
+    appState: { ...api.getAppState(), exportBackground: true, exportWithDarkMode: false },
     files: api.getFiles(),
     exportPadding: 24,
     // Встроить шрифты Excalidraw умеет только через модуль woff2 с `new Function` — его CSP Cord не
