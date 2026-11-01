@@ -485,8 +485,8 @@
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   margin-inline-start: var(--space-1);
   vertical-align: -3px;
   border-radius: var(--radius-full);
@@ -495,8 +495,8 @@
   outline: none;
 }
 .ui-hint > svg {
-  width: 14px;
-  height: 14px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 .ui-hint:hover,
 .ui-hint[data-popup-open] {
@@ -909,6 +909,9 @@
   width: min(100%, 440px);
   max-height: 100%;
   display: grid;
+  /* Колонка — по ширине окна, а не по самому широкому ряду: подвал с длинными кнопками раздвигал её, и
+     текст с кнопками вылезали за окно, на телефоне — за экран (R175). */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   border-radius: var(--dialog-radius);
   background: var(--dialog-bg);
@@ -981,6 +984,7 @@
 .ui-dialog__footer {
   grid-row: 4;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
   padding: 0 var(--space-6) var(--space-5);
