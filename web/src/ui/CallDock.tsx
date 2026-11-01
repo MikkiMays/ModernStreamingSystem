@@ -101,6 +101,9 @@ export function CallDock({
   */
   const micHeading = useStore(meeting.media.micHeading);
   const micOn = micHeading ?? media.microphone;
+  // Камера — так же (R163): нажатие видно сразу, а не когда захват и публикация закончатся.
+  const cameraHeading = useStore(meeting.media.cameraHeading);
+  const cameraOn = cameraHeading ?? media.camera;
   const narrow = useMediaQuery('(max-width: 374px)');
   const tiny = useMediaQuery('(max-width: 359px)');
   const outbound = useStore(meeting.media.outbound);
@@ -197,12 +200,12 @@ export function CallDock({
             tone="stage"
             size="lg"
             className="dock-button"
-            label={media.camera ? t(($) => $.dock.cameraOn) : t(($) => $.dock.cameraOff)}
-            aria-pressed={media.camera}
+            label={cameraOn ? t(($) => $.dock.cameraOn) : t(($) => $.dock.cameraOff)}
+            aria-pressed={cameraOn}
             disabled={!live}
             onClick={() => void meeting.media.toggle('camera')}
           >
-            {media.camera ? <Video size={24} /> : <VideoOff size={24} />}
+            {cameraOn ? <Video size={24} /> : <VideoOff size={24} />}
           </IconButton>
           {coarse ? (
             !tiny && <CameraFlip meeting={meeting} disabled={!!ended} />

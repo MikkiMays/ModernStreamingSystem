@@ -1609,6 +1609,85 @@ describe('качество камеры во встрече', () => {
 });
 
 /** Первое включение камеры на телефоне — фронтальная, а не запомненная (27.10.2026, владелец). */
+describe('нажатия посреди переключения (R163)', () => {
+  /** Камера, включение которой ждёт, пока тест не отпустит: так видно, что творится посреди него. */
+  function slowCamera() {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const { media, room } = fixture();
+    const local = (room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+    const gates: (() => void)[] = [];
+    const setCameraEnabled = vi.fn(async (enabled: boolean) => {
+      await new Promise<void>((resolve) => gates.push(resolve));
+      local.isCameraEnabled = enabled;
+    });
+    local.setCameraEnabled = setCameraEnabled;
+    return { media, local, gates, setCameraEnabled };
+  }
+
+  it('второе нажатие, пока камера ещё включается, не теряется: кнопка сразу «выключена», камера сводится к нему', async () => {
+    const { media, local, gates, setCameraEnabled } = slowCamera();
+    try {
+      const first = media.toggle('camera');
+      expect(media.cameraHeading.get()).toBe(true);
+      await media.toggle('camera');
+      expect(media.cameraHeading.get()).toBe(false);
+      await vi.waitFor(() => expect(gates).toHaveLength(1));
+      expect(setCameraEnabled).toHaveBeenCalledTimes(1);
+      gates[0]!();
+      await first;
+      await vi.waitFor(() => expect(setCameraEnabled).toHaveBeenCalledTimes(2));
+      expect(setCameraEnabled.mock.calls[1]![0]).toBe(false);
+      expect(media.cameraHeading.get()).toBe(false);
+      gates[1]!();
+      await vi.waitFor(() => expect(media.cameraHeading.get()).toBeUndefined());
+      expect(local.isCameraEnabled).toBe(false);
+      expect(media.state.get().camera).toBe(false);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('туда-обратно посреди включения: пришли, куда звали первым нажатием, — без лишнего переключения', async () => {
+    const { media, local, gates, setCameraEnabled } = slowCamera();
+    try {
+      const first = media.toggle('camera');
+      await media.toggle('camera');
+      await media.toggle('camera');
+      expect(media.cameraHeading.get()).toBe(true);
+      await vi.waitFor(() => expect(gates).toHaveLength(1));
+      gates[0]!();
+      await first;
+      await vi.waitFor(() => expect(media.cameraHeading.get()).toBeUndefined());
+      expect(setCameraEnabled).toHaveBeenCalledTimes(1);
+      expect(local.isCameraEnabled).toBe(true);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('не вышло (нет доступа) — отложенное нажатие ошибку не повторяет, кнопка возвращается', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const { media, room } = fixture();
+    const local = (room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+    let refuse!: (error: Error) => void;
+    const setCameraEnabled = vi.fn(() => new Promise<void>((_resolve, reject) => (refuse = reject)));
+    local.setCameraEnabled = setCameraEnabled;
+    try {
+      const first = media.toggle('camera');
+      await media.toggle('camera');
+      await media.toggle('camera');
+      await vi.waitFor(() => expect(refuse).toBeTypeOf('function'));
+      refuse(Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' }));
+      await first;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setCameraEnabled).toHaveBeenCalledTimes(1);
+      expect(media.cameraHeading.get()).toBeUndefined();
+    } finally {
+      media.dispose();
+    }
+  });
+});
+
 describe('первое включение камеры', () => {
   function phone(coarse: boolean) {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: coarse && query === '(pointer: coarse)' }));

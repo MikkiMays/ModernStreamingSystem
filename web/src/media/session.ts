@@ -506,6 +506,12 @@ export class MediaSession {
    * захватом и публикацией длится сотни миллисекунд, и без этого нажатие выглядело несработавшим.
    */
   readonly micHeading = new Store<boolean | undefined>(undefined);
+  /** То же для камеры (R163): включение камеры — захват и публикация, до секунды на слабой машине. */
+  readonly cameraHeading = new Store<boolean | undefined>(undefined);
+  /** Какие переключения сейчас идут через `toggle` — к ним копятся нажатия, а не теряются (R163). */
+  private toggling = new Set<'microphone' | 'camera'>();
+  /** Нажатие, пришедшее посреди переключения: куда свести устройство, когда оно кончится (R163). */
+  private queuedToggle: Partial<Record<'microphone' | 'camera', boolean>> = {};
   private micSetting?: Promise<void>;
   /** Микрофон с предвхода, который ещё не опубликован (`adoptMicrophone`). */
   private handedMicrophone?: MediaStreamTrack;
@@ -1929,9 +1935,22 @@ export class MediaSession {
    * человек ничего не переключал, а уже слышал, что вошёл.
    */
   async toggle(kind: 'microphone' | 'camera', deviceId?: string, announce = true) {
-    if (this.deviceBusy.has(kind) || this.disposed) return;
+    if (this.disposed) return;
+    const heading = kind === 'microphone' ? this.micHeading : this.cameraHeading;
+    if (this.toggling.has(kind)) {
+      // Нажатие посреди переключения (R163, владелец: «кнопки будто с задержкой нажимаются»): раньше
+      // оно молча терялось, и кнопка не отзывалась. Теперь оно меняет, куда придём: кнопка показывает
+      // это сразу, а устройство сводится к последнему нажатию, когда идущее переключение кончится.
+      const target = !(heading.get() ?? this.state.get()[kind]);
+      heading.set(target);
+      this.queuedToggle[kind] = target;
+      return;
+    }
+    if (this.deviceBusy.has(kind)) return;
     this.deviceBusy.add(kind);
-    if (kind === 'microphone') this.micHeading.set(!this.state.get().microphone);
+    this.toggling.add(kind);
+    heading.set(!this.state.get()[kind]);
+    let failed = false;
     try {
       const reusedCamera =
         kind === 'camera' && !!this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
@@ -2005,10 +2024,25 @@ export class MediaSession {
         await this.setCameraProfile(this.cameraProfile);
       this.refreshTracks();
     } catch (error) {
+      failed = true;
       this.report(error);
     } finally {
-      if (kind === 'microphone') this.micHeading.set(undefined);
+      this.toggling.delete(kind);
       this.deviceBusy.delete(kind);
+      const queued = this.queuedToggle[kind];
+      delete this.queuedToggle[kind];
+      const now =
+        kind === 'microphone'
+          ? this.room.localParticipant.isMicrophoneEnabled
+          : this.room.localParticipant.isCameraEnabled;
+      // Сорвалось (нет доступа, нет устройства) — ошибку уже показали, отложенное нажатие не повторяет
+      // её. Иначе — следующим шагом, после `refreshTracks`: `toggle` читает, откуда идти, из `state`.
+      if (queued !== undefined && queued !== now && !failed && !this.disposed)
+        queueMicrotask(() => {
+          if (this.disposed || this.toggling.has(kind)) heading.set(undefined);
+          else void this.toggle(kind, undefined, announce);
+        });
+      else heading.set(undefined);
     }
   }
   /**
