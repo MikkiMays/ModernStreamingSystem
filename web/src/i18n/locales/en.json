@@ -1170,7 +1170,13 @@
     },
     "drop": "Drop to open the file on the whiteboard",
     "exportFailed": "Couldn't save the whiteboard image",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "excalidraw": {
+      "linkHint": "Type or paste your link here",
+      "linkEmpty": "No link is set",
+      "wrapInFrame": "Wrap selection in frame",
+      "frameTool": "Frame tool"
+    }
   },
   "games": {
     "list": {

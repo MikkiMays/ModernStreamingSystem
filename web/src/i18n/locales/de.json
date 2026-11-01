@@ -1170,7 +1170,13 @@
     },
     "drop": "Loslassen, um die Datei auf dem Whiteboard zu öffnen",
     "exportFailed": "Das Bild des Whiteboards konnte nicht gespeichert werden",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "excalidraw": {
+      "linkHint": "Link eingeben oder einfügen",
+      "linkEmpty": "Kein Link gesetzt",
+      "wrapInFrame": "Auswahl in Rahmen einfassen",
+      "frameTool": "Rahmen"
+    }
   },
   "games": {
     "list": {

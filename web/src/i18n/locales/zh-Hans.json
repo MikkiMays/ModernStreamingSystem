@@ -1165,7 +1165,13 @@
     },
     "drop": "松开即可在白板上打开文件",
     "exportFailed": "无法保存白板图片",
-    "cancel": "取消"
+    "cancel": "取消",
+    "excalidraw": {
+      "linkHint": "输入或粘贴链接",
+      "linkEmpty": "未设定链接",
+      "wrapInFrame": "将所选内容放入画框",
+      "frameTool": "画框"
+    }
   },
   "games": {
     "list": {

@@ -176,6 +176,10 @@
   GitHub), встраивание чужих страниц и «текст в диаграмму» (у них одна метка `toolbar-embeddable`), ИИ-рамка
   и шапка окна помощи (документация, блог, GitHub). Ядро встраиваемое и так не принимает.
 */
+/* «Добавить в библиотеку» в контекстном меню — библиотеки в Cord нет (она спрятана выше). */
+.excalidraw .context-menu li[data-testid='addToLibrary'] {
+  display: none;
+}
 .board-canvas .excalidraw .default-sidebar-trigger,
 .board-canvas .excalidraw [data-testid='toolbar-embeddable'],
 .board-canvas .excalidraw [data-testid='toolbar-magicframe'],

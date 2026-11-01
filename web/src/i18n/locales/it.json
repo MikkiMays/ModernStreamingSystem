@@ -1175,7 +1175,13 @@
     },
     "drop": "Rilascia per aprire il file sulla lavagna",
     "exportFailed": "Impossibile salvare l'immagine della lavagna",
-    "cancel": "Annulla"
+    "cancel": "Annulla",
+    "excalidraw": {
+      "linkHint": "Digita o incolla il link",
+      "linkEmpty": "Nessun collegamento impostato",
+      "wrapInFrame": "Racchiudi la selezione in una cornice",
+      "frameTool": "Cornice"
+    }
   },
   "games": {
     "list": {

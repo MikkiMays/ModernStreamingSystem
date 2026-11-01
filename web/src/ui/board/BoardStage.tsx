@@ -71,6 +71,7 @@ import {
 import { useStore } from '../primitives';
 import { CursorLayer, type BoardPerson } from './cursors';
 import { ExcalidrawCanvas, viewOf } from './excalidraw-canvas';
+import { guardGaps } from './gaps';
 import { guardLinks } from './hardening';
 import { boardJson, boardPng, boardSvg, hasContent, saveFile } from './images';
 import { excalidrawLanguage } from './lang';
@@ -203,6 +204,23 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
       meeting.boardLatency.set(null);
     };
   }, [meeting]);
+
+  // Строки Excalidraw, которых нет в его переводах, — на языке человека (`gaps.ts`).
+  const gaps = useMemo(
+    () =>
+      new Map<string, string>(
+        i18n.language === 'en'
+          ? []
+          : [
+              ['Type or paste your link here', t(($) => $.board.excalidraw.linkHint)],
+              ['No link is set', t(($) => $.board.excalidraw.linkEmpty)],
+              ['Wrap selection in frame', t(($) => $.board.excalidraw.wrapInFrame)],
+              ['Frame tool', t(($) => $.board.excalidraw.frameTool)],
+            ],
+      ),
+    [t, i18n.language],
+  );
+  useEffect(() => guardGaps(document, gaps), [gaps]);
 
   useEffect(() => {
     if (!notice) return;

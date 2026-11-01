@@ -1175,7 +1175,13 @@
     },
     "drop": "Déposez pour ouvrir le fichier sur le tableau",
     "exportFailed": "Impossible d'enregistrer l'image du tableau",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "excalidraw": {
+      "linkHint": "Saisissez ou collez votre lien",
+      "linkEmpty": "Aucun lien défini",
+      "wrapInFrame": "Encadrer la sélection",
+      "frameTool": "Cadre"
+    }
   },
   "games": {
     "list": {

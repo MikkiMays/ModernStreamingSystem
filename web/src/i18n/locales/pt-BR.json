@@ -1175,7 +1175,13 @@
     },
     "drop": "Solte para abrir o arquivo no quadro",
     "exportFailed": "Não foi possível salvar a imagem do quadro",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "excalidraw": {
+      "linkHint": "Digite ou cole o link",
+      "linkEmpty": "Nenhum link definido",
+      "wrapInFrame": "Envolver a seleção em um quadro",
+      "frameTool": "Quadro"
+    }
   },
   "games": {
     "list": {

@@ -1175,7 +1175,13 @@
     },
     "drop": "Suelta para abrir el archivo en la pizarra",
     "exportFailed": "No se pudo guardar la imagen de la pizarra",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "excalidraw": {
+      "linkHint": "Escribe o pega tu enlace",
+      "linkEmpty": "No se ha establecido un enlace",
+      "wrapInFrame": "Envolver la selección en un marco",
+      "frameTool": "Marco"
+    }
   },
   "games": {
     "list": {
