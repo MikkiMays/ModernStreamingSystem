@@ -36,19 +36,27 @@ const PRESENCE_MS = 30_000;
  * Что сделает нажатие на карточку — это же слово она и пишет справа (R162, R164):
  * - `rejoin` — встреча идёт или пуста, но жива: вернуться тем же участником (пропуск из списка);
  * - `again` — встреча закончилась: новая с тем же названием, ссылка сразу в буфере (R142);
- * - `code` — пропуска нет, а встреча, может быть, идёт: войти по коду, как гость.
+ * - `code` — пропуска нет, а встреча, может быть, идёт: войти по коду, как гость;
+ * - `saved` — закончилась, но она в избранном: открыть ту же сохранённую комнату, как из панели избранного,
+ *   а не создавать новую с новым кодом.
  */
-export type RecentStep = 'rejoin' | 'again' | 'code';
+export type RecentStep = 'rejoin' | 'again' | 'code' | 'saved';
 
 /**
  * Шаг карточки по тому, что известно сейчас. Ответ ядра (`rooms/presence`) главнее снимка в списке:
  * сохранённую встречу, завершённую когда-то, снова открывают из избранного, и тогда она идёт, хотя в
  * записи осталось «завершена».
  */
-export function recentStep(entry: RecentEntry, presence?: Presence) {
+export function recentStep(entry: RecentEntry, presence?: Presence, saved = false) {
   const state = presence?.state;
   const ended = state ? state === 'closed' || state === 'gone' : !!entry.closedAt;
-  const step: RecentStep = ended ? 'again' : entry.credential ? 'rejoin' : 'code';
+  const step: RecentStep = ended
+    ? saved && state !== 'gone'
+      ? 'saved'
+      : 'again'
+    : entry.credential
+      ? 'rejoin'
+      : 'code';
   return { step, ended, live: state === 'live' };
 }
 
@@ -139,7 +147,10 @@ export function RecentMeetings({
   const open = (entry: RecentEntry, step: RecentStep) => {
     if (step === 'rejoin') void rejoin(entry);
     else if (step === 'code') onJoin({ kind: 'code', code: entry.code });
-    else {
+    else if (step === 'saved') {
+      const favorite = favorites.data?.find((room) => room.roomId === entry.roomId);
+      if (favorite) onJoin({ kind: 'favorite', favorite });
+    } else {
       offerCreateTitle(entry.title);
       onCreate();
     }
@@ -239,19 +250,19 @@ function RecentRow({
 }) {
   const { t, i18n } = useTranslation();
   const id = useId();
-  const { step, ended, live } = recentStep(entry, presence);
+  const { step, ended, live } = recentStep(entry, presence, favorite);
   const title = presence?.title || entry.title;
   const when = visitedAt(entry.lastAt, i18n.resolvedLanguage ?? 'ru', t);
   const people = live && presence ? t(($) => $.home.recent.people, { count: presence.people }) : null;
   const word =
-    step === 'rejoin'
+    step === 'rejoin' || step === 'saved'
       ? t(($) => $.home.recent.rejoin)
       : step === 'again'
         ? t(($) => $.home.recent.again)
         : t(($) => $.home.recent.byCode);
   // Имя кнопки — действие и встреча: «Вернуться: Дейли». Код, время и сколько людей — описанием.
   const label =
-    step === 'rejoin'
+    step === 'rejoin' || step === 'saved'
       ? t(($) => $.home.recent.rejoinNamed, { title })
       : step === 'again'
         ? t(($) => $.home.recent.againNamed, { title })
@@ -312,7 +323,7 @@ function RecentRow({
             {t(($) => $.home.recent.copyCode)}
           </MenuItem>
           {/* В избранное кладёт пропуск участника — у закончившейся встречи сохранять нечего. */}
-          {step === 'rejoin' && (
+          {(step === 'rejoin' || step === 'saved') && (
             <MenuItem icon={favorite ? <StarOff size={16} /> : <Star size={16} />} onClick={onFavorite}>
               {favorite ? t(($) => $.home.recent.unfavorite) : t(($) => $.home.recent.favorite)}
             </MenuItem>

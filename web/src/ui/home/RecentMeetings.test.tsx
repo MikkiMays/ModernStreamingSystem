@@ -136,6 +136,10 @@ describe('«Недавние» на главной (R148)', () => {
     // Сохранённую встречу снова открыли из избранного: в записи «завершена», а она идёт.
     expect(recentStep({ ...entry, closedAt: 5 }, live)).toEqual({ step: 'rejoin', ended: false, live: true });
     expect(recentStep(entry, { ...live, state: 'gone' }).step).toBe('again');
+    // Закончилась, но в избранном — та же сохранённая комната, а не новая; удалённую открыть нечем.
+    expect(recentStep({ ...entry, closedAt: 5 }, undefined, true).step).toBe('saved');
+    expect(recentStep(entry, { ...live, state: 'closed' }, true).step).toBe('saved');
+    expect(recentStep(entry, { ...live, state: 'gone' }, true).step).toBe('again');
   });
 
   it('встреча кончилась между опросами — карточка так и говорит и становится «Создать снова»', async () => {
@@ -148,6 +152,20 @@ describe('«Недавние» на главной (R148)', () => {
     expect(await screen.findByRole('button', { name: 'Создать снова: Встреча gone' })).toBeInTheDocument();
     expect(listRecent()[0]!.closedAt).toBeTypeOf('number');
     expect(onJoin).not.toHaveBeenCalled();
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it('закончилась, но в избранном — карточка открывает ту же сохранённую комнату, а не новую', async () => {
+    recordVisit(admission('kept', 5));
+    vi.mocked(favoriteApi.list).mockResolvedValue([saved('kept')]);
+    const { onJoin, onCreate } = show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Вернуться: Встреча kept' }));
+    await waitFor(() =>
+      expect(onJoin).toHaveBeenCalledWith({
+        kind: 'favorite',
+        favorite: expect.objectContaining({ roomId: 'kept' }),
+      }),
+    );
     expect(onCreate).not.toHaveBeenCalled();
   });
 
