@@ -47,7 +47,7 @@ import {
   visible,
 } from '../../core/board/export';
 import { BoardFiles } from '../../core/board/files';
-import { isObjectLink, linkTarget } from '../../core/board/links';
+import { fixLink, linkTarget, type LinkFix } from '../../core/board/links';
 import type { BoardElement } from '../../core/board/protocol';
 import { BoardSync, type BoardNotice, type BoardState } from '../../core/board/sync';
 import { locale, type Translate } from '../../i18n';
@@ -140,7 +140,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
   const section = useRef<HTMLElement>(null);
   const cursorRoot = useRef<HTMLDivElement>(null);
   const cursorLayer = useRef<CursorLayer | null>(null);
-  /** Сцена, в которой уже искали ссылки на объекты (R176), — по отпечатку версий. */
+  /** Сцена, в которой уже проверяли ссылки (R176), — по отпечатку версий. */
   const linksChecked = useRef(-1);
   const marking = useRef(0);
   const highlighterRef = useRef(highlighter);
@@ -470,26 +470,32 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
 
   /**
    * Ссылок на объекты доски не бывает (R176): пункты и кнопки Excalidraw спрятаны (`board.css`), а та, что
-   * пришла иначе — вставкой адреса в поле ссылки, из файла, от старой доски, — снимается с элемента.
-   * Снимает тот, кто может рисовать; заметив это у выбранного своего — говорит почему.
+   * пришла иначе — вставкой адреса в поле ссылки, из файла, от старой доски, — снимается с элемента. Сайт
+   * без схемы («example.org») дописывается до https: иначе ядро отвергло бы правку целиком
+   * (`core/board/links.ts`). Правит тот, кто может рисовать; у своего выбранного — тост почему.
    */
-  const dropObjectLinks = (elements: readonly ExcalidrawElement[], app: AppState) => {
+  const fixLinks = (elements: readonly ExcalidrawElement[], app: AppState) => {
     if (!api) return;
     const version = hashElementsVersion(elements);
     if (version === linksChecked.current) return;
     linksChecked.current = version;
     const here = location.href;
-    const bad = new Set(
-      elements.filter((el) => !el.isDeleted && el.link && isObjectLink(el.link, here)).map((el) => el.id),
-    );
-    if (!bad.size) return;
+    const fixes = new Map<string, LinkFix>();
+    for (const el of elements) {
+      const fix = el.isDeleted ? null : fixLink(el.link, here);
+      if (fix) fixes.set(el.id, fix);
+    }
+    if (!fixes.size) return;
     api.updateScene({
-      elements: api
-        .getSceneElementsIncludingDeleted()
-        .map((el) => (bad.has(el.id) ? newElementWith(el, { link: null }) : el)),
+      elements: api.getSceneElementsIncludingDeleted().map((el) => {
+        const fix = fixes.get(el.id);
+        return fix ? newElementWith(el, { link: fix.link }) : el;
+      }),
       captureUpdate: CaptureUpdateAction.NEVER,
     });
-    if ([...bad].some((id) => app.selectedElementIds[id])) toast.add({ title: t(($) => $.board.objectLink) });
+    const mine = [...fixes].filter(([id]) => app.selectedElementIds[id]).map(([, fix]) => fix.reason);
+    if (mine.includes('object')) toast.add({ title: t(($) => $.board.objectLink) });
+    else if (mine.includes('unsupported')) toast.add({ title: t(($) => $.board.badLink) });
   };
 
   const run = (type: 'board.close' | 'board.clear' | 'board.settings', option?: string) =>
@@ -535,7 +541,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     // «Ссылка на объект» (R176) — окно выбора объекта закрывается, откуда бы его ни открыли.
     if (app.openDialog?.name === 'elementLinkSelector')
       api.updateScene({ appState: { openDialog: null }, captureUpdate: CaptureUpdateAction.NEVER });
-    if (canDraw) dropObjectLinks(elements, app);
+    if (canDraw) fixLinks(elements, app);
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {

@@ -1139,6 +1139,7 @@
       "keys": "Les flèches déplacent la vue, Entrée affiche tout le tableau"
     },
     "objectLink": "Impossible de lier un objet du tableau — seulement un site web ou une adresse e-mail",
+    "badLink": "Ce lien n’est pas pris en charge — utilisez l’adresse d’un site web ou un e-mail",
     "chat": {
       "message": "Tableau blanc · {{time}}",
       "file": "Tableau blanc {{time}}",

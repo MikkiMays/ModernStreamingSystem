@@ -1134,6 +1134,7 @@
       "keys": "Pfeiltasten verschieben die Ansicht, Enter zeigt das ganze Whiteboard"
     },
     "objectLink": "Links auf Whiteboard-Objekte sind nicht möglich — nur auf Websites oder E-Mail-Adressen",
+    "badLink": "Dieser Link wird nicht unterstützt — nur Website- oder E-Mail-Adressen",
     "chat": {
       "message": "Whiteboard · {{time}}",
       "file": "Whiteboard {{time}}",

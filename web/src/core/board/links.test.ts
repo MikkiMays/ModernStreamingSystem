@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isObjectLink, linkTarget } from './links';
+import { fixLink, linkTarget } from './links';
 
 /** Ссылки на элементах доски (R176): сайт — можно, объект доски — нельзя. */
 const HERE = 'https://cord.example/room/00000000-0000-0000-0000-000000000001';
 
 describe('ссылки на элементах доски', () => {
-  it('сайт, почта и телефон открываются', () => {
+  it('сайт и почта открываются', () => {
     expect(linkTarget('https://example.org/a?b=1', HERE)).toEqual({
       kind: 'web',
       href: 'https://example.org/a?b=1',
@@ -15,7 +15,6 @@ describe('ссылки на элементах доски', () => {
       kind: 'web',
       href: 'mailto:anna@example.org',
     });
-    expect(linkTarget('tel:+79990000000', HERE).kind).toBe('web');
   });
 
   it('адрес без схемы — сайт по https', () => {
@@ -29,12 +28,10 @@ describe('ссылки на элементах доски', () => {
     expect(linkTarget('cord.example/room/x?element=abc', HERE)).toEqual({ kind: 'object' });
     expect(linkTarget('/room/x?element=abc', HERE)).toEqual({ kind: 'object' });
     expect(linkTarget('?element=abc', HERE)).toEqual({ kind: 'object' });
-    expect(isObjectLink(`${HERE}?element=abc`, HERE)).toBe(true);
   });
 
   it('объект на другом сервере — просто чужой сайт', () => {
     expect(linkTarget('https://excalidraw.com/?element=abc', HERE).kind).toBe('web');
-    expect(isObjectLink('https://excalidraw.com/?element=abc', HERE)).toBe(false);
   });
 
   it('ссылка на свой сервер без объекта — сайт (откроется в новой вкладке, не уведёт со встречи)', () => {
@@ -47,6 +44,27 @@ describe('ссылки на элементах доски', () => {
     expect(linkTarget('javascript:alert(1)', HERE).kind).toBe('none');
     expect(linkTarget('data:text/html,<b>x</b>', HERE).kind).toBe('none');
     expect(linkTarget('about:blank', HERE).kind).toBe('none');
-    expect(isObjectLink('javascript:alert(1)', HERE)).toBe(false);
+    // Телефон ядро не принимает (`BoardRoom.safeLink`) — и доска его не открывает.
+    expect(linkTarget('tel:+79990000000', HERE).kind).toBe('none');
+  });
+
+  it('правка ссылки: годную не трогать, сайт без схемы — до https, объект и прочее — снять', () => {
+    expect(fixLink(null, HERE)).toBeNull();
+    expect(fixLink('', HERE)).toBeNull();
+    expect(fixLink('https://example.org', HERE)).toBeNull();
+    expect(fixLink('HTTP://Example.org/a', HERE)).toBeNull();
+    expect(fixLink('mailto:anna@example.org', HERE)).toBeNull();
+    expect(fixLink('example.org', HERE)).toEqual({ link: 'https://example.org/', reason: 'normalized' });
+    expect(fixLink('/download', HERE)).toEqual({
+      link: 'https://cord.example/download',
+      reason: 'normalized',
+    });
+    expect(fixLink(`${HERE}?element=abc`, HERE)).toEqual({ link: null, reason: 'object' });
+    expect(fixLink('javascript:alert(1)', HERE)).toEqual({ link: null, reason: 'unsupported' });
+    expect(fixLink('tel:+79990000000', HERE)).toEqual({ link: null, reason: 'unsupported' });
+    expect(fixLink(`https://example.org/${'a'.repeat(2048)}`, HERE)).toEqual({
+      link: null,
+      reason: 'unsupported',
+    });
   });
 });

@@ -1139,6 +1139,7 @@
       "keys": "Le frecce spostano la vista, Invio mostra tutta la lavagna"
     },
     "objectLink": "Non si può collegare un oggetto della lavagna — solo un sito web o un indirizzo e-mail",
+    "badLink": "Questo link non è supportato — usa l’indirizzo di un sito web o un’e-mail",
     "chat": {
       "message": "Lavagna · {{time}}",
       "file": "Lavagna {{time}}",

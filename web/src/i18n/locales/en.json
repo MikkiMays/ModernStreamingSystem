@@ -1134,6 +1134,7 @@
       "keys": "Arrow keys move the view, Enter shows the whole board"
     },
     "objectLink": "Links to board objects aren’t supported — link to a website or email instead",
+    "badLink": "This link isn’t supported — use a website or email address",
     "chat": {
       "message": "Whiteboard · {{time}}",
       "file": "Whiteboard {{time}}",

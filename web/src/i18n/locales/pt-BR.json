@@ -1139,6 +1139,7 @@
       "keys": "As setas movem a visualização, Enter mostra o quadro inteiro"
     },
     "objectLink": "Não é possível vincular um objeto do quadro — apenas um site ou e-mail",
+    "badLink": "Este link não é compatível — use o endereço de um site ou e-mail",
     "chat": {
       "message": "Quadro · {{time}}",
       "file": "Quadro {{time}}",
