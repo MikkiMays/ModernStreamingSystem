@@ -178,12 +178,11 @@ export interface Preferences {
    * «Показать игру». По умолчанию `Shift + \``, как у Discord: клавиша не отбирается у игры (Raw Input).
    */
   overlayLockHotkey: Hotkey | null;
-  /**
-   * «Звук встречи» выключен (R156, Р-40): как «Отключить звук» у Discord — не слышно никого и
-   * ничего во встрече, и микрофон выключен. Помнится между встречами (своё у устройства, не у
-   * комнаты); вход с выключенным звуком встречи видно сразу — красная кнопка и тост.
-   */
-  deafened: boolean;
+  /*
+    «Звук встречи» (R156) здесь больше не хранится: это кнопка встречи, а не настройка (R161,
+    Р-54) — каждая встреча начинается со звуком, как с выключенными микрофоном и камерой. Живёт в
+    `MediaSession.deafened`; поле `deafened` в старых записях просто не читается.
+  */
   /** Сочетание «звука встречи» — по умолчанию `Ctrl + Shift + D`, как у Discord. */
   deafenHotkey: Hotkey | null;
   /**
@@ -314,7 +313,6 @@ export function parsePreferences(source: unknown, storedName: string | null = nu
         : validHotkey(data.overlayLockHotkey)
           ? data.overlayLockHotkey
           : { ...defaultOverlayLockHotkey },
-    deafened: data.deafened === true,
     deafenHotkey:
       data.deafenHotkey === null
         ? null

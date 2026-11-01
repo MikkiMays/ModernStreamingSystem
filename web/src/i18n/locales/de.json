@@ -649,9 +649,6 @@
       "done": "Link zum Meeting kopiert",
       "failed": "Link zum Meeting konnte nicht kopiert werden",
       "copy": "Kopieren"
-    },
-    "deafened": {
-      "title": "Meeting-Ton ist aus – Sie hören niemanden"
     }
   },
   "chess": {

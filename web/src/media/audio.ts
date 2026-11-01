@@ -1,6 +1,7 @@
 import type {
   AudioCaptureOptions,
   AudioProcessorOptions,
+  LocalAudioTrack,
   Track,
   TrackProcessor,
   TrackPublishOptions,
@@ -50,6 +51,70 @@ export function needsAudioProcessor(audio: AudioPreferences) {
   return audio.suppression === 'rnnoise' || audio.gain !== 1;
 }
 
+/**
+ * Модуль, ворклет и WASM шумодава RNNoise — один раз на страницу (R160).
+ *
+ * Раньше каждый обработчик грузил их сам: `loadRnnoise` заново тянул 150 КБ WASM, а
+ * `audioWorklet.addModule` заново поднимал модуль в контексте встречи, — и так на каждое включение
+ * микрофона, потому что обработчик пересобирался при каждом включении. Теперь сборка обработчика —
+ * это узлы графа и компиляция WASM в самом ворклете, а всё, что можно держать, держится.
+ */
+interface RnnoiseAssets {
+  Node: typeof import('@sapphi-red/web-noise-suppressor').RnnoiseWorkletNode;
+  worklet: string;
+  binary: ArrayBuffer;
+}
+let rnnoise: Promise<RnnoiseAssets> | undefined;
+function rnnoiseAssets(): Promise<RnnoiseAssets> {
+  if (rnnoise) return rnnoise;
+  const loading = (async () => {
+    const [{ RnnoiseWorkletNode, loadRnnoise }, worklet, wasm, simd] = await Promise.all([
+      import('@sapphi-red/web-noise-suppressor'),
+      import('@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url'),
+      import('@sapphi-red/web-noise-suppressor/rnnoise.wasm?url'),
+      import('@sapphi-red/web-noise-suppressor/rnnoise_simd.wasm?url'),
+    ]);
+    const binary = await loadRnnoise(
+      { url: wasm.default, simdUrl: simd.default },
+      { signal: AbortSignal.timeout(10000) },
+    );
+    return { Node: RnnoiseWorkletNode, worklet: worklet.default, binary };
+  })();
+  rnnoise = loading;
+  // Не загрузилось (сеть, таймаут) — следующая попытка начнёт заново, а не получит тот же отказ.
+  loading.catch(() => {
+    if (rnnoise === loading) rnnoise = undefined;
+  });
+  return loading;
+}
+/** Модуль ворклета уже поднят в этом контексте: второй `addModule` того же адреса не нужен. */
+const workletModules = new WeakMap<BaseAudioContext, Promise<void>>();
+function addWorklet(context: BaseAudioContext, url: string): Promise<void> {
+  let added = workletModules.get(context);
+  if (!added) {
+    added = context.audioWorklet.addModule(url);
+    workletModules.set(context, added);
+    added.catch(() => workletModules.delete(context));
+  }
+  return added;
+}
+/**
+ * Загрузить шумодав заранее — в начале встречи, а не по нажатию на микрофон: первое включение
+ * не ждёт ни импорта, ни WASM. Только сеть и разбор модуля; контекст звука здесь не трогается.
+ */
+export function warmAudioProcessor(audio: AudioPreferences) {
+  if (audio.suppression === 'rnnoise') void rnnoiseAssets().catch(() => {});
+}
+/**
+ * Сырая дорожка захвата под публикацией. С обработчиком `mediaStreamTrack` у LiveKit — уже
+ * обработанная (выход графа WebAudio): она живёт, даже когда сам микрофон отобрала система, и
+ * `muted`/`ended` у неё не те. Сторож (R147) и включение смотрят на захват.
+ */
+export function captureTrack(track: LocalAudioTrack): MediaStreamTrack {
+  const processor = track.getProcessor();
+  return (processor instanceof CordAudioProcessor && processor.input) || track.mediaStreamTrack;
+}
+
 /** A local, optional processor. Capture and speech never leave the device for filtering. */
 export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
   readonly name = 'cord-audio';
@@ -73,9 +138,28 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
   private denoiser?: { disconnect(): void; destroy(): void };
   private destination?: MediaStreamAudioDestinationNode;
   private revision = 0;
+  /** Сырая дорожка захвата, которую обрабатываем (`captureTrack`). */
+  input?: MediaStreamTrack;
   constructor(private settings: AudioPreferences) {}
+  /**
+   * Подходит ли этот обработчик под настройки как есть (R160): тот же шумодав и граф живой —
+   * пересобирать незачем; громкость при этом меняется на месте (`setGain`).
+   */
+  serves(audio: AudioPreferences) {
+    return (
+      audio.suppression === this.settings.suppression &&
+      this.processedTrack?.readyState === 'live' &&
+      this.context?.state !== 'closed'
+    );
+  }
+  /** Усиление микрофона — на лету, без нового графа. */
+  setGain(value: number) {
+    this.settings = { ...this.settings, gain: value };
+    if (this.gain) this.gain.gain.value = value;
+  }
   async init({ track, audioContext }: AudioProcessorOptions) {
     const revision = ++this.revision;
+    this.input = track;
     // `audioContext` приходит пустым при перезапуске дорожки — см. `shared`.
     const given: AudioContext | undefined = audioContext ?? this.shared;
     this.shared = given && given.state !== 'closed' ? given : undefined;
@@ -98,18 +182,10 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
       source.connect(mono);
       let tail: AudioNode = mono;
       if (this.settings.suppression === 'rnnoise') {
-        const { RnnoiseWorkletNode, loadRnnoise } = await import('@sapphi-red/web-noise-suppressor');
-        const [worklet, wasm, simd] = await Promise.all([
-          import('@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url'),
-          import('@sapphi-red/web-noise-suppressor/rnnoise.wasm?url'),
-          import('@sapphi-red/web-noise-suppressor/rnnoise_simd.wasm?url'),
-        ]);
-        const [binary] = await Promise.all([
-          loadRnnoise({ url: wasm.default, simdUrl: simd.default }, { signal: AbortSignal.timeout(10000) }),
-          context.audioWorklet.addModule(worklet.default),
-        ]);
+        const { Node, worklet, binary } = await rnnoiseAssets();
+        await addWorklet(context, worklet);
         if (revision !== this.revision) return;
-        const denoiser = new RnnoiseWorkletNode(context, { maxChannels: 1, wasmBinary: binary });
+        const denoiser = new Node(context, { maxChannels: 1, wasmBinary: binary });
         this.denoiser = denoiser;
         tail.connect(denoiser);
         tail = denoiser;
@@ -132,6 +208,18 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
     }
   }
   async restart(options: AudioProcessorOptions) {
+    // Сменился только захват — другое устройство, перезахват сторожа (R147): граф с шумодавом
+    // остаётся, меняется его вход. Без новой компиляции WASM и без перерыва на выходе, а выход —
+    // та же дорожка, и отправитель её даже не замечает (R160).
+    const context = this.context;
+    if (this.mono && context && context.state !== 'closed' && this.processedTrack?.readyState === 'live') {
+      this.source?.disconnect();
+      const source = context.createMediaStreamSource(new MediaStream([options.track]));
+      source.connect(this.mono);
+      this.source = source;
+      this.input = options.track;
+      return;
+    }
     await this.destroy();
     await this.init(options);
   }
@@ -144,6 +232,7 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
     this.gain?.disconnect();
     this.destination?.stream.getTracks().forEach((track) => track.stop());
     this.processedTrack = undefined;
+    this.input = undefined;
     this.source = undefined;
     this.mono = undefined;
     this.denoiser = undefined;

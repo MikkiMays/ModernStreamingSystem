@@ -16,6 +16,7 @@ function fakeMeeting({ screen = false, unread = 0 } = {}) {
     media: {
       state: new Store({ status: 'connected', microphone: false, camera: false, screen }),
       deafened: new Store(false),
+      micHeading: new Store<boolean | undefined>(undefined),
       outbound: new Store(null),
       preferences: new Store({ screen: {}, layout: 'grid', devices: {} }),
       pip: { state: new Store({ available: false, active: false }), toggle: vi.fn() },
@@ -137,5 +138,25 @@ describe('«звук встречи» — отдельная кнопка сле
     expect(screen.queryByRole('group', { name: 'Звук встречи' })).toBeNull();
     const media = screen.getByRole('group', { name: 'Микрофон и камера' });
     expect(within(media).getAllByRole('button')[0]).toHaveAccessibleName('Выключить звук встречи');
+  });
+});
+
+describe('кнопка микрофона (R160)', () => {
+  it('переключается сразу по нажатию, не дожидаясь захвата и публикации; не вышло — возвращается', () => {
+    const meeting = fakeMeeting() as unknown as Meeting & {
+      media: { micHeading: Store<boolean | undefined> };
+    };
+    dock(meeting);
+    expect(screen.getByRole('button', { name: 'Включить микрофон' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    // Включение в пути: `state.microphone` ещё «выключен».
+    act(() => meeting.media.micHeading.set(true));
+    const on = screen.getByRole('button', { name: 'Выключить микрофон' });
+    expect(on).toHaveAttribute('aria-pressed', 'true');
+    // Не вышло (нет доступа): намерение снято, состояние прежнее — кнопка снова «Включить».
+    act(() => meeting.media.micHeading.set(undefined));
+    expect(screen.getByRole('button', { name: 'Включить микрофон' })).toBeInTheDocument();
   });
 });

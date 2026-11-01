@@ -4,14 +4,23 @@ import {
   RoomEvent,
   DisconnectReason,
   Track,
+  LocalAudioTrack,
   LocalVideoTrack,
   createLocalAudioTrack,
   type RoomOptions,
 } from 'livekit-client';
-import { MediaSession, SCREEN_GONE_GRACE_MS } from './session';
+import { MediaSession, MIC_UNMUTE_GRACE_MS, SCREEN_GONE_GRACE_MS } from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter, ScreenAudioEvent, ScreenAudioSource } from './capture';
 import { fakeCameraTrack } from './fake-track';
+import { CordAudioProcessor } from './audio';
+import { signal, soundVolume } from '../core/sounds';
+import { savePreferences } from '../core/preferences';
+
+vi.mock('../core/sounds', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../core/sounds')>()),
+  signal: vi.fn(),
+}));
 
 vi.mock('livekit-client', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('livekit-client')>();
@@ -253,15 +262,15 @@ describe('нажми и говори: setMicrophone', () => {
 
   it('звук встречи выключили, пока микрофон включался, — микрофон выключается, а со звуком возвращается', async () => {
     const { media } = micFixture();
-    const inner = media as unknown as { deviceBusy: Set<string>; micHeading: boolean | undefined };
+    const inner = media as unknown as { deviceBusy: Set<string> };
     try {
       // Включение в пути (захват, окно разрешения): `state` ещё «выключен».
       inner.deviceBusy.add('microphone');
-      inner.micHeading = true;
+      media.micHeading.set(true);
       const deafen = media.setDeafened(true);
       await new Promise((resolve) => setTimeout(resolve, 30));
       media.state.set({ ...media.state.get(), microphone: true });
-      inner.micHeading = undefined;
+      media.micHeading.set(undefined);
       inner.deviceBusy.delete('microphone');
       await deafen;
       expect(media.deafened.get()).toBe(true);
@@ -269,7 +278,6 @@ describe('нажми и говори: setMicrophone', () => {
       await media.setDeafened(false);
       expect(media.state.get().microphone).toBe(true);
     } finally {
-      // Звук встречи сохраняется в настройках — не оставить его выключенным следующему тесту.
       await media.setDeafened(false);
       media.dispose();
     }
@@ -285,6 +293,256 @@ describe('нажми и говори: setMicrophone', () => {
       expect(toggle).toHaveBeenCalledOnce();
     } finally {
       media.dispose();
+    }
+  });
+});
+
+/*
+  Микрофон (R160): «включается очень долго, странные звуки, на каждое включение просит разрешение».
+  Захват — один раз на встречу; дальше выключить/включить — mute/unmute той же дорожки, шумодав не
+  пересобирается, сигнал звучит один раз. Звук встречи (R161) — только у этой сессии.
+*/
+describe('микрофон: один захват на встречу (R160)', () => {
+  type Raw = EventTarget & { readyState: string; muted: boolean; enabled: boolean; stop: () => void };
+  function rawTrack(): Raw {
+    return Object.assign(new EventTarget(), {
+      readyState: 'live',
+      muted: false,
+      enabled: true,
+      stop: vi.fn(),
+    });
+  }
+  /** Дорожка LiveKit без браузера: настоящие геттеры `LocalAudioTrack`, свои захват и обработчик. */
+  function audioTrack(raw = rawTrack()) {
+    const track = Object.create(LocalAudioTrack.prototype) as LocalAudioTrack & {
+      _mediaStreamTrack: Raw;
+      processor?: CordAudioProcessor;
+      isMuted: boolean;
+    };
+    const setProcessor = vi.fn(async (processor: CordAudioProcessor) => {
+      Object.assign(processor, { processedTrack: { readyState: 'live' }, input: track._mediaStreamTrack });
+      track.processor = processor;
+    });
+    Object.assign(track, {
+      _mediaStreamTrack: raw,
+      processor: undefined,
+      kind: Track.Kind.Audio,
+      source: Track.Source.Microphone,
+      isMuted: false,
+      setAudioContext: vi.fn(),
+      setProcessor,
+      stopProcessor: vi.fn(async () => {
+        track.processor = undefined;
+      }),
+      restartTrack: vi.fn(async () => {}),
+      mute: vi.fn(async () => {
+        track.isMuted = true;
+      }),
+      stop: vi.fn(),
+    });
+    return { track, raw, setProcessor };
+  }
+  function micSession(
+    audio: { suppression: 'rnnoise' | 'browser'; gain?: number } = { suppression: 'rnnoise' },
+  ) {
+    savePreferences({
+      audio: {
+        suppression: audio.suppression,
+        suppressionChosen: true,
+        echoCancellation: true,
+        autoGainControl: true,
+        gain: audio.gain ?? 1,
+      },
+    });
+    const f = fixture();
+    const { track, raw, setProcessor } = audioTrack();
+    vi.mocked(createLocalAudioTrack)
+      .mockReset()
+      .mockResolvedValue(track as never);
+    const local = (f.room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+    const publications = local.trackPublications as Map<Track.Source, unknown>;
+    const publication = {
+      trackSid: 'TR_mic',
+      source: Track.Source.Microphone,
+      track,
+      get isMuted() {
+        return track.isMuted;
+      },
+    };
+    const order: string[] = [];
+    setProcessor.mockImplementation(async (processor: CordAudioProcessor) => {
+      order.push('processor');
+      Object.assign(processor, { processedTrack: { readyState: 'live' }, input: track._mediaStreamTrack });
+      track.processor = processor;
+    });
+    local.isLocal = true;
+    local.publishTrack = vi.fn(async () => {
+      order.push(track.isMuted ? 'publish-muted' : 'publish');
+      publications.set(Track.Source.Microphone, publication);
+      local.isMicrophoneEnabled = !track.isMuted;
+      return publication;
+    });
+    // Как LiveKit: `mute()` синхронно шлёт `TrackMuted` своего участника — посреди `toggle`.
+    local.setMicrophoneEnabled = vi.fn(async (on: boolean) => {
+      track.isMuted = !on;
+      local.isMicrophoneEnabled = on;
+      f.room.emit(on ? RoomEvent.TrackUnmuted : RoomEvent.TrackMuted, publication, local);
+    });
+    vi.mocked(signal).mockClear();
+    return { ...f, local, track, raw, setProcessor, order, publication };
+  }
+  afterEach(() => localStorage.clear());
+
+  it('включить, выключить, включить ×5 — один захват, шумодав собран один раз и до публикации', async () => {
+    const { media, local, setProcessor, order } = micSession();
+    try {
+      for (let i = 0; i < 5; i++) {
+        await media.toggle('microphone');
+        expect(media.state.get().microphone).toBe(true);
+        await media.toggle('microphone');
+        expect(media.state.get().microphone).toBe(false);
+      }
+      expect(createLocalAudioTrack).toHaveBeenCalledOnce();
+      expect(local.publishTrack).toHaveBeenCalledOnce();
+      expect(setProcessor).toHaveBeenCalledOnce();
+      // Комната не слышит сырой микрофон: обработчик стоит раньше публикации.
+      expect(order).toEqual(['processor', 'publish']);
+      expect(local.setMicrophoneEnabled).toHaveBeenCalledTimes(9);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('каждое переключение — один сигнал: свой TrackMuted не звучит вторым «выключен»', async () => {
+    const { media } = micSession({ suppression: 'browser' });
+    try {
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      expect(vi.mocked(signal).mock.calls.map(([cue]) => cue)).toEqual(['mic-on', 'mic-off', 'mic-on']);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('микрофон выключил ведущий — сигнал звучит, как и раньше', async () => {
+    const { media, room, publication, local, track } = micSession({ suppression: 'browser' });
+    try {
+      await media.toggle('microphone');
+      vi.mocked(signal).mockClear();
+      track.isMuted = true;
+      local.isMicrophoneEnabled = false;
+      room.emit(RoomEvent.TrackMuted, publication, local);
+      expect(vi.mocked(signal).mock.calls.map(([cue]) => cue)).toEqual(['mic-off']);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('кнопка знает, куда идёт включение, пока идут захват и публикация', async () => {
+    const { media } = micSession({ suppression: 'browser' });
+    let release!: () => void;
+    vi.mocked(createLocalAudioTrack).mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => (release = resolve));
+      return audioTrack().track as never;
+    });
+    try {
+      const going = media.toggle('microphone');
+      expect(media.micHeading.get()).toBe(true);
+      expect(media.state.get().microphone).toBe(false);
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      release();
+      await going;
+      expect(media.micHeading.get()).toBeUndefined();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('громкость меняется на месте, шумодав пересобирается только при смене самого шумодава', async () => {
+    const { media, track, setProcessor } = micSession({ suppression: 'rnnoise' });
+    Object.assign(track, { applyConstraints: vi.fn(async () => {}) });
+    try {
+      await media.toggle('microphone');
+      const first = track.processor!;
+      const setGain = vi.spyOn(first, 'setGain');
+      const audio = media.preferences.get().audio;
+      await media.setAudioSettings({ ...audio, gain: 1.5 });
+      expect(setGain).toHaveBeenCalledWith(1.5);
+      expect(setProcessor).toHaveBeenCalledOnce();
+      await media.setAudioSettings({ ...audio, suppression: 'browser', gain: 1.5 });
+      expect(setProcessor).toHaveBeenCalledTimes(2);
+      await media.setAudioSettings({ ...audio, suppression: 'browser', gain: 1 });
+      expect(track.stopProcessor).toHaveBeenCalledOnce();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('телефон (R147): заглушённый системой захват ждёт, пока система снимет заглушку сама', async () => {
+    vi.useFakeTimers();
+    const { media, track, raw } = micSession({ suppression: 'browser' });
+    try {
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      raw.muted = true;
+      const on = media.toggle('microphone');
+      await vi.advanceTimersByTimeAsync(100);
+      raw.muted = false;
+      raw.dispatchEvent(new Event('unmute'));
+      await on;
+      expect(track.restartTrack).not.toHaveBeenCalled();
+      expect(media.state.get().microphone).toBe(true);
+
+      await media.toggle('microphone');
+      raw.muted = true;
+      const again = media.toggle('microphone');
+      await vi.advanceTimersByTimeAsync(MIC_UNMUTE_GRACE_MS);
+      await again;
+      // Не сняла — тогда перезахват, один.
+      expect(track.restartTrack).toHaveBeenCalledOnce();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('сторож (R147) смотрит на захват, а не на выход шумодава: микрофон кончился — перезахват', async () => {
+    const { media, track, raw } = micSession({ suppression: 'rnnoise' });
+    try {
+      await media.toggle('microphone');
+      // Выход шумодава «жив», а сам микрофон отобрала система (звонок GSM).
+      raw.readyState = 'ended';
+      expect(track.mediaStreamTrack).toMatchObject({ readyState: 'live' });
+      await (media as unknown as { micSentinel: { check(): Promise<void> } }).micSentinel.check();
+      expect(track.restartTrack).toHaveBeenCalledOnce();
+    } finally {
+      media.dispose();
+    }
+  });
+});
+
+describe('звук встречи — у встречи, а не в настройках (R161)', () => {
+  afterEach(() => localStorage.clear());
+
+  it('новая встреча начинается со звуком, даже если в прошлой его выключили', async () => {
+    // Запись прошлых версий: тогда звук встречи помнился в настройках.
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ deafened: true }));
+    const first = fixture().media;
+    expect(first.deafened.get()).toBe(false);
+    localStorage.clear();
+    await first.setDeafened(true);
+    expect(first.deafened.get()).toBe(true);
+    expect(soundVolume()).toBe(0);
+    // В настройки (и оттуда — на другие серверы, R146) не попадает.
+    expect(localStorage.getItem('cord:preferences:v1') ?? '').not.toContain('deafened');
+    // Вышли из встречи — сигналы приложения снова звучат.
+    first.dispose();
+    expect(soundVolume()).toBeGreaterThan(0);
+    const second = fixture().media;
+    try {
+      expect(second.deafened.get()).toBe(false);
+    } finally {
+      second.dispose();
     }
   });
 });

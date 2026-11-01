@@ -167,10 +167,18 @@ export function signal(cue: Cue) {
  * что звучит «от приложения», а не от собеседников.
  */
 export function soundVolume(): number {
-  const preferences = readPreferences();
   // «Звук встречи» выключен (R156) — молчат и сигналы, и звуки столов.
-  if (preferences.deafened) return 0;
-  return Math.max(0, Math.min(1, preferences.soundVolume / 100));
+  if (meetingDeafened) return 0;
+  return Math.max(0, Math.min(1, readPreferences().soundVolume / 100));
+}
+
+/**
+ * «Звук встречи» выключен в идущей встрече. Это состояние встречи, а не настройка (R161): его ставит
+ * `MediaSession` и снимает, когда встреча кончилась, — на главной и в следующей встрече сигналы звучат.
+ */
+let meetingDeafened = false;
+export function setMeetingDeafened(value: boolean) {
+  meetingDeafened = value;
 }
 
 let listening = false;

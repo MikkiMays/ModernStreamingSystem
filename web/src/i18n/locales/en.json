@@ -649,9 +649,6 @@
       "done": "Meeting link copied",
       "failed": "Couldn't copy the meeting link",
       "copy": "Copy"
-    },
-    "deafened": {
-      "title": "Meeting sound is off — you can't hear anyone"
     }
   },
   "chess": {

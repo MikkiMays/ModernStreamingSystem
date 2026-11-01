@@ -94,6 +94,13 @@ export function CallDock({
   const { t } = useTranslation();
   const media = useStore(meeting.media.state);
   const deafened = useStore(meeting.media.deafened);
+  /*
+    Кнопка микрофона показывает намерение сразу по нажатию (R160): первое включение — захват и
+    публикация, сотни миллисекунд, и без этого нажатие выглядело несработавшим, а второе нажатие
+    в это время молча пропадало. Не получилось — кнопка вернётся, ошибку скажет строка внизу.
+  */
+  const micHeading = useStore(meeting.media.micHeading);
+  const micOn = micHeading ?? media.microphone;
   const narrow = useMediaQuery('(max-width: 374px)');
   const tiny = useMediaQuery('(max-width: 359px)');
   const outbound = useStore(meeting.media.outbound);
@@ -179,12 +186,12 @@ export function CallDock({
             tone="stage"
             size="lg"
             className="dock-button"
-            label={media.microphone ? t(($) => $.dock.micOn) : t(($) => $.dock.micOff)}
-            aria-pressed={media.microphone}
+            label={micOn ? t(($) => $.dock.micOn) : t(($) => $.dock.micOff)}
+            aria-pressed={micOn}
             disabled={!live}
             onClick={() => void meeting.media.toggle('microphone')}
           >
-            {media.microphone ? <Mic size={24} /> : <MicOff size={24} />}
+            {micOn ? <Mic size={24} /> : <MicOff size={24} />}
           </IconButton>
           <IconButton
             tone="stage"

@@ -10,7 +10,6 @@ vi.mock('../media/session', async () => {
       preferences = new Store(readPreferences());
       screenGone = new Store<{ identity: string; seq: number } | null>(null);
       deafened = new Store(false);
-      holdMicrophoneUntilHeard = vi.fn();
       acceptPreview = vi.fn();
       constructor(
         _api: unknown,
@@ -42,6 +41,7 @@ vi.mock('./control', async () => {
         public onRevoked: () => void,
       ) {}
       start() {}
+      command = vi.fn(async () => ({}));
       dispose() {}
     },
   };
@@ -548,5 +548,58 @@ describe('выход из интеграции к участникам (R121)', 
     snapshot = { ...snapshot, sequence: 3, watch: { provider: 'youtube' } as unknown as Snapshot['watch'] };
     await meeting.refresh();
     expect(meeting.stageAway.get()).toBeNull();
+  });
+});
+
+/*
+  Вход — всегда со звуком встречи (R161). Тот же участник после перезагрузки страницы или переноса из
+  соседней вкладки у ядра может быть ещё «в наушниках»: ядру говорят, что уже нет, — иначе остальные
+  видели бы наушники у человека, который всех слышит.
+*/
+describe('звук встречи при входе (R161)', () => {
+  const admitted = (deafened: boolean) => {
+    const self = { ...person('guest', 'JOINING'), ...(deafened ? { deafened: true } : {}) };
+    return new Meeting({
+      roomId: 'room',
+      participantId: 'guest',
+      credential: 'guest.secret',
+      snapshot: { ...snapshot, participants: [self] },
+    } as Admission);
+  };
+  /** Медиа подключилось — как у настоящей сессии, уже после того, как встреча подписалась. */
+  const connect = (m: Meeting) => {
+    const state = m.media.state as unknown as { set(value: unknown): void };
+    state.set({ status: 'connecting' });
+    state.set({ status: 'connected' });
+  };
+  const deafenCommands = (m: Meeting) =>
+    (m.control.command as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .map(([command]) => command as { type: string; text?: string })
+      .filter((command) => command.type === 'self.deafen');
+
+  it('ядро помнит наушники с прошлого входа — уходит self.deafen false', async () => {
+    const own = admitted(true);
+    try {
+      own.start();
+      connect(own);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(own.media.start).toHaveBeenCalled();
+      expect(deafenCommands(own)).toEqual([expect.objectContaining({ text: 'false' })]);
+    } finally {
+      own.dispose();
+    }
+  });
+
+  it('обычный вход — без лишней команды', async () => {
+    const own = admitted(false);
+    try {
+      own.start();
+      connect(own);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(own.media.start).toHaveBeenCalled();
+      expect(deafenCommands(own)).toEqual([]);
+    } finally {
+      own.dispose();
+    }
   });
 });

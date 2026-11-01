@@ -52,7 +52,7 @@ import {
   type AudioPreferences,
   type Preferences,
 } from '../core/preferences';
-import { signal } from '../core/sounds';
+import { setMeetingDeafened, signal } from '../core/sounds';
 import { MicSentinel } from './mic-sentinel';
 import {
   allowed,
@@ -65,7 +65,14 @@ import { recallVolume, rememberVolume } from '../core/volumes';
 import { SpeechDownmix } from './downmix';
 import { receivedLevel, waitForPause } from './speech-pause';
 import { applyVolumeNow } from './volume';
-import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
+import {
+  audioCapture,
+  captureTrack,
+  CordAudioProcessor,
+  microphoneOptions,
+  needsAudioProcessor,
+  warmAudioProcessor,
+} from './audio';
 import { VoiceLevels } from './levels';
 import {
   browserCapture,
@@ -178,6 +185,11 @@ export interface OutboundVideo {
 /** Сколько ждать опоздавший сигнал, пока медиа идёт, прежде чем считать связь потерянной (R151). */
 export const SIGNAL_GRACE_MS = 8_000;
 /**
+ * Сколько ждать, пока система сама снимет заглушку с удержанного микрофона телефона, прежде чем
+ * захватывать его заново при включении (R147, R160): по возвращении на экран она снимает её сама.
+ */
+export const MIC_UNMUTE_GRACE_MS = 600;
+/**
  * Пауза между попытками, пока сеть не пропускает звонок (R149). Сама попытка — до 10 с ожидания ICE
  * (`peerConnectionTimeout`), и всё это время ядро видит участника в SFU; цикл короче окна
  * восстановления ядра (20 с), поэтому вход не истекает, пока человек ищет сеть получше.
@@ -197,6 +209,14 @@ function connection(): EventTarget | undefined {
  * переподключения, и разбудить его после фона или обычного звонка можем мы сами (`AudioWaker`).
  * `latencyHint` — как у SDK.
  */
+/**
+ * Жив ли захват своей дорожки устройства. У микрофона с обработчиком `mediaStreamTrack` — выход
+ * шумодава, он «жив», даже когда сам микрофон кончился (`captureTrack`).
+ */
+function liveCapture(track: LocalTrack) {
+  const raw = track instanceof LocalAudioTrack ? captureTrack(track) : track.mediaStreamTrack;
+  return raw.readyState === 'live';
+}
 function createAudioContext(): AudioContext | null {
   const Context =
     typeof window !== 'undefined'
@@ -270,10 +290,14 @@ export class MediaSession {
   readonly volumes = new Store<Record<string, number>>({});
   /**
    * «Звук встречи» выключен (R156, Р-40) — как «Отключить звук» у Discord. Голоса, музыка и звук
-   * показа глушит `AudioLayer`, плеер кинозала и сигналы — сами по настройке; микрофон выключает
-   * {@link setDeafened}. Начинается с сохранённого: выбор помнится между встречами.
+   * показа глушит `AudioLayer`, плеер кинозала — по этому хранилищу, сигналы — `setMeetingDeafened`;
+   * микрофон выключает {@link setDeafened}.
+   *
+   * Каждая встреча начинается со звуком (R161, Р-54), как с выключенными микрофоном и камерой:
+   * выключенное в прошлой встрече сюда не переносится. Переживает только переподключения этой же
+   * сессии — она и хранит состояние; перезагрузка страницы — новый вход, и звук снова включён.
    */
-  readonly deafened = new Store(readPreferences().deafened);
+  readonly deafened = new Store(false);
   /** Был ли включён микрофон, когда выключили звук встречи: включая звук, его возвращают. */
   private micBeforeDeafen = false;
   /** Что мы отдаём прямо сейчас, по измерению, а не по настройке. */
@@ -474,8 +498,12 @@ export class MediaSession {
   private lingeringAudio?: ScreenAudioLink;
   /** «Нажми и говори»: каким микрофон должен стать — побеждает последнее нажатие или отпускание. */
   private micTarget = false;
-  /** Куда идёт переключение микрофона, пока оно идёт (захват, окно разрешения): `state` его ещё не знает. */
-  private micHeading: boolean | undefined;
+  /**
+   * Куда идёт переключение микрофона, пока оно идёт (захват, окно разрешения, публикация): `state`
+   * его ещё не знает. Кнопка микрофона показывает это сразу по нажатию (R160) — первое включение с
+   * захватом и публикацией длится сотни миллисекунд, и без этого нажатие выглядело несработавшим.
+   */
+  readonly micHeading = new Store<boolean | undefined>(undefined);
   private micSetting?: Promise<void>;
   private deviceBusy = new Set<string>();
   private wanted = { microphone: false, camera: false };
@@ -495,9 +523,13 @@ export class MediaSession {
   /** Сторож микрофона после фона (R147): раз в секунду и сразу по возвращении на экран. */
   private micTimer?: ReturnType<typeof setInterval>;
   private readonly micSentinel = new MicSentinel({
-    track: () =>
-      this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track as
-        LocalAudioTrack | undefined,
+    // Смотрим на захват, а не на выход шумодава: обработанная дорожка живёт и «не заглушена», даже
+    // когда систему микрофон уже отобрала (R147 с «Усиленным» или усилением).
+    track: () => {
+      const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+      if (!(track instanceof LocalAudioTrack)) return undefined;
+      return { mediaStreamTrack: captureTrack(track), restartTrack: () => track.restartTrack() };
+    },
     wanted: () => !this.disposed && this.state.get().microphone,
     visible: () => typeof document === 'undefined' || !document.hidden,
     restarted: (reason) => console.info('[cord] microphone re-acquired', { reason }),
@@ -631,7 +663,14 @@ export class MediaSession {
         }
       })
       .on(RoomEvent.TrackMuted, (publication, participant) => {
-        if (participant.isLocal && publication.source === Track.Source.Microphone) {
+        // Своё выключение (кнопка, сочетание, звук встречи) тоже приходит сюда — синхронно, посреди
+        // `toggle`, пока `wanted` ещё «включён». Тогда сигнал даёт сам `toggle`, а здесь он звучал
+        // второй раз поверх первого: двойной «бум» на каждое выключение (R160).
+        if (
+          participant.isLocal &&
+          publication.source === Track.Source.Microphone &&
+          this.micHeading.get() !== false
+        ) {
           // Микрофон выключили не отсюда: это сделал ведущий. Тем более нужен звук — иначе
           // человек узнаёт об этом, договорив фразу в тишину.
           if (this.wanted.microphone) signal('mic-off');
@@ -662,6 +701,8 @@ export class MediaSession {
     window.addEventListener('cord:preferences', this.settingsChanged);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
     this.micTimer = setInterval(() => void this.micSentinel.check(), 1000);
+    // Шумодав «Усиленное» — загрузить сейчас, а не по первому нажатию на микрофон (R160).
+    warmAudioProcessor(this.preferences.get().audio);
     // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
     // свёрнутое окно с музыкой чаще всего и слушают.
     this.playoutTimer = setInterval(() => void this.tunePlayout(), 2000);
@@ -1485,27 +1526,55 @@ export class MediaSession {
     if (this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track) return;
     this.deviceBusy.add('microphone');
     try {
-      const track = await createLocalAudioTrack(
-        audioCapture(this.preferences.get().audio, deviceId || this.preferences.get().devices.microphone),
-      );
-      if (this.disposed) {
-        track.stop();
-        return;
-      }
       // Заглушить до публикации: в запросе на публикацию уходит `muted`, и сервер ни мгновения не
       // считает микрофон включённым.
-      await track.mute();
-      await this.room.localParticipant.publishTrack(track, {
-        ...microphoneOptions(),
-        source: Track.Source.Microphone,
-      });
-      if (this.disposed) track.stop();
+      await this.publishMicrophone(deviceId, true);
     } catch (error) {
       console.warn('[cord] microphone was not held for the background', error);
     } finally {
       this.deviceBusy.delete('microphone');
       this.refreshTracks();
     }
+  }
+  /**
+   * Захватить микрофон и опубликовать — один раз на встречу (R160): дальше «выключить» и «включить»
+   * — это `mute`/`unmute` той же дорожки, без нового `getUserMedia` (а значит, и без нового окна
+   * разрешения там, где браузер спрашивает на каждый захват).
+   *
+   * Шумодав и усиление ставятся **до** публикации: раньше LiveKit публиковал сырой захват, и
+   * обработчик подменял его уже в эфире — первые сотни миллисекунд комната слышала микрофон без
+   * шумодава, а потом обрыв на подмене. Не собрался обработчик (WASM не загрузился) — микрофон всё
+   * равно включается, без него; ошибка — после публикации.
+   */
+  private async publishMicrophone(deviceId: string | undefined, muted: boolean) {
+    const audio = this.preferences.get().audio;
+    const track = await createLocalAudioTrack(
+      audioCapture(audio, deviceId || this.preferences.get().devices.microphone),
+    );
+    if (this.disposed) {
+      track.stop();
+      return;
+    }
+    let failed: unknown;
+    try {
+      // Обработчику нужен контекст звука, а LiveKit даёт его дорожке только при публикации.
+      if (this.audioContext) track.setAudioContext(this.audioContext);
+      if (needsAudioProcessor(audio)) await track.setProcessor(new CordAudioProcessor(audio));
+    } catch (error) {
+      failed = error;
+    }
+    if (muted) await track.mute();
+    try {
+      await this.room.localParticipant.publishTrack(track, {
+        ...microphoneOptions(),
+        source: Track.Source.Microphone,
+      });
+    } catch (error) {
+      track.stop();
+      throw error;
+    }
+    if (this.disposed) track.stop();
+    if (failed) throw failed;
   }
   /**
    * Переподключается только сигнал (R151). На Wi-Fi под тяжёлым кинозалом сокет сигнала опаздывает, а
@@ -1656,7 +1725,7 @@ export class MediaSession {
         this.deviceTracks.set(publication.source, publication.track);
     }
     for (const [source, track] of this.deviceTracks)
-      if (track.mediaStreamTrack.readyState === 'ended') this.deviceTracks.delete(source);
+      if (!liveCapture(track)) this.deviceTracks.delete(source);
     this.room.remoteParticipants.forEach(collect);
     this.tracks.set(tiles);
     // Отписка, снятие дорожки, уход участника — конец паузы этой дорожки: надпись не переживает видео.
@@ -1666,7 +1735,12 @@ export class MediaSession {
       ),
     );
     const local = this.room.localParticipant;
-    const mic = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack ?? null;
+    const published = local.getTrackPublication(Track.Source.Microphone)?.track;
+    const mic = !published
+      ? null
+      : published instanceof LocalAudioTrack
+        ? captureTrack(published)
+        : published.mediaStreamTrack;
     this.watchMic(mic);
     this.captured.set(mic?.readyState === 'live');
     this.patch({
@@ -1685,7 +1759,7 @@ export class MediaSession {
         if (!wanted || this.room.localParticipant.getTrackPublication(source)?.track) continue;
         const track = this.deviceTracks.get(source);
         if (source === Track.Source.Camera) await this.ensureCameraCodec();
-        if (track && track.mediaStreamTrack.readyState === 'live')
+        if (track && liveCapture(track))
           await this.room.localParticipant.publishTrack(track, {
             ...(source === Track.Source.Camera ? this.cameraOptionsNow() : microphoneOptions()),
             source,
@@ -1698,12 +1772,7 @@ export class MediaSession {
           );
           this.forgetZoom();
         } else {
-          await this.room.localParticipant.setMicrophoneEnabled(
-            true,
-            audioCapture(this.preferences.get().audio, this.preferences.get().devices.microphone),
-            microphoneOptions(),
-          );
-          await this.applyAudioProcessor();
+          await this.publishMicrophone(undefined, false);
         }
       }
       // Выключенный, но захваченный микрофон (W5 или выключенный кнопкой) после полного
@@ -1713,7 +1782,7 @@ export class MediaSession {
       if (
         !this.wanted.microphone &&
         heldMic instanceof LocalAudioTrack &&
-        heldMic.mediaStreamTrack.readyState === 'live' &&
+        liveCapture(heldMic) &&
         !this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track
       ) {
         if (this.disposed || cycle !== this.connectionCycle) return;
@@ -1761,25 +1830,24 @@ export class MediaSession {
     // Намерение, а не мгновенное состояние: идущее переключение микрофона (захват, окно разрешения)
     // ещё не дошло до `state`, и без этого звук встречи выключался при микрофоне, который через миг
     // включался (ревью 01.11.2026). `setMicrophone` сам дождётся переключения и сведёт к цели.
-    const intended = this.micHeading ?? this.state.get().microphone;
+    const intended = this.micHeading.get() ?? this.state.get().microphone;
     if (value) {
       this.micBeforeDeafen = intended;
       signal('mic-off');
-      this.deafened.set(true);
-      this.saveSettings({ deafened: true });
+      this.deafen(true);
       await this.setMicrophone(false);
     } else {
-      this.deafened.set(false);
-      this.saveSettings({ deafened: false });
+      this.deafen(false);
       signal('mic-on');
       const restore = this.micBeforeDeafen;
       this.micBeforeDeafen = false;
       if (restore) await this.setMicrophone(true);
     }
   }
-  /** Вход с выключенным звуком встречи: микрофон с предвхода включится, когда включат звук. */
-  holdMicrophoneUntilHeard(wanted: boolean) {
-    this.micBeforeDeafen ||= wanted;
+  /** Звук встречи — только в этой сессии (R161): хранилище и сигналы приложения, без настроек. */
+  private deafen(value: boolean) {
+    this.deafened.set(value);
+    setMeetingDeafened(value);
   }
   setMicrophone(on: boolean): Promise<void> {
     // «Нажми и говори» при выключенном звуке встречи молчит, как у Discord: включает звук только
@@ -1819,7 +1887,7 @@ export class MediaSession {
   async toggle(kind: 'microphone' | 'camera', deviceId?: string, announce = true) {
     if (this.deviceBusy.has(kind) || this.disposed) return;
     this.deviceBusy.add(kind);
-    if (kind === 'microphone') this.micHeading = !this.state.get().microphone;
+    if (kind === 'microphone') this.micHeading.set(!this.state.get().microphone);
     try {
       const reusedCamera =
         kind === 'camera' && !!this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
@@ -1827,27 +1895,27 @@ export class MediaSession {
       const brought = !!deviceId;
       deviceId ||= this.preferences.get().devices[kind] || undefined;
       if (kind === 'microphone') {
+        const on = !this.state.get().microphone;
         // Включить микрофон при выключенном звуке встречи — значит включить и звук (как у Discord).
-        if (!this.state.get().microphone && this.deafened.get()) {
+        if (on && this.deafened.get()) {
           this.micBeforeDeafen = false;
-          this.deafened.set(false);
-          this.saveSettings({ deafened: false });
+          this.deafen(false);
         }
-        // Удержанный в фоне микрофон телефона (W5) система могла заглушить (R147): LiveKit при
-        // включении перезахватывает только кончившуюся дорожку, а заглушённая «живая» оставалась
-        // немой — перезахватить её до того, как включить. Кончившуюся перезахватит сам LiveKit.
-        if (!this.state.get().microphone) {
-          const held = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
-          const raw = held?.mediaStreamTrack;
-          if (held && raw && raw.muted && raw.readyState === 'live')
-            await held.restartTrack().catch(() => {});
+        const held = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+        if (!on) {
+          await this.room.localParticipant.setMicrophoneEnabled(false);
+        } else if (held instanceof LocalAudioTrack) {
+          // Дорожка уже есть (включали раньше или телефон держит её выключенной, W5): включить —
+          // это `unmute` той же дорожки, без захвата заново (R160). LiveKit сам перезахватит только
+          // кончившуюся дорожку или сменённое устройство.
+          await this.wakeHeldMicrophone(held);
+          await this.room.localParticipant.setMicrophoneEnabled(true);
+          // Обработчик уже стоит и не пересобирается (`applyAudioProcessor`); здесь — только если
+          // настройки звука поменяли, пока микрофон был выключен.
+          await this.applyAudioProcessor();
+        } else {
+          await this.publishMicrophone(deviceId, false);
         }
-        await this.room.localParticipant.setMicrophoneEnabled(
-          !this.state.get().microphone,
-          audioCapture(this.preferences.get().audio, deviceId),
-          microphoneOptions(),
-        );
-        if (this.room.localParticipant.isMicrophoneEnabled) await this.applyAudioProcessor();
       } else {
         // Кодек выбирается до публикации: поменять его потом — это переговоры и перерыв в
         // картинке, а ответ платформы от момента вопроса не зависит.
@@ -1895,9 +1963,31 @@ export class MediaSession {
     } catch (error) {
       this.report(error);
     } finally {
-      if (kind === 'microphone') this.micHeading = undefined;
+      if (kind === 'microphone') this.micHeading.set(undefined);
       this.deviceBusy.delete(kind);
     }
+  }
+  /**
+   * Удержанный микрофон телефона (W5) система могла заглушить, пока страница была в фоне (R147):
+   * LiveKit при включении перезахватывает только кончившуюся дорожку, а заглушённая «живая» осталась
+   * бы немой. Только это — повод для нового захвата при включении; и то сначала даём системе
+   * {@link MIC_UNMUTE_GRACE_MS} снять заглушку самой — по возвращении на экран она это делает, и
+   * лишний `getUserMedia` (а с ним окно разрешения) не нужен.
+   */
+  private async wakeHeldMicrophone(held: LocalAudioTrack) {
+    const raw = captureTrack(held);
+    if (raw.readyState !== 'live' || !raw.muted) return;
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        raw.removeEventListener('unmute', done);
+        resolve();
+      };
+      const timer = setTimeout(done, MIC_UNMUTE_GRACE_MS);
+      raw.addEventListener('unmute', done);
+    });
+    if (raw.readyState === 'live' && raw.muted && captureTrack(held) === raw)
+      await held.restartTrack().catch(() => {});
   }
   /**
    * Настройки поменяли где-то ещё в приложении.
@@ -1965,11 +2055,26 @@ export class MediaSession {
     });
     return this.audioChange;
   }
+  /**
+   * Обработка микрофона под настройки — только если она не такая. Раньше обработчик собирался
+   * заново на каждое включение микрофона (R160): сырой микрофон в эфире, пока грузится RNNoise,
+   * потом тишина, пока ворклет компилирует WASM (на замере — до 2 с), заново `addModule` в контексте
+   * встречи, и сигнал «включён» ждал всего этого. Теперь тот же шумодав остаётся, громкость
+   * меняется на месте, а пересборка — только при смене самого шумодава.
+   */
   private async applyAudioProcessor(audio = this.preferences.get().audio) {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
     if (!(track instanceof LocalAudioTrack)) return;
-    if (needsAudioProcessor(audio)) await track.setProcessor(new CordAudioProcessor(audio));
-    else if (track.getProcessor()) await track.stopProcessor();
+    const current = track.getProcessor();
+    if (!needsAudioProcessor(audio)) {
+      if (current) await track.stopProcessor();
+      return;
+    }
+    if (current instanceof CordAudioProcessor && current.serves(audio)) {
+      current.setGain(audio.gain);
+      return;
+    }
+    await track.setProcessor(new CordAudioProcessor(audio));
   }
   async switchDevice(kind: MediaDeviceKind, id: string) {
     const activeCamera = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
@@ -2629,6 +2734,8 @@ export class MediaSession {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    // Встреча кончилась — и её «звук встречи» с ней (R161): сигналы на главной и в следующей звучат.
+    setMeetingDeafened(false);
     this.screenPublishAbort?.abort();
     this.liveAbort.abort();
     this.generation++;

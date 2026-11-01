@@ -136,3 +136,45 @@ it('обработка микрофона сводит вход в моно до
   expect(context.destinations[0]).toMatchObject({ channelCount: 1, channelCountMode: 'explicit' });
   await processor.destroy();
 });
+
+/*
+  R160: обработчик не пересобирается на каждое включение микрофона. Тот же шумодав «подходит»
+  (`serves`), громкость меняется на месте, а смена устройства меняет только вход графа — выход тот же.
+*/
+it('тот же шумодав подходит и после перезапуска захвата: выход прежний, меняется только вход', async () => {
+  const { created, Fake } = stubAudio();
+  const room = new Fake() as unknown as AudioContext;
+  const processor = new CordAudioProcessor({
+    suppression: 'off',
+    echoCancellation: true,
+    autoGainControl: true,
+    gain: 1.2,
+  });
+  const first = { id: 'mic-1' } as unknown as MediaStreamTrack;
+  await processor.init({
+    track: first,
+    kind: 'audio',
+    audioContext: room,
+  } as unknown as AudioProcessorOptions);
+  // Выход живой — как у настоящего MediaStreamAudioDestinationNode.
+  const output = { id: 'processed', readyState: 'live' } as unknown as MediaStreamTrack;
+  processor.processedTrack = output;
+  expect(processor.input).toBe(first);
+  const audio = { suppression: 'off', echoCancellation: true, autoGainControl: true, gain: 0.8 } as const;
+  expect(processor.serves(audio)).toBe(true);
+  expect(processor.serves({ ...audio, suppression: 'rnnoise' })).toBe(false);
+  processor.setGain(0.8);
+  expect(created[0]!.gains[1]!).toMatchObject({ gain: { value: 0.8 } });
+
+  const second = { id: 'mic-2' } as unknown as MediaStreamTrack;
+  await processor.restart({ track: second, kind: 'audio' } as unknown as AudioProcessorOptions);
+  expect(processor.processedTrack).toBe(output);
+  expect(processor.input).toBe(second);
+  // Ни нового контекста, ни нового назначения: граф тот же.
+  expect(created).toHaveLength(1);
+  expect(created[0]!.destinations).toHaveLength(1);
+  const context = created[0] as unknown as { createMediaStreamSource: ReturnType<typeof vi.fn> };
+  expect(context.createMediaStreamSource).toHaveBeenCalledTimes(2);
+  await processor.destroy();
+  expect(processor.input).toBeUndefined();
+});

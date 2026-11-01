@@ -650,9 +650,6 @@
       "done": "Link da reunião copiado",
       "failed": "Não foi possível copiar o link da reunião",
       "copy": "Copiar"
-    },
-    "deafened": {
-      "title": "O som da reunião está desligado: você não ouve ninguém"
     }
   },
   "chess": {

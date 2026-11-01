@@ -175,14 +175,14 @@ export class Meeting {
         );
         if (state.status === 'connected' && !this.initialDevicesApplied) {
           this.initialDevicesApplied = true;
+          // Вход — всегда со звуком встречи (R161): выключенный в прошлый раз сюда не переносится.
+          // Тот же участник после перезагрузки страницы или из соседней вкладки у ядра ещё «в
+          // наушниках» — сказать ему, что уже нет, иначе остальные видели бы наушники зря.
+          const self = this.snapshot.get().participants.find((p) => p.id === this.admission.participantId);
+          if (!!self?.deafened !== this.media.deafened.get()) this.tellDeafened();
           // Без сигнала: человек включил микрофон ещё на предпросмотре, а услышал только что
           // собственный вход — два звука подряд об одном и том же событии.
-          // Звук встречи выключен с прошлого раза (R156): микрофон ждёт, пока звук включат, а
-          // остальные сразу видят наушники.
-          if (this.media.deafened.get()) this.tellDeafened();
-          if (this.choices.micOn && this.media.deafened.get()) this.media.holdMicrophoneUntilHeard(true);
-          if (this.choices.micOn && !this.media.deafened.get())
-            void this.media.toggle('microphone', this.choices.microphone, false);
+          if (this.choices.micOn) void this.media.toggle('microphone', this.choices.microphone, false);
           // Телефон: микрофон захватывается и выключенным — иначе разговор в фоне не держит ничто
           // (W5, E12). На ПК `holdMicrophone` ничего не делает.
           else void this.media.holdMicrophone(this.choices.microphone);

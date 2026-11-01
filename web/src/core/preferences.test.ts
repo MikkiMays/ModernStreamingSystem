@@ -320,16 +320,19 @@ describe('шумоподавление по умолчанию — «Усиле�
   });
 });
 
-it('«звук встречи»: по умолчанию включён, сочетание — Ctrl+Shift+D, снятое сочетание помнится (R156)', () => {
+it('«звук встречи»: сочетание — Ctrl+Shift+D, снятое сочетание помнится (R156)', () => {
   expect(readPreferences()).toMatchObject({
-    deafened: false,
     deafenHotkey: { code: 'KeyD', ctrl: true, shift: true, alt: false, meta: false },
   });
-  savePreferences({ deafened: true, deafenHotkey: null });
-  expect(readPreferences()).toMatchObject({ deafened: true, deafenHotkey: null });
-  localStorage.setItem(
-    'cord:preferences:v1',
-    JSON.stringify({ deafened: 'yes', deafenHotkey: { code: 'Escape' } }),
-  );
-  expect(readPreferences()).toMatchObject({ deafened: false, deafenHotkey: { code: 'KeyD' } });
+  savePreferences({ deafenHotkey: null });
+  expect(readPreferences()).toMatchObject({ deafenHotkey: null });
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ deafenHotkey: { code: 'Escape' } }));
+  expect(readPreferences()).toMatchObject({ deafenHotkey: { code: 'KeyD' } });
+});
+
+it('«звук встречи» — не настройка (R161): выключенный в прошлой встрече в настройки не попадает', () => {
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ deafened: true }));
+  expect(readPreferences()).not.toHaveProperty('deafened');
+  savePreferences({ soundVolume: 50 });
+  expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!)).not.toHaveProperty('deafened');
 });

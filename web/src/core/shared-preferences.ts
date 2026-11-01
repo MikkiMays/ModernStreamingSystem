@@ -49,7 +49,7 @@ export const SHARED_KEYS = [
   'micHotkeyMode',
   'overlayHotkey',
   'overlayLockHotkey',
-  'deafened',
+  // «Звук встречи» — не настройка, а кнопка встречи (R161): общим остаётся только его сочетание.
   'deafenHotkey',
   'layout',
   'watchVolume',
