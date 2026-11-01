@@ -336,6 +336,16 @@ class Cinema:
     def _ctx(self, room: str, source: Provider) -> Ctx:
         return Ctx(room=_room(room), net=self.net.client_for(source.id))
 
+    async def _gate(self, source: Provider) -> None:
+        """
+        Площадка, которая отсюда заведомо не работает (ivi вне России, `Provider.gate`), отказывает раньше
+        автомата и раньше вопроса к ней: «только в России» — правда, а «недоступна с этого сервера» от
+        мигнувшей пробы и пустая витрина — нет (R172).
+        """
+        if type(source).gate is Provider.gate:
+            return  # площадке проверять нечего — и клиента ей ради этого не собирают
+        await source.gate(self.net.client_for(source.id))
+
     async def _ask(
         self,
         source: Provider,
@@ -415,7 +425,11 @@ class Cinema:
         listed = list(self.registry)
         # «Повторить» у недоступной площадки спрашивает этот список: закрытую пробой — проверить сейчас.
         await asyncio.gather(*(self.reach.refresh(source) for source in listed), return_exceptions=True)
-        down = {source.id: self.reach.down(source) for source in listed}
+        # Площадка, которая сама уже сказала, что отсюда не работает (ivi вне России), так и называется,
+        # хоть бы её автомат и был открыт: «только в России» — правда, а мигнувшая проба — нет.
+        down = {
+            source.id: None if _refuses_itself(source) else self.reach.down(source) for source in listed
+        }
         answers = await asyncio.gather(
             *(
                 _ready((False, down[source.id])) if down[source.id] else self._availability(source)
@@ -439,6 +453,10 @@ class Cinema:
             }
             if down[source.id]:
                 entry["code"] = "CINEMA_UNREACHABLE"
+            elif not available:
+                # Своя причина площадки — кодом и тем, что к нему нужно (страна сервера у ivi): клиент
+                # называет её на языке человека, а не русскими словами службы.
+                entry.update(source.unavailable_extra())
             entries.append(entry)
         return {"providers": entries}
 
@@ -474,6 +492,7 @@ class Cinema:
         source = self._able(provider, "search")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
+        await self._gate(source)
         return await self._ask(source, lambda: source.search(ctx, query.strip(), offset))
 
     async def channel(
@@ -491,6 +510,7 @@ class Cinema:
             raise HTTPException(400, "Непонятное имя канала")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
+        await self._gate(source)
         # Регистр в ключе — как у площадки: `UCabc` и `UCABC` у YouTube два разных канала.
         return await self.catalog.scope(source.id).get(
             f"channel:{channel_id}:{tab}:{offset}",
@@ -509,6 +529,7 @@ class Cinema:
             raise HTTPException(400, "Непонятный адрес плейлиста")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
+        await self._gate(source)
         return await self.catalog.scope(source.id).get(
             f"playlist:{playlist_id}:{offset}",
             lambda: self._ask(source, lambda: source.playlist(ctx, playlist_id, offset)),
@@ -526,6 +547,7 @@ class Cinema:
             return {"items": [], "next": None}
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
+        await self._gate(source)
         return await self._ask(source, lambda: source.categories(ctx, query.strip(), offset))
 
     async def category(
@@ -537,6 +559,7 @@ class Cinema:
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
+        await self._gate(source)
         return await self._ask(source, lambda: source.category(ctx, category_id, offset))
 
     async def series(
@@ -555,6 +578,7 @@ class Cinema:
             raise HTTPException(400, "Непонятный сезон")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
+        await self._gate(source)
         return await self.catalog.scope(source.id).get(
             f"series:{series_id}:{season}:{offset}",
             lambda: self._ask(source, lambda: source.series(ctx, series_id, season or None, offset)),
@@ -567,6 +591,7 @@ class Cinema:
         if not source.content_id.fullmatch(content_id):
             raise HTTPException(400, "Непонятный адрес видео")
         ctx = self._ctx(room, source)
+        await self._gate(source)
         return await self.catalog.scope(source.id).get(
             f"details:{kind}:{content_id}",
             lambda: self._ask(source, lambda: source.details(ctx, kind, content_id)),
@@ -611,6 +636,7 @@ class Cinema:
             # открылась бы только затем, чтобы отказать на странице ролика (R112).
             target = self.registry.find(found["route"]["provider"]) if "route" in found else None
             if target is not None:
+                await self._gate(target)
                 self.reach.refuse_if_down(target)
             return found
         # Сайт, который владелец закрыл после жалобы (A9), — отказ до yt-dlp: наружу не уходит ни запроса.
@@ -672,6 +698,7 @@ class Cinema:
         # целиком знает площадка — ей и решать, раньше памяти и раньше yt-dlp.
         if not source.content_id.fullmatch(request.contentId):
             raise HTTPException(400, "Непонятный адрес видео")
+        await self._gate(source)
         key = f"{source.id}:{request.kind}:{request.contentId}:{request.adaptive}"
         refresh = request.refresh
         if refresh and isinstance(source, General) and source.fresh(request.contentId):
@@ -1067,6 +1094,12 @@ class Cinema:
 def _kept_for(found: dict[str, Any]) -> float:
     """Сколько помнить ответ `resolve`: эфир — меньше минуты, запись — до получаса и не дольше подписи."""
     return min(45 if found["live"] else 1800, max(0, found["expiresAt"] / 1000 - time.time() - 60))
+
+
+def _refuses_itself(source: Provider) -> bool:
+    """Площадка уже знает по своей проверке, что отсюда не работает (`Provider.known_availability`)."""
+    known = source.known_availability()
+    return known is not None and not known[0]
 
 
 async def _ready(value: Any) -> Any:

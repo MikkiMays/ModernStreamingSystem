@@ -30,17 +30,17 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from yt_dlp.utils import ExtractorError, GeoRestrictedError
 
 from cord_services.app import create_app
-from cord_services.cinema import Cinema, Resolve, Signer
+from cord_services.cinema import Cinema, Resolve, Signer, reach
 from cord_services.cinema.memo import Memo
 from cord_services.cinema.providers import PROVIDERS
 from cord_services.cinema.providers.ivi import NOT_RU, Ivi
 from cord_services.cinema.registry import Ctx, Features, Kit, Match
-from cord_services.cinema.resolve import PROBE, YtDlp
+from cord_services.cinema.resolve import YtDlp
 from cord_services.cinema.transport.signer import proxied
 from cord_services.core import Core
+from cord_services.webapp import Refusal
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "ivi"
 NOW = 1_790_320_000.0
@@ -48,9 +48,12 @@ SECRET = "secret"
 DAY = 24 * 3600
 ROOM = str(uuid.uuid4())
 
-TILE_FIELDS = "id,title,object_type,year,years,duration,genres,posters,ivi_rating_10,content_paid_types"
+TILE_FIELDS = (
+    "id,title,object_type,year,years,duration,genres,posters,ivi_rating_10,content_paid_types,drm_only"
+)
 EPISODE_FIELDS = (
-    "id,title,object_type,episode,season,posters,localizations,genres,ivi_rating_10,content_paid_types"
+    "id,title,object_type,episode,season,posters,localizations,genres,ivi_rating_10,content_paid_types,"
+    "drm_only"
 )
 COMPILATION_FIELDS = (
     "id,title,object_type,years,duration,genres,posters,ivi_rating_10,content_paid_types,"
@@ -58,7 +61,7 @@ COMPILATION_FIELDS = (
 )
 SINGLE_FIELDS = (
     "id,title,object_type,year,years,duration,genres,posters,ivi_rating_10,content_paid_types,"
-    "description,compilation,episode,season,localizations,ivi_release_date"
+    "description,compilation,episode,season,localizations,ivi_release_date,drm_only"
 )
 
 
@@ -87,7 +90,13 @@ def address(url: str) -> str:
 
 
 class Stage(unittest.IsolatedAsyncioTestCase):
-    """Остановленные часы и сеть, которая знает только адреса `api.ivi.ru`, ответы на которые ей дали."""
+    """
+    Остановленные часы и сеть, которая знает только адреса `api.ivi.ru`, ответы на которые ей дали.
+
+    Сервер — в России: так площадка уже ответила на `geocheck/whoami` (память площадки), и её проверка
+    страны (`Ivi.gate`) пропускает вопросы, не спрашивая сеть. Сервер за границей — `RegionTests`.
+    Плеерное API (`POST /light/`) отвечает `self.light`, если тест его назначил.
+    """
 
     def setUp(self):
         clock = patch("time.time", return_value=NOW)
@@ -95,7 +104,9 @@ class Stage(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(clock.stop)
         self.pages: dict[str, tuple[int, object]] = {}
         self.seen: list[httpx.Request] = []
+        self.light = None
         self.cinema = Cinema(SECRET, httpx.AsyncClient(transport=httpx.MockTransport(self.serve)))
+        self.cinema.registry.get("ivi").memo.put("availability", (True, None), 3600)
 
     async def asyncTearDown(self):
         await self.cinema.close()
@@ -110,6 +121,8 @@ class Stage(unittest.IsolatedAsyncioTestCase):
 
     def serve(self, request: httpx.Request) -> httpx.Response:
         self.seen.append(request)
+        if request.method == "POST" and request.url.path == "/light/" and self.light is not None:
+            return self.light(request)
         assert request.url.host == "api.ivi.ru", f"Неожиданный запрос наружу: {request.url}"
         key = address(str(request.url))
         if key not in self.pages:
@@ -165,10 +178,13 @@ class PlatformTests(unittest.TestCase):
         for wrong in ("0x1", "53141a", "", "1234567890123", "-1"):
             self.assertIsNone(Ivi.content_id.fullmatch(wrong), wrong)
 
-    def test_its_hosts_are_the_site_and_its_picture_storage(self):
-        for host in ("ivi.ru", "www.ivi.ru", "thumbs.dfs.ivi.ru", "storyboard.dfs.ivi.ru", "dfs.ivi.ru"):
+    def test_its_hosts_are_the_site_its_picture_storage_and_its_cdn(self):
+        for host in (
+            "ivi.ru", "www.ivi.ru", "thumbs.dfs.ivi.ru", "storyboard.dfs.ivi.ru", "dfs.ivi.ru",
+            "vod-1.cdn.ivi.ru", "ivi.tv", "www.ivi.tv",
+        ):
             self.assertTrue(Ivi.hosts.allows(host), host)
-        for host in ("ivi.tv", "evil-ivi.ru", "ivi.ru.evil.com", "googlevideo.com"):
+        for host in ("evil-ivi.ru", "ivi.ru.evil.com", "ivi.tv.evil.com", "googlevideo.com"):
             self.assertFalse(Ivi.hosts.allows(host), host)
 
     def test_what_it_does_not_have_is_refused_in_its_own_words(self):
@@ -383,6 +399,23 @@ class CatalogTests(Stage):
         # «Беглецы», третья запись страницы.
         self.assertEqual(found["items"][1]["id"], str(movies[2]["id"]))
         self.assertEqual(found["next"], None)
+
+    async def test_a_film_only_under_drm_is_not_shown_but_a_series_marked_so_is(self):
+        """`drm_only` у ролика — его не сыграть ничем, кроме плеера площадки: карточки нет. У сериала
+        целиком пометка серии не прячет — у серий она своя, и отбор идёт по ним (R172)."""
+        self.answer("/mobileapi/categories/v7/", {"result": []})
+        show, _, film = recorded("catalogue-movies.json")["result"]
+        rows = [avod(film, drm_only=True), avod(show, drm_only=True), avod(film, id=990001)]
+        self.answer(
+            "/mobileapi/catalogue/v7/",
+            {"result": rows},
+            category="14",
+            fields=TILE_FIELDS,
+            paid_type="AVOD",
+            **{"from": "0", "to": "29", "app_version": "870"},
+        )
+        found = await self.cinema.category("ivi", "14", room=ROOM)
+        self.assertEqual([item["id"] for item in found["items"]], [str(show["id"]), "990001"])
 
     async def test_paging_continues_while_the_platform_kept_sending_a_full_page(self):
         self.answer("/mobileapi/categories/v7/", {"result": []})
@@ -627,93 +660,304 @@ class NextEpisodeTests(Stage):
         self.assertEqual(paths, ["/mobileapi/categories/v7/", "/mobileapi/videoinfo/v7/"])
 
 
-class SourceTests(Stage):
+# Узел CDN ivi — выдуманный: настоящих файлов бесплатного с сервера в Германии не увидеть (см. шапку).
+CDN = "https://vod-1.cdn.ivi.ru/storage/contents/53141"
+# Подпись плеерного API — ключом экстрактора yt-dlp (`IviIE._LIGHT_KEY`), как у самой службы.
+LIGHT_KEY = b"\xf1\x02\x32\xb7\xbc\x5c\x7a\xe8\xf7\x96\xc1\x33\x2b\x27\xa1\x8c"
+
+
+def file_entry(content_format: str, url: str | None = None) -> dict:
+    """Строка `files` ответа плеера площадки: имя формата, адрес, размер — как их читает yt-dlp."""
+    return {
+        "content_format": content_format,
+        "url": url or f"{CDN}/{content_format}.mp4?sign=abc",
+        "size_in_bytes": 123456789,
+    }
+
+
+def played(*files: dict) -> dict:
+    """Ответ `da.content.get` с файлами (форма — по экстрактору `ivi` у yt-dlp: `result.files[]`)."""
+    return {"result": {"title": "Иван Васильевич меняет профессию", "files": list(files)}}
+
+
+class PlayerStage(Stage):
+    """Плеерное API площадки и её CDN: `self.player` — ответ на `da.content.get`, `self.cdn` — файлы."""
+
+    def setUp(self):
+        super().setUp()
+        self.player: dict | Exception = played()
+        self.cdn: dict[str, tuple[int, str, str]] = {}
+        self.light_calls: list[tuple[dict, dict, bytes]] = []
+        self.light = self.answer_light
+        self.stage_video(avod(recorded("videoinfo-movie.json")["result"]))
+
+    def answer_light(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        self.light_calls.append((body, dict(request.url.params), request.content))
+        if body["method"] == "da.timestamp.get":
+            return httpx.Response(200, json={"result": "cJRsvNxRr1w"})
+        if isinstance(self.player, Exception):
+            raise self.player
+        return httpx.Response(200, json=self.player)
+
+    def serve(self, request: httpx.Request) -> httpx.Response:
+        host = request.url.host
+        if request.method == "GET" and host != "api.ivi.ru":
+            self.seen.append(request)
+            status, kind, text = self.cdn.get(str(request.url), (404, "text/plain", ""))
+            if status in (301, 302):
+                return httpx.Response(status, headers={"location": text})
+            return httpx.Response(status, headers={"content-type": kind}, content=text.encode())
+        return super().serve(request)
+
     def stage_video(self, item):
         self.answer("/mobileapi/videoinfo/v7/", {"result": item}, id=str(item["id"]), fields=SINGLE_FIELDS)
 
-    async def test_a_paid_video_never_reaches_yt_dlp(self):
-        self.stage_video(recorded("videoinfo-movie.json")["result"])
+    def live(self, url: str, kind: str = "video/mp4"):
+        self.cdn[url] = (206, kind, "x")
+
+    async def plan(self):
+        return await self.cinema.registry.get("ivi").source(self.ctx(), "video", "53141", {})
+
+    async def refusal(self, status, code, detail):
+        with self.assertRaises(Refusal) as refused:
+            await self.plan()
+        found = refused.exception
+        self.assertEqual((found.status_code, found.code, found.detail), (status, code, detail))
+        self.assertEqual(found.extra["provider"], "ivi")
+        return found
+
+
+class SourceTests(PlayerStage):
+    async def test_a_free_film_plays_its_best_open_file_and_never_the_protected_one(self):
+        best = file_entry("MP4-HD720")
+        self.player = played(
+            file_entry("MP4-lo"), best, file_entry("DASH-MDRM-HD1080"), file_entry("MP4-HD1080-FPS-")
+        )
+        for entry in self.player["result"]["files"]:
+            self.live(entry["url"])
         with patch.object(YtDlp, "extract") as extract:
-            await self.refused(
-                self.cinema.registry.get("ivi").source(self.ctx(), "video", "53141", {}),
+            plan = await self.plan()
+        extract.assert_not_called()
+        self.assertEqual((plan.via, plan.kind, plan.url), ("direct", "file", best["url"]))
+        self.assertEqual(plan.title, "Иван Васильевич меняет профессию")
+        # Длительность — из карточки площадки (`localizations[0].duration`), а не из ответа плеера.
+        movie = recorded("videoinfo-movie.json")["result"]
+        self.assertEqual(plan.duration, movie["localizations"][0]["duration"])
+        # Вопрос плеерному API — тот же, что у yt-dlp: время, затем `da.content.get` сайта s353 с подписью
+        # CMAC/Blowfish над временем и телом.
+        from Cryptodome.Cipher import Blowfish
+        from Cryptodome.Hash import CMAC
+
+        (first, _, _), (second, params, raw) = self.light_calls
+        self.assertEqual(first, {"method": "da.timestamp.get", "params": []})
+        self.assertEqual(second["method"], "da.content.get")
+        self.assertEqual(second["params"][0], "53141")
+        self.assertEqual(second["params"][1]["site"], "s353")
+        self.assertEqual(second["params"][1]["contentid"], "53141")
+        sign = CMAC.new(LIGHT_KEY, b"cJRsvNxRr1w" + raw, ciphermod=Blowfish).hexdigest()
+        self.assertEqual(params, {"ts": "cJRsvNxRr1w", "sign": sign})
+        # Защищённые файлы не спрашивались вовсе: проверен только выбранный.
+        checked = [str(request.url) for request in self.seen if request.url.host != "api.ivi.ru"]
+        self.assertEqual(checked, [best["url"]])
+
+    async def test_a_dead_best_file_gives_way_to_the_next_that_answers(self):
+        good = file_entry("MP4-lo")
+        self.player = played(file_entry("MP4-HD720"), good)
+        self.live(good["url"])
+        plan = await self.plan()
+        self.assertEqual((plan.kind, plan.url), ("file", good["url"]))
+
+    async def test_a_redirect_to_the_cdn_node_is_followed_by_the_check(self):
+        moved = file_entry("MP4-HD720")
+        node = "https://node-7.cdn.ivi.ru/f/53141.mp4"
+        self.player = played(moved)
+        self.cdn[moved["url"]] = (302, "", node)
+        self.live(node)
+        plan = await self.plan()
+        self.assertEqual(plan.url, moved["url"])
+        # Узел отдаёт переадресацией — и прокси пройдёт её сам, шагами по политике (`follows_redirects`).
+        self.assertTrue(Ivi.follows_redirects)
+
+    async def test_a_file_named_over_http_is_asked_over_https(self):
+        plain = file_entry("MP4-hi", url="http://vod-1.cdn.ivi.ru/storage/contents/53141/hi.mp4")
+        self.player = played(plain)
+        self.live("https://vod-1.cdn.ivi.ru/storage/contents/53141/hi.mp4")
+        plan = await self.plan()
+        self.assertEqual(plan.url, "https://vod-1.cdn.ivi.ru/storage/contents/53141/hi.mp4")
+
+    async def test_an_open_hls_list_beats_files_and_a_locked_one_does_not(self):
+        master = f"{CDN}/master.m3u8"
+        child = f"{CDN}/720.m3u8"
+        self.player = played(file_entry("HLS-HD720", url=master), file_entry("MP4-hi"))
+        self.live(self.player["result"]["files"][1]["url"])
+        hls = "application/vnd.apple.mpegurl"
+        self.cdn[master] = (200, hls, "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n720.m3u8\n")
+        self.cdn[child] = (200, hls, "#EXTM3U\n#EXTINF:4,\na.ts\n#EXT-X-ENDLIST\n")
+        plan = await self.plan()
+        self.assertEqual((plan.kind, plan.url), ("hls", master))
+        # Тот же список с ключом SAMPLE-AES — уже защита: играет файл.
+        self.cdn[child] = (
+            200,
+            hls,
+            '#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI="skd://k"\n#EXTINF:4,\na.ts\n#EXT-X-ENDLIST\n',
+        )
+        plan = await self.plan()
+        self.assertEqual(plan.kind, "file")
+
+    async def test_the_platforms_refusals_are_said_in_their_own_words(self):
+        for origin, status, code, detail in (
+            ("NotAllowedForLocation", 403, "CINEMA_GEO", "ivi не показывает это видео в стране сервера"),
+            ("ContentNotPaid", 403, "CINEMA_PAID", "Это платное видео ivi — показать его комнате нельзя"),
+            ("ContentYetUnavailable", 403, "CINEMA_NOT_YET", "Это видео на ivi ещё не вышло"),
+            ("NoRedisValidData", 404, "CINEMA_NO_VIDEO", "Такого видео на ivi нет"),
+        ):
+            self.player = {"error": {"code": 4500, "origin": origin, "message": "…"}}
+            await self.refusal(status, code, detail)
+
+    async def test_anything_else_is_a_short_phrase_and_the_reason_goes_to_the_log(self):
+        self.player = {
+            "error": {"code": 4512, "origin": "WrongVersion", "message": "Не смогли определить версию"}
+        }
+        with self.assertLogs("cord_services.cinema.providers.ivi", "WARNING") as log:
+            found = await self.refusal(
+                502, "CINEMA_STREAM_FAILED", "ivi не отдал это видео — попробуйте позже или другое"
+            )
+        self.assertNotIn("WrongVersion", found.detail)
+        self.assertIn("WrongVersion 4512 Не смогли определить версию", log.output[0])
+
+    async def test_only_protected_files_are_called_protected(self):
+        self.player = played(file_entry("DASH-MDRM-HD1080"), file_entry("HLS-FPS-HD720"))
+        with self.assertLogs("cord_services.cinema.providers.ivi", "WARNING") as log:
+            await self.refusal(
                 403,
-                "Это платное видео ivi — показать его комнате нельзя",
+                "CINEMA_PROTECTED",
+                "ivi отдаёт это видео только под защитой — показать его комнате нельзя",
+            )
+        self.assertIn("DASH-MDRM-HD1080, HLS-FPS-HD720", log.output[0])
+
+    async def test_files_on_a_foreign_host_are_not_signed_and_the_host_goes_to_the_log(self):
+        self.player = played(file_entry("MP4-HD720", url="https://cdn.example.net/a.mp4?token=secret"))
+        with self.assertLogs("cord_services.cinema.providers.ivi", "WARNING") as log:
+            await self.refusal(
+                502, "CINEMA_STREAM_FAILED", "ivi не отдал это видео — попробуйте позже или другое"
+            )
+        self.assertIn("cdn.example.net", log.output[0])
+        self.assertNotIn("secret", "\n".join(log.output))
+        self.assertEqual([r for r in self.seen if r.url.host == "cdn.example.net"], [])
+
+    async def test_a_paid_video_never_reaches_the_player_api(self):
+        self.stage_video(recorded("videoinfo-movie.json")["result"])  # осталась платной
+        await self.refusal(403, "CINEMA_PAID", "Это платное видео ivi — показать его комнате нельзя")
+        self.assertEqual(self.light_calls, [])
+
+    async def test_drm_only_is_refused_before_the_player_api(self):
+        self.stage_video(avod(recorded("videoinfo-movie.json")["result"], drm_only=True))
+        await self.refusal(
+            403, "CINEMA_PROTECTED", "ivi отдаёт это видео только под защитой — показать его комнате нельзя"
+        )
+        self.assertEqual(self.light_calls, [])
+
+    async def test_a_silent_player_api_is_a_failure_the_breaker_counts_as_network(self):
+        self.player = httpx.ConnectError("no route")
+        with self.assertLogs("cord_services.cinema.providers.ivi", "WARNING"):
+            found = await self.refusal(
+                502, "CINEMA_STREAM_FAILED", "ivi не отдал это видео — попробуйте позже или другое"
+            )
+        self.assertTrue(reach.network(found))
+
+
+class ResolveRouteTests(PlayerStage):
+    """Через настоящий `resolve`: план ivi подключён к нему, и пул потоков yt-dlp он не трогает вовсе."""
+
+    async def test_the_resolve_route_plays_ivis_file_through_our_proxy_without_yt_dlp(self):
+        best = file_entry("MP4-HD720")
+        self.player = played(best)
+        self.live(best["url"])
+        with patch.object(YtDlp, "extract") as extract:
+            found = await self.cinema.resolve(
+                Resolve(provider="ivi", contentId="53141", kind="video", adaptive=True), room=ROOM
             )
         extract.assert_not_called()
-
-    async def test_a_free_video_builds_a_plan_the_resolver_will_not_re_open(self):
-        """Разбор идёт в `source()` самом: удачный вызов `Resolver` получает уже готовым (`info=`)
-        и второй раз ту же страницу yt-dlp не открывает — проверено тем, что `extract` позвали
-        ровно один раз, с адресом ролика и общими опциями (`PROBE`)."""
-        info = avod(recorded("videoinfo-movie.json")["result"])
-        self.stage_video(info)
-        parsed = {"id": "53141", "title": "у yt-dlp своё имя", "formats": []}
-        with patch.object(YtDlp, "extract", return_value=parsed) as extract:
-            plan = await self.cinema.registry.get("ivi").source(self.ctx(), "video", "53141", {})
-        extract.assert_called_once_with("https://www.ivi.ru/watch/53141", PROBE, "ivi")
-        self.assertEqual(plan.via, "ytdlp")
-        self.assertEqual(plan.url, "https://www.ivi.ru/watch/53141")
-        self.assertIs(plan.info, parsed)
-        self.assertEqual(plan.files, ("mp4",))
-        self.assertEqual(plan.subtitles, "any")
-
-    async def test_geo_drm_and_anything_else_get_their_own_clear_words(self):
-        info = avod(recorded("videoinfo-movie.json")["result"])
-        for error, status, detail in (
-            (
-                GeoRestrictedError("nope", countries=["RU"]),
-                403,
-                "ivi не показывает это видео с нашего сервера: ограничение по стране",
-            ),
-            (
-                ExtractorError("No video formats found!", expected=True),
-                403,
-                "ivi не отдал бесплатный поток для этого видео — похоже, оно платное или защищено",
-            ),
-            (
-                ExtractorError(
-                    "Unable to download video 53141: Не смогли определить версию по переданным "
-                    "site=s183 и app_version=None",
-                    expected=True,
-                ),
-                403,
-                "ivi не отдал бесплатный поток для этого видео — похоже, оно платное или защищено",
-            ),
-            (ConnectionError("boom"), 502, None),
-        ):
-            self.pages.clear()
-            self.seen.clear()
-            self.stage_video(info)
-            with patch.object(YtDlp, "extract", side_effect=error):
-                with self.assertRaises(HTTPException) as refusal:
-                    await self.cinema.registry.get("ivi").source(self.ctx(), "video", "53141", {})
-            self.assertEqual(refusal.exception.status_code, status)
-            if detail is not None:
-                self.assertEqual(refusal.exception.detail, detail)
-            else:
-                self.assertTrue(refusal.exception.detail.startswith("Не удалось открыть видео:"))
+        self.assertEqual(self.cinema.ytdlp.busy, {})
+        self.assertEqual(found["kind"], "file")
+        self.assertEqual(found["title"], "Иван Васильевич меняет профессию")
+        self.assertTrue(found["url"].startswith("/api/v1/services/cinema/fetch?"))
+        self.assertEqual(self.cinema.signer.open("fetch", *_signed(found["url"])), best["url"])
 
 
-class ResolveRouteTests(Stage):
-    """Один прогон через настоящий маршрут `resolve` — доказать, что `source()` подключён к нему,
-    а не только к прямому вызову площадки в тестах выше."""
+def _signed(url: str) -> tuple[str, str, str, str]:
+    query = parse_qs(urlsplit(url).query)
+    return query["u"][0], query["e"][0], query["s"][0], query["p"][0]
 
-    async def test_the_resolve_route_uses_ivis_own_plan(self):
-        info = avod(recorded("videoinfo-movie.json")["result"])
-        self.answer("/mobileapi/videoinfo/v7/", {"result": info}, id="53141", fields=SINGLE_FIELDS)
-        parsed = {"id": "53141", "title": "Иван Васильевич меняет профессию", "formats": []}
-        with patch.object(YtDlp, "extract", return_value=parsed):
-            with self.assertRaises(HTTPException) as refusal:
-                await self.cinema.resolve(
-                    Resolve(provider="ivi", contentId="53141", kind="video", adaptive=True), room=ROOM
-                )
-        # Разобранного набора форматов у yt-dlp нет (пуст нарочно) — общий `Resolver` откажет уже
-        # сам, своими словами, не английским текстом yt-dlp: этим и доказано, что `source()`
-        # передал план дальше, а не проглотил его.
-        self.assertEqual(refusal.exception.status_code, 502)
+
+class RegionTests(unittest.IsolatedAsyncioTestCase):
+    """Сервер не в России: каждый вопрос к ivi — отказ сразу, со страной сервера, и без каталога."""
+
+    async def asyncSetUp(self):
+        self.seen: list[httpx.Request] = []
+        self.country = "DE"
+
+        def serve(request: httpx.Request) -> httpx.Response:
+            self.seen.append(request)
+            if request.url.path.endswith("/geocheck/whoami/v6/"):
+                if self.country is None:
+                    raise httpx.ConnectError("no route")
+                return httpx.Response(200, json={"result": {"country_code": self.country}})
+            return httpx.Response(200, json={"result": []})
+
+        self.cinema = Cinema(SECRET, httpx.AsyncClient(transport=httpx.MockTransport(serve)))
+
+    async def asyncTearDown(self):
+        await self.cinema.close()
+
+    async def refused(self, action):
+        with self.assertRaises(Refusal) as refusal:
+            await action
+        found = refusal.exception
         self.assertEqual(
-            refusal.exception.detail, "Площадка не отдала поток для этого видео. Попробуйте другое"
+            (found.status_code, found.code, found.detail),
+            (403, "CINEMA_REGION", "ivi показывает фильмы только на серверах в России"),
         )
+        self.assertEqual(found.extra, {"provider": "ivi", "code": "CINEMA_REGION", "country": "DE"})
+
+    async def test_the_list_names_the_region_and_the_servers_country(self):
+        entries = (await self.cinema.providers())["providers"]
+        ivi = next(entry for entry in entries if entry["id"] == "ivi")
+        self.assertEqual(
+            (ivi["available"], ivi["reason"], ivi["code"], ivi["country"]),
+            (False, NOT_RU, "CINEMA_REGION", "DE"),
+        )
+
+    async def test_every_question_is_refused_at_once_without_asking_the_catalog(self):
+        for action in (
+            self.cinema.categories("ivi", room=ROOM),
+            self.cinema.category("ivi", "14", room=ROOM),
+            self.cinema.search("ivi", "Иван", room=ROOM),
+            self.cinema.series("ivi", "17830", room=ROOM),
+            self.cinema.details("ivi", "53141", "video", room=ROOM),
+            self.cinema.resolve(Resolve(provider="ivi", contentId="53141", kind="video"), room=ROOM),
+            self.cinema.link("https://www.ivi.ru/watch/53141", room=ROOM),
+        ):
+            await self.refused(action)
+        # Страну спросили один раз — дальше она в памяти; каталога не спрашивали вовсе.
+        self.assertEqual([request.url.path for request in self.seen], ["/mobileapi/geocheck/whoami/v6/"])
+
+    async def test_a_flickering_breaker_does_not_hide_the_true_reason(self):
+        await self.cinema.providers()
+        ivi = self.cinema.registry.get("ivi")
+        state = self.cinema.reach.gauge(ivi)
+        self.cinema.reach._open(state, "probe")
+        entries = (await self.cinema.providers())["providers"]
+        entry = next(entry for entry in entries if entry["id"] == "ivi")
+        self.assertEqual(entry["code"], "CINEMA_REGION")
+        await self.refused(self.cinema.category("ivi", "14", room=ROOM))
+
+    async def test_an_unknown_country_lets_the_question_through_to_the_platform(self):
+        self.country = None
+        found = await self.cinema.category("ivi", "14", room=ROOM)
+        self.assertEqual(found["items"], [])
+        self.assertIn("/mobileapi/catalogue/v7/", [request.url.path for request in self.seen])
 
 
 class RouteTests(unittest.TestCase):

@@ -1,41 +1,56 @@
 """
-ivi: только бесплатное — фильмы, сериалы и мультфильмы каталогом площадки, поток через yt-dlp.
+ivi: только бесплатное — фильмы, сериалы и мультфильмы каталогом площадки, поток — её плеерным API.
 
 ОТКУДА ЧТО. Каталог — открытый мобильный JSON площадки (`api.ivi.ru/mobileapi`), без ключей и
 входа: три раздела-вкладки (`category=14` Фильмы, `15` Сериалы, `17` Мультфильмы), поиск по всем
 разом, сериал — шапка и сезоны (`compilationinfo`) и серии открытого сезона (`videofromcompilation`),
 подробности одной карточки — `videoinfo` (он же для ролика, он же для серии сериала). Названия
 жанров площадка отдаёт отдельным списком (`categories`) — номерами в карточке иначе не сказать
-ничего человеку. Поток — yt-dlp по странице ролика: своего мастера у ivi нет, а её же API потока
-(внутри самого yt-dlp) сам решает, какие форматы отдать, отбрасывая защищённые DRM.
+ничего человеку.
+
+ПОТОК — ТЕМ ЖЕ ВОПРОСОМ, ЧТО У yt-dlp, НО САМИ (R172). Файлы ролика отдаёт плеерное API площадки
+(`api.ivi.ru/light/`, `da.content.get` с подписью CMAC — ровно тот вопрос, который задаёт экстрактор
+`ivi` у yt-dlp, и его же ключом). Раньше его задавал yt-dlp в пуле потоков, и это стоило трёх бед:
+поток пула не прервать — зависший разбор ivi держал место, пока ждали YouTube, VK и музыка; отказ
+площадки yt-dlp прятал за повтором старым способом (`site=s183`), который сейчас отвечает только «не
+смогли определить версию», — любой отказ звучал одинаково; и он же качал страницу ролика (650 КБ) ради
+названия серии, которое у нас уже есть из каталога. Теперь вопрос асинхронный, под сроком фасада и
+отменяется вместе с ним; отказ площадки — её причиной (`ORIGINS`), подробности — в журнал службы.
 
 ЧТО НЕ ПОКАЗЫВАЕТСЯ. Владелец решил: в кинозале — только то, что ivi отдаёт бесплатно, с рекламой
 (AVOD); платное — по подписке, разово или в аренду — не показывается никогда. Отбор двойной: своей
 строкой у площадки (`paid_type=AVOD` в каждом запросе каталога) и ещё раз здесь, по присланному
 `content_paid_types`, — если фильтр площадки когда-нибудь промолчит, служба не должна повторить его
-ошибку. Показ работает только из России (`geocheck/whoami` это подтверждает): из любой другой
-страны карточка площадки в списке гаснет с понятной причиной, а не пустым каталогом, который
-выглядел бы как поломка.
+ошибку. Ролик, который площадка отдаёт только под DRM (`drm_only`), тоже не показывается: у файлов
+под защитой (`-MDRM-`, `-FPS-`) ключ выдаётся плееру площадки, а не нам. Показ работает только из
+России (`geocheck/whoami` это подтверждает): с сервера в другой стране каждый вопрос к ivi получает
+отказ сразу (`CINEMA_REGION` со страной сервера), а не пустую витрину, которая выглядела бы поломкой.
 
-ЧЕГО ЗДЕСЬ НЕТ. Хост настоящего видеопотока (не картинок — они с `dfs.ivi.ru`) с этого сервера
-не проверить: бесплатное отсюда не открывается вовсе (см. выше), а платное — открылось бы, но не
-отдало бы поток без подписки. Первый настоящий просмотр из России — и есть проверка: см. отчёт
-задачи, там команда для установки владельца.
+ЧЕГО ЗДЕСЬ НЕТ. Хост файлов ivi с сервера в Германии не увидеть: бесплатное отсюда не открывается
+вовсе. Файл с хоста вне политики (`hosts`) не подписывается, и в журнал идёт имя этого хоста — одна
+строка, по которой политику дополняют.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import re
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import HTTPException
 
-from .. import address, wire
+from ...webapp import Refusal
+from .. import address, drm, wire
 from ..paging import MAX_OFFSET, PAGE
 from ..registry import CATALOG_TIMEOUT, Ctx, Features, HostPolicy, Match, Provider
-from ..resolve import PROBE, SourcePlan
+from ..resolve import SourcePlan, direct
+from ..transport.signer import allowed
+
+logger = logging.getLogger(__name__)
 
 API = "https://api.ivi.ru/mobileapi/"
 APP_VERSION = "870"
@@ -47,6 +62,10 @@ SEARCH = API + "search/v7/"
 COMPILATION_INFO = API + "compilationinfo/v7/"
 VIDEO_FROM_COMPILATION = API + "videofromcompilation/v7/"
 VIDEO_INFO = API + "videoinfo/v7/"
+# Плеерное API площадки: время для подписи и сам ответ плеера (файлы ролика).
+LIGHT = "https://api.ivi.ru/light/"
+# Какой «сайт» называет себя плеер: тот же, что у yt-dlp, — единственный, у которого ответ подписан.
+SITE = "s353"
 
 # Сколько ждать проверку страны: список площадок не должен зависеть от одной медленной — общий
 # срок `Cinema.AVAILABILITY_TIMEOUT` — 3 с, здесь с запасом меньше.
@@ -69,11 +88,17 @@ NEXT_PORTIONS = 10
 # долгого сериала — начало и который идёт сейчас). Каталог и поиск отдают вперемешку то и другое —
 # оба поля здесь и разбирает `_year`; у одной записи бывает только одно из них (проверено
 # 25.09.2026: `Иван Васильевич меняет профессию` — `year:1973`, без `years` вовсе).
-TILE_FIELDS = "id,title,object_type,year,years,duration,genres,posters,ivi_rating_10,content_paid_types"
+#
+# `drm_only` — площадка отдаёт ролик только под DRM: такую карточку комнате не показать, и витрина её не
+# показывает (R172).
+TILE_FIELDS = (
+    "id,title,object_type,year,years,duration,genres,posters,ivi_rating_10,content_paid_types,drm_only"
+)
 # Серия сезона: своей длительности у неё нет — она в `localizations[0].duration`; постер — с
 # пометкой «это постер сериала», но плитке всё равно, чей он.
 EPISODE_FIELDS = (
-    "id,title,object_type,episode,season,posters,localizations,genres,ivi_rating_10,content_paid_types"
+    "id,title,object_type,episode,season,posters,localizations,genres,ivi_rating_10,content_paid_types,"
+    "drm_only"
 )
 # Сериал целиком: то же самое плюс описание и список сезонов (`season_id`, `number`, сколько в нём
 # серий) — по нему и строятся вкладки сезонов.
@@ -85,7 +110,7 @@ COMPILATION_FIELDS = (
 # для кнопки «Все серии», а `ivi_release_date` — дата выхода для страницы ролика.
 SINGLE_FIELDS = (
     "id,title,object_type,year,years,duration,genres,posters,ivi_rating_10,content_paid_types,"
-    "description,compilation,episode,season,localizations,ivi_release_date"
+    "description,compilation,episode,season,localizations,ivi_release_date,drm_only"
 )
 
 # Разделы кинозала — ровно три, в этом порядке: ради них сюда и приходят. У площадки разделов
@@ -101,24 +126,49 @@ NUMBER = re.compile(r"[0-9]{1,12}")
 # из России — проверено 24.09.2026): «По ссылке» должна узнавать оба.
 LINK_HOSTS = frozenset({"ivi.ru", "www.ivi.ru", "ivi.tv", "www.ivi.tv"})
 
-NOT_RU = "ivi отдаёт бесплатное только в России"
+NOT_RU = "ivi показывает фильмы только на серверах в России"
 SILENT = "ivi не ответил на запрос каталога"
-PAID = "Это платное видео ivi — показать его комнате нельзя"
 NO_VIDEO = "Такого видео на ivi нет"
 NO_SERIES = "Такого сериала на ivi нет"
 NO_SEASON = "Такого сезона у сериала нет"
 NO_CATEGORY = "Такого раздела на ivi нет"
-GEO_REFUSED = "ivi не показывает это видео с нашего сервера: ограничение по стране"
-NOT_FREE_STREAM = "ivi не отдал бесплатный поток для этого видео — похоже, оно платное или защищено"
-OPEN_FAILED = "Не удалось открыть видео"
 
-# Так yt-dlp у ivi называет пустые форматы (все были `-MDRM-`/`-FPS-` и отсеялись) и свою же
-# нынешнюю ошибку согласования версии ответа (`da.content.get`, живой прогон 25.09.2026 с этого
-# сервера: без подписки площадка отвечает `ContentNotPaid` на подписанный запрос, а несведущий
-# запасной запрос без подписи — этой самой ошибкой версии). Ни то ни другое не звучит понятно
-# по-английски, а оба означают одно: бесплатного потока не нашлось.
-NO_FORMATS = "No video formats found"
-VERSION_MISMATCH = "Не смогли определить версию"
+# Файлы под защитой: `-MDRM-` и `-FPS-` — как их отбрасывает yt-dlp; остальное — на случай новых имён.
+PROTECTED_FORMAT = re.compile(r"-MDRM-|-FPS-|DRM|WIDEVINE|PLAYREADY|FAIRPLAY", re.IGNORECASE)
+# Порядок качества готовых файлов, худший первым (`IviIE._KNOWN_FORMATS` без FLV — его браузер не играет).
+MP4_QUALITY = ("MP4-low-mobile", "MP4-mobile", "MP4-lo", "MP4-hi", "MP4-SHQ", "MP4-HD720", "MP4-HD1080")
+# Сколько файлов проверить живыми (`drm.answers`), прежде чем отказать: как у общего разбора.
+FILE_CHECKS = 3
+
+
+def _light_key() -> bytes | None:
+    """
+    Ключ подписи плеерного API — тот же, которым подписывает экстрактор `ivi` у yt-dlp: свой мы не
+    заводим и не прячем, он едет с yt-dlp и обновляется вместе с ним. Нет экстрактора — нет и ключа.
+    """
+    try:
+        from yt_dlp.extractor.ivi import IviIE  # тяжёлый модуль — только когда правда нужен
+    except Exception:
+        return None
+    key = getattr(IviIE, "_LIGHT_KEY", None)
+    return key if isinstance(key, bytes) and key else None
+
+
+def _sign(key: bytes, timestamp: str, body: bytes) -> str:
+    from Cryptodome.Cipher import Blowfish
+    from Cryptodome.Hash import CMAC
+
+    return CMAC.new(key, timestamp.encode() + body, ciphermod=Blowfish).hexdigest()
+
+
+def protected(content_format: str) -> bool:
+    """Файл под DRM: ключ к нему получает только плеер площадки."""
+    return bool(PROTECTED_FORMAT.search(content_format))
+
+
+def _mp4_rank(content_format: str) -> int:
+    """Чем лучше файл, тем больше; незнакомое имя `MP4-…` — ниже знакомых, но выше ничего."""
+    return MP4_QUALITY.index(content_format) + 1 if content_format in MP4_QUALITY else 0
 
 
 def _poster_url(posters: Any) -> str:
@@ -185,12 +235,17 @@ def _meta_line(item: dict[str, Any], names: dict[int, str], *, rating: bool) -> 
 class Ivi(Provider):
     id = "ivi"
     name = "ivi"
-    # `dfs.ivi.ru` — хранилище картинок и раскадровок (`thumbs.dfs.ivi.ru`, `storyboard.dfs.ivi.ru`,
-    # проверено 25.09.2026 настоящими ответами каталога). Хост самого потока с этого сервера не
-    # увидеть: бесплатное отсюда не отдаётся вовсе (см. `availability`), платное отдало бы отказ
-    # раньше, чем адрес файла. Первая настоящая проверка потока — из России, владельцем; если её
-    # CDN-хост окажется другим, сюда добавляется одна строка (см. отчёт задачи).
-    hosts = HostPolicy(("ivi.ru", "dfs.ivi.ru"))
+    # Всё под `ivi.ru` (картинки и раскадровки — `thumbs.dfs.ivi.ru`, `storyboard.dfs.ivi.ru`, проверено
+    # 25.09.2026 настоящими ответами каталога) и `ivi.tv` — так площадка зовёт себя не из России. Хост
+    # файлов с этого сервера не увидеть: бесплатное отсюда не отдаётся вовсе (см. `availability`). Файл с
+    # другого хоста не подписывается, а его имя уходит в журнал (`_files`) — по нему сюда добавляют строку.
+    hosts = HostPolicy(("ivi.ru", "ivi.tv"))
+    # Файлы площадки отдаёт её CDN, и узел бывает переадресацией: прокси проходит её сам, каждым шагом
+    # по политике хостов (`Cinema._send`), — как и проверка файла (`drm.answers`).
+    follows_redirects = True
+    # Список HLS с ключом DRM прокси не отдаёт (`drm.hls`): у ivi защиту видно и в имени формата, но
+    # вторая проверка ничего не стоит.
+    refuses_drm = True
     # Хост каталога и проверки страны (`api.ivi.ru`): на пустой GET — короткий отказ, его пробе хватает.
     probe = "https://api.ivi.ru/"
     features = Features(search=True, categories=True, series=True)
@@ -221,7 +276,37 @@ class Ivi(Provider):
         country = result["country_code"]
         if not isinstance(country, str) or not country:
             raise ValueError("ivi geocheck/whoami: нет country_code")
+        # Страна сервера — рядом с ответом и на тот же срок: клиент назовёт её человеку на его языке.
+        self.memo.put("country", country.upper()[:2], AVAILABILITY_TTL)
         return (True, None) if country == "RU" else (False, NOT_RU)
+
+    def known_availability(self) -> tuple[bool, str | None] | None:
+        """Что площадка уже знает о себе, не спрашивая сеть (`Provider.known_availability`)."""
+        return self.memo.peek("availability")
+
+    def unavailable_extra(self) -> dict[str, Any]:
+        """Страна сервера рядом с отказом: «ivi — только в России, а этот сервер — в Германии»."""
+        country = self.memo.peek("country")
+        return {"code": "CINEMA_REGION", **({"country": country} if country else {})}
+
+    async def gate(self, net: httpx.AsyncClient) -> None:
+        """
+        Отказ сразу, если сервер не в России (R172): вопросы каталога и потока к площадке отсюда
+        бессмысленны — бесплатное она не отдаёт ни строкой, а пустая витрина и «не удалось открыть» на
+        каждом фильме выглядели поломкой. Не знаем страну (площадка молчит) — пропускаем: тогда ответит
+        сама площадка или её автомат (`reach.py`).
+        """
+        try:
+            available, _ = await self.availability(net)
+        except Exception:
+            return
+        if not available:
+            raise Refusal(
+                403,
+                "CINEMA_REGION",
+                "ivi показывает фильмы только на серверах в России",
+                extra={"provider": self.id, **self.unavailable_extra()},
+            )
 
     # --- ссылка -----------------------------------------------------------------------------
 
@@ -405,32 +490,160 @@ class Ivi(Provider):
 
     async def source(self, ctx: Ctx, kind: str, item_id: str, options: dict[str, Any]) -> SourcePlan:
         """
-        Поток — только yt-dlp: своего мастера у ivi нет. Перед разбором — своя проверка
-        (`videoinfo`): если это не AVOD, отказ звучит по-русски и сразу, а не английским текстом
-        yt-dlp через пару секунд. Разбор — здесь же, а не в общем `Resolver`: так гео и «бесплатного
-        потока нет» тоже звучат по-русски, а удачный разбор `Resolver` получает уже готовым
-        (`info=`) — вторично ту же страницу yt-dlp не открывает.
+        Поток: своя проверка (`videoinfo`: только AVOD и не «только под DRM») — отказ сразу и словами,
+        затем ответ плеера площадки (`_played`) и из его файлов — первый живой без защиты (`_stream`).
+        Список HLS без защиты, если площадка его дала, лучше файла: в нём лестница качества.
         """
         info = await self._videoinfo(ctx, item_id)
         self._allow(info)
-        url = f"https://www.ivi.ru/watch/{item_id}"
+        played = await self._played(ctx, item_id)
+        url, stream = await self._stream(ctx, item_id, played.get("files"))
+        return direct(
+            stream,
+            url,
+            title=info.get("title") or played.get("title") or "",
+            duration=_duration(info),
+            poster=_poster_url(info.get("posters")) or None,
+        )
+
+    async def _played(self, ctx: Ctx, item_id: str) -> dict[str, Any]:
+        """
+        Ответ плеера площадки (`da.content.get`) — тот же вопрос с той же подписью, что задаёт yt-dlp
+        (`yt_dlp/extractor/ivi.py`): время площадки, подпись CMAC/Blowfish ключом экстрактора над
+        временем и телом, сам вопрос. Отказ площадки — её причиной (`_refused`).
+        """
+        key = _light_key()
+        if key is None:
+            raise self._failed(item_id, "у yt-dlp нет экстрактора ivi с ключом подписи")
+        stamp = await self._light(ctx, item_id, {"method": "da.timestamp.get", "params": []})
+        timestamp = stamp.get("result")
+        if not isinstance(timestamp, str) or not timestamp:
+            raise self._failed(item_id, "площадка не дала время для подписи")
+        asked = {
+            "method": "da.content.get",
+            "params": [
+                item_id,
+                {"site": SITE, "referrer": f"http://www.ivi.ru/watch/{item_id}", "contentid": item_id},
+            ],
+        }
+        body = json.dumps(asked).encode()
+        answer = await self._light(
+            ctx, item_id, body, params={"ts": timestamp, "sign": _sign(key, timestamp, body)}
+        )
+        error = answer.get("error")
+        if isinstance(error, dict):
+            raise self._refused(item_id, error)
+        result = answer.get("result")
+        if not isinstance(result, dict):
+            raise self._failed(item_id, "в ответе плеера нет result")
+        return result
+
+    async def _light(
+        self, ctx: Ctx, item_id: str, payload: dict[str, Any] | bytes, params: dict[str, str] | None = None
+    ) -> dict[str, Any]:
+        """Один вопрос плеерному API. Сеть и мусор — общий отказ; исходная ошибка остаётся в цепочке:
+        по ней автомат площадки (`reach.network`) отличает сбой сети от отказа словами."""
+        body = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
         try:
-            found = await self.ytdlp.offload_for(self.id, self.ytdlp.extract, url, PROBE, self.id)
-        except HTTPException:
-            raise
-        except Exception as error:  # yt_dlp поднимает свои типы — ловим широко, решает текст/вид
-            raise self._refusal(error) from None
-        return SourcePlan("ytdlp", url, info=found, subtitles="any", files=("mp4",))
+            response = await ctx.net.post(LIGHT, content=body, params=params, timeout=CATALOG_TIMEOUT)
+            data = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            raise self._failed(item_id, f"плеерное API: {type(error).__name__}") from error
+        if response.status_code != 200 or not isinstance(data, dict):
+            raise self._failed(item_id, f"плеерное API ответило {response.status_code}")
+        return data
 
-    def _refusal(self, error: Exception) -> HTTPException:
-        from yt_dlp.utils import GeoRestrictedError  # тяжёлый модуль — только когда правда нужен
+    def _refused(self, item_id: str, error: dict[str, Any]) -> Refusal:
+        """Отказ плеера площадки (`error.origin`) — человеку её причиной, журналу — целиком."""
+        origin = str(error.get("origin") or "")
+        extra = {"provider": self.id}
+        if origin == "NotAllowedForLocation":
+            return Refusal(403, "CINEMA_GEO", "ivi не показывает это видео в стране сервера", extra=extra)
+        if origin == "ContentNotPaid":
+            return Refusal(
+                403, "CINEMA_PAID", "Это платное видео ivi — показать его комнате нельзя", extra=extra
+            )
+        if origin == "ContentYetUnavailable":
+            return Refusal(403, "CINEMA_NOT_YET", "Это видео на ivi ещё не вышло", extra=extra)
+        if origin == "NoRedisValidData":
+            return Refusal(404, "CINEMA_NO_VIDEO", "Такого видео на ivi нет", extra=extra)
+        code = error.get("code")
+        message = str(error.get("message") or "")[:200]
+        return self._failed(item_id, f"плеер площадки отказал: {origin or '?'} {code} {message}")
 
-        if isinstance(error, GeoRestrictedError):
-            return HTTPException(403, GEO_REFUSED)
-        text = str(error)
-        if NO_FORMATS in text or VERSION_MISMATCH in text:
-            return HTTPException(403, NOT_FREE_STREAM)
-        return HTTPException(502, f"{OPEN_FAILED}: {self.ytdlp.explain(error)}"[:300])
+    def _failed(self, item_id: str, why: str) -> Refusal:
+        """Поток не открылся по причине, которую человеку не объяснить: ему — коротко, журналу — `why`."""
+        logger.warning("кинозал: ivi %s: %s", item_id, why)
+        return Refusal(
+            502,
+            "CINEMA_STREAM_FAILED",
+            "ivi не отдал это видео — попробуйте позже или другое",
+            extra={"provider": self.id},
+        )
+
+    async def _stream(self, ctx: Ctx, item_id: str, files: Any) -> tuple[str, str]:
+        """
+        Что играть: список HLS без защиты — если площадка его дала и он читается без ключа DRM, — иначе
+        лучший готовый MP4, который площадка действительно отдаёт (`drm.answers`, переадресация — шагами
+        по политике хостов). Файл под защитой, вид, которого браузер не играет (FLV), и хост вне политики
+        не берутся; что было и почему не взято — в журнал одной строкой, без адресов файлов.
+        """
+        lists: list[str] = []
+        mp4: list[tuple[int, str]] = []
+        names: list[str] = []
+        closed = 0
+        strangers: set[str] = set()
+        for entry in files if isinstance(files, list) else []:
+            if not isinstance(entry, dict) or not isinstance(entry.get("url"), str):
+                continue
+            name = str(entry.get("content_format") or "?")[:40]
+            names.append(name)
+            if protected(name):
+                closed += 1
+                continue
+            parts = urlsplit(entry["url"])
+            # Площадкам каталога прокси открывает только https: файл, названный по http, спрашиваем
+            # по https — CDN площадки отдаёт его и так.
+            url = entry["url"] if parts.scheme == "https" else parts._replace(scheme="https").geturl()
+            host = (parts.hostname or "").lower()
+            if parts.scheme not in ("https", "http") or not host:
+                continue
+            if not allowed(url, self.hosts):
+                strangers.add(host)
+                continue
+            path = parts.path.lower()
+            if "HLS" in name.upper() or path.endswith(".m3u8"):
+                lists.append(url)
+            elif name.upper().startswith("MP4") or path.endswith(".mp4"):
+                mp4.append((_mp4_rank(name), url))
+        mp4.sort(key=lambda pair: pair[0], reverse=True)
+
+        def allows(target: str) -> bool:
+            return allowed(target, self.hosts)
+
+        for url in lists[:1]:
+            try:
+                live = await drm.inspect_hls(ctx.net, url, allows, locked=True)
+            except (HTTPException, drm.Locked):
+                continue
+            if live is False:
+                return url, "hls"
+        for _, url in mp4[:FILE_CHECKS]:
+            if await drm.answers(ctx.net, url, allows, media_only=True):
+                return url, "file"
+        listed = ", ".join(names) or "нет"
+        if strangers:
+            hosts = ", ".join(sorted(strangers))
+            logger.warning("кинозал: ivi %s: файлы на хостах вне политики площадки: %s", item_id, hosts)
+        if closed and not lists and not mp4 and not strangers:
+            logger.warning("кинозал: ivi %s: только под защитой (форматы: %s)", item_id, listed)
+            raise Refusal(
+                403,
+                "CINEMA_PROTECTED",
+                "ivi отдаёт это видео только под защитой — показать его комнате нельзя",
+                extra={"provider": self.id},
+            )
+        raise self._failed(item_id, f"ни один файл не открылся (форматы: {listed})"[:400])
 
     # --- что площадка отвечает ------------------------------------------------------------
 
@@ -529,12 +742,27 @@ class Ivi(Provider):
 
     @staticmethod
     def _shown(item: dict[str, Any]) -> bool:
-        """Можно ли это показать комнате: бесплатное (AVOD) — и никак иначе."""
-        return "AVOD" in (item.get("content_paid_types") or [])
+        """
+        Можно ли это показать комнате: бесплатное (AVOD) — и не «только под DRM» (`drm_only`). Пометка
+        DRM у сериала целиком (`compilation`) серии не прячет: у них она своя, и отбор — по ним.
+        """
+        if "AVOD" not in (item.get("content_paid_types") or []):
+            return False
+        return not (item.get("drm_only") is True and item.get("object_type") != "compilation")
 
     def _allow(self, info: dict[str, Any]) -> None:
+        extra = {"provider": self.id}
+        if "AVOD" not in (info.get("content_paid_types") or []):
+            raise Refusal(
+                403, "CINEMA_PAID", "Это платное видео ivi — показать его комнате нельзя", extra=extra
+            )
         if not self._shown(info):
-            raise HTTPException(403, PAID)
+            raise Refusal(
+                403,
+                "CINEMA_PROTECTED",
+                "ivi отдаёт это видео только под защитой — показать его комнате нельзя",
+                extra=extra,
+            )
 
     def _poster(self, item: dict[str, Any], names: dict[int, str]) -> wire.Card | None:
         """

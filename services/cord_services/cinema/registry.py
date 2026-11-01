@@ -225,6 +225,21 @@ class Provider:
         """
         return True, None
 
+    def known_availability(self) -> tuple[bool, str | None] | None:
+        """Ответ `availability`, который площадка уже знает, не спрашивая сеть; `None` — не знает."""
+        return None
+
+    def unavailable_extra(self) -> dict[str, Any]:
+        """Что добавить к записи недоступной по своей проверке площадки (`GET providers`): код и страну."""
+        return {}
+
+    async def gate(self, net: httpx.AsyncClient) -> None:
+        """
+        Отказ сразу, раньше вопроса к площадке, если она отсюда заведомо не работает (ivi вне России).
+        Большинству проверять нечего; спрашивать сеть здесь можно только то, что площадка помнит.
+        """
+        return None
+
     def match(self, url: str) -> Match | None:
         """
         Своя ли это ссылка и что она открывает — или `None`, если ссылка чужая.
