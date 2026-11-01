@@ -1126,10 +1126,20 @@
       "sticky": "Note adhésive",
       "drawers": "Qui dessine",
       "drawersAll": "Tous les participants",
-      "drawersHost": "L'hôte uniquement",
-      "menu": "Menu du tableau"
+      "drawersHost": "L'hôte uniquement"
     },
     "stickyHint": "Double-cliquez sur la note pour écrire",
+    "tools": {
+      "highlighter": "Surligneur — trait large et translucide",
+      "sticky": "Note adhésive — cliquez sur le tableau pour la placer"
+    },
+    "minimap": {
+      "label": "Mini-carte du tableau",
+      "title": "Cliquez ou faites glisser le cadre pour vous déplacer. Double-clic : tout le tableau",
+      "keys": "Les flèches déplacent la vue, Entrée affiche tout le tableau"
+    },
+    "objectLink": "Impossible de lier un objet du tableau — seulement un site web ou une adresse e-mail",
+    "badLink": "Ce lien n’est pas pris en charge — utilisez l’adresse d’un site web ou un e-mail",
     "chat": {
       "message": "Tableau blanc · {{time}}",
       "file": "Tableau blanc {{time}}",

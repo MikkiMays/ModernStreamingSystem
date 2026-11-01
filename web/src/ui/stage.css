@@ -101,6 +101,15 @@
   visibility: hidden;
   pointer-events: none;
 }
+/*
+  Доска (R175): Excalidraw сам ставит части своего интерфейса `visibility: visible` (кнопки
+  `.ToolIcon_type_button--show` — масштаб, отмена, действия выбранного; `.zen-mode-visibility`), и они
+  перебивают унаследованное `hidden` — у ушедшего поверх участников висели куски доски. Прозрачность слоя
+  потомок не перебьёт; нажатия не ловит `inert`. Холст, сокет и вид доски при этом живут (R121).
+*/
+.stage[data-stage-layer='board'][data-away] {
+  opacity: 0;
+}
 /* Строка для диктора: куда человек попал после выхода или возврата. */
 .stage-announce {
   position: absolute;
