@@ -750,7 +750,8 @@ class Cinema:
                         plan, ctx.net, source.id, request.contentId, request.adaptive
                     )
 
-                return await self._ask(source, resolved, RESOLVE_DEADLINE, room=ctx.room)
+                lane = ctx.room if source.heavy_source else ""
+                return await self._ask(source, resolved, RESOLVE_DEADLINE, room=lane)
             try:
                 async with asyncio.timeout(LINK_RESOLVE_SECONDS):
                     plan = await source.source(ctx, request.kind, request.contentId, {})

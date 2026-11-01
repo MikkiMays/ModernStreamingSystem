@@ -246,6 +246,8 @@ class Ivi(Provider):
     # Список HLS с ключом DRM прокси не отдаёт (`drm.hls`): у ivi защиту видно и в имени формата, но
     # вторая проверка ничего не стоит.
     refuses_drm = True
+    # Поток — вопросы API площадки без yt-dlp (`_played`): ни потоков пула, ни полос комнаты он не занимает.
+    heavy_source = False
     # Хост каталога и проверки страны (`api.ivi.ru`): на пустой GET — короткий отказ, его пробе хватает.
     probe = "https://api.ivi.ru/"
     features = Features(search=True, categories=True, series=True)

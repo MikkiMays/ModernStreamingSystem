@@ -874,11 +874,15 @@ class ResolveRouteTests(PlayerStage):
         best = file_entry("MP4-HD720")
         self.player = played(best)
         self.live(best["url"])
-        with patch.object(YtDlp, "extract") as extract:
+        lanes = patch.object(
+            self.cinema.reach.lanes, "take", side_effect=AssertionError("разбор ivi не занимает полос")
+        )
+        with patch.object(YtDlp, "extract") as extract, lanes:
             found = await self.cinema.resolve(
                 Resolve(provider="ivi", contentId="53141", kind="video", adaptive=True), room=ROOM
             )
         extract.assert_not_called()
+        # Ни потока пула yt-dlp, ни полосы комнаты: музыку и YouTube этой комнаты разбор ivi не держит.
         self.assertEqual(self.cinema.ytdlp.busy, {})
         self.assertEqual(found["kind"], "file")
         self.assertEqual(found["title"], "Иван Васильевич меняет профессию")
