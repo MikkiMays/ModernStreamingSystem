@@ -44,6 +44,7 @@ function meeting(watch: Watch | null, browsing: string | null = null) {
       speaking: new Store([]),
       screenPreviews: new Store({}),
       videoPaused: new Store({}),
+      deafened: new Store(false),
       preferences: new Store({ layout: 'grid', watchVolume: 70, watchAudio: '', watchSubtitles: '' }),
       saveSettings: vi.fn(),
       report: vi.fn(),
