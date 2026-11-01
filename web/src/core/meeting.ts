@@ -112,7 +112,12 @@ export class Meeting {
   private subscriptions: (() => void)[] = [];
   constructor(
     readonly admission: Admission,
-    private choices: DeviceChoice & { micOn?: boolean; cameraOn?: boolean } = {},
+    private choices: DeviceChoice & {
+      micOn?: boolean;
+      cameraOn?: boolean;
+      /** Микрофон, захваченный на предвходе: встреча берёт его, а не захватывает второй раз (R160). */
+      microphoneTrack?: MediaStreamTrack;
+    } = {},
   ) {
     this.api = new RoomApi(admission);
     this.snapshot = new Store(admission.snapshot);
@@ -121,6 +126,7 @@ export class Meeting {
     this.media = new MediaSession(this.api, (reason) => {
       void this.resolveEnd(reason, true);
     });
+    if (choices.microphoneTrack) this.media.adoptMicrophone(choices.microphoneTrack);
     // Сводка приёма раз в 10 с — в метры ядра; отказ ядра (предел, обновление) ничего не меняет.
     this.media.onRxQuality = (summary) => void this.api.quality(summary).catch(() => {});
     this.control = new ControlChannel(this.api, this.accept, this.event, this.resolveRevocation);

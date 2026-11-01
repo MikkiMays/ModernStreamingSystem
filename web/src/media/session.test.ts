@@ -9,7 +9,7 @@ import {
   createLocalAudioTrack,
   type RoomOptions,
 } from 'livekit-client';
-import { MediaSession, MIC_UNMUTE_GRACE_MS, SCREEN_GONE_GRACE_MS } from './session';
+import { HANDED_MICROPHONE_MS, MediaSession, MIC_UNMUTE_GRACE_MS, SCREEN_GONE_GRACE_MS } from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter, ScreenAudioEvent, ScreenAudioSource } from './capture';
 import { fakeCameraTrack } from './fake-track';
@@ -515,6 +515,73 @@ describe('микрофон: один захват на встречу (R160)', (
       expect(track.mediaStreamTrack).toMatchObject({ readyState: 'live' });
       await (media as unknown as { micSentinel: { check(): Promise<void> } }).micSentinel.check();
       expect(track.restartTrack).toHaveBeenCalledOnce();
+    } finally {
+      media.dispose();
+    }
+  });
+});
+
+describe('микрофон с предвхода (R160)', () => {
+  function handed(deviceId = 'mic-a') {
+    return Object.assign(new EventTarget(), {
+      kind: 'audio',
+      id: 'prejoin',
+      readyState: 'live',
+      muted: false,
+      enabled: true,
+      stop: vi.fn(),
+      getSettings: () => ({ deviceId }),
+      getConstraints: () => ({ deviceId }),
+      applyConstraints: vi.fn(async () => {}),
+    }) as unknown as MediaStreamTrack & { stop: ReturnType<typeof vi.fn> };
+  }
+  function session() {
+    vi.stubGlobal('MediaStream', class {});
+    savePreferences({ devices: { microphone: 'mic-a' } });
+    const f = fixture();
+    const local = (f.room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+    local.publishTrack = vi.fn(async () => ({}));
+    vi.mocked(createLocalAudioTrack).mockReset();
+    return { ...f, local };
+  }
+  afterEach(() => localStorage.clear());
+
+  it('первое включение во встрече публикует микрофон предвхода, второго захвата нет', async () => {
+    const { media, local } = session();
+    const track = handed();
+    try {
+      media.adoptMicrophone(track);
+      await media.toggle('microphone', 'mic-a', false);
+      expect(createLocalAudioTrack).not.toHaveBeenCalled();
+      const [published] = vi.mocked(local.publishTrack as (t: unknown) => Promise<unknown>).mock.calls[0]!;
+      expect(published).toBeInstanceOf(LocalAudioTrack);
+      expect((published as LocalAudioTrack).mediaStreamTrack).toBe(track);
+      expect(track.stop).not.toHaveBeenCalled();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('другое устройство, вышло время или встреча кончилась — микрофон предвхода отпускается', async () => {
+    vi.useFakeTimers();
+    const { media } = session();
+    vi.mocked(createLocalAudioTrack).mockRejectedValue(new DOMException('нет', 'NotAllowedError'));
+    try {
+      const other = handed('mic-b');
+      media.adoptMicrophone(other);
+      await media.toggle('microphone', 'mic-a', false);
+      expect(other.stop).toHaveBeenCalled();
+      expect(createLocalAudioTrack).toHaveBeenCalledOnce();
+
+      const late = handed();
+      media.adoptMicrophone(late);
+      await vi.advanceTimersByTimeAsync(HANDED_MICROPHONE_MS);
+      expect(late.stop).toHaveBeenCalled();
+
+      const left = handed();
+      media.adoptMicrophone(left);
+      media.dispose();
+      expect(left.stop).toHaveBeenCalled();
     } finally {
       media.dispose();
     }
