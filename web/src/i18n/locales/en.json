@@ -2611,19 +2611,23 @@
       "rejoin": "Rejoin",
       "again": "Start again",
       "byCode": "Join with code",
+      "rejoinNamed": "Rejoin: {{title}}",
+      "againNamed": "Start again: {{title}}",
+      "byCodeNamed": "Join with code: {{title}}",
       "ended": "ended",
+      "over": "That meeting has already ended",
       "people_one": "{{count}} person",
       "people_other": "{{count}} people",
       "today": "today, {{time}}",
       "yesterday": "yesterday, {{time}}",
-      "more": "Show all ({{count}})",
-      "less": "Show less",
       "menu": "Actions: {{title}}",
       "copyCode": "Copy code",
       "copied": "Code copied",
       "copyFailed": "Couldn't copy the code",
       "favorite": "Add to favorites",
+      "unfavorite": "Remove from favorites",
       "favorited": "Meeting added to favorites",
+      "unfavorited": "Meeting removed from favorites",
       "forget": "Remove from recent",
       "failed": "Couldn't rejoin the meeting"
     }
@@ -2874,6 +2878,10 @@
   "services": {
     "cinemaLive": "Now showing",
     "boardLive": "Whiteboard open",
+    "board": {
+      "intro": "A shared canvas for the whole meeting: everyone draws at once. It opens on everyone's stage.",
+      "add": "Add to the meeting"
+    },
     "music": {
       "tokenFailed": "Couldn't connect the saved Yandex Music token. Connect the account manually below.",
       "back": "Integrations",

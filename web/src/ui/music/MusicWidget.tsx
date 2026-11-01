@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../../core/meeting';
 import { musicSourceName, type MusicTrack } from '../../core/services';
 import { Unreachable } from '../cinema/catalog/notes';
+import { IntegrationIntro } from '../IntegrationIntro';
 import { musicHint } from '../integration-shelf';
 import { Button } from '../kit';
 import { MusicPlayer } from '../MusicPlayer';
@@ -76,30 +77,26 @@ function MusicBody({ meeting, music }: { meeting: Meeting; music: MusicControl }
     );
   if (!state.enabled)
     return (
-      <section className="music-intro" aria-labelledby="music-intro-title">
-        <span className="music-intro__icon" aria-hidden="true">
-          <Music2 size={24} />
-        </span>
-        <h3 id="music-intro-title">{t(($) => $.services.music.title)}</h3>
+      <IntegrationIntro
+        icon={<Music2 size={24} />}
+        title={t(($) => $.services.music.title)}
+        action={
+          can('music.enable') ? (
+            <Button variant="primary" full loading={music.busy} icon={<Music2 />} onClick={music.enable}>
+              {t(($) => $.services.music.enable)}
+            </Button>
+          ) : undefined
+        }
+        locked={t(($) => $.services.music.enableLocked)}
+        error={state.error}
+      >
         <p>{t(($) => $.services.music.intro, { sources: musicHint(t, sources) })}</p>
         {state.queue.length > 0 && (
-          <p className="music-intro__queue">
+          <p className="integration-intro__note">
             {t(($) => $.services.music.queueKept, { count: state.queue.length })}
           </p>
         )}
-        {can('music.enable') ? (
-          <Button variant="primary" full loading={music.busy} icon={<Music2 />} onClick={music.enable}>
-            {t(($) => $.services.music.enable)}
-          </Button>
-        ) : (
-          <p className="music-intro__queue">{t(($) => $.services.music.enableLocked)}</p>
-        )}
-        {state.error && (
-          <p className="services-error" role="alert">
-            {state.error}
-          </p>
-        )}
-      </section>
+      </IntegrationIntro>
     );
 
   const canUse = can('music.control');

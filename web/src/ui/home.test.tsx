@@ -6,6 +6,7 @@ import type { Admission } from '../api/types';
 import { autoJoinEnabled, favoriteApi, type Favorite } from '../core/favorites';
 import { favoriteGroupApi } from '../core/favorite-groups';
 import { announceMeeting, setChannelFactory, type Channel } from '../core/active-meeting';
+import { recordVisit } from '../core/recent-meetings';
 import { Home } from './Home';
 import { DesktopHome } from './DesktopHome';
 import { appVersion } from '../core/version';
@@ -405,4 +406,30 @@ it('комната и в группе, и закреплена — одна ст
     () => expect(settings).toHaveBeenCalledWith(daily.roomId, { groupId: null, pinned: true, alias: null }),
     { timeout: 3000 },
   );
+});
+
+it('«В избранное» из недавних — комната сразу в панели, без перезагрузки страницы (R162)', async () => {
+  // Встреча, из которой только что вышли: в недавних, но ещё не в избранном.
+  recordVisit({
+    roomId: daily.roomId,
+    credential: 'member.secret',
+    participantId: 'member',
+    inviteUrl: null,
+    recoverySeconds: 30,
+    snapshot: { id: daily.roomId, title: daily.title, code: daily.code, closedAt: null, participants: [] },
+  } as unknown as Admission);
+  vi.mocked(favoriteApi.list).mockResolvedValue([room]);
+  const save = vi.spyOn(favoriteApi, 'save').mockImplementation(async () => {
+    vi.mocked(favoriteApi.list).mockResolvedValue([room, { ...daily, groupId: null }]);
+  });
+  const view = show();
+  const nav = view.getByRole('navigation', { name: 'Избранное' });
+  await within(nav).findByRole('button', { name: /^Вечерний разговор/ });
+  expect(within(nav).queryByRole('button', { name: /^Дейли/ })).toBeNull();
+  const recent = view.getByRole('region', { name: 'Недавние' });
+  fireEvent.click(within(recent).getByRole('button', { name: 'Действия: Дейли' }));
+  fireEvent.click(await view.findByRole('menuitem', { name: 'В избранное' }));
+  await waitFor(() => expect(save).toHaveBeenCalled());
+  expect(await within(nav).findByRole('button', { name: /^Дейли/ })).toBeInTheDocument();
+  expect(within(nav).getByText('2 из 10')).toBeInTheDocument();
 });

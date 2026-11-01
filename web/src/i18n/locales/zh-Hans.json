@@ -2582,18 +2582,22 @@
       "rejoin": "返回",
       "again": "再次创建",
       "byCode": "用会议码加入",
+      "rejoinNamed": "返回：{{title}}",
+      "againNamed": "再次创建：{{title}}",
+      "byCodeNamed": "用会议码加入：{{title}}",
       "ended": "已结束",
+      "over": "会议已经结束",
       "people_other": "{{count}} 人",
       "today": "今天 {{time}}",
       "yesterday": "昨天 {{time}}",
-      "more": "显示全部（{{count}}）",
-      "less": "收起",
       "menu": "操作：{{title}}",
       "copyCode": "复制会议码",
       "copied": "会议码已复制",
       "copyFailed": "无法复制会议码",
       "favorite": "加入收藏",
+      "unfavorite": "从收藏中移除",
       "favorited": "会议已加入收藏",
+      "unfavorited": "会议已从收藏中移除",
       "forget": "从最近中移除",
       "failed": "无法返回会议"
     }
@@ -2843,6 +2847,10 @@
   "services": {
     "cinemaLive": "正在放映",
     "boardLive": "白板已打开",
+    "board": {
+      "intro": "整场会议共享一块画布：所有人同时作画。它会在每个人的舞台上打开。",
+      "add": "添加到会议"
+    },
     "music": {
       "tokenFailed": "无法连接已保存的 Yandex Music 令牌。请在下方手动连接账号。",
       "back": "集成",

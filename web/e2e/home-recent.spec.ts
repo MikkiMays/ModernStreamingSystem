@@ -3,10 +3,13 @@ import { inviteLink, joinMeeting } from './support/cinema';
 
 /*
   R148 («НЕДАВНИЕ ВСТРЕЧИ супер ВАЖНО», владелец 31.10): встреча, из которой вышли, видна на главной
-  под входом — пока в ней кто-то есть, «Вернуться» возвращает тем же участником; закончившаяся
-  остаётся строкой «завершена» с «Создать снова» под тем же названием.
+  под входом. Вся карточка — одна кнопка (R162, R164): пока в ней кто-то есть, нажатие возвращает тем же
+  участником («Вернуться»); закончившаяся остаётся карточкой «завершена», и нажатие создаёт её снова под
+  тем же названием. «В избранное» из «…» карточки видно в боковой панели сразу, без перезагрузки (R162).
 */
-test('недавние: вернуться в идущую встречу, «Создать снова» у закончившейся (R148)', async ({ browser }) => {
+test('недавние: вся карточка — вернуться в идущую, создать снова закончившуюся; избранное сразу (R148, R162)', async ({
+  browser,
+}) => {
   test.setTimeout(150_000);
   const host = await browser.newContext({ permissions: ['camera', 'microphone'] });
   const guest = await browser.newContext({ permissions: ['camera', 'microphone'] });
@@ -28,7 +31,23 @@ test('недавние: вернуться в идущую встречу, «С�
     await expect(recent).toBeVisible({ timeout: 20000 });
     const row = recent.getByRole('listitem').first();
     await expect(row.getByText('1 человек')).toBeVisible({ timeout: 20000 });
-    await row.getByRole('button', { name: 'Вернуться' }).click();
+    // Внутри карточки — ни одной кнопки, кроме неё самой; «…» стоит рядом.
+    const card = row.getByRole('button', { name: 'Вернуться: Разбор недавних' });
+    await expect(card).toContainText('Вернуться');
+    await expect(card.locator('button')).toHaveCount(0);
+
+    // «В избранное» из «…» — и комната сразу в боковой панели, и сразу уходит оттуда (R162).
+    const saved = me.getByRole('navigation', { name: 'Избранное' }).getByRole('button', {
+      name: /^Разбор недавних/,
+    });
+    await row.getByRole('button', { name: 'Действия: Разбор недавних' }).click();
+    await me.getByRole('menuitem', { name: 'В избранное' }).click();
+    await expect(saved).toBeVisible({ timeout: 10000 });
+    await row.getByRole('button', { name: 'Действия: Разбор недавних' }).click();
+    await me.getByRole('menuitem', { name: 'Убрать из избранного' }).click();
+    await expect(saved).toHaveCount(0, { timeout: 10000 });
+
+    await card.click();
     await me.getByRole('button', { name: 'Войти во встречу' }).click();
     await expect(me.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
 
@@ -37,7 +56,7 @@ test('недавние: вернуться в идущую встречу, «С�
     await me.getByRole('menuitem', { name: 'Завершить для всех' }).click();
     await me.goto('/');
     await expect(recent.getByText(/завершена/)).toBeVisible({ timeout: 40000 });
-    await recent.getByRole('button', { name: 'Создать снова' }).first().click();
+    await recent.getByRole('button', { name: 'Создать снова: Разбор недавних' }).first().click();
     await expect(me.getByLabel('Название встречи')).toHaveValue('Разбор недавних');
 
     for (const width of [390, 1440]) {

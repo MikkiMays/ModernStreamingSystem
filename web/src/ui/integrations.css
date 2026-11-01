@@ -675,8 +675,11 @@
   }
 }
 
-/* до добавления: одно действие — добавить музыку */
-.music-intro {
+/*
+  До добавления: одно действие — добавить во встречу (`IntegrationIntro`). Музыка и доска (R164) — один
+  и тот же шаг: значок, имя, что будет, кнопка.
+*/
+.integration-intro {
   display: grid;
   justify-items: center;
   gap: var(--space-2);
@@ -685,7 +688,7 @@
   background: var(--surface-2);
   text-align: center;
 }
-.music-intro__icon {
+.integration-intro__icon {
   display: grid;
   place-items: center;
   width: var(--control-touch);
@@ -696,24 +699,24 @@
   box-shadow: var(--shadow-1);
   color: var(--text-secondary);
 }
-.music-intro h3 {
+.integration-intro h3 {
   margin: 0;
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-tight);
 }
-.music-intro p {
+.integration-intro p {
   max-width: 34ch;
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
   line-height: var(--leading-base);
 }
-.music-intro .music-intro__queue {
+.integration-intro .integration-intro__note {
   color: var(--muted);
   font-size: var(--text-xs);
 }
-.music-intro .ui-button {
+.integration-intro .ui-button {
   margin-top: var(--space-3);
 }
 

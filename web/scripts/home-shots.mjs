@@ -9,6 +9,10 @@
 // коды выдуманы. home — главная целиком (R65); rows — список избранного, строка под указателем и на
 // касании (R71, R86); menu — меню комнаты после щелчка по «Автоподключению» (R70).
 //
+// Сцена recent — «Недавние» под входом (R162, R164, R165): пять карточек во всех состояниях (идёт с
+// людьми, пуста, завершена, без ответа ядра), список и ответ `rooms/presence` выдуманы; вторым снимком —
+// карточка под указателем.
+//
 // Сцена camera — одна встреча на оба снимка (стенд пускает десять новых встреч в час с адреса):
 // выкаченный веб создаёт встречу и снимает подменю «Камера» (было), невыкаченный (`--dev`) входит в неё
 // по приглашению и снимает то же подменю и плитку телефона (стало). Поддельная камера Chromium зума не
@@ -99,6 +103,54 @@ async function favorites(page) {
   await page.route('**/api/v1/favorites/*/settings', (route) => route.fulfill({ status: 204 }));
 }
 
+/** «Недавние» на устройстве: профиль и пять встреч в `localStorage`, ядро отвечает выдуманным присутствием. */
+/** Профиль устройства — 43 знака base64url, как у настоящего (`core/identity.ts`). */
+const PROFILE = 'shots-profile'.padEnd(43, '0');
+const RECENT = [
+  ['Дейли команды', 'live', 3, 5],
+  ['Созвон с дизайнерами про новую главную', 'live', 1, 40],
+  ['Ретро спринта', 'open', 0, 90],
+  ['Покер по средам', 'closed', 0, 300],
+  ['Ужин по пятницам', null, 0, 700],
+].map(([title, state, people, minutes], index) => ({
+  roomId: `00000000-0000-4000-8000-0000000000b${index + 1}`,
+  code: `11122233${index + 1}`,
+  title,
+  state,
+  people,
+  minutes,
+}));
+async function recent(page) {
+  await page.addInitScript(
+    ({ profile, rooms }) => {
+      localStorage.setItem('cord:profile:v1', profile);
+      const items = rooms.map((room) => ({
+        roomId: room.roomId,
+        code: room.code,
+        title: room.title,
+        creator: true,
+        lastAt: Date.now() - room.minutes * 60_000,
+        credential: `${room.roomId}.secret`,
+        participantId: `${room.roomId}-me`,
+        ...(room.state === 'closed' ? { closedAt: Date.now() - room.minutes * 60_000 } : {}),
+      }));
+      localStorage.setItem('cord:recent:v1', JSON.stringify({ profile, items }));
+    },
+    { profile: PROFILE, rooms: RECENT },
+  );
+  await page.route('**/api/v1/rooms/presence', (route) =>
+    route.fulfill({
+      json: RECENT.filter((room) => room.state).map((room) => ({
+        roomId: room.roomId,
+        state: room.state,
+        people: room.people,
+        title: room.title,
+        code: room.code,
+      })),
+    }),
+  );
+}
+
 /** Снимок в каждой теме; код встречи и ссылки — под маской. */
 async function shoot(page, name, { target, suffix = tag } = {}) {
   for (const theme of themes) {
@@ -145,6 +197,21 @@ try {
       const page = await person(browser, width, touch);
       await home(page);
       await shoot(page, 'r65-home');
+      await page.context().close();
+    }
+    if (scenes.includes('recent')) {
+      const page = await person(browser, width, touch);
+      await recent(page);
+      await home(page);
+      const list = page.getByRole('region', { name: 'Недавние' });
+      await list.getByRole('button', { name: 'Вернуться: Дейли команды' }).waitFor();
+      await list.scrollIntoViewIfNeeded();
+      await shoot(page, 'r162-recent', { target: list });
+      if (!phone) {
+        await list.getByRole('button', { name: /^Создать снова: Покер/ }).hover();
+        await page.waitForTimeout(400);
+        await shoot(page, 'r162-recent-hover', { target: list });
+      }
       await page.context().close();
     }
     if (scenes.includes('rows')) {

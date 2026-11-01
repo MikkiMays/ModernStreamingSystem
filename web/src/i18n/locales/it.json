@@ -2640,20 +2640,24 @@
       "rejoin": "Rientra",
       "again": "Crea di nuovo",
       "byCode": "Entra con codice",
+      "rejoinNamed": "Rientra: {{title}}",
+      "againNamed": "Crea di nuovo: {{title}}",
+      "byCodeNamed": "Entra con codice: {{title}}",
       "ended": "terminata",
+      "over": "La riunione è già terminata",
       "people_one": "{{count}} persona",
       "people_many": "{{count}} persone",
       "people_other": "{{count}} persone",
       "today": "oggi, {{time}}",
       "yesterday": "ieri, {{time}}",
-      "more": "Mostra tutte ({{count}})",
-      "less": "Mostra meno",
       "menu": "Azioni: {{title}}",
       "copyCode": "Copia codice",
       "copied": "Codice copiato",
       "copyFailed": "Impossibile copiare il codice",
       "favorite": "Aggiungi ai preferiti",
+      "unfavorite": "Rimuovi dai preferiti",
       "favorited": "Riunione aggiunta ai preferiti",
+      "unfavorited": "Riunione rimossa dai preferiti",
       "forget": "Rimuovi dalle recenti",
       "failed": "Impossibile rientrare nella riunione"
     }
@@ -2905,6 +2909,10 @@
   "services": {
     "cinemaLive": "Proiezione in corso",
     "boardLive": "Lavagna aperta",
+    "board": {
+      "intro": "Una tela condivisa per tutta la riunione: disegnano tutti insieme. Si aprirà sul palco di ognuno.",
+      "add": "Aggiungi alla riunione"
+    },
     "music": {
       "tokenFailed": "Impossibile collegare il token salvato di Yandex Music. Collega l'account manualmente qui sotto.",
       "back": "Integrazioni",

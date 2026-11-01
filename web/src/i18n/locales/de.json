@@ -2611,19 +2611,23 @@
       "rejoin": "Zurückkehren",
       "again": "Neu starten",
       "byCode": "Mit Code beitreten",
+      "rejoinNamed": "Zurückkehren: {{title}}",
+      "againNamed": "Neu starten: {{title}}",
+      "byCodeNamed": "Mit Code beitreten: {{title}}",
       "ended": "beendet",
+      "over": "Das Meeting ist schon vorbei",
       "people_one": "{{count}} Person",
       "people_other": "{{count}} Personen",
       "today": "heute, {{time}}",
       "yesterday": "gestern, {{time}}",
-      "more": "Alle anzeigen ({{count}})",
-      "less": "Weniger anzeigen",
       "menu": "Aktionen: {{title}}",
       "copyCode": "Code kopieren",
       "copied": "Code kopiert",
       "copyFailed": "Code konnte nicht kopiert werden",
       "favorite": "Zu Favoriten",
+      "unfavorite": "Aus Favoriten entfernen",
       "favorited": "Meeting in den Favoriten",
+      "unfavorited": "Meeting aus den Favoriten entfernt",
       "forget": "Aus „Zuletzt“ entfernen",
       "failed": "Zurückkehren ins Meeting fehlgeschlagen"
     }
@@ -2874,6 +2878,10 @@
   "services": {
     "cinemaLive": "Läuft gerade",
     "boardLive": "Whiteboard offen",
+    "board": {
+      "intro": "Eine gemeinsame Leinwand für das ganze Meeting: Alle zeichnen gleichzeitig. Sie öffnet sich bei allen auf der Bühne.",
+      "add": "Zum Meeting hinzufügen"
+    },
     "music": {
       "tokenFailed": "Der gespeicherte Yandex-Music-Token konnte nicht verbunden werden. Verbinde das Konto unten manuell.",
       "back": "Integrationen",

@@ -4,7 +4,6 @@ import { Link, Pencil, Star } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { MediaState } from '../media/session';
 import type { Participant } from '../api/types';
-import { favoriteApi } from '../core/favorites';
 import { formatCode } from '../core/invitation';
 import { formatDuration, readStartedAt, spokenDuration } from '../core/meeting-clock';
 import type { Translate } from '../i18n';
@@ -14,7 +13,7 @@ import { HelpButton } from './support/HelpButton';
 import { Logo } from './brand/Logo';
 import { Ping } from './Ping';
 import { useStore } from './primitives';
-import { useFavorites, useFavoritesLimit } from './useFavorites';
+import { useFavoriteMembership, useFavorites, useFavoritesLimit } from './useFavorites';
 import './meeting-header.css';
 
 export interface HeaderStatus {
@@ -82,6 +81,7 @@ export function MeetingHeader({
   const duration = useDuration(meeting, startedAt, !ended);
 
   const favorites = useFavorites();
+  const membership = useFavoriteMembership();
   const limit = useFavoritesLimit();
   const isFavorite = !!favorites.data?.some((f) => f.roomId === meeting.admission.roomId);
   // Предел избранного (П3): звезда «добавить» на десятой комнате неактивна и говорит почему —
@@ -91,9 +91,8 @@ export function MeetingHeader({
   const toggleFavorite = async () => {
     setSaving(true);
     try {
-      if (isFavorite) await favoriteApi.remove(meeting.admission.roomId);
-      else await favoriteApi.save(meeting.admission);
-      await favorites.refetch();
+      if (isFavorite) await membership.remove(meeting.admission.roomId);
+      else await membership.save(meeting.admission);
     } catch (error) {
       meeting.media.report(error);
     } finally {

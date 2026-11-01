@@ -2640,20 +2640,24 @@
       "rejoin": "Revenir",
       "again": "Recréer",
       "byCode": "Rejoindre avec un code",
+      "rejoinNamed": "Revenir : {{title}}",
+      "againNamed": "Recréer : {{title}}",
+      "byCodeNamed": "Rejoindre avec un code : {{title}}",
       "ended": "terminée",
+      "over": "La réunion est déjà terminée",
       "people_one": "{{count}} personne",
       "people_many": "{{count}} personnes",
       "people_other": "{{count}} personnes",
       "today": "aujourd’hui, {{time}}",
       "yesterday": "hier, {{time}}",
-      "more": "Tout afficher ({{count}})",
-      "less": "Afficher moins",
       "menu": "Actions : {{title}}",
       "copyCode": "Copier le code",
       "copied": "Code copié",
       "copyFailed": "Impossible de copier le code",
       "favorite": "Ajouter aux favoris",
+      "unfavorite": "Retirer des favoris",
       "favorited": "Réunion ajoutée aux favoris",
+      "unfavorited": "Réunion retirée des favoris",
       "forget": "Retirer des récentes",
       "failed": "Impossible de revenir dans la réunion"
     }
@@ -2905,6 +2909,10 @@
   "services": {
     "cinemaLive": "Projection en cours",
     "boardLive": "Tableau ouvert",
+    "board": {
+      "intro": "Une toile commune pour toute la réunion : tout le monde dessine en même temps. Elle s'ouvrira sur la scène de chacun.",
+      "add": "Ajouter à la réunion"
+    },
     "music": {
       "tokenFailed": "Impossible de connecter le jeton Yandex Music enregistré. Connectez le compte manuellement ci-dessous.",
       "back": "Intégrations",

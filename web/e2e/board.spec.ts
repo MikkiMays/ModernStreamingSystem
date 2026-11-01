@@ -79,7 +79,10 @@ async function joinMeeting(page: Page, invitation: string, name: string) {
   await inMeeting(page);
 }
 
-/** Интеграции → «Доска рисования»; панель закрывается, чтобы доска заняла сцену. */
+/**
+ * Интеграции → «Доска рисования» → «Добавить во встречу»; панель закрывается, чтобы доска заняла сцену.
+ * Карточка сама доску не открывает (R164): сначала шаг с подтверждением — тот же, что у музыки.
+ */
 async function openBoard(page: Page) {
   const toggle = page.getByRole('button', { name: 'Интеграции', exact: true });
   await toggle.click();
@@ -87,6 +90,10 @@ async function openBoard(page: Page) {
     .locator('.service-group')
     .filter({ has: page.locator('b', { hasText: /^Доска рисования$/ }) })
     .click();
+  const step = page.getByRole('region', { name: 'Доска рисования' });
+  await expect(step).toBeVisible();
+  await expect(page.locator('section.board')).toHaveCount(0);
+  await step.getByRole('button', { name: 'Добавить во встречу' }).click();
   await expect(page.locator('.board')).toBeVisible({ timeout: 30000 });
   if (await page.locator('.services-panel').isVisible()) await toggle.click();
 }

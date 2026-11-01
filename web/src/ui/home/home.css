@@ -650,19 +650,24 @@ input.home-inline-name:focus-visible {
   background: var(--surface-1);
   box-shadow: var(--shadow-1);
 }
+/*
+  Строка — одна кнопка на всю ширину (R162, R164): нажимается вся встреча, «…» стоит поверх её правого
+  края отдельной кнопкой (как «…» у комнаты избранного, R71), а не внутри — кнопка в кнопке не
+  нажимается с клавиатуры. Под «…» кнопка оставляет место справа, чтобы слово действия не уходило под
+  неё.
+*/
 .home-recent__row {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 56px;
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  position: relative;
   border-radius: var(--radius-3);
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 .home-recent__row:hover,
-.home-recent__row:focus-within {
+.home-recent__row:focus-within,
+.home-recent__row:has(.home-recent__menu[data-popup-open]) {
   background: var(--surface-hover);
+}
+.home-recent__row:has(.home-recent__open:active) {
+  background: var(--surface-active);
 }
 .home-recent__row + .home-recent__row {
   box-shadow: 0 calc(-1 * var(--hairline)) 0 var(--line);
@@ -670,6 +675,41 @@ input.home-inline-name:focus-visible {
 .home-recent__row:hover + .home-recent__row,
 .home-recent__row:focus-within + .home-recent__row {
   box-shadow: none;
+}
+.home-recent__open {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-1) calc(var(--control-sm) + var(--space-3)) var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+/* Кольцо внутрь: снаружи его срезала бы соседняя строка списка. */
+.home-recent__open:focus-visible {
+  outline-offset: var(--focus-offset-inset);
+}
+.home-recent__open[aria-busy='true'] {
+  cursor: progress;
+}
+.home-recent__menu {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  translate: 0 -50%;
+}
+/* На касании «…» растёт до 44 px (набор) — место под ним растёт вместе с ним. */
+@media (pointer: coarse) {
+  .home-recent__open {
+    padding-right: calc(var(--touch-target) + var(--space-3));
+  }
 }
 .home-recent__icon {
   display: grid;
@@ -714,20 +754,38 @@ input.home-inline-name:focus-visible {
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
-.home-recent__side {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
 .home-recent__people {
   font-variant-numeric: tabular-nums;
 }
-.home-recent__more {
-  justify-self: center;
+/* Что сделает нажатие — словом, без второй кнопки: идёт — «Вернуться» цветом действия, закончилась —
+   «Создать снова» тише. */
+.home-recent__go {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  transition: color var(--motion-fast) var(--ease-standard);
 }
-/* Узко: «…» и действие остаются, значок участников уходит — его заменяет зелёная точка. */
+.home-recent__row[data-step='rejoin'] .home-recent__go,
+.home-recent__open:hover .home-recent__go {
+  color: var(--accent);
+}
+.home-recent__row[data-ended] .home-recent__open:hover .home-recent__go {
+  color: var(--text);
+}
+.home-recent__chevron {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+/* Узко: «…» и слово действия остаются, значок участников уходит — его заменяет зелёная точка. */
 @media (max-width: 520px) {
-  .home-recent__row {
+  .home-recent__open {
     gap: var(--space-2);
   }
   .home-recent__people {

@@ -2640,20 +2640,24 @@
       "rejoin": "Volver",
       "again": "Crear de nuevo",
       "byCode": "Entrar con código",
+      "rejoinNamed": "Volver: {{title}}",
+      "againNamed": "Crear de nuevo: {{title}}",
+      "byCodeNamed": "Entrar con código: {{title}}",
       "ended": "finalizada",
+      "over": "La reunión ya terminó",
       "people_one": "{{count}} persona",
       "people_many": "{{count}} personas",
       "people_other": "{{count}} personas",
       "today": "hoy, {{time}}",
       "yesterday": "ayer, {{time}}",
-      "more": "Mostrar todas ({{count}})",
-      "less": "Mostrar menos",
       "menu": "Acciones: {{title}}",
       "copyCode": "Copiar código",
       "copied": "Código copiado",
       "copyFailed": "No se pudo copiar el código",
       "favorite": "Añadir a favoritos",
+      "unfavorite": "Quitar de favoritos",
       "favorited": "Reunión añadida a favoritos",
+      "unfavorited": "Reunión quitada de favoritos",
       "forget": "Quitar de recientes",
       "failed": "No se pudo volver a la reunión"
     }
@@ -2905,6 +2909,10 @@
   "services": {
     "cinemaLive": "En pantalla",
     "boardLive": "Pizarra abierta",
+    "board": {
+      "intro": "Un lienzo compartido para toda la reunión: todos dibujan a la vez. Se abrirá en el escenario de cada uno.",
+      "add": "Añadir a la reunión"
+    },
     "music": {
       "tokenFailed": "No se pudo conectar el token guardado de Yandex Music. Conecta la cuenta manualmente abajo.",
       "back": "Integraciones",

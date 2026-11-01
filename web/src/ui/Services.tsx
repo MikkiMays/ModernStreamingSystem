@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Presentation } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { useStore } from './primitives';
@@ -7,6 +7,7 @@ import { Button } from './kit';
 import { CinemaGroup } from './cinema/CinemaGroup';
 import { GamesGroup } from './GamesGroup';
 import { TelegramGroup } from './TelegramGroup';
+import { IntegrationIntro } from './IntegrationIntro';
 import { IntegrationShelf } from './IntegrationShelf';
 import { musicHint, shelfName, type ShelfId } from './integration-shelf';
 import { MusicWidget } from './music/MusicWidget';
@@ -23,7 +24,7 @@ import { backToStage } from './stage-context';
  */
 type Group = 'cinema' | 'music' | 'games';
 const OPENS: readonly ShelfId[] = ['cinema', 'music', 'games'];
-/** Что делит сцену с доской (R159): у неё нет группы — карточка сразу открывает её на сцене. */
+/** Что делит сцену с доской (R159). */
 type Rival = Group | 'board';
 
 export function Services({ meeting }: { meeting: Meeting }) {
@@ -32,7 +33,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
    * короткая анимация появления, иначе подмена содержимого читается как сбой, а не как шаг.
    */
   const { t } = useTranslation();
-  const [group, setGroup] = useState<Group | 'telegram' | null>(null);
+  const [group, setGroup] = useState<Group | 'telegram' | 'board' | null>(null);
   const snapshot = useStore(meeting.snapshot);
   const music = useMusic(meeting);
   const { can } = music;
@@ -64,18 +65,39 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const blockedBy = (group: Rival): Rival | null =>
     running[group] ? null : (RIVALS[group].find((rival) => running[rival]) ?? null);
   const [boardError, setBoardError] = useState('');
-  /** Карточка доски: идёт — вернуться к ней на сцену, нет — принести, если можно. */
+  const [bringing, setBringing] = useState(false);
+  /**
+   * Карточка доски: идёт — вернуться к ней на сцену; нет — сначала шаг «Добавить во встречу» (R164),
+   * как у музыки: доска разворачивается на сцене у всех сразу, и одно нажатие по карточке не должно
+   * этого делать само.
+   */
   const openBoard = () => {
     if (snapshot.board) {
       backToStage(meeting);
       return;
     }
-    if (!can('board.open')) return;
     setBoardError('');
-    void meeting.command('board.open').catch((error) => setBoardError((error as Error).message));
+    setGroup('board');
+  };
+  const bringBoard = async () => {
+    setBoardError('');
+    setBringing(true);
+    try {
+      await meeting.command('board.open');
+      // Доска уже на сцене: панель возвращается к витрине, где карточка говорит «Доска открыта».
+      setGroup(null);
+    } catch (error) {
+      setBoardError((error as Error).message);
+    } finally {
+      setBringing(false);
+    }
   };
 
-  if (!group) {
+  // Доску тем временем открыл кто-то другой — спрашивать уже не о чем: назад к витрине. Состояние
+  // правится прямо при отрисовке (а не эффектом), чтобы шаг не мелькнул ещё раз.
+  if (group === 'board' && snapshot.board) setGroup(null);
+
+  if (!group || (group === 'board' && snapshot.board)) {
     const blocked = Object.fromEntries(
       ([...OPENS, 'board'] as Rival[])
         .map((id) => [id, blockedBy(id)] as const)
@@ -115,14 +137,50 @@ export function Services({ meeting }: { meeting: Meeting }) {
             setGroup(id as Group);
           }}
         />
-        {(music.error || boardError) && (
+        {music.error && (
           <p className="services-error" role="alert">
-            {music.error || boardError}
+            {music.error}
           </p>
         )}
       </div>
     );
   }
+
+  if (group === 'board')
+    return (
+      <div className="services-panel" key="board">
+        <Button
+          variant="quiet"
+          size="sm"
+          className="music-panel__back"
+          icon={<ArrowLeft />}
+          onClick={() => setGroup(null)}
+        >
+          {t(($) => $.services.music.back)}
+        </Button>
+        <IntegrationIntro
+          icon={<Presentation size={24} />}
+          title={shelfName(t, 'board')}
+          action={
+            can('board.open') ? (
+              <Button
+                variant="primary"
+                full
+                loading={bringing}
+                icon={<Presentation />}
+                onClick={() => void bringBoard()}
+              >
+                {t(($) => $.services.board.add)}
+              </Button>
+            ) : undefined
+          }
+          locked={t(($) => $.services.music.enableLocked)}
+          error={boardError}
+        >
+          <p>{t(($) => $.services.board.intro)}</p>
+        </IntegrationIntro>
+      </div>
+    );
 
   if (group === 'cinema')
     return (

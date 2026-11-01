@@ -2,7 +2,7 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { publicApi } from '../api/client';
-import { favoriteApi, type Favorite } from '../core/favorites';
+import { cachedFavorites, favoriteApi, type Favorite } from '../core/favorites';
 import { Store } from '../core/store';
 import { savePreferences } from '../core/preferences';
 import type { Meeting } from '../core/meeting';
@@ -106,6 +106,30 @@ it('explains a full favourites list instead of offering a star that cannot work'
   await act(async () => star.click());
   await waitFor(() => expect(favoriteApi.list).toHaveBeenCalled());
   expect(screen.getByRole('button', { name: /В избранном уже 10 комнат/ })).toBeInTheDocument();
+});
+
+it('звезда сохраняет и сразу перечитывает избранное — и в кэш, с которого начнёт главная (R162)', async () => {
+  const room = { ...saved(1)[0]!, roomId, title: 'Планёрка' };
+  const save = vi.spyOn(favoriteApi, 'save').mockImplementation(async () => {
+    vi.mocked(favoriteApi.list).mockResolvedValue([room]);
+  });
+  const remove = vi.spyOn(favoriteApi, 'remove').mockImplementation(async () => {
+    vi.mocked(favoriteApi.list).mockResolvedValue([]);
+  });
+  show(fakeMeeting());
+  await waitFor(() => expect(favoriteApi.list).toHaveBeenCalled());
+  await act(async () => screen.getByRole('button', { name: 'Сохранить комнату в избранное' }).click());
+  expect(save).toHaveBeenCalledOnce();
+  const star = await screen.findByRole('button', { name: 'Убрать комнату из избранного' });
+  expect(star).toHaveAttribute('aria-pressed', 'true');
+  // Выход из встречи чистит кэш запросов (`App.home`): главная начинает с кэша устройства — он уже новый.
+  expect(cachedFavorites()?.map((favorite) => favorite.roomId)).toEqual([roomId]);
+  await act(async () => star.click());
+  expect(remove).toHaveBeenCalledWith(roomId);
+  expect(await screen.findByRole('button', { name: 'Сохранить комнату в избранное' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 });
 
 it('PING — в строке о встрече рядом с кодом, а не плашкой поверх марки (R20)', () => {
