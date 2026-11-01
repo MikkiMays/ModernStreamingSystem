@@ -235,6 +235,102 @@ test('одновременные правки двоих сходятся', asyn
   await converged(anna, boris);
 });
 
+test('курсор Бориса у Анны — только стрелка его цвета: без имени, обводки и рамки выделения (R168)', async () => {
+  await tool(boris, 'selection');
+  const box = (await canvas(boris).boundingBox())!;
+  await boris.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.45, { steps: 4 });
+  const arrow = board(anna).locator('.board-cursors svg.board-cursor');
+  await expect(arrow).toHaveCount(1, { timeout: 10000 });
+  await expect(board(anna).locator('.board-cursors')).toHaveText('');
+  const fill = await arrow.locator('path').getAttribute('fill');
+  expect(await arrow.locator('path').getAttribute('stroke')).toBe(fill);
+});
+
+test('мини-карта справа внизу вместо «?»: нажатие переносит вид, помощь — в меню (R169)', async () => {
+  const map = board(anna).getByRole('application', { name: 'Мини-карта доски' });
+  await expect(map).toBeVisible();
+  await expect(board(anna).locator('.help-icon')).toBeHidden();
+  const frame = map.locator('.board-minimap__view');
+  const before = await frame.getAttribute('style');
+  const area = (await map.boundingBox())!;
+  await anna.mouse.click(area.x + area.width - 6, area.y + area.height - 6);
+  await expect.poll(() => frame.getAttribute('style')).not.toBe(before);
+  // Enter — снова вся доска.
+  await map.focus();
+  await anna.keyboard.press('Enter');
+  await anna.waitForTimeout(600);
+});
+
+test('маркер и стикер — в колонке инструментов, не в шапке; стикер ставится нажатием по доске (R174)', async () => {
+  await expect(
+    board(anna)
+      .locator('.board-bar')
+      .getByText(/Маркер|Стикер/),
+  ).toHaveCount(0);
+  const marker = board(anna).getByRole('checkbox', { name: 'Маркер' });
+  const sticky = board(anna).getByRole('checkbox', { name: 'Стикер' });
+  await expect(marker).toBeVisible();
+  await expect(sticky).toBeVisible();
+  const before = await count(anna);
+  await board(anna).locator('label[data-board-tool="highlighter"]').click();
+  await expect(marker).toBeChecked();
+  await drag(anna, [0.3, 0.8], [0.5, 0.82], 6);
+  await board(anna).locator('label[data-board-tool="sticky"]').click();
+  await expect(sticky).toBeChecked();
+  await expect(marker).not.toBeChecked();
+  const box = (await canvas(anna).boundingBox())!;
+  await anna.mouse.click(box.x + box.width * 0.85, box.y + box.height * 0.3);
+  await expect(sticky).not.toBeChecked();
+  await anna.keyboard.press('Escape');
+  await expect.poll(() => count(boris), { timeout: 10000 }).toBe(before + 2);
+  await converged(anna, boris);
+});
+
+test('ссылку на объект доски не поставить: ни пункта меню, ни кнопки, вставленная — снимается (R176)', async () => {
+  await tool(anna, 'selection');
+  const box = (await canvas(anna).boundingBox())!;
+  // Стикер справа вверху — выбрать и открыть контекстное меню.
+  await anna.mouse.click(box.x + box.width * 0.85, box.y + box.height * 0.3, { button: 'right' });
+  await expect(anna.locator('.context-menu')).toBeVisible();
+  await expect(anna.locator('.context-menu [data-testid="copyElementLink"]')).toBeHidden();
+  await anna.keyboard.press('Escape');
+  await anna.mouse.click(box.x + box.width * 0.85, box.y + box.height * 0.3);
+  await anna.keyboard.press('Control+k');
+  const input = anna.locator('.excalidraw-hyperlinkContainer-input');
+  await expect(input).toBeVisible();
+  await expect(
+    anna.locator(
+      '.excalidraw-hyperlinkContainer__buttons > button:not([class*="--edit"]):not([class*="--remove"])',
+    ),
+  ).toBeHidden();
+  await input.fill(`${new URL(anna.url()).origin}/room/x?element=abc`);
+  await input.press('Enter');
+  await expect(
+    anna.getByText('Ссылку на объект доски поставить нельзя — только на сайт или почту'),
+  ).toBeVisible({
+    timeout: 5000,
+  });
+  await anna.keyboard.press('Escape');
+});
+
+test('ушла к участникам — от доски ничего не видно и ничего не ловится (R175)', async () => {
+  await tool(anna, 'selection');
+  const box = (await canvas(anna).boundingBox())!;
+  await anna.mouse.click(box.x + box.width * 0.85, box.y + box.height * 0.3);
+  const zoom = (await board(anna).locator('.zoom-actions').boundingBox())!;
+  await board(anna).getByRole('button', { name: 'Все участники' }).click();
+  await expect(anna.locator('[data-stage-notch]')).toBeVisible();
+  const layer = anna.locator('[data-stage-layer="board"]');
+  await expect(layer).toHaveCSS('opacity', '0');
+  const hit = await anna.evaluate(
+    ([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-stage-layer="board"]'),
+    [zoom.x + zoom.width / 2, zoom.y + zoom.height / 2],
+  );
+  expect(hit).toBe(false);
+  await anna.locator('[data-stage-notch]').click();
+  await expect(board(anna)).toBeVisible();
+});
+
 test('«Рисует ведущий»: Борис смотрит — подпись, без инструментов, его штрих не уходит', async () => {
   await more(anna, 'Только ведущий');
   await expect(board(boris).getByText('Смотрите: рисует ведущий')).toBeVisible({ timeout: 10000 });
