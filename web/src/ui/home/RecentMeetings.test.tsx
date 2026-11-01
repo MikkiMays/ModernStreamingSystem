@@ -92,8 +92,8 @@ describe('«Недавние» на главной (R148)', () => {
     presence.answers = [{ roomId: 'live', state: 'live', people: 3, title: 'Дейли', code: '123456789' }];
     const { onJoin, onCreate } = show();
     const card = await screen.findByRole('button', { name: 'Вернуться: Дейли' });
-    // Что будет — словом на самой карточке; код, время и люди — описанием кнопки.
-    expect(card).toHaveTextContent('Вернуться');
+    // Слова действия на карточке нет (R177): оно только в имени для диктора; код, время и люди — описанием.
+    expect(card).not.toHaveTextContent('Вернуться');
     expect(card).toHaveAccessibleDescription(/^сегодня, \d\d:\d\d · 123-456-789 3 человека$/);
     // Внутри карточки нет ни одной другой кнопки: «…» — рядом, а не в ней.
     expect(within(card).queryAllByRole('button')).toEqual([]);
@@ -119,7 +119,7 @@ describe('«Недавние» на главной (R148)', () => {
     ];
     const { onCreate, onJoin } = show();
     const card = await screen.findByRole('button', { name: 'Создать снова: Встреча done' });
-    expect(card).toHaveTextContent('Создать снова');
+    expect(card).not.toHaveTextContent('Создать снова');
     expect(card).toHaveAccessibleDescription(/^сегодня, \d\d:\d\d · завершена · 123-456-789$/);
     fireEvent.click(card);
     expect(onCreate).toHaveBeenCalled();

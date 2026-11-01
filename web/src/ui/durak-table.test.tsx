@@ -168,7 +168,23 @@ it('renders occupied seats with their card counts and one spectator seat action'
   ]);
   expect(screen.getAllByRole('button', { name: 'Сесть за стол' })).toHaveLength(1);
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Сесть за стол' })));
-  expect(room.command).toHaveBeenCalledWith('durak.sit', undefined, undefined, undefined);
+  expect(room.command).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(room.command).mock.calls[0]![0]).toBe('durak.sit');
+});
+it('«Сесть за стол» сажает сразу, без «Сохраняем ход…»; отказ ядра место убирает (R178)', async () => {
+  const room = meeting('m9');
+  let reject!: (error: Error) => void;
+  vi.mocked(room.command).mockReturnValueOnce(new Promise((_, no) => (reject = no)) as never);
+  const { container } = render(<DurakTable meeting={room} table={{ ...table, you: null }} />);
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Сесть за стол' })));
+  // Ядро ещё не ответило, а место уже моё: первое свободное, кнопки «Сесть» нет, надписи о сохранении нет.
+  expect(container.querySelectorAll('.durak-seat')).toHaveLength(4);
+  expect(screen.queryByRole('button', { name: 'Сесть за стол' })).toBeNull();
+  expect(container).not.toHaveTextContent('Сохраняем');
+  await act(async () => reject(new Error('Ведущий закрыл посадку')));
+  expect(container.querySelectorAll('.durak-seat')).toHaveLength(3);
+  expect(screen.getByRole('alert')).toHaveTextContent('Ведущий закрыл посадку');
+  expect(screen.getByRole('button', { name: 'Сесть за стол' })).toBeEnabled();
 });
 it('shows the deck and the discard on the felt, and no decisions taken for a player (R108)', () => {
   // Снимок прежнего ядра ещё мог нести «решение стола за игрока»: на столе его не видно никому.

@@ -9,16 +9,24 @@ import { useToast } from './kit';
  * положило в буфер нажатие «Начать встречу» (`core/invite-copy.ts`). Буфер не дался (запрет сайта,
  * старый браузер) — тост говорит об этом и даёт «Скопировать»: нажатие — жест, запись пройдёт.
  * Встреча, в которую вошли, а не создали, ничего не забирает и молчит.
+ *
+ * «Скопирована» — коротко (R171): 2,5 с. Base UI замораживает срок тоста, пока окно не в фокусе, а ссылку
+ * сразу уносят вставлять в другое окно — и плашка ждала человека обратно. Поэтому ещё и предел по часам.
  */
+/** Сколько живёт «Ссылка на встречу скопирована». */
+const BRIEF = 2500;
+
 export function InviteCopiedNotice({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation();
   const toast = useToast();
   useEffect(() => {
+    /** Убрать тост по часам, даже если окно не в фокусе и срок Base UI стоит. */
+    const brief = (id: string) => setTimeout(() => toast.close(id), BRIEF + 500);
     const copy = takeInviteCopy();
     if (!copy) return;
     void copy.copied.then(async (done) => {
       if (done) {
-        toast.add({ title: t(($) => $.meeting.inviteCopy.done), type: 'success' });
+        brief(toast.add({ title: t(($) => $.meeting.inviteCopy.done), type: 'success', timeout: BRIEF }));
         return;
       }
       const link = (await copy.link) ?? meeting.invite.get() ?? inviteLink(meeting.admission);
@@ -32,14 +40,15 @@ export function InviteCopiedNotice({ meeting }: { meeting: Meeting }) {
           onClick: () => {
             void navigator.clipboard
               ?.writeText(link)
-              .then(() =>
+              .then(() => {
                 toast.update(id, {
                   title: t(($) => $.meeting.inviteCopy.done),
                   type: 'success',
                   actionProps: undefined,
-                  timeout: 4000,
-                }),
-              )
+                  timeout: BRIEF,
+                });
+                brief(id);
+              })
               .catch(() => {});
           },
         },

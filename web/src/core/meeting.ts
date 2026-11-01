@@ -103,6 +103,12 @@ export class Meeting {
   readonly uploader: Uploader;
   private refreshing = false;
   private refreshAgain = false;
+  /** Идущий запрос снимка (со всеми повторами) — его ждёт команда, которой он и так привезёт своё. */
+  private inflight: Promise<void> | null = null;
+  /** Номер события, которое идущий запрос снимка привезёт наверняка: известное к его началу. */
+  private covered = -1;
+  /** Самый новый номер события комнаты, о котором известно: из ответов на команды и из сокета. */
+  private known = -1;
   private started = false;
   private disposed = false;
   /** Итог звонка уже ушёл: он один на вход, что бы ни закончило звонок первым. */
@@ -404,29 +410,48 @@ export class Meeting {
         this.cue('viewer', event.eventId);
     }
     if (event.type === 'files.changed') this.fileRevision.update((n) => n + 1);
+    this.known = Math.max(this.known, event.sequence);
+    /*
+      Событие уже в снимке — или его привезёт запрос, ушедший после него (своя команда спросила снимок,
+      как только пришёл ответ, а событие сокет прислал следом): второй запрос снимка за ним — лишний
+      круг до сервера, и ход ждал его (R178).
+    */
+    if (event.sequence <= this.snapshot.get().sequence) return;
+    if (this.refreshing && event.sequence <= this.covered) return;
     void this.refresh();
   };
-  async refresh() {
-    if (this.disposed || this.ended.get()) return;
+  /**
+   * Перечитать снимок комнаты. Запрос уже идёт — новый встаёт за ним, а вызвавший ждёт оба: после
+   * `await refresh()` снимок не старше момента вызова.
+   */
+  refresh(): Promise<void> {
+    if (this.disposed || this.ended.get()) return Promise.resolve();
     if (this.refreshing) {
       this.refreshAgain = true;
-      return;
+      return this.inflight ?? Promise.resolve();
     }
     this.refreshing = true;
+    this.inflight = this.fetchSnapshot();
+    return this.inflight;
+  }
+  private async fetchSnapshot() {
     try {
-      // Время ответа — по монотонным часам: скачок обычных посреди запроса дал бы ответ длиной
-      // в час или отрицательный.
-      const asked = performance.now();
-      const snapshot = await this.api.snapshot();
-      this.accept(snapshot, performance.now() - asked);
-    } catch (error) {
-      if (error instanceof ApiError && [403, 404, 410].includes(error.status)) this.end(error.message);
+      do {
+        this.refreshAgain = false;
+        this.covered = this.known;
+        try {
+          // Время ответа — по монотонным часам: скачок обычных посреди запроса дал бы ответ длиной
+          // в час или отрицательный.
+          const asked = performance.now();
+          const snapshot = await this.api.snapshot();
+          this.accept(snapshot, performance.now() - asked);
+        } catch (error) {
+          if (error instanceof ApiError && [403, 404, 410].includes(error.status)) this.end(error.message);
+        }
+      } while (this.refreshAgain && !this.disposed && !this.ended.get());
     } finally {
       this.refreshing = false;
-      if (this.refreshAgain) {
-        this.refreshAgain = false;
-        void this.refresh();
-      }
+      this.inflight = null;
     }
   }
   /**
@@ -505,7 +530,14 @@ export class Meeting {
     });
     if (type === 'invite.create' && ack.value) this.invite.set(ack.value);
     if (type === 'invite.revoke') this.invite.set(null);
-    await this.refresh();
+    // Своя команда — в снимке с номером не меньше ответа. Он уже здесь или едет запросом, который
+    // её привезёт, — второй запрос не нужен (R178): ход ждал два снимка подряд.
+    const done = typeof ack.sequence === 'number' ? ack.sequence : Infinity;
+    if (done !== Infinity) this.known = Math.max(this.known, done);
+    if (this.snapshot.get().sequence < done) {
+      if (this.refreshing && this.covered >= done && this.inflight) await this.inflight;
+      else await this.refresh();
+    }
     if (!this.disposed && type !== 'gartic.draw')
       rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     return ack;

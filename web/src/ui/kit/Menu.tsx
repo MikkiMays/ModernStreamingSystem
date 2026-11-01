@@ -1,6 +1,7 @@
 import { Menu as BaseMenu } from '@base-ui/react/menu';
 import { ChevronRight } from 'lucide-react';
-import type { ComponentProps, ReactNode } from 'react';
+import { useId, type ComponentProps, type ReactNode } from 'react';
+import { HintIcon } from './HintIcon';
 
 /**
  * Меню по образцу владельца (`refs/README.md`, меню ChatGPT): значок слева, название,
@@ -73,6 +74,8 @@ export interface MenuSwitchItemProps extends Omit<
   icon?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Пояснение значком «?» у подписи (R173): по наведению; для диктора — описание пункта. */
+  hint?: string;
 }
 
 /**
@@ -86,18 +89,24 @@ export function MenuSwitchItem({
   children,
   closeOnClick = false,
   className,
+  hint,
   ...props
 }: MenuSwitchItemProps) {
+  const hintId = useId();
   return (
     <BaseMenu.CheckboxItem
       className={['ui-menu__item', 'ui-menu__item--switch', className].filter(Boolean).join(' ')}
       closeOnClick={closeOnClick}
+      aria-describedby={hint ? hintId : undefined}
       {...props}
     >
       <span className="ui-menu__icon" aria-hidden="true">
         {icon}
       </span>
-      <span className="ui-menu__label">{children}</span>
+      <span className="ui-menu__label">
+        {children}
+        {hint && <HintIcon text={hint} id={hintId} />}
+      </span>
       <span className="ui-switch ui-switch--menu" aria-hidden="true">
         <span className="ui-switch__thumb" />
       </span>

@@ -1798,7 +1798,6 @@
       "instruction": "{{guidance}}. Échap annule la sélection."
     },
     "hint": {
-      "saving": "Enregistrement du coup…",
       "turn": "Choisissez une carte ou glissez-la sur la table"
     },
     "actions": {
@@ -1857,9 +1856,6 @@
         "label": "Qui ajoute",
         "all": "Tout le monde",
         "neighbours": "Les voisins"
-      },
-      "first": {
-        "label": "Première attaque"
       },
       "turn": {
         "label": "Temps par coup",
@@ -2528,7 +2524,9 @@
       "renameGroupField": "Nouveau nom du groupe « {{title}} »",
       "groupRemoved": "Groupe « {{title}} » supprimé, ses salles sont dans la liste générale",
       "removeTitle": "Retirer « {{name}} » des favoris ?"
-    }
+    },
+    "autojoinHint": "Avec la connexion automatique, le micro est toujours activé : on vous entend dès que vous rejoignez.",
+    "autojoinHintLabel": "Ce que fait la connexion automatique"
   },
   "chat": {
     "uploadFailed": "Échec de l'envoi",
@@ -2643,9 +2641,6 @@
       "clearText": "La liste des réunions récentes de cet appareil sera supprimée. Les réunions elles-mêmes et vos favoris ne changent pas.",
       "clearConfirm": "Effacer",
       "cancel": "Annuler",
-      "rejoin": "Revenir",
-      "again": "Recréer",
-      "byCode": "Rejoindre avec un code",
       "rejoinNamed": "Revenir : {{title}}",
       "againNamed": "Recréer : {{title}}",
       "byCodeNamed": "Rejoindre avec un code : {{title}}",

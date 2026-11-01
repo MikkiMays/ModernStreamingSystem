@@ -36,7 +36,8 @@ if not runs:
     print("  прогонов нет")
 for r in runs:
     state = r["conclusion"] or r["status"]
-    print(f"  {r[\"created_at\"][:16]}  {r[\"head_sha\"][:7]}  {state:<11} {r[\"name\"]}  {r[\"html_url\"]}")
+    when, sha, name, url = r["created_at"][:16], r["head_sha"][:7], r["name"], r["html_url"]
+    print(f"  {when}  {sha}  {state:<11} {name}  {url}")
 latest = runs[0]["conclusion"] if runs else "success"
 sys.exit(0 if latest in ("success", None) else 1)
 ' "$json" || red=1

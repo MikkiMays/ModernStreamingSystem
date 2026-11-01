@@ -1758,7 +1758,6 @@
       "instruction": "{{guidance}}。按 Esc 取消选择。"
     },
     "hint": {
-      "saving": "正在保存出牌…",
       "turn": "选择一张牌或拖到桌上"
     },
     "actions": {
@@ -1813,9 +1812,6 @@
         "label": "谁可以追加",
         "all": "所有人",
         "neighbours": "相邻玩家"
-      },
-      "first": {
-        "label": "第一轮进攻"
       },
       "turn": {
         "label": "每步限时",
@@ -2470,7 +2466,9 @@
       "renameGroupField": "分组“{{title}}”的新名称",
       "groupRemoved": "分组“{{title}}”已删除，其中的房间已移至总列表",
       "removeTitle": "要将“{{name}}”从收藏中移除吗？"
-    }
+    },
+    "autojoinHint": "自动进入时麦克风总是立即开启——一进入大家就能听到你。",
+    "autojoinHintLabel": "自动进入的作用"
   },
   "chat": {
     "uploadFailed": "上传失败",
@@ -2585,9 +2583,6 @@
       "clearText": "将删除此设备上的最近会议列表。会议本身和收藏不会改变。",
       "clearConfirm": "清除",
       "cancel": "取消",
-      "rejoin": "返回",
-      "again": "再次创建",
-      "byCode": "用会议码加入",
       "rejoinNamed": "返回：{{title}}",
       "againNamed": "再次创建：{{title}}",
       "byCodeNamed": "用会议码加入：{{title}}",

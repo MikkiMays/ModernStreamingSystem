@@ -28,7 +28,7 @@ import { CapturePicker, type CaptureChoice } from './CapturePicker';
 import { deviceCapture } from '../media/capture';
 import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from './kit';
 import { useMediaQuery, useStore } from './primitives';
-import { CameraFlip, CameraSubmenu } from './CameraMenu';
+import { CameraFlip } from './CameraMenu';
 import { LayoutChoices, LayoutMenu } from './LayoutMenu';
 import type { Panel } from './Sidebar';
 import { shareRequests } from './useDesktopOverlay';
@@ -116,6 +116,8 @@ export function CallDock({
   /** Касание: третья кнопка слева — переворот камеры, а показ экрана — в «ещё». */
   const coarse = useMediaQuery('(pointer: coarse)');
   const live = !ended && media.status === 'connected';
+  /** Есть ли пункты над группами «ещё» — переворот, показ, «свернуть в окно». */
+  const leading = coarse || pip.available || pip.active;
   /** Непрочитанные в чате (R87) — кружком на кнопке чата, на телефоне — на «ещё». */
   const unread = useStore(meeting.unread);
   /*
@@ -248,6 +250,7 @@ export function CallDock({
               }
             />
             <MenuContent side="top" align="center" sideOffset={12} className="dock-menu">
+              {/* Разделитель — только между группами: без «Камеры» (R170) меню может начинаться с «Настроек». */}
               {coarse && tiny && (
                 <MenuItem
                   icon={<SwitchCamera />}
@@ -262,7 +265,6 @@ export function CallDock({
                   {media.screen ? t(($) => $.dock.unshare) : t(($) => $.dock.share)}
                 </MenuItem>
               )}
-              {!coarse && <CameraSubmenu meeting={meeting} />}
               {(pip.available || pip.active) && (
                 <MenuItem icon={<PictureInPicture2 />} onClick={() => meeting.media.pip.toggle()}>
                   {pip.active ? t(($) => $.dock.pipClose) : t(($) => $.dock.pip)}
@@ -270,7 +272,7 @@ export function CallDock({
               )}
               {compact && (
                 <>
-                  <MenuSeparator />
+                  {leading && <MenuSeparator />}
                   <MenuItem
                     icon={<MessageSquare />}
                     shortcut={unread > 0 ? unreadText(unread) : undefined}
@@ -291,7 +293,7 @@ export function CallDock({
                   </MenuItem>
                 </>
               )}
-              <MenuSeparator />
+              {(leading || compact) && <MenuSeparator />}
               <MenuItem icon={<Settings2 />} onClick={onSettings}>
                 {t(($) => $.dock.settings)}
               </MenuItem>

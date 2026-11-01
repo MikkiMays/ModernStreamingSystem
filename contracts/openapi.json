@@ -1271,9 +1271,6 @@
             "format": "int32",
             "type": "integer"
           },
-          "firstFive": {
-            "type": "boolean"
-          },
           "handNumber": {
             "format": "int32",
             "type": "integer"
@@ -1414,7 +1411,6 @@
           "deckSize",
           "defender",
           "discarded",
-          "firstFive",
           "handNumber",
           "hostId",
           "limit",

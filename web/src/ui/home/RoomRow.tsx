@@ -100,9 +100,11 @@ function RoomMenuItems({
         {t(($) => $.favorites.room.copy)}
       </MenuItem>
       {/* Да или нет — переключателем в меню (X4, R70): состояние видно по нему, значок постоянный.
-          Щелчок меню не закрывает — видно, что переключилось; закрывают Esc или щелчок мимо. */}
+          Щелчок меню не закрывает — видно, что переключилось; закрывают Esc или щелчок мимо. «?» у подписи
+          (R173) — что автоподключение входит с включённым микрофоном. */}
       <MenuSwitchItem
         icon={<Zap size={16} />}
+        hint={t(($) => $.favorites.autojoinHint)}
         checked={automatic}
         onCheckedChange={(checked) => {
           setAutomatic(checked);

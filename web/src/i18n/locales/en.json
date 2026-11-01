@@ -1778,7 +1778,6 @@
       "instruction": "{{guidance}}. Escape cancels the selection."
     },
     "hint": {
-      "saving": "Saving the move…",
       "turn": "Pick a card or drag it to the table"
     },
     "actions": {
@@ -1835,9 +1834,6 @@
         "label": "Who throws in",
         "all": "Everyone",
         "neighbours": "Neighbors"
-      },
-      "first": {
-        "label": "First attack"
       },
       "turn": {
         "label": "Time per move",
@@ -2499,7 +2495,9 @@
       "renameGroupField": "New name for group “{{title}}”",
       "groupRemoved": "Group “{{title}}” deleted; its rooms moved to the main list",
       "removeTitle": "Remove “{{name}}” from Favorites?"
-    }
+    },
+    "autojoinHint": "With auto-join, your microphone is always on — people hear you as soon as you join.",
+    "autojoinHintLabel": "What auto-join does"
   },
   "chat": {
     "uploadFailed": "Upload failed",
@@ -2614,9 +2612,6 @@
       "clearText": "The list of recent meetings on this device will be removed. The meetings themselves and your favorites stay as they are.",
       "clearConfirm": "Clear",
       "cancel": "Cancel",
-      "rejoin": "Rejoin",
-      "again": "Start again",
-      "byCode": "Join with code",
       "rejoinNamed": "Rejoin: {{title}}",
       "againNamed": "Start again: {{title}}",
       "byCodeNamed": "Join with code: {{title}}",

@@ -1778,7 +1778,6 @@
       "instruction": "{{guidance}}. Escape hebt die Auswahl auf."
     },
     "hint": {
-      "saving": "Zug wird gespeichert…",
       "turn": "Wähle eine Karte oder zieh sie auf den Tisch"
     },
     "actions": {
@@ -1835,9 +1834,6 @@
         "label": "Wer nachlegt",
         "all": "Alle",
         "neighbours": "Nachbarn"
-      },
-      "first": {
-        "label": "Erster Angriff"
       },
       "turn": {
         "label": "Zeit pro Zug",
@@ -2499,7 +2495,9 @@
       "renameGroupField": "Neuer Name für die Gruppe „{{title}}“",
       "groupRemoved": "Gruppe „{{title}}“ gelöscht, ihre Räume sind jetzt in der allgemeinen Liste",
       "removeTitle": "„{{name}}“ aus den Favoriten entfernen?"
-    }
+    },
+    "autojoinHint": "Beim automatischen Beitreten ist dein Mikrofon immer sofort an – man hört dich, sobald du drin bist.",
+    "autojoinHintLabel": "Was automatisches Beitreten bewirkt"
   },
   "chat": {
     "uploadFailed": "Upload fehlgeschlagen",
@@ -2614,9 +2612,6 @@
       "clearText": "Die Liste der letzten Meetings auf diesem Gerät wird gelöscht. Die Meetings selbst und Ihre Favoriten bleiben unverändert.",
       "clearConfirm": "Leeren",
       "cancel": "Abbrechen",
-      "rejoin": "Zurückkehren",
-      "again": "Neu starten",
-      "byCode": "Mit Code beitreten",
       "rejoinNamed": "Zurückkehren: {{title}}",
       "againNamed": "Neu starten: {{title}}",
       "byCodeNamed": "Mit Code beitreten: {{title}}",

@@ -196,9 +196,15 @@
   display: grid;
   gap: var(--space-3);
 }
-.ui-button.platform-picker__back {
+/*
+  «← Интеграции» — по левому краю карточек шага (R175): плашка наведения начинается там же, где карточки, а
+  не на 12 px левее (прежний отрицательный отступ выносил её за колонку — владелец: «неровное отображение»).
+  Поле внутри — поуже обычного, чтобы стрелка стояла почти у края.
+*/
+.ui-button.platform-picker__back,
+.ui-button.music-panel__back {
   justify-self: start;
-  margin-inline-start: calc(var(--space-3) * -1);
+  padding-inline: var(--space-2) var(--space-3);
 }
 .platform-picker__head {
   display: grid;
@@ -281,10 +287,8 @@
   gap: var(--space-5);
   min-width: 0;
 }
-/* «← Интеграции» — акцентом, как у кинозала и игр (`.text-button`): один вид у всех шагов (R167). */
+/* «← Интеграции» — акцентом, как у кинозала и игр: один вид у всех шагов (R167); край — выше (R175). */
 .ui-button.music-panel__back {
-  justify-self: start;
-  margin-inline-start: calc(var(--space-3) * -1);
   --button-text: var(--accent);
 }
 /* «Убрать музыку из встречи» — под очередью, тихой красной строкой (как до R128). */

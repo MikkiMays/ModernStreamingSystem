@@ -1798,7 +1798,6 @@
       "instruction": "{{guidance}}. Escape cancela la selección."
     },
     "hint": {
-      "saving": "Guardando la jugada…",
       "turn": "Elige una carta o arrástrala a la mesa"
     },
     "actions": {
@@ -1857,9 +1856,6 @@
         "label": "Quién añade",
         "all": "Todos",
         "neighbours": "Vecinos"
-      },
-      "first": {
-        "label": "Primer ataque"
       },
       "turn": {
         "label": "Tiempo por turno",
@@ -2528,7 +2524,9 @@
       "renameGroupField": "Nuevo nombre del grupo «{{title}}»",
       "groupRemoved": "Grupo «{{title}}» eliminado; sus salas pasan a la lista general",
       "removeTitle": "¿Quitar «{{name}}» de Favoritos?"
-    }
+    },
+    "autojoinHint": "Con la entrada automática, el micrófono siempre se enciende: te oirán en cuanto entres.",
+    "autojoinHintLabel": "Qué hace la entrada automática"
   },
   "chat": {
     "uploadFailed": "Error al subir",
@@ -2643,9 +2641,6 @@
       "clearText": "Se eliminará la lista de reuniones recientes de este dispositivo. Las reuniones y tus favoritos no cambian.",
       "clearConfirm": "Borrar",
       "cancel": "Cancelar",
-      "rejoin": "Volver",
-      "again": "Crear de nuevo",
-      "byCode": "Entrar con código",
       "rejoinNamed": "Volver: {{title}}",
       "againNamed": "Crear de nuevo: {{title}}",
       "byCodeNamed": "Entrar con código: {{title}}",

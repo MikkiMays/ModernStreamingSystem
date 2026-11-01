@@ -43,7 +43,7 @@ export function FavoriteSettings({
         description={t(($) => $.favorites.settings.description)}
       >
         {/* Переключатель набора (X4, R70): тот же вид и размер, что во всех настройках и в меню
-            комнаты на главной, — без пояснения под ним (R27). */}
+            комнаты на главной, — без пояснения под ним (R27); что он делает — значком «?» (R173). */}
         <Switch
           checked={automatic}
           onCheckedChange={(checked) => {
@@ -51,6 +51,8 @@ export function FavoriteSettings({
             setAutoJoin(room.roomId, checked);
           }}
           label={t(($) => $.favorites.settings.autojoin)}
+          hint={t(($) => $.favorites.autojoinHint)}
+          hintLabel={t(($) => $.favorites.autojoinHintLabel)}
         />
         <button
           className="button secondary full"

@@ -254,13 +254,8 @@ function RecentRow({
   const title = presence?.title || entry.title;
   const when = visitedAt(entry.lastAt, i18n.resolvedLanguage ?? 'ru', t);
   const people = live && presence ? t(($) => $.home.recent.people, { count: presence.people }) : null;
-  const word =
-    step === 'rejoin' || step === 'saved'
-      ? t(($) => $.home.recent.rejoin)
-      : step === 'again'
-        ? t(($) => $.home.recent.again)
-        : t(($) => $.home.recent.byCode);
-  // Имя кнопки — действие и встреча: «Вернуться: Дейли». Код, время и сколько людей — описанием.
+  // Слова действия на карточке нет (R177): вся карточка — нажимаемая встреча со стрелкой. Действие —
+  // в имени кнопки для диктора: «Вернуться: Дейли». Код, время и сколько людей — описанием.
   const label =
     step === 'rejoin' || step === 'saved'
       ? t(($) => $.home.recent.rejoinNamed, { title })
@@ -300,7 +295,6 @@ function RecentRow({
           </Badge>
         )}
         <span className="home-recent__go">
-          {word}
           <span className="home-recent__chevron" aria-hidden="true">
             {busy ? <span className="ui-spinner" /> : <ChevronRight size={16} />}
           </span>

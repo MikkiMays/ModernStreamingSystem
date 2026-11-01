@@ -42,7 +42,11 @@ public class Durak {
   /** Предел боя: больше шести карт не подкидывают, сколько бы их ни было на руках. */
   public static final int MAX_ATTACKS = 6;
 
-  /** Тот же предел для первого боя партии, когда включена такая настройка. */
+  /**
+   * Предел первого боя партии — всегда пять карт (владелец, R179: «первый отбой как 5 карт всегда и
+   * это официальное правило»). Настройки стола для этого больше нет; поле `firstFive` прежних
+   * записей комнаты пропускается при чтении (`ignoreUnknown`).
+   */
   public static final int FIRST_ATTACKS = 5;
 
   /** Сколько длится полёт карт при раздаче. То же число знает браузер. */
@@ -103,9 +107,6 @@ public class Durak {
    * свалку, из которой защитнику не выбраться. Слева и справа — те, кого он и видит.
    */
   public boolean neighbours;
-
-  /** Первый бой партии — не больше пяти карт. Распространённая домашняя поблажка заходящему. */
-  public boolean firstFive;
 
   public boolean seatingOpen = true;
 
@@ -545,10 +546,6 @@ public class Durak {
         neighbours = !neighbours;
         note(now, "settings", -1, "", neighbours ? "Подкидывают только соседи" : "Подкидывают все");
       }
-      case "first-five" -> {
-        firstFive = !firstFive;
-        note(now, "settings", -1, "", firstFive ? "Первый бой — пять карт" : "Первый бой — шесть");
-      }
       case "turn" -> {
         requireRunning();
         long wanted = value == null ? DEFAULT_TURN : value.longValue();
@@ -718,7 +715,7 @@ public class Durak {
   private void startBout(long at) {
     clearBout();
     boutNumber++;
-    int cap = firstFive && boutNumber == 1 ? FIRST_ATTACKS : MAX_ATTACKS;
+    int cap = boutNumber == 1 ? FIRST_ATTACKS : MAX_ATTACKS;
     limit = Math.min(cap, seats.get(defender).hand.size());
     actionAt = at;
     deadline = at + turnSeconds * 1000L;
@@ -921,7 +918,7 @@ public class Durak {
      отбившийся последними двумя картами сидел с пустой рукой под третьей и четвёртой. Отбить он
      может ровно столько, сколько держит, — столько и кладут.
     */
-    int cap = firstFive && boutNumber == 1 ? FIRST_ATTACKS : MAX_ATTACKS;
+    int cap = boutNumber == 1 ? FIRST_ATTACKS : MAX_ATTACKS;
     limit = Math.min(cap, seats.get(next).hand.size());
     note(now, "transfer", index, seat.name, seat.name + " переводит на " + seats.get(next).name);
     reschedule(now);
@@ -1387,7 +1384,6 @@ public class Durak {
         deckSize,
         transferAllowed(),
         neighbours,
-        firstFive,
         turnSeconds,
         seatingOpen,
         revision,

@@ -409,6 +409,22 @@
     0 0 0 1px rgb(16 22 36 / 0.06);
   --scrim: rgb(16 22 36 / 0.45);
   --loader-bg: var(--palette-mist-50);
+  /*
+    Звонок в теме человека (R175): поле вокруг сцены и пульт — светлые, а сцена с плитками, столами и
+    доской — тёмной карточкой (`.stage` в `stage.css`). Тень пульта — своя: внутри `.media-stage` смысловая
+    `--shadow-2` сценная и легла бы на светлое поле чёрным пятном.
+  */
+  --call-bg: var(--palette-mist-50);
+  --call-layer-pad: var(--space-2);
+  --call-dock-bg: var(--palette-white);
+  --call-dock-ink: var(--palette-slate-900);
+  --call-dock-muted: var(--palette-slate-600);
+  --call-dock-hover: rgb(27 31 39 / 0.06);
+  --call-dock-off: rgb(27 31 39 / 0.06);
+  --call-dock-off-ink: var(--palette-red-600);
+  --call-dock-shadow:
+    0 10px 30px -12px rgb(16 22 36 / 0.22), 0 2px 6px -2px rgb(16 22 36 / 0.08),
+    0 0 0 1px rgb(16 22 36 / 0.05);
   /* Цвет обложки под «Сейчас играет» (R128, смешение `color` — светлота карточки не меняется). */
   --player-glow: 0.7;
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%235f6878' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
@@ -469,6 +485,18 @@
     inset 0 1px 0 rgb(255 255 255 / 0.06);
   --scrim: rgb(0 0 0 / 0.6);
   --loader-bg: var(--palette-ink-900);
+  /* Звонок в тёмной теме — как сцена (R175): поле вокруг неё и пульт тёмные. */
+  --call-bg: var(--stage-bg);
+  --call-layer-pad: 0px;
+  --call-dock-bg: var(--palette-ink-800);
+  --call-dock-ink: var(--stage-text);
+  --call-dock-muted: var(--stage-muted);
+  --call-dock-hover: rgb(255 255 255 / 0.08);
+  --call-dock-off: rgb(255 255 255 / 0.1);
+  --call-dock-off-ink: var(--palette-red-300);
+  --call-dock-shadow:
+    0 12px 32px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
   --player-glow: 0.8;
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
   --brand-youtube-text: var(--palette-brand-youtube-on-dark);
@@ -527,6 +555,18 @@
       inset 0 1px 0 rgb(255 255 255 / 0.06);
     --scrim: rgb(0 0 0 / 0.6);
     --loader-bg: var(--palette-ink-900);
+    /* Звонок в тёмной теме — как сцена (R175): поле вокруг неё и пульт тёмные. */
+    --call-bg: var(--stage-bg);
+    --call-layer-pad: 0px;
+    --call-dock-bg: var(--palette-ink-800);
+    --call-dock-ink: var(--stage-text);
+    --call-dock-muted: var(--stage-muted);
+    --call-dock-hover: rgb(255 255 255 / 0.08);
+    --call-dock-off: rgb(255 255 255 / 0.1);
+    --call-dock-off-ink: var(--palette-red-300);
+    --call-dock-shadow:
+      0 12px 32px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06),
+      inset 0 1px 0 rgb(255 255 255 / 0.05);
     --player-glow: 0.8;
     --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
     --brand-youtube-text: var(--palette-brand-youtube-on-dark);
