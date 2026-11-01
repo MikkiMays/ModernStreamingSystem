@@ -12,7 +12,7 @@ import {
   type BackgroundSupport,
   type BuiltinBackground,
 } from '../media/background-effect';
-import { Button, MenuRadioGroup, MenuRadioItem, MenuSubmenu, Popover } from './kit';
+import { Button, Popover } from './kit';
 import './background-picker.css';
 
 const same = (a: BackgroundChoice, b: BackgroundChoice) => JSON.stringify(a) === JSON.stringify(b);
@@ -162,51 +162,6 @@ export function BackgroundPicker({
         </p>
       )}
     </div>
-  );
-}
-
-/** «Фон» в меню камеры во встрече: те же варианты, кроме своего фото (оно — в настройках). */
-export function BackgroundSubmenu({
-  value,
-  onChange,
-}: {
-  value: BackgroundChoice;
-  onChange: (choice: BackgroundChoice) => void;
-}) {
-  const { t } = useTranslation();
-  const support = useSupport();
-  if (!support || support === 'none') return null;
-  const choices: [string, BackgroundChoice][] = [
-    [t(($) => $.background.none), { kind: 'none' }],
-    [t(($) => $.background.blurLight), { kind: 'blur', strength: 'light' }],
-    [t(($) => $.background.blurStrong), { kind: 'blur', strength: 'strong' }],
-    ...(support === 'full'
-      ? BUILTIN_BACKGROUNDS.map(
-          (name) =>
-            [t(($) => $.background.builtin[name]), { kind: 'image', id: name }] as [string, BackgroundChoice],
-        )
-      : []),
-  ];
-  const current = choices.find(([, choice]) => same(choice, value))?.[0] ?? choices[0]![0];
-  return (
-    <MenuSubmenu icon={<Sparkles />} label={t(($) => $.background.title)}>
-      <MenuRadioGroup
-        value={current}
-        onValueChange={(label: string) => {
-          const found = choices.find(([name]) => name === label);
-          if (found) onChange(found[1]);
-        }}
-      >
-        {choices.map(([label]) => (
-          <MenuRadioItem key={label} value={label} closeOnClick className="ui-menu__item">
-            <span className="ui-menu__icon" aria-hidden="true">
-              {label === current && <Check />}
-            </span>
-            <span className="ui-menu__label">{label}</span>
-          </MenuRadioItem>
-        ))}
-      </MenuRadioGroup>
-    </MenuSubmenu>
   );
 }
 

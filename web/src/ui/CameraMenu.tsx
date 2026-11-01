@@ -1,5 +1,4 @@
-import { BackgroundSubmenu } from './BackgroundPicker';
-import { Check, SwitchCamera, Video, ZoomIn } from 'lucide-react';
+import { SwitchCamera } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TrackEvent } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
@@ -15,16 +14,7 @@ import {
   type CameraChoice,
   type Zoom,
 } from '../media/cameras';
-import {
-  IconButton,
-  MenuItem,
-  MenuRadioGroup,
-  MenuRadioItem,
-  MenuSeparator,
-  MenuSubmenu,
-  Segmented,
-} from './kit';
-import { useStore } from './primitives';
+import { IconButton, Segmented } from './kit';
 
 /**
  * Смена камеры на телефоне — одно нажатие, сразу другая сторона (T21).
@@ -50,118 +40,8 @@ export function CameraFlip({ meeting, disabled }: { meeting: Meeting; disabled?:
   );
 }
 
-/**
- * Выбор камеры на компьютере — подменю «Камера» в «ещё» (T21).
- *
- * Стрелки справа от кнопки камеры больше нет: она занимала место в пульте ради действия, которое
- * делают раз в жизни устройства. Список — здесь и в «Голос и видео» в настройках. «Следующей
- * камеры» здесь нет (R35): список и так показывает все камеры, а перебор вслепую — дело кнопки
- * переворота на телефоне. Камер нет — пункт выключен и говорит об этом, а не открывает пустоту.
- */
-export function CameraSubmenu({ meeting }: { meeting: Meeting }) {
-  const { t } = useTranslation();
-  const [devices, setDevices] = useState<MediaDeviceInfo[] | null>(null);
-  const preferences = useStore(meeting.media.preferences);
-  const chosen = preferences.devices.camera;
-  const background = preferences.background;
-  // Подменю живёт, пока открыто «ещё»: список читается при каждом открытии — камеру могли
-  // подключить между ними.
-  useEffect(() => {
-    let alive = true;
-    void navigator.mediaDevices
-      ?.enumerateDevices()
-      .then((all) => alive && setDevices(all.filter((device) => device.kind === 'videoinput')))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-  if (devices && !devices.length)
-    return (
-      <MenuItem icon={<Video />} disabled>
-        {t(($) => $.devices.camera.none)}
-      </MenuItem>
-    );
-  return (
-    <MenuSubmenu icon={<Video />} label={t(($) => $.devices.camera.title)}>
-      <MenuRadioGroup
-        value={chosen}
-        onValueChange={(deviceId: string) => void meeting.media.switchDevice('videoinput', deviceId)}
-      >
-        {(devices ?? []).map((device, index) => (
-          <MenuRadioItem
-            key={device.deviceId || index}
-            value={device.deviceId}
-            closeOnClick
-            className="ui-menu__item"
-          >
-            <span className="ui-menu__icon" aria-hidden="true">
-              {device.deviceId && device.deviceId === chosen && <Check />}
-            </span>
-            <span className="ui-menu__label">
-              {device.label || t(($) => $.devices.camera.numbered, { n: index + 1 })}
-            </span>
-          </MenuRadioItem>
-        ))}
-      </MenuRadioGroup>
-      <MenuZoom meeting={meeting} />
-      <MenuSeparator />
-      {/* Фон в видео (R153) — на лету, без переопубликации камеры. */}
-      <BackgroundSubmenu
-        value={background}
-        onChange={(choice) => meeting.media.saveSettings({ background: choice })}
-      />
-    </MenuSubmenu>
-  );
-}
-
 const zoomLabel = (t: Translate, factor: number) =>
   t(($) => $.devices.camera.zoomStep, { value: new Intl.NumberFormat(locale(t)).format(factor) });
-
-/**
- * «Зум 0.5× · 1× · 2×» под списком камер (R36): сегментом из пунктов-радио меню — стрелки ходят
- * по ним, как по остальным пунктам, щелчок меню не закрывает (видно, что поменялось). Ступени —
- * только те, что камера умеет (`zoomSteps`); у камеры без зума строки нет вовсе.
- */
-function MenuZoom({ meeting }: { meeting: Meeting }) {
-  const { t } = useTranslation();
-  const [zoom, setZoom] = useState(() => meeting.media.cameraZoom());
-  const steps = zoomSteps({ lenses: null, zoom });
-  if (!steps.length) return null;
-  const active = steps.find((step) => step.active);
-  return (
-    <>
-      <MenuSeparator />
-      <MenuRadioGroup
-        className="camera-zoom"
-        aria-label={t(($) => $.devices.camera.zoom)}
-        value={active ? String(active.factor) : ''}
-        onValueChange={(value: string) => {
-          const step = steps.find((candidate) => String(candidate.factor) === value);
-          if (step?.zoom === undefined) return;
-          void meeting.media.applyCameraZoom(step.zoom).then(() => setZoom(meeting.media.cameraZoom()));
-        }}
-      >
-        <span className="camera-zoom__label" aria-hidden="true">
-          <ZoomIn />
-          {t(($) => $.devices.camera.zoom)}
-        </span>
-        <span className="camera-zoom__steps">
-          {steps.map((step) => (
-            <MenuRadioItem
-              key={step.factor}
-              value={String(step.factor)}
-              closeOnClick={false}
-              className="camera-zoom__step"
-            >
-              {zoomLabel(t, step.factor)}
-            </MenuRadioItem>
-          ))}
-        </span>
-      </MenuRadioGroup>
-    </>
-  );
-}
 
 /**
  * Зум своей камеры на своей плитке справа внизу, как в системной камере: «0.5× · 1× · 2×» (T21,

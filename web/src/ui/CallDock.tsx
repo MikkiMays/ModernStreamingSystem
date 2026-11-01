@@ -28,7 +28,7 @@ import { CapturePicker, type CaptureChoice } from './CapturePicker';
 import { deviceCapture } from '../media/capture';
 import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from './kit';
 import { useMediaQuery, useStore } from './primitives';
-import { CameraFlip, CameraSubmenu } from './CameraMenu';
+import { CameraFlip } from './CameraMenu';
 import { LayoutChoices, LayoutMenu } from './LayoutMenu';
 import type { Panel } from './Sidebar';
 import { shareRequests } from './useDesktopOverlay';
@@ -262,7 +262,6 @@ export function CallDock({
                   {media.screen ? t(($) => $.dock.unshare) : t(($) => $.dock.share)}
                 </MenuItem>
               )}
-              {!coarse && <CameraSubmenu meeting={meeting} />}
               {(pip.available || pip.active) && (
                 <MenuItem icon={<PictureInPicture2 />} onClick={() => meeting.media.pip.toggle()}>
                   {pip.active ? t(($) => $.dock.pipClose) : t(($) => $.dock.pip)}
