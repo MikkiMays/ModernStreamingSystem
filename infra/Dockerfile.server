@@ -7,7 +7,7 @@ COPY server/src server/src
 # Подписанный каталог серверов (ADR 0001 §8) — pom.xml кладёт его в jar.
 RUN mvn -B -q -pl server -am package -DskipTests
 
-FROM eclipse-temurin:25.0.2_10-jre-alpine@sha256:5fcc27581b238efbfda93da3a103f59e0b5691fe522a7ac03fe8057b0819c888
+FROM eclipse-temurin:25.0.5_8-jre-alpine@sha256:56f273059de6b13a6b49fe0ded691ed2d0399bbee76156a8f2d385f7524a3d43
 RUN addgroup -g 10001 stream && adduser -D -u 10001 -G stream stream
 WORKDIR /app
 COPY --from=build /workspace/server/target/streaming-server-0.1.0-SNAPSHOT.jar /app/server.jar

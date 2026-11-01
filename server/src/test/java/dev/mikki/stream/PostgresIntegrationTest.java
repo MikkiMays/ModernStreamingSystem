@@ -1,5 +1,8 @@
 package dev.mikki.stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.*;
@@ -18,5 +21,16 @@ class PostgresIntegrationTest extends RoomServiceTest {
     registry.add("spring.datasource.url", postgres::getJdbcUrl);
     registry.add("spring.datasource.username", postgres::getUsername);
     registry.add("spring.datasource.password", postgres::getPassword);
+  }
+
+  /**
+   * Сроки {@code DatabaseGuards} доходят до самого Postgres: их понимает сервер, а не только
+   * драйвер.
+   */
+  @Test
+  void sessionsCarryLockAndIdleTransactionTimeouts() {
+    assertEquals("15s", jdbc.sql("SHOW lock_timeout").query(String.class).single());
+    assertEquals(
+        "1min", jdbc.sql("SHOW idle_in_transaction_session_timeout").query(String.class).single());
   }
 }

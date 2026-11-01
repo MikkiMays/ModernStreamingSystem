@@ -3271,6 +3271,7 @@
     "ROOM_CLOSED": "La reunión ha finalizado",
     "ROOM_FULL": "La reunión está llena",
     "ROOM_LIMIT": "Todas las salas están ocupadas. Inténtalo más tarde",
+    "SERVER_BUSY": "El servidor está ocupado: inténtalo de nuevo",
     "ROOM_NOT_FOUND": "Sala no encontrada",
     "SCREEN_ENDED": "Se dejó de compartir pantalla",
     "SCREEN_LIMIT": "Ya se están compartiendo dos pantallas",

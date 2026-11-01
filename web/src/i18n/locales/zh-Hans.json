@@ -3205,6 +3205,7 @@
     "ROOM_CLOSED": "会议已结束",
     "ROOM_FULL": "会议人数已满",
     "ROOM_LIMIT": "所有房间都已占用。请稍后再试",
+    "SERVER_BUSY": "服务器繁忙，请重试",
     "ROOM_NOT_FOUND": "未找到房间",
     "SCREEN_ENDED": "屏幕共享已结束",
     "SCREEN_LIMIT": "已有两个屏幕正在共享",

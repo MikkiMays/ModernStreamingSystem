@@ -3238,6 +3238,7 @@
     "ROOM_CLOSED": "The meeting has ended",
     "ROOM_FULL": "The meeting is full",
     "ROOM_LIMIT": "All rooms are busy. Try again later",
+    "SERVER_BUSY": "The server is busy — please try again",
     "ROOM_NOT_FOUND": "Room not found",
     "SCREEN_ENDED": "Screen share ended",
     "SCREEN_LIMIT": "Two screens are already being shared",

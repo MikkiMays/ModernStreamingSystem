@@ -3238,6 +3238,7 @@
     "ROOM_CLOSED": "Das Meeting ist beendet",
     "ROOM_FULL": "Das Meeting ist voll",
     "ROOM_LIMIT": "Alle Räume sind belegt. Versuch es später",
+    "SERVER_BUSY": "Der Server ist ausgelastet – bitte versuchen Sie es erneut",
     "ROOM_NOT_FOUND": "Raum nicht gefunden",
     "SCREEN_ENDED": "Bildschirmfreigabe beendet",
     "SCREEN_LIMIT": "Es werden bereits zwei Bildschirme geteilt",

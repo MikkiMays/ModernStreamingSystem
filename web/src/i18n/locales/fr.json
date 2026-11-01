@@ -3271,6 +3271,7 @@
     "ROOM_CLOSED": "La réunion est terminée",
     "ROOM_FULL": "La réunion est complète",
     "ROOM_LIMIT": "Toutes les salles sont occupées. Réessayez plus tard",
+    "SERVER_BUSY": "Le serveur est occupé — réessayez",
     "ROOM_NOT_FOUND": "Salle introuvable",
     "SCREEN_ENDED": "Le partage d'écran est terminé",
     "SCREEN_LIMIT": "Deux écrans sont déjà partagés",

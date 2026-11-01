@@ -36,6 +36,20 @@ public class ApiErrors {
     return response.body(body);
   }
 
+  /**
+   * Замок не дался за {@code lock_timeout} ({@code DatabaseGuards}): сервер занят, а не сломан —
+   * «попробуйте ещё раз» с коротким сроком, как у дренажа.
+   */
+  @ExceptionHandler(org.springframework.dao.PessimisticLockingFailureException.class)
+  public ResponseEntity<ProblemDetail> busy(Exception ignored) {
+    return problem(
+        new Problem(
+            503,
+            "SERVER_BUSY",
+            "Сервер занят — попробуйте ещё раз",
+            java.util.Map.of("retryAfter", 2)));
+  }
+
   @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})
   public ResponseEntity<ProblemDetail> invalid(Exception ignored) {
     return problem(new Problem(400, "INVALID_REQUEST", "Проверьте данные запроса"));
