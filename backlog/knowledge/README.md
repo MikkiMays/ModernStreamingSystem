@@ -14,6 +14,8 @@
 - [`cord-catalog-platform-limits`](memory/cord-catalog-platform-limits.md) — Что YouTube и Twitch отдают каталогу Cord анонимно, и где у них стоят стены
 - [`cord-ci-and-release-traps`](memory/cord-ci-and-release-traps.md) — Чем CI в Cord строже локальных команд и как пуш подряд ломает выкладку релиза Windows
 - [`cord-cinema-ad-markers`](memory/cord-cinema-ad-markers.md) — Где в кинозале видны рекламные метки потока (hls.js tagList), почему интерстишелы выключены и почему фокус держал пульт на кадре
+- [`cord-cinema-buffer`](memory/cord-cinema-buffer.md) — Сколько кинозал Cord держит видео впереди и позади (hls.js, dash.js, готовый файл), почему открытый диапазон `<video src>` тянул почти минуту вперёд и как это меряется
+- [`cord-cinema-lanes-hold`](memory/cord-cinema-lanes-hold.md) — Почему в Cord после зависшей площадки «другая интеграция грузится долго»: две полосы комнаты и потоки yt-dlp держатся до срока и дольше, и чем это мерить
 - [`cord-cinema-playlists-and-sync`](memory/cord-cinema-playlists-and-sync.md) — Почему длинный фильм в Cord открывался минутами, и три числа про синхронность совместного просмотра
 - [`cord-cinema-providers`](memory/cord-cinema-providers.md) — Какие площадки кинозала Cord реально достижимы (Rutube, VK Видео, ivi, по ссылке с плеером страниц), почему Кинопоиска, Зоны и Jellyfin нет, и почему прокси отдаёт чужое только своим типом
 - [`cord-disk-utilisation`](memory/cord-disk-utilisation.md) — Где в Cord копится место, срок хранения встреч в неделю и суточная уборка cord-tidy
@@ -22,6 +24,7 @@
 - [`cord-e2e-create-budget`](memory/cord-e2e-create-budget.md) — Почему e2e против стенда после десятой встречи падают на «Слишком много новых встреч за час» и сколько встреч создаёт весь набор
 - [`cord-figma-export`](memory/cord-figma-export.md) — Как экраны Cord попадают в Figma-файл продукта и на чём там спотыкаешься — план Starter, запрет захвата в слои, кадры по ссылкам upload_assets
 - [`cord-ladder-in-place`](memory/cord-ladder-in-place.md) — Почему камера в Cord «моргала» каждые полминуты и как лестница качества теперь шагает без переопубликации
+- [`cord-ivi-stream`](memory/cord-ivi-stream.md) — Откуда ivi в кинозале Cord берёт поток (плеерное API light, а не yt-dlp), что значат его отказы и почему с сервера вне России ivi работать не может
 - [`cord-local-stack-with-sfu`](memory/cord-local-stack-with-sfu.md) — Как поднять рядом с продом Cord полный второй стенд со своим SFU и проверять на нём медиа, ничего не трогая
 - [`cord-moderation-is-soft`](memory/cord-moderation-is-soft.md) — Решение владельца Cord: исключение и выключенный микрофон — не запрет, а конец встречи
 - [`cord-music-platform-sources`](memory/cord-music-platform-sources.md) — Что YouTube и SoundCloud отдают музыке Cord через yt-dlp без ключей и как узнать 30-секундный фрагмент SoundCloud Go+

@@ -22,8 +22,9 @@ metadata:
   «Unknown method». Страна определяется по IP (`countryISO: 'DE'`): из Германии нет разделов
   «Фильмы/Сериалы». Воспроизведение — yt-dlp `vk` (HLS+DASH с `vkuser.net`/`okcdn.ru`, субтитры).
 - **ivi** — `api.ivi.ru/mobileapi/...` отвечает, но из DE бесплатный (`paid_type=AVOD`) каталог
-  пуст; `geocheck/whoami` отдаёт страну. yt-dlp `ivi` требует `pycryptodomex` и сам отбрасывает
-  форматы `-MDRM-`/`-FPS-` → только бесплатное, только из РФ.
+  пуст; `geocheck/whoami` отдаёт страну. Поток — плеерное API `api.ivi.ru/light/` (тот же вопрос, что у
+  yt-dlp `ivi`, с R172 — сами, без yt-dlp, [[cord-ivi-stream]]); форматы `-MDRM-`/`-FPS-` не берутся →
+  только бесплатное, только из РФ (или через `CINEMA_PROXY_IVI`).
 
 **Нельзя и почему:**
 - **Кинопоиск** — DRM + подписка; `X-Frame-Options` на сайте и даже у виджета трейлеров (DENY);
