@@ -519,6 +519,52 @@ describe('микрофон: один захват на встречу (R160)', (
       media.dispose();
     }
   });
+
+  it('смена обработки звука не стирает устройство захвата: перезахват LiveKit шёл бы в { audio: true }', async () => {
+    const { media, track } = micSession({ suppression: 'browser' });
+    const applyConstraints = vi.fn(async () => {});
+    Object.assign(track, { applyConstraints });
+    try {
+      await media.toggle('microphone');
+      const audio = media.preferences.get().audio;
+      await media.setAudioSettings({ ...audio, echoCancellation: false });
+      expect(applyConstraints).toHaveBeenCalled();
+      const last = applyConstraints.mock.calls.at(-1) as unknown as [Record<string, unknown>];
+      expect(last[0]).not.toHaveProperty('deviceId');
+      expect(last[0]).toMatchObject({ echoCancellation: false });
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('пока собирался шумодав, микрофон уже опубликовало переподключение — второй публикации нет', async () => {
+    const { media, local, track, publication } = micSession({ suppression: 'rnnoise' });
+    const publications = local.trackPublications as Map<Track.Source, unknown>;
+    const second = audioTrack();
+    vi.mocked(createLocalAudioTrack).mockResolvedValueOnce(second.track as never);
+    let release!: () => void;
+    second.setProcessor.mockImplementationOnce(async (processor: CordAudioProcessor) => {
+      await new Promise<void>((resolve) => (release = resolve));
+      second.track.processor = processor;
+    });
+    const unmute = vi.fn(async () => {
+      track.isMuted = false;
+    });
+    Object.assign(track, { unmute });
+    try {
+      const going = media.toggle('microphone');
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      track.isMuted = true;
+      publications.set(Track.Source.Microphone, publication);
+      release();
+      await going;
+      expect(local.publishTrack).not.toHaveBeenCalled();
+      expect(second.track.stop).toHaveBeenCalled();
+      expect(unmute).toHaveBeenCalled();
+    } finally {
+      media.dispose();
+    }
+  });
 });
 
 describe('микрофон с предвхода (R160)', () => {

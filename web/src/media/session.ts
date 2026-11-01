@@ -67,6 +67,7 @@ import { receivedLevel, waitForPause } from './speech-pause';
 import { applyVolumeNow } from './volume';
 import {
   audioCapture,
+  audioProcessing,
   captureTrack,
   CordAudioProcessor,
   microphoneOptions,
@@ -1594,9 +1595,19 @@ export class MediaSession {
     const device = deviceId || this.preferences.get().devices.microphone;
     const handed = this.takeHandedMicrophone(device);
     // Дорожка с предвхода — не «чужая»: LiveKit может перезахватить её сам (кончилась, сменили
-    // устройство) с теми же ограничениями, что у захвата.
+    // устройство) — с этими ограничениями. Устройство в них — то, что захвачено на самом деле: без
+    // него перезахват LiveKit шёл бы в `{ audio: true }` (микрофон по умолчанию, без обработки).
+    const capturedOn = handed?.getSettings?.().deviceId || device;
     const track = handed
-      ? new LocalAudioTrack(handed, handed.getConstraints(), false, this.audioContext ?? undefined)
+      ? new LocalAudioTrack(
+          handed,
+          {
+            ...audioCapture(audio),
+            deviceId: capturedOn || { ideal: 'default' },
+          } as MediaTrackConstraints,
+          false,
+          this.audioContext ?? undefined,
+        )
       : await createLocalAudioTrack(audioCapture(audio, device));
     if (this.disposed) {
       track.stop();
@@ -1605,7 +1616,7 @@ export class MediaSession {
     let failed: unknown;
     try {
       // Обработку звука могли поменять на предвходе уже после захвата.
-      if (handed) await track.applyConstraints(audioCapture(audio));
+      if (handed) await track.applyConstraints(audioProcessing(audio));
       // Обработчику нужен контекст звука, а LiveKit даёт его дорожке только при публикации.
       if (this.audioContext) track.setAudioContext(this.audioContext);
       if (needsAudioProcessor(audio)) await track.setProcessor(new CordAudioProcessor(audio));
@@ -1613,6 +1624,20 @@ export class MediaSession {
       failed = error;
     }
     if (muted) await track.mute();
+    // Ушли, пока собирался обработчик: публиковать некуда, а захват горел бы ещё 15 с, пока LiveKit
+    // не сдастся (ревью 01.11.2026).
+    if (this.disposed) {
+      track.stop();
+      return;
+    }
+    // Пока собирался обработчик, микрофон уже опубликовали (переподключение, R151): второй
+    // публикации не бывать — выключение глушило бы одну, а вторая звучала бы при кнопке «выключен».
+    const already = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+    if (already instanceof LocalAudioTrack) {
+      track.stop();
+      if (!muted && already.isMuted) await already.unmute();
+      return;
+    }
     try {
       await this.room.localParticipant.publishTrack(track, {
         ...microphoneOptions(),
@@ -1807,22 +1832,38 @@ export class MediaSession {
       ] as const) {
         if (this.disposed || cycle !== this.connectionCycle) return;
         if (!wanted || this.room.localParticipant.getTrackPublication(source)?.track) continue;
-        const track = this.deviceTracks.get(source);
-        if (source === Track.Source.Camera) await this.ensureCameraCodec();
-        if (track && liveCapture(track))
-          await this.room.localParticipant.publishTrack(track, {
-            ...(source === Track.Source.Camera ? this.cameraOptionsNow() : microphoneOptions()),
-            source,
-          });
-        else if (source === Track.Source.Camera) {
-          await this.room.localParticipant.setCameraEnabled(
-            true,
-            this.cameraCaptureNow(),
-            this.cameraOptionsNow(),
-          );
-          this.forgetZoom();
-        } else {
-          await this.publishMicrophone(undefined, false);
+        const kind = source === Track.Source.Camera ? 'camera' : 'microphone';
+        // Нажатие уже переключает это устройство — оно и опубликует; второй захват не нужен.
+        if (this.deviceBusy.has(kind)) continue;
+        // Пока публикуем, кнопка занята и показывает «включён» (ревью 01.11.2026): статус уже
+        // `connected`, и нажатие в это окно публиковало второй микрофон рядом с этим.
+        this.deviceBusy.add(kind);
+        const heading = kind === 'camera' ? this.cameraHeading : this.micHeading;
+        heading.set(true);
+        try {
+          const track = this.deviceTracks.get(source);
+          if (source === Track.Source.Camera) await this.ensureCameraCodec();
+          if (track && liveCapture(track))
+            await this.room.localParticipant.publishTrack(track, {
+              ...(source === Track.Source.Camera ? this.cameraOptionsNow() : microphoneOptions()),
+              source,
+            });
+          else if (source === Track.Source.Camera) {
+            await this.room.localParticipant.setCameraEnabled(
+              true,
+              this.cameraCaptureNow(),
+              this.cameraOptionsNow(),
+            );
+            this.forgetZoom();
+          } else {
+            // Захват кончился — дорожку с её обработчиком (граф RNNoise на общем контексте) не
+            // бросать, а остановить: иначе ворклет крутился бы до конца встречи.
+            track?.stop();
+            await this.publishMicrophone(undefined, false);
+          }
+        } finally {
+          heading.set(undefined);
+          this.deviceBusy.delete(kind);
         }
       }
       // Выключенный, но захваченный микрофон (W5 или выключенный кнопкой) после полного
@@ -2123,7 +2164,7 @@ export class MediaSession {
       const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
       try {
         if (track instanceof LocalAudioTrack) {
-          await track.applyConstraints(audioCapture(audio));
+          await track.applyConstraints(audioProcessing(audio));
           await this.applyAudioProcessor(audio);
         }
         this.preferences.set(savePreferences({ audio }));

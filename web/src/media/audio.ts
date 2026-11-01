@@ -47,6 +47,16 @@ export function audioCapture(audio: AudioPreferences, deviceId?: string): AudioC
     channelCount: 1,
   };
 }
+/**
+ * Обработка звука без устройства — для `applyConstraints` уже идущей дорожки. LiveKit сливает их с тем,
+ * что помнит о захвате (`{...прежние, ...эти}`), и явный `deviceId: undefined` из {@link audioCapture}
+ * стирал выбранный микрофон: следующий перезахват (переподключение, R147) шёл в `{ audio: true }` —
+ * микрофон по умолчанию, без эхоподавления и шумодава из настроек (ревью 01.11.2026).
+ */
+export function audioProcessing(audio: AudioPreferences): Omit<AudioCaptureOptions, 'deviceId'> {
+  const { deviceId: _device, ...processing } = audioCapture(audio);
+  return processing;
+}
 export function needsAudioProcessor(audio: AudioPreferences) {
   return audio.suppression === 'rnnoise' || audio.gain !== 1;
 }
