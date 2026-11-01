@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -636,6 +637,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
           </Suspense>
         </div>
         {watchers.length > 0 && strip(watchers)}
+        <GameBarHeight />
       </>,
     );
   } else if (occupant?.kind === 'durak' && snapshot.durak) {
@@ -653,6 +655,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
           </Suspense>
         </div>
         {watchers.length > 0 && strip(watchers)}
+        <GameBarHeight />
       </>,
     );
   } else if (occupant?.kind === 'cinema') {
@@ -769,4 +772,43 @@ export function Stage({ meeting }: { meeting: Meeting }) {
       )}
     </>
   );
+}
+
+/**
+ * Высота шапки стола (`--game-bar-h` на слое сцены) — колонке зрителей справа (R181): шапка идёт во всю
+ * ширину сцены, а колонка встаёт под ней (`stage.css`). Шапка переносится в две строки на узком окне,
+ * поэтому высота мерится, а не задаётся. Стол грузится лениво — шапку ищем, пока она не появится.
+ */
+function GameBarHeight() {
+  const mark = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const stage = mark.current?.closest<HTMLElement>('.stage');
+    if (!stage) return;
+    let bar: Element | null = null;
+    const measure = () => {
+      if (!bar?.isConnected) return find();
+      const height = bar.getBoundingClientRect().bottom - stage.getBoundingClientRect().top;
+      if (height > 0) stage.style.setProperty('--game-bar-h', `${Math.round(height)}px`);
+    };
+    const sizes = new ResizeObserver(measure);
+    const appear = new MutationObserver(() => find());
+    function find() {
+      const next = stage!.querySelector(':scope > .poker-main :is(.durak-bar, .poker-bar)');
+      if (next === bar) return;
+      if (bar) sizes.unobserve(bar);
+      bar = next;
+      if (bar) {
+        appear.disconnect();
+        sizes.observe(bar);
+        measure();
+      } else appear.observe(stage!, { childList: true, subtree: true });
+    }
+    find();
+    return () => {
+      sizes.disconnect();
+      appear.disconnect();
+      stage.style.removeProperty('--game-bar-h');
+    };
+  }, []);
+  return <span ref={mark} hidden />;
 }

@@ -2,15 +2,18 @@
   Пульт звонка (E04, T22, П6). Только токены `styles/tokens.css`.
 
   Три отдельные группы-плашки над сценой с зазором между ними: слева микрофон, камера и экран;
-  в центре «ещё» и «выйти»; справа чат, участники и интеграции. Пульт всегда тёмный — он часть
-  сцены (`.media-stage` на подвале), и группы стоят по центру сцены, а расположение участников и
-  полный экран — тихими значками у правого края, отдельно от групп.
+  в центре «ещё» и «выйти»; справа чат, участники и интеграции. Пульт — в теме человека (R175): в
+  тёмной он часть сцены, в светлой — белые плашки на светлом поле (`--call-dock-*`, `styles/tokens.css`);
+  подвал остаётся `.media-stage`, и в тёмной теме всё как было. Группы стоят по центру сцены, а
+  расположение участников и полный экран — тихими значками у правого края, отдельно от групп.
 
   Высоту места под пультом знают трое — сцена, панель поверх сцены и сам пульт — и все берут её из
   `--dock-space` (`stage.css`). Подвал во всю ширину сцены нажатий не ловит: ловят только группы и
   значки, иначе прозрачная полоса во весь экран съедала бы клики по кадру.
 */
 .call-footer {
+  /* Плашки пульта и ободок кружка непрочитанных — цветом пульта темы, а не сценой. */
+  --dock-bg: var(--call-dock-bg);
   position: absolute;
   z-index: var(--z-dock);
   left: var(--space-3);
@@ -38,7 +41,21 @@
   padding: var(--dock-pad);
   border-radius: var(--radius-5);
   background: var(--dock-bg);
-  box-shadow: var(--shadow-2);
+  box-shadow: var(--call-dock-shadow);
+}
+/* Кнопки пульта — цветами пульта темы (R175): на белой плашке белый «сценный» значок не виден. */
+.call-footer .ui-icon-button--stage {
+  color: var(--call-dock-ink);
+}
+.call-footer .ui-icon-button--stage:hover {
+  background: var(--call-dock-hover);
+  color: var(--call-dock-ink);
+}
+.call-footer .ui-icon-button--stage[aria-pressed='false'] {
+  background: var(--call-dock-off);
+}
+.call-footer .ui-icon-button--stage[aria-pressed='false'] > svg {
+  color: var(--call-dock-off-ink);
 }
 .dock-button.ui-icon-button {
   position: relative;
@@ -55,7 +72,7 @@
   background: transparent;
 }
 .dock-toggle.ui-icon-button--stage[aria-pressed='false']:hover {
-  background: var(--surface-hover);
+  background: var(--call-dock-hover);
 }
 .dock-toggle.ui-icon-button--stage[aria-pressed='false'] > svg {
   color: inherit;
@@ -133,10 +150,10 @@
 .dock-tool.ui-icon-button {
   width: var(--control-lg);
   height: var(--control-lg);
-  color: var(--stage-muted);
+  color: var(--call-dock-muted);
 }
 .dock-tool.ui-icon-button:hover {
-  color: var(--stage-text);
+  color: var(--call-dock-ink);
 }
 /* «Ещё» — меню на тринадцать пунктов: на телефоне оно выше экрана, и лучше прокрутка, чем обрез. */
 .dock-menu {

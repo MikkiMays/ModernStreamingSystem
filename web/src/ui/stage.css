@@ -43,7 +43,7 @@
 */
 .meeting-body.panel-open {
   grid-template-columns: minmax(0, 1fr) auto var(--panel-width);
-  background: var(--stage-bg);
+  background: var(--call-bg);
 }
 .meeting-body > .panel-resizer {
   margin-inline: calc(var(--space-3) * -1) 0;
@@ -57,7 +57,8 @@
   flex-direction: column;
   overflow: hidden;
   padding: var(--space-3) var(--space-3) var(--dock-space);
-  background: var(--stage-bg);
+  /* Поле вокруг сцены — в теме человека (R175): в тёмной это сама сцена, в светлой — светлое. */
+  background: var(--call-bg);
   color: var(--stage-text);
 }
 .stage-wrap:has(.watch-stage) {
@@ -75,6 +76,16 @@
 .stage.media-stage,
 .people-strip.media-stage {
   background: transparent;
+}
+/*
+  Интеграция на сцене (столы, доска, кинозал) — тёмной карточкой (R175): их шапки, подписи и кнопки
+  нарисованы на тёмном. В тёмной теме карточка сливается с полем, в светлой — стоит на нём, с полем
+  внутри, чтобы шапка не прилипала к краю. Плитки разговора лежат прямо на поле, как и были.
+*/
+.stage.media-stage[data-stage-layer] {
+  padding: var(--call-layer-pad);
+  border-radius: var(--radius-4);
+  background: var(--stage-bg);
 }
 
 /*
@@ -819,14 +830,27 @@ button.watch-stream.is-stop:hover {
   grid-template-rows: minmax(0, 1fr);
 }
 @media (min-width: 640px) and (min-aspect-ratio: 5 / 4) {
+  /*
+    Колонка зрителей — справа, но под шапкой стола (R181): шапка идёт во всю ширину сцены, до правого края,
+    а колонка начинается под ней. Стол отдаёт колонке поле справа — у дурака отступом корня (его раскладка
+    считается в `cq*` от области содержимого и не меняется), у покера — полем под шапкой; шапка заходит в
+    это поле обратно. Высоту шапки меряет `Stage.tsx` (`--game-bar-h`).
+  */
   .stage:is([data-stage-layer='durak'], [data-stage-layer='poker']):has(> .people-strip) {
-    grid-template-columns: minmax(0, 1fr) auto;
+    --game-aside: clamp(104px, 11vw, 184px);
+    --game-aside-room: calc(var(--game-aside) + var(--space-2));
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
   .stage:is([data-stage-layer='durak'], [data-stage-layer='poker']) > .people-strip {
+    position: absolute;
+    inset-inline-end: var(--call-layer-pad);
+    top: calc(var(--game-bar-h, 57px) + var(--space-2));
+    bottom: var(--call-layer-pad);
     flex-direction: column;
     justify-content: safe center;
-    width: clamp(104px, 11vw, 184px);
+    width: var(--game-aside);
     height: auto;
     min-height: 0;
     overflow-x: hidden;
@@ -836,6 +860,15 @@ button.watch-stream.is-stop:hover {
     width: 100%;
     height: auto;
     max-width: none;
+  }
+  .stage[data-stage-layer='durak']:has(> .people-strip) .durak.durak-refined[data-phase] {
+    padding-inline-end: var(--game-aside-room);
+  }
+  .stage[data-stage-layer='durak']:has(> .people-strip) .durak.durak-refined[data-phase] .durak-bar {
+    margin-inline-end: calc(-1 * var(--game-aside-room));
+  }
+  .stage[data-stage-layer='poker']:has(> .people-strip) .poker > :not(.poker-bar) {
+    margin-inline-end: var(--game-aside-room);
   }
 }
 
