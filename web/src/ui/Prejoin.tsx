@@ -29,7 +29,10 @@ export function Prejoin({
 }: {
   destination: Destination | null;
   onBack: () => void;
-  onJoin: (admission: Admission, choices: DeviceChoice & { micOn: boolean; cameraOn: boolean }) => void;
+  onJoin: (
+    admission: Admission,
+    choices: DeviceChoice & { micOn: boolean; cameraOn: boolean; microphoneTrack?: MediaStreamTrack },
+  ) => void;
   /**
    * «Перейти туда» (T52): открыть встречу, где этот профиль уже есть. `false` — из этой вкладки
    * туда дороги нет (встреча идёт в другой вкладке или окне).
@@ -203,9 +206,16 @@ export function Prejoin({
       if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
       // Имя — тоже общая настройка (R146): через savePreferences, чтобы его узнала оболочка.
       savePreferences({ name: name.trim(), devices: choices });
+      // Включённый здесь микрофон уходит во встречу как есть (R160): второй захват — второе окно
+      // разрешения там, где браузер спрашивает на каждый, и щелчок гарнитуры Bluetooth, которая
+      // переключает режим, когда захват кончается и начинается снова.
+      const microphone = mic
+        ? stream.current.getAudioTracks().find((t) => t.readyState === 'live')
+        : undefined;
+      if (microphone) stream.current.removeTrack(microphone);
       stream.current.getTracks().forEach((t) => t.stop());
       setElsewhere(null);
-      onJoin(admission, { ...choices, micOn: mic, cameraOn: camera });
+      onJoin(admission, { ...choices, micOn: mic, cameraOn: camera, microphoneTrack: microphone });
     } catch (e) {
       settle?.(null);
       refused(e);

@@ -84,7 +84,7 @@ function Workspace() {
   }, []);
   const enter = async (
     admission: Admission,
-    choices: DeviceChoice & { micOn: boolean; cameraOn: boolean },
+    choices: DeviceChoice & { micOn: boolean; cameraOn: boolean; microphoneTrack?: MediaStreamTrack },
   ) => {
     rememberMeeting(admission);
     sessionStorage.removeItem(`cord:ended:${admission.roomId}`);

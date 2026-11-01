@@ -189,6 +189,8 @@ export const SIGNAL_GRACE_MS = 8_000;
  * захватывать его заново при включении (R147, R160): по возвращении на экран она снимает её сама.
  */
 export const MIC_UNMUTE_GRACE_MS = 600;
+/** Сколько встреча ждёт, чтобы взять микрофон с предвхода, прежде чем отпустить его (R160). */
+export const HANDED_MICROPHONE_MS = 15_000;
 /**
  * Пауза между попытками, пока сеть не пропускает звонок (R149). Сама попытка — до 10 с ожидания ICE
  * (`peerConnectionTimeout`), и всё это время ядро видит участника в SFU; цикл короче окна
@@ -505,6 +507,9 @@ export class MediaSession {
    */
   readonly micHeading = new Store<boolean | undefined>(undefined);
   private micSetting?: Promise<void>;
+  /** Микрофон с предвхода, который ещё не опубликован (`adoptMicrophone`). */
+  private handedMicrophone?: MediaStreamTrack;
+  private handedTimer?: ReturnType<typeof setTimeout>;
   private deviceBusy = new Set<string>();
   private wanted = { microphone: false, camera: false };
   private connectionCycle = 0;
@@ -1537,6 +1542,38 @@ export class MediaSession {
     }
   }
   /**
+   * Микрофон, включённый на предвходе (R160): первое включение во встрече берёт его, а не захватывает
+   * второй раз — без второго окна разрешения и без щелчка гарнитуры Bluetooth, которая переключает
+   * режим на каждом новом захвате. Ждёт {@link HANDED_MICROPHONE_MS}: дольше (ведущий ещё не впустил)
+   * держать занятый микрофон незачем, включение тогда захватит его обычным путём.
+   */
+  adoptMicrophone(track: MediaStreamTrack) {
+    this.dropHandedMicrophone();
+    if (this.disposed) {
+      track.stop();
+      return;
+    }
+    this.handedMicrophone = track;
+    this.handedTimer = setTimeout(() => this.dropHandedMicrophone(), HANDED_MICROPHONE_MS);
+  }
+  private dropHandedMicrophone() {
+    clearTimeout(this.handedTimer);
+    this.handedMicrophone?.stop();
+    this.handedMicrophone = undefined;
+  }
+  /** Микрофон с предвхода, если он ещё жив и того устройства, о котором просят. */
+  private takeHandedMicrophone(deviceId: string | undefined) {
+    const track = this.handedMicrophone;
+    clearTimeout(this.handedTimer);
+    this.handedMicrophone = undefined;
+    if (!track) return undefined;
+    const settings = track.getSettings?.() ?? {};
+    if (track.readyState === 'live' && (!deviceId || !settings.deviceId || settings.deviceId === deviceId))
+      return track;
+    track.stop();
+    return undefined;
+  }
+  /**
    * Захватить микрофон и опубликовать — один раз на встречу (R160): дальше «выключить» и «включить»
    * — это `mute`/`unmute` той же дорожки, без нового `getUserMedia` (а значит, и без нового окна
    * разрешения там, где браузер спрашивает на каждый захват).
@@ -1544,19 +1581,25 @@ export class MediaSession {
    * Шумодав и усиление ставятся **до** публикации: раньше LiveKit публиковал сырой захват, и
    * обработчик подменял его уже в эфире — первые сотни миллисекунд комната слышала микрофон без
    * шумодава, а потом обрыв на подмене. Не собрался обработчик (WASM не загрузился) — микрофон всё
-   * равно включается, без него; ошибка — после публикации.
+   * равно включается, без него, а строка внизу говорит почему.
    */
   private async publishMicrophone(deviceId: string | undefined, muted: boolean) {
     const audio = this.preferences.get().audio;
-    const track = await createLocalAudioTrack(
-      audioCapture(audio, deviceId || this.preferences.get().devices.microphone),
-    );
+    const device = deviceId || this.preferences.get().devices.microphone;
+    const handed = this.takeHandedMicrophone(device);
+    // Дорожка с предвхода — не «чужая»: LiveKit может перезахватить её сам (кончилась, сменили
+    // устройство) с теми же ограничениями, что у захвата.
+    const track = handed
+      ? new LocalAudioTrack(handed, handed.getConstraints(), false, this.audioContext ?? undefined)
+      : await createLocalAudioTrack(audioCapture(audio, device));
     if (this.disposed) {
       track.stop();
       return;
     }
     let failed: unknown;
     try {
+      // Обработку звука могли поменять на предвходе уже после захвата.
+      if (handed) await track.applyConstraints(audioCapture(audio));
       // Обработчику нужен контекст звука, а LiveKit даёт его дорожке только при публикации.
       if (this.audioContext) track.setAudioContext(this.audioContext);
       if (needsAudioProcessor(audio)) await track.setProcessor(new CordAudioProcessor(audio));
@@ -1574,7 +1617,8 @@ export class MediaSession {
       throw error;
     }
     if (this.disposed) track.stop();
-    if (failed) throw failed;
+    // Микрофон уже звучит, только без обработки: сказать об этом, но включение не проваливать.
+    else if (failed) this.report(failed);
   }
   /**
    * Переподключается только сигнал (R151). На Wi-Fi под тяжёлым кинозалом сокет сигнала опаздывает, а
@@ -2736,6 +2780,7 @@ export class MediaSession {
     this.disposed = true;
     // Встреча кончилась — и её «звук встречи» с ней (R161): сигналы на главной и в следующей звучат.
     setMeetingDeafened(false);
+    this.dropHandedMicrophone();
     this.screenPublishAbort?.abort();
     this.liveAbort.abort();
     this.generation++;
