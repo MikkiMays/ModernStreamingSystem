@@ -41,3 +41,4 @@ export { ResizeHandle, type ResizeHandleProps } from './ResizeHandle';
 export { usePanelWidth, usePanelCollapsed, forgetPanelWidths, type PanelWidthOptions } from './usePanelWidth';
 export { Logo, CordMark, CordWordmark, AppIcon } from '../brand/Logo';
 export { Coachmark, type CoachmarkProps } from './Coachmark';
+export { HintIcon } from './HintIcon';

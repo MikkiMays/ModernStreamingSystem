@@ -477,6 +477,71 @@
   color: var(--muted);
 }
 
+/*
+  «?» с подсказкой (R173): значок мельче строки и тише текста — пояснение, а не кнопка. Подсказка — над
+  меню и диалогами (она открывается и из них), стеклом слоя меню, в одну-две строки.
+*/
+.ui-hint {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-inline-start: var(--space-1);
+  vertical-align: -3px;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  cursor: help;
+  outline: none;
+}
+.ui-hint > svg {
+  width: 14px;
+  height: 14px;
+}
+.ui-hint:hover,
+.ui-hint[data-popup-open] {
+  color: var(--text);
+}
+.ui-hint:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.ui-hint__layer {
+  z-index: var(--z-toast);
+}
+.ui-hint__popup {
+  max-width: 240px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-2);
+  background: var(--menu-bg);
+  box-shadow: var(--shadow-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+.ui-hint__popup[data-starting-style],
+.ui-hint__popup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96);
+}
+.ui-hint__text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ui-switch-row__head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 /* ---------- вкладки ---------- */
 .ui-tabs {
   display: grid;

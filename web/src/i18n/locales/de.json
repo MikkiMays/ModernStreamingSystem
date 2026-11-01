@@ -2490,7 +2490,9 @@
       "renameGroupField": "Neuer Name für die Gruppe „{{title}}“",
       "groupRemoved": "Gruppe „{{title}}“ gelöscht, ihre Räume sind jetzt in der allgemeinen Liste",
       "removeTitle": "„{{name}}“ aus den Favoriten entfernen?"
-    }
+    },
+    "autojoinHint": "Beim automatischen Beitreten ist dein Mikrofon immer sofort an – man hört dich, sobald du drin bist.",
+    "autojoinHintLabel": "Was automatisches Beitreten bewirkt"
   },
   "chat": {
     "uploadFailed": "Upload fehlgeschlagen",

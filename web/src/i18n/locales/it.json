@@ -2519,7 +2519,9 @@
       "renameGroupField": "Nuovo nome del gruppo «{{title}}»",
       "groupRemoved": "Gruppo «{{title}}» eliminato, le stanze sono nell'elenco generale",
       "removeTitle": "Rimuovere «{{name}}» dai Preferiti?"
-    }
+    },
+    "autojoinHint": "Con l'accesso automatico il microfono è sempre acceso: ti sentono appena entri.",
+    "autojoinHintLabel": "Cosa fa l'accesso automatico"
   },
   "chat": {
     "uploadFailed": "Caricamento non riuscito",

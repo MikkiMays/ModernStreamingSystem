@@ -2490,7 +2490,9 @@
       "renameGroupField": "New name for group “{{title}}”",
       "groupRemoved": "Group “{{title}}” deleted; its rooms moved to the main list",
       "removeTitle": "Remove “{{name}}” from Favorites?"
-    }
+    },
+    "autojoinHint": "With auto-join, your microphone is always on — people hear you as soon as you join.",
+    "autojoinHintLabel": "What auto-join does"
   },
   "chat": {
     "uploadFailed": "Upload failed",

@@ -2519,7 +2519,9 @@
       "renameGroupField": "Nouveau nom du groupe « {{title}} »",
       "groupRemoved": "Groupe « {{title}} » supprimé, ses salles sont dans la liste générale",
       "removeTitle": "Retirer « {{name}} » des favoris ?"
-    }
+    },
+    "autojoinHint": "Avec la connexion automatique, le micro est toujours activé : on vous entend dès que vous rejoignez.",
+    "autojoinHintLabel": "Ce que fait la connexion automatique"
   },
   "chat": {
     "uploadFailed": "Échec de l'envoi",

@@ -358,6 +358,11 @@ it('«Автоподключение» в меню комнаты — перек
   expect(view.getByRole('menu')).toBeInTheDocument();
   fireEvent.click(item);
   expect(autoJoinEnabled(room.roomId)).toBe(false);
+  // «?» у подписи (R173): про микрофон — описанием пункта; нажатие на значок пункт не переключает.
+  expect(item).toHaveAccessibleDescription(/микрофон всегда включается сразу/);
+  fireEvent.click(item.querySelector('.ui-hint')!);
+  expect(autoJoinEnabled(room.roomId)).toBe(false);
+  expect(item).toHaveAttribute('aria-checked', 'false');
 });
 
 it('«Закрепить» стоит слева от «…» у каждой встречи и закрепляет одним нажатием (R71)', async () => {

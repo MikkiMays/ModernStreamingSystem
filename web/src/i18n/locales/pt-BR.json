@@ -2519,7 +2519,9 @@
       "renameGroupField": "Novo nome do grupo “{{title}}”",
       "groupRemoved": "Grupo “{{title}}” excluído; as salas foram para a lista geral",
       "removeTitle": "Remover “{{name}}” dos Favoritos?"
-    }
+    },
+    "autojoinHint": "Com a entrada automática, o microfone sempre liga — todos ouvem você assim que você entra.",
+    "autojoinHintLabel": "O que a entrada automática faz"
   },
   "chat": {
     "uploadFailed": "Falha no envio",

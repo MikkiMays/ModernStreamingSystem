@@ -2461,7 +2461,9 @@
       "renameGroupField": "分组“{{title}}”的新名称",
       "groupRemoved": "分组“{{title}}”已删除，其中的房间已移至总列表",
       "removeTitle": "要将“{{name}}”从收藏中移除吗？"
-    }
+    },
+    "autojoinHint": "自动进入时麦克风总是立即开启——一进入大家就能听到你。",
+    "autojoinHintLabel": "自动进入的作用"
   },
   "chat": {
     "uploadFailed": "上传失败",
