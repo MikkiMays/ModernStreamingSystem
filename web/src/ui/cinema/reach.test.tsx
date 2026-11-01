@@ -3,7 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/client';
-import { CATALOG_TIMEOUT, retryCatalog, type ProviderId } from '../../core/cinema';
+import {
+  CATALOG_TIMEOUT,
+  countryName,
+  regionRefusal,
+  retryCatalog,
+  type ProviderId,
+} from '../../core/cinema';
 import type { Meeting } from '../../core/meeting';
 import { i18next, t } from '../../i18n';
 import en from '../../i18n/locales/en.json';
@@ -241,5 +247,19 @@ describe('слова отказа', () => {
     expect(retryCatalog(0, new ApiError(503, 'CINEMA_UNREACHABLE', 'x'))).toBe(false);
     expect(retryCatalog(0, new ApiError(504, 'CINEMA_TIMEOUT', 'x'))).toBe(false);
     expect(retryCatalog(0, new DOMException('x', 'TimeoutError'))).toBe(false);
+    // Площадка не той страны (R172): от повтора страна сервера не изменится.
+    expect(retryCatalog(0, new ApiError(403, 'CINEMA_REGION', 'x'))).toBe(false);
+  });
+
+  it('отказ «только с серверов другой страны» узнаётся по коду, а страна сервера — по названию на языке человека', () => {
+    const region = new ApiError(403, 'CINEMA_REGION', 'x', { code: 'CINEMA_REGION', country: 'DE' });
+    expect(regionRefusal(region)).toBe('DE');
+    expect(regionRefusal(new ApiError(403, 'CINEMA_REGION', 'x'))).toBe('');
+    expect(regionRefusal(new ApiError(503, 'CINEMA_UNREACHABLE', 'x'))).toBeNull();
+    expect(regionRefusal(new Error('x'))).toBeNull();
+    expect(countryName(t, 'DE')).toBe('Германия');
+    expect(countryName(t, 'de')).toBe('Германия');
+    expect(countryName(t, '')).toBe('');
+    expect(countryName(t, null)).toBe('');
   });
 });

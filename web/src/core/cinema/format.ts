@@ -34,3 +34,16 @@ export function published(t: Translate, value: string | null | undefined): strin
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString(locale(t), { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+/**
+ * Страна по коду ISO 3166-1 (`DE`) — названием на языке человека: «Германия», «Germany». Код, которого
+ * `Intl` не знает, остаётся кодом; пустой — пустая строка.
+ */
+export function countryName(t: Translate, code: string | null | undefined): string {
+  if (!code) return '';
+  try {
+    return new Intl.DisplayNames([locale(t)], { type: 'region' }).of(code.toUpperCase()) ?? code;
+  } catch {
+    return code;
+  }
+}

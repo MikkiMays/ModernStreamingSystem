@@ -14,6 +14,11 @@ import { ApiError } from '../../api/client';
 export const UNREACHABLE = 'CINEMA_UNREACHABLE';
 export const LATE = 'CINEMA_TIMEOUT';
 /**
+ * Площадка работает только с серверов другой страны (ivi — только из России, R172): служба отказывает
+ * сразу, и каталог площадки вместо пустой витрины говорит, в чём дело.
+ */
+export const REGION = 'CINEMA_REGION';
+/**
  * Те же два отказа у музыки (поиск и ссылки YouTube идут тем же yt-dlp и тем же автоматом площадки,
  * что и кинозал): `503 MUSIC_UNREACHABLE` и `504 MUSIC_TIMEOUT`, площадка — в поле `source`.
  */
@@ -76,10 +81,25 @@ export function timedOut(problem: unknown): boolean {
 /**
  * Повторять ли вопрос каталога сам, без человека. Мигнувшую сеть и отказ площадки — один раз, как и
  * раньше. Площадку, недоступную отсюда, и вышедший срок — нет: служба ответит тем же, а второй срок
- * ожидания удвоил бы «Спрашиваем площадку…». Для них у отказа есть кнопка «Повторить».
+ * ожидания удвоил бы «Спрашиваем площадку…». Для них у отказа есть кнопка «Повторить». Площадку не той
+ * страны (`CINEMA_REGION`) — тем более: от повтора страна сервера не изменится.
  */
 export function retryCatalog(failures: number, problem: unknown): boolean {
   if (timedOut(problem)) return false;
-  if (problem instanceof ApiError && (problem.code === UNREACHABLE || problem.code === LATE)) return false;
+  if (
+    problem instanceof ApiError &&
+    (problem.code === UNREACHABLE || problem.code === LATE || problem.code === REGION)
+  )
+    return false;
   return failures < 1;
+}
+
+/**
+ * Отказ «площадка работает только с серверов другой страны» (`CINEMA_REGION`)? Ответ — страна этого
+ * сервера кодом (`DE`), пустая строка — служба её не назвала, `null` — это другой отказ.
+ */
+export function regionRefusal(problem: unknown): string | null {
+  if (!(problem instanceof ApiError) || problem.code !== REGION) return null;
+  const country = problem.problem.country;
+  return typeof country === 'string' ? country : '';
 }

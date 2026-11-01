@@ -130,9 +130,15 @@ function answer(url: URL, body: string | undefined): [number, unknown] {
 
 /** Что спросили у службы: `endpoint запрос/id[ сезон]`. */
 const asked: string[] = [];
+/** Что служба говорит об ivi в списке площадок (`GET providers`); по умолчанию — доступна. */
+let iviEntry: Record<string, unknown> = {};
+/** Ответ на любой вопрос каталога вместо обычного — отказ службы, если тест его назначил. */
+let refusal: [number, unknown] | null = null;
 
 beforeEach(() => {
   asked.length = 0;
+  iviEntry = {};
+  refusal = null;
   vi.stubGlobal(
     'fetch',
     vi.fn((input: string, init?: RequestInit) => {
@@ -140,6 +146,14 @@ beforeEach(() => {
       const params = url.searchParams;
       const endpoint = url.pathname.split('/cinema/')[1];
       const body = typeof init?.body === 'string' ? init.body : undefined;
+      if (endpoint === 'providers') {
+        const entry = { id: 'ivi', available: true, reason: null, account: 'none', connected: false };
+        return json({ providers: [{ ...entry, features: {}, ...iviEntry }] });
+      }
+      if (refusal && endpoint !== 'link') {
+        asked.push(`${endpoint} ${params.get('id') ?? params.get('query') ?? ''}`.trim());
+        return json(refusal[1], refusal[0]);
+      }
       if (endpoint === 'link') asked.push(`link ${(JSON.parse(body ?? '{}') as { url: string }).url}`);
       else {
         expect(params.get('provider')).toBe('ivi');
@@ -173,9 +187,17 @@ function Host({ meeting }: { meeting: Meeting }) {
   ) : null;
 }
 
-function mount() {
+/**
+ * Сцена на встрече. `told` — список площадок уже спрошен панелью интеграций (тот же ключ, минута памяти),
+ * как это и бывает: каталог открывают с плитки площадки.
+ */
+function mount(told = false) {
   const meeting = sceneMeeting('ivi');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  if (told) {
+    const entry = { id: 'ivi', available: true, reason: null, account: 'none', connected: false };
+    client.setQueryData(['cinema', 'providers'], { providers: [{ ...entry, features: {}, ...iviEntry }] });
+  }
   render(
     <QueryClientProvider client={client}>
       <Host meeting={meeting} />
@@ -327,5 +349,52 @@ it('открытая по ссылке на ролик сцена начинае
   );
   expect(await screen.findByRole('heading', { name: MOVIE.title })).toBeInTheDocument();
   expect(screen.queryByRole('tablist', { name: 'Разделы ivi' })).toBeNull();
+  client.clear();
+});
+
+it('сервер не в России (по списку площадок) — сцена сразу говорит это и витрину не спрашивает (R172)', async () => {
+  iviEntry = {
+    available: false,
+    reason: 'ivi показывает фильмы только на серверах в России',
+    code: 'CINEMA_REGION',
+    country: 'DE',
+  };
+  const { client } = mount(true);
+  expect(await screen.findByText('ivi работает только с серверов в России')).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Страна сервера этой встречи: Германия. Остальные площадки кинозала работают как обычно.',
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole('tab', { name: 'Фильмы' })).toBeNull();
+  expect(screen.queryByText('Спрашиваем площадку…')).toBeNull();
+  expect(asked.filter((line) => /^(categories|category|search)/.test(line))).toEqual([]);
+  client.clear();
+});
+
+it('отказ «только в России» на вопросе каталога — то же состояние, без «Повторить» по кругу', async () => {
+  refusal = [
+    403,
+    { code: 'CINEMA_REGION', detail: 'ivi показывает фильмы только на серверах в России', provider: 'ivi' },
+  ];
+  const { client } = mount();
+  expect(await screen.findByText('ivi работает только с серверов в России')).toBeInTheDocument();
+  // Страны служба не назвала — сказано без неё.
+  expect(
+    screen.getByText(
+      'Сервер этой встречи находится не в России. Остальные площадки кинозала работают как обычно.',
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull();
+  expect(screen.queryByRole('alert')).toBeNull();
+  client.clear();
+});
+
+it('сервер не достаёт до ivi — как у остальных площадок: «недоступен» с «Повторить», без витрины', async () => {
+  iviEntry = { available: false, reason: 'ivi недоступен с этого сервера', code: 'CINEMA_UNREACHABLE' };
+  const { client } = mount(true);
+  expect(await screen.findByText('ivi недоступен с этого сервера')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
+  expect(asked.filter((line) => /^(categories|category)/.test(line))).toEqual([]);
   client.clear();
 });
