@@ -276,9 +276,11 @@ function RecentRow({
         </span>
         <span className="home-recent__text">
           <span className="home-recent__name">{title}</span>
+          {/* Время и «завершена» — первыми, код — последним: на телефоне многоточие срезает код (он есть
+              в «…»), а не то, когда здесь были. */}
           <span className="home-recent__meta" id={`${id}-meta`}>
-            {formatCode(entry.code)} · {when}
-            {ended && <> · {t(($) => $.home.recent.ended)}</>}
+            {when}
+            {ended && <> · {t(($) => $.home.recent.ended)}</>} · {formatCode(entry.code)}
           </span>
         </span>
         {people && (

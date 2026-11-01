@@ -755,11 +755,13 @@ input.home-inline-name:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 .home-recent__people {
+  grid-column: 3;
   font-variant-numeric: tabular-nums;
 }
 /* Что сделает нажатие — словом, без второй кнопки: идёт — «Вернуться» цветом действия, закончилась —
-   «Создать снова» тише. */
+   «Создать снова» тише. Всегда в последней колонке: без значка людей слово не съезжает на промежуток. */
 .home-recent__go {
+  grid-column: -2;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);

@@ -170,8 +170,10 @@ async function shoot(page, name, { target, suffix = tag } = {}) {
 
 async function home(page) {
   await favorites(page);
-  await page.goto(base);
-  await page.getByRole('button', { name: /Новая встреча/ }).waitFor({ timeout: 30000 });
+  // Dev-сервер (`--dev`) отдаёт сотни модулей по одному, на занятой машине — минутами: ждём не «load»,
+  // а саму главную.
+  await page.goto(base, { waitUntil: 'commit', timeout: 120_000 });
+  await page.getByRole('button', { name: /Новая встреча/ }).waitFor({ timeout: args.dev ? 300_000 : 30_000 });
   await page.waitForTimeout(800);
 }
 
