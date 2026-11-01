@@ -386,7 +386,7 @@ Telegram, принять звонок GSM, переключить Bluetooth-га
 ## 8. Приложение для Android: сборка и проверка
 
 Прототип П0 из §5 — `mobile/`. Capacitor 8.5 (`@capacitor/android`, Gradle 8.14, AGP 8.13, JDK 21),
-`minSdk 24`, `targetSdk 36`, пакет `tech.nikg.cord`, версия `1.1.0` (`versionCode 2`) — с 1.1.0 у веба,
+`minSdk 24`, `targetSdk 36`, пакет `tech.nikg.cord`, версия `1.1.1` (`versionCode 3`) — с 1.1.0 у веба,
 клиента Windows и приложения одна версия (Р-46).
 
 **Как устроено.**
