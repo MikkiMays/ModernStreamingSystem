@@ -116,6 +116,8 @@ export function CallDock({
   /** Касание: третья кнопка слева — переворот камеры, а показ экрана — в «ещё». */
   const coarse = useMediaQuery('(pointer: coarse)');
   const live = !ended && media.status === 'connected';
+  /** Есть ли пункты над группами «ещё» — переворот, показ, «свернуть в окно». */
+  const leading = coarse || pip.available || pip.active;
   /** Непрочитанные в чате (R87) — кружком на кнопке чата, на телефоне — на «ещё». */
   const unread = useStore(meeting.unread);
   /*
@@ -248,6 +250,7 @@ export function CallDock({
               }
             />
             <MenuContent side="top" align="center" sideOffset={12} className="dock-menu">
+              {/* Разделитель — только между группами: без «Камеры» (R170) меню может начинаться с «Настроек». */}
               {coarse && tiny && (
                 <MenuItem
                   icon={<SwitchCamera />}
@@ -269,7 +272,7 @@ export function CallDock({
               )}
               {compact && (
                 <>
-                  <MenuSeparator />
+                  {leading && <MenuSeparator />}
                   <MenuItem
                     icon={<MessageSquare />}
                     shortcut={unread > 0 ? unreadText(unread) : undefined}
@@ -290,7 +293,7 @@ export function CallDock({
                   </MenuItem>
                 </>
               )}
-              <MenuSeparator />
+              {(leading || compact) && <MenuSeparator />}
               <MenuItem icon={<Settings2 />} onClick={onSettings}>
                 {t(($) => $.dock.settings)}
               </MenuItem>

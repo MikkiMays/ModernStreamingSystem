@@ -65,8 +65,8 @@ async function shoot(name, target) {
       await page
         .locator(target)
         .first()
-        .screenshot({ path: path.join(out, file), mask });
-    else await page.screenshot({ path: path.join(out, file), mask });
+        .screenshot({ path: path.join(out, file), mask, timeout: 120000 });
+    else await page.screenshot({ path: path.join(out, file), mask, timeout: 120000 });
     const overflowX = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
@@ -79,11 +79,11 @@ const integrations = () => page.locator('.dock-toggle[aria-label="Интегра
 const panel = () => page.locator('.meeting-panel, [role="dialog"]').filter({ hasText: 'Интеграции' }).first();
 
 try {
-  await page.goto(base);
-  await page.getByRole('button', { name: /Новая встреча/ }).click({ timeout: 30000 });
+  await page.goto(base, { timeout: 240000, waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /Новая встреча/ }).click({ timeout: 240000 });
   await page.getByLabel('Ваше имя').fill('Майя');
   await page.getByRole('button', { name: 'Начать встречу' }).click();
-  await page.locator('[data-media-status="connected"]').waitFor({ timeout: 45000 });
+  await page.locator('[data-media-status="connected"]').waitFor({ timeout: 240000 });
   await page.waitForTimeout(3500); // тост «ссылка скопирована» уходит
 
   for (const size of sizes) {

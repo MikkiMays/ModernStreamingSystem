@@ -783,7 +783,8 @@ function GameBarHeight() {
   const mark = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const stage = mark.current?.closest<HTMLElement>('.stage');
-    if (!stage) return;
+    // Без `ResizeObserver` (старый браузер, тесты) колонка встаёт по высоте шапки по умолчанию.
+    if (!stage || typeof ResizeObserver === 'undefined') return;
     let bar: Element | null = null;
     const measure = () => {
       if (!bar?.isConnected) return find();
