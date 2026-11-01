@@ -33,7 +33,8 @@ test('недавние: вся карточка — вернуться в иду
     await expect(row.getByText('1 человек')).toBeVisible({ timeout: 20000 });
     // Внутри карточки — ни одной кнопки, кроме неё самой; «…» стоит рядом.
     const card = row.getByRole('button', { name: 'Вернуться: Разбор недавних' });
-    await expect(card).toContainText('Вернуться');
+    // Слова действия на карточке нет (R177) — только в имени кнопки.
+    await expect(card).not.toContainText('Вернуться');
     await expect(card.locator('button')).toHaveCount(0);
 
     // «В избранное» из «…» — и комната сразу в боковой панели, и сразу уходит оттуда (R162).
