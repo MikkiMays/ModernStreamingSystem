@@ -169,7 +169,9 @@ export function Prejoin({
           return;
         }
         savePreferences({ name: displayName });
-        onJoin(admission, { ...choices, micOn: true, cameraOn: false });
+        // Автоподключение пропускает предвход, но не правило входа (владелец, R161: «при входе дефолт
+        // микрофон и камера отключены»): человек не оказывается в эфире, ничего не нажав.
+        onJoin(admission, { ...choices, micOn: false, cameraOn: false });
       })
       .catch((e) => {
         if (mounted.current) {
