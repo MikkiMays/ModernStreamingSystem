@@ -26,6 +26,7 @@ import { blindsFor, chips, gameTitle, MAX_STACK, MIN_STACK, POKER_MODES, winnerO
 import { allowed, type RoomAction } from '../core/permissions';
 import { GameResult } from './PokerResult';
 import { Modal, useStore } from './primitives';
+import { Button } from './kit';
 import { backToStage } from './stage-context';
 import { useStageView } from './useStageView';
 
@@ -136,9 +137,16 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
 
   return (
     <div className="games-group">
-      <button className="text-button cinema-back" onClick={onBack}>
-        <ArrowLeft size={16} /> {t(($) => $.games.back)}
-      </button>
+      {/* «← Интеграции» — той же кнопкой, что у кинозала и музыки: один размер и цвет у всех шагов (R167). */}
+      <Button
+        variant="quiet"
+        size="sm"
+        className="platform-picker__back"
+        icon={<ArrowLeft />}
+        onClick={onBack}
+      >
+        {t(($) => $.games.back)}
+      </Button>
       <div className="games-list">
         {GAMES.map((game) => {
           const live =

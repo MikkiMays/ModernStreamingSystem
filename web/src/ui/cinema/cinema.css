@@ -98,12 +98,6 @@
   Группа «Кинозал» в панели — общий с музыкой экран выбора площадки (`PlatformPicker`, T59), его
   правила — в `integrations.css`. Здесь осталась кнопка «Назад» группы игр (`GamesGroup.tsx`).
 */
-.cinema-back {
-  justify-self: start;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
 .cinema-search {
   display: flex;
   align-items: center;
