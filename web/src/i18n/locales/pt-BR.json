@@ -1126,10 +1126,19 @@
       "sticky": "Nota adesiva",
       "drawers": "Quem desenha",
       "drawersAll": "Todos os participantes",
-      "drawersHost": "Só o anfitrião",
-      "menu": "Menu do quadro"
+      "drawersHost": "Só o anfitrião"
     },
     "stickyHint": "Clique duas vezes na nota para escrever",
+    "tools": {
+      "highlighter": "Marca-texto — traço largo e translúcido",
+      "sticky": "Nota adesiva — clique no quadro para colocá-la"
+    },
+    "minimap": {
+      "label": "Minimapa do quadro",
+      "title": "Clique ou arraste o quadro para se mover. Clique duplo: o quadro inteiro",
+      "keys": "As setas movem a visualização, Enter mostra o quadro inteiro"
+    },
+    "objectLink": "Não é possível vincular um objeto do quadro — apenas um site ou e-mail",
     "chat": {
       "message": "Quadro · {{time}}",
       "file": "Quadro {{time}}",

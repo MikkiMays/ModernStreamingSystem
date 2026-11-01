@@ -6,7 +6,8 @@
   `BOARD_BACKGROUND`). Цвет выделения и кнопок редактора — светлый акцент Cord, шрифт подписей — шрифт Cord.
 
   Ссылки наружу и чужие входы (библиотека, встраивание страниц, «текст в диаграмму», ИИ) спрятаны
-  здесь и убраны сторожем `hardening.ts`: правило продукта — ни одной ссылки наружу.
+  здесь и убраны сторожем `hardening.ts`: правило продукта — ни одной ссылки наружу. Ссылки на объекты
+  доски — тоже (R176).
 */
 
 .board-stage {
@@ -72,15 +73,6 @@
 .board-bar__peers {
   font-variant-numeric: tabular-nums;
 }
-.board-bar__tools {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.board-bar__tools .ui-button[aria-pressed='true'] {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 .board-bar__actions {
   margin-left: auto;
   display: flex;
@@ -106,10 +98,32 @@
 .board-note--status[data-state='replaced'] {
   color: var(--text);
 }
-.board-dialog-note {
-  margin: 0;
+
+/*
+  Окна доски (R175б) — в теме Cord, над светлым холстом. Порядок важности: заголовок, затем что
+  случится (описание — цветом второго текста, а не приглушённым), ниже — справка мелко и приглушённо.
+  Колонка окна не шире самого окна: длинные кнопки (и переводы) переносятся, а не раздвигают его.
+*/
+.board-dialog {
+  grid-template-columns: minmax(0, 1fr);
+}
+.board-dialog .ui-dialog__description {
   color: var(--text-secondary);
+}
+.board-dialog__note {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  color: var(--muted);
   font-size: var(--text-sm);
+}
+.board-dialog__note > svg {
+  flex: none;
+  margin-top: 0.15em;
+}
+.board-dialog .ui-dialog__footer {
+  flex-wrap: wrap;
 }
 
 /* ---------- холст ---------- */
@@ -120,6 +134,10 @@
   border-radius: var(--radius-3);
   overflow: hidden;
   box-shadow: 0 0 0 var(--hairline) var(--line);
+  /* Слои Excalidraw (холст 1–2, интерфейс 4, окно ссылки 7) — внутри холста доски; курсоры и мини-карта — между ними. */
+  isolation: isolate;
+  /* Высота колонки инструментов считается от холста (`cqh`). */
+  container-type: size;
 }
 /*
   Холст светлый и внутри тёмной сцены: свои поля и полосы прокрутки — светлые, акцент — значения
@@ -194,10 +212,22 @@
   > .Island:has(.ToolIcon__LaserPointer) {
   display: none;
 }
+/*
+  Колонка — не ниже масштаба и отмены в левом нижнем углу (R174: с маркером и стикером в ней 15 кнопок):
+  кнопки по 2rem вплотную, высота — от холста (`container-type` у `.board-canvas`): над колонкой 4,25rem,
+  под ней — подвал Excalidraw. Не влезла (низкое окно) — прокручивается.
+*/
 .board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar {
-  max-height: calc(100vh - 16rem);
+  max-height: calc(100cqh - 8.5rem);
   overflow-y: auto;
   scrollbar-width: none;
+}
+.board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar > .Stack_horizontal {
+  row-gap: 0.125rem;
+}
+.board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar-container .ToolIcon__icon {
+  width: 2rem;
+  height: 2rem;
 }
 .board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar__divider {
   width: 1.5rem;
@@ -228,6 +258,135 @@
   width: 1.2rem;
   height: 1.2rem;
 }
+/* Клавиатура в колонке инструментов: фокус видно (у Excalidraw его не видно вовсе). */
+.board-canvas .excalidraw .ToolIcon input:focus-visible + .ToolIcon__icon {
+  outline: 2px solid var(--palette-blue-500);
+  outline-offset: 1px;
+}
+
+/*
+  Маркер и стикер — в колонке инструментов (R174, `tools.tsx`): узел-место не ломает сетку колонки, а
+  кнопка — разметка инструментов Excalidraw. Маркер — то же перо Excalidraw, поэтому, пока он выбран,
+  перо не подсвечено; у стикера свой инструмент, и курсор над доской — как у фигур.
+*/
+.board-tool-slot {
+  display: contents;
+}
+/* Компьютер — колонка, телефон — меню «Ещё инструменты» (в полосу телефона две кнопки не помещаются). */
+.excalidraw--mobile .board-tool-slot--bar,
+.excalidraw:not(.excalidraw--mobile) .board-tool-slot--menu {
+  display: none;
+}
+/* На телефоне выбранный маркер или стикер виден на кнопке «Ещё инструменты», как рамка и лазер Excalidraw. */
+.board-canvas:is([data-tool='highlighter'], [data-tool='sticky'])
+  .excalidraw--mobile
+  .App-toolbar__extra-tools-trigger {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.board-canvas[data-tool='highlighter']
+  .ToolIcon:has([data-testid='toolbar-freedraw'])
+  .ToolIcon_type_radio:checked
+  + .ToolIcon__icon {
+  background: none;
+}
+.board-canvas[data-tool='highlighter']
+  .ToolIcon:has([data-testid='toolbar-freedraw'])
+  .ToolIcon_type_radio:checked
+  + .ToolIcon__icon
+  svg {
+  color: var(--icon-fill-color);
+}
+/* Курсор холста Excalidraw ставит строкой стиля (у своих инструментов — обычную стрелку). */
+.board-canvas[data-tool='sticky'] .excalidraw__canvas.interactive {
+  cursor: crosshair !important;
+}
+
+/*
+  Ссылка на объект доски (R176): «Скопировать ссылку на объект» в контекстном меню и «Ссылка на объект»
+  в окне ссылки. Окно выбора объекта закрывает `BoardStage`, а ссылку такого вида снимает с элемента.
+*/
+.excalidraw .context-menu [data-testid='copyElementLink'],
+.excalidraw
+  .excalidraw-hyperlinkContainer__buttons
+  > .ToolIcon_type_button:not(.excalidraw-hyperlinkContainer--edit, .excalidraw-hyperlinkContainer--remove) {
+  display: none;
+}
+
+/*
+  Курсоры соседей (R168, `cursors.ts`): над холстом Excalidraw (его слои 1–2), под его интерфейсом (4) —
+  чужая стрелка не ложится на свои кнопки.
+*/
+.board-cursors {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+.board-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+/*
+  Мини-карта (R169, `Minimap.tsx`) — на месте кнопки помощи Excalidraw, по краю его подвала (отступ 1rem,
+  как у масштаба слева). Светлая при любой теме Cord, как сам холст. Размер — тот же, что в `Minimap.tsx`.
+  На телефоне её нет: экран мал, вид двигают двумя пальцами, а низ занят панелью Excalidraw.
+*/
+.board-canvas .excalidraw .help-icon {
+  display: none;
+}
+.board-minimap {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 4;
+  width: 144px;
+  height: 90px;
+  overflow: hidden;
+  border-radius: var(--radius-2);
+  background: var(--palette-white);
+  box-shadow:
+    0 0 0 1px var(--palette-mist-200),
+    0 2px 8px -2px color-mix(in srgb, var(--palette-slate-900) 14%, transparent);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.board-minimap:focus-visible {
+  outline: 2px solid var(--palette-blue-500);
+  outline-offset: 2px;
+}
+.board-minimap__scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.board-minimap__view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 1.5px solid var(--palette-blue-500);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--palette-blue-500) 8%, transparent);
+  pointer-events: none;
+}
+.board-minimap__hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.board-canvas:has(.excalidraw--mobile) .board-minimap {
+  display: none;
+}
+
 /*
   «Небрежность» (рисованный штрих): доска рисует ровно (`currentItemRoughness: 0`), а в русском переводе
   Excalidraw этот раздел ещё и подписан «Стиль обводки» — вторым одинаковым заголовком.
@@ -245,7 +404,6 @@
 
 /* ---------- узко: шапка без подписей, телефон — доска во всю сцену ---------- */
 @media (max-width: 1023px) {
-  .board-bar__tools .ui-button__label,
   .board-bar__save .ui-button__label {
     display: none;
   }
@@ -262,6 +420,11 @@
   }
   .board-canvas {
     border-radius: var(--radius-2);
+  }
+  /* Окна доски на телефоне — листом снизу: кнопки во всю ширину, главное — сверху. */
+  .board-dialog .ui-dialog__footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
   /*
     На телефоне доска — во всю сцену (R159): пульт звонка спорит с нижней панелью Excalidraw, поэтому,

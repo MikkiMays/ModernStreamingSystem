@@ -40,13 +40,12 @@ import {
  * этого: оно по-прежнему лежит в сцене.
  */
 
-/** Чужой курсор: где он, лазер ли это и что выделено. */
+/** Чужой курсор: где он и лазер ли это. Чужое выделение доска не показывает (R168). */
 export interface Cursor {
   x: number;
   y: number;
   tool: Tool;
   button: 'up' | 'down';
-  selection: string[];
   /** Что сосед сейчас видит: `[x1, y1, x2, y2]` в координатах сцены. */
   bounds?: [number, number, number, number];
 }
@@ -163,8 +162,6 @@ export class BoardSync {
   private presenceOut: { x: number; y: number; tool: Tool; button: 'up' | 'down' } | null = null;
   private presenceAt = 0;
   private presenceTimer?: ReturnType<typeof setTimeout>;
-  private selection = '';
-  private selectionOut: string[] | null = null;
   private pointerAt: { x: number; y: number; tool: Tool; button: 'up' | 'down' } = {
     x: 0,
     y: 0,
@@ -279,15 +276,6 @@ export class BoardSync {
     this.bounds = bounds;
     this.presenceOut = this.pointerAt;
     this.schedulePresence();
-  }
-
-  /** Своё выделение — соседи видят его рамкой своего цвета. */
-  select(ids: readonly string[]) {
-    const key = [...ids].sort().join(',');
-    if (key === this.selection) return;
-    this.selection = key;
-    this.selectionOut = [...ids].slice(0, 500);
-    if (this.presenceOut) this.schedulePresence();
   }
 
   // --- сокет -------------------------------------------------------------------------------
@@ -439,7 +427,6 @@ export class BoardSync {
           y: message.y,
           tool: message.tool,
           button: message.button,
-          selection: message.sel ?? this.cursorTarget.get(message.from)?.selection ?? [],
           ...(message.vb ? { bounds: message.vb } : {}),
         });
         if (!this.cursorShown.has(message.from))
@@ -687,7 +674,6 @@ export class BoardSync {
       this.flushInk();
       if (this.presenceOut && Date.now() - this.presenceAt >= LIMITS.presenceMs) {
         const { x, y, tool, button } = this.presenceOut;
-        const sel = this.selectionOut ?? undefined;
         const vb = this.bounds ?? undefined;
         if (
           this.send({
@@ -696,14 +682,12 @@ export class BoardSync {
             y,
             tool,
             button,
-            ...(sel ? { sel } : {}),
             ...(vb ? { vb } : {}),
             t: this.serverNow(),
           })
         ) {
           this.presenceAt = Date.now();
           this.presenceOut = null;
-          this.selectionOut = null;
         }
       }
     }

@@ -9,14 +9,17 @@ import {
   Excalidraw,
   FONT_FAMILY,
   getVisibleSceneBounds,
+  hashElementsVersion,
   loadFromBlob,
   MainMenu,
+  newElementWith,
   ROUNDNESS,
   viewportCoordsToSceneCoords,
 } from '@excalidraw/excalidraw';
-import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { AppState, BinaryFileData, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import {
+  Clock3,
   Download,
   FileImage,
   FileJson,
@@ -44,10 +47,12 @@ import {
   visible,
 } from '../../core/board/export';
 import { BoardFiles } from '../../core/board/files';
+import { isObjectLink, linkTarget } from '../../core/board/links';
 import type { BoardElement } from '../../core/board/protocol';
 import { BoardSync, type BoardNotice, type BoardState } from '../../core/board/sync';
 import { locale, type Translate } from '../../i18n';
 import { IntegrationBarSlot, StageExitButton } from '../IntegrationBar';
+import { useStageExit } from '../stage-context';
 import {
   Button,
   Dialog,
@@ -64,19 +69,24 @@ import {
   useToast,
 } from '../kit';
 import { useStore } from '../primitives';
-import { ExcalidrawCanvas, type BoardPerson } from './excalidraw-canvas';
+import { CursorLayer, type BoardPerson } from './cursors';
+import { ExcalidrawCanvas, viewOf } from './excalidraw-canvas';
 import { guardLinks } from './hardening';
 import { boardJson, boardPng, boardSvg, hasContent, saveFile } from './images';
 import { excalidrawLanguage } from './lang';
+import { Minimap } from './Minimap';
+import { barAnchor, menuAnchor, MenuTool, ToolSlot, ToolToggle } from './tools';
 
 /**
  * Доска встречи (R159): Excalidraw на сцене, рисуют все сразу — или только ведущий.
  *
- * Своё рисуется сразу, соседям уходит по кадру (`core/board/sync.ts`), их курсоры и лазер — с именами и
- * цветами. Свои действия — в шапке, как у столов игр: «Маркер» и «Стикер» одной кнопкой, «Сохранить в
- * чат» (картинка и файл доски одним сообщением — R154, как в Телемосте), «Скачать», «Открыть файл»,
- * кто рисует, «Очистить». Меню Excalidraw — только пункты Cord: ни ссылок на GitHub, ни библиотек, ни
- * встраиваемых страниц (`hardening.ts`).
+ * Своё рисуется сразу, соседям уходит по кадру (`core/board/sync.ts`); их курсоры — только стрелкой
+ * своего цвета (R168, `cursors.ts`), лазер — их цветом. «Маркер» и «Стикер» — в колонке инструментов
+ * Excalidraw (R174, `tools.tsx`), справа внизу — мини-карта (R169). Свои действия — в шапке, как у столов
+ * игр: «Сохранить в чат» (картинка и файл доски одним сообщением — R154, как в Телемосте), «Скачать»,
+ * «Открыть файл», кто рисует, «Очистить». Меню Excalidraw — только пункты Cord: ни ссылок на GitHub, ни
+ * библиотек, ни встраиваемых страниц (`hardening.ts`); ссылка на элементе — только на сайт, не на объект
+ * доски (R176).
  */
 export default function BoardStage({ meeting }: { meeting: Meeting }) {
   const snapshot = useStore(meeting.snapshot);
@@ -91,6 +101,8 @@ const CURSORS = ['#4c6ef5', '#e8590c', '#2b9459', '#c2255c', '#7048e8', '#0c8599
 /** Маркер — широкий жёлтый на 40 % прозрачности; стикер — бледно-жёлтый квадрат. */
 const HIGHLIGHT = '#fab005';
 const STICKY = '#fff3bf';
+/** Стикер — свой инструмент Excalidraw (`activeTool.type: 'custom'`): нажатие по доске ставит его туда. */
+const STICKY_TOOL = 'cord-sticky';
 
 function cursorColor(id: string): string {
   let hash = 0;
@@ -116,6 +128,9 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
   const [pending, setPending] = useState<PendingImport | null>(null);
   const [confirm, setConfirm] = useState<'close' | 'clear' | null>(null);
   const [drop, setDrop] = useState(false);
+  const [stickyArmed, setStickyArmed] = useState(false);
+  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null);
+  const { away } = useStageExit();
   const [highlighter, setHighlighter] = useState<null | {
     color: string;
     opacity: number;
@@ -123,6 +138,10 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
   }>(null);
   const picker = useRef<HTMLInputElement>(null);
   const section = useRef<HTMLElement>(null);
+  const cursorRoot = useRef<HTMLDivElement>(null);
+  const cursorLayer = useRef<CursorLayer | null>(null);
+  /** Сцена, в которой уже искали ссылки на объекты (R176), — по отпечатку версий. */
+  const linksChecked = useRef(-1);
   const marking = useRef(0);
   const highlighterRef = useRef(highlighter);
   highlighterRef.current = highlighter;
@@ -145,7 +164,10 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
   // Синхронизация рождается вместе с холстом и умирает вместе с ним.
   useEffect(() => {
     if (!api) return;
-    const canvas = new ExcalidrawCanvas(api, () => people.current);
+    const layer = cursorRoot.current ? new CursorLayer(cursorRoot.current, () => people.current) : null;
+    cursorLayer.current = layer;
+    layer?.move(viewOf(api.getAppState()));
+    const canvas = new ExcalidrawCanvas(api, () => people.current, layer);
     const files = new BoardFiles({ put: meeting.api.putBoardFile, get: meeting.api.boardFile }, canvas);
     const next = new BoardSync({
       roomId: meeting.admission.roomId,
@@ -165,6 +187,8 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
       stop();
       next.dispose();
       files.dispose();
+      layer?.dispose();
+      cursorLayer.current = null;
       setSync(null);
     };
   }, [api, meeting]);
@@ -298,7 +322,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     }
   };
 
-  /** Маркер: перо пошире, жёлтое, на 40 % прозрачности; другой инструмент — прежнее перо. */
+  /** Маркер: перо пошире, жёлтое, на 40 % прозрачности; выключить или взять другой инструмент — прежнее перо. */
   const toggleHighlighter = () => {
     if (!api) return;
     const app = api.getAppState();
@@ -319,14 +343,34 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     });
   };
 
-  /** Стикер: квадрат 200×200 бледно-жёлтый, со скруглением, — посреди того, что видно. */
-  const addSticky = () => {
+  /**
+   * Стикер — инструмент, как фигуры Excalidraw (R174): выбрал — нажал по доске — стикер там и сразу
+   * пишется. С клавиатуры нажать по доске нечем — стикер встаёт посреди вида.
+   */
+  const toggleSticky = (keyboard: boolean) => {
+    if (!api) return;
+    if (highlighter) {
+      restorePen(api, highlighter);
+      setHighlighter(null);
+    }
+    if (keyboard) addSticky();
+    else if (stickyArmed) api.setActiveTool({ type: 'selection' });
+    else api.setActiveTool({ type: 'custom', customType: STICKY_TOOL });
+  };
+
+  /**
+   * Стикер: квадрат 200×200 бледно-жёлтый, со скруглением, — в точке `at` сцены или посреди того, что
+   * видно. Инструмент закреплён замком — остаётся стикером; иначе — выделение и сразу набор текста.
+   */
+  const addSticky = (at?: { x: number; y: number }, locked = false) => {
     if (!api) return;
     const view = api.getAppState();
-    const center = viewportCoordsToSceneCoords(
-      { clientX: view.offsetLeft + view.width / 2, clientY: view.offsetTop + view.height / 2 },
-      view,
-    );
+    const center =
+      at ??
+      viewportCoordsToSceneCoords(
+        { clientX: view.offsetLeft + view.width / 2, clientY: view.offsetTop + view.height / 2 },
+        view,
+      );
     const [note] = convertToExcalidrawElements([
       {
         type: 'rectangle',
@@ -347,8 +391,105 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
       appState: { selectedElementIds: { [note.id]: true } },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
+    if (locked) return;
     api.setActiveTool({ type: 'selection' });
-    toast.add({ title: t(($) => $.board.stickyHint) });
+    startTyping(note.id);
+  };
+
+  /**
+   * Набор текста в только что поставленном стикере — тем же Enter, которым Excalidraw начинает текст в
+   * выбранной фигуре (своего вызова для этого у него нет). Не вышло — подсказка, как писать.
+   */
+  const startTyping = (id: string) => {
+    requestAnimationFrame(() => {
+      canvasEl
+        ?.querySelector('.excalidraw')
+        ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      requestAnimationFrame(() => {
+        const text = api?.getAppState().editingTextElement;
+        if (!text || !('containerId' in text) || text.containerId !== id)
+          toast.add({ title: t(($) => $.board.stickyHint) });
+      });
+    });
+  };
+  const addStickyRef = useRef(addSticky);
+  addStickyRef.current = addSticky;
+
+  /*
+    Сменился размер холста (окно, телефон ↔ компьютер): Excalidraw узнаёт о нём сразу, а раскладку меняет
+    только со следующим своим обновлением — до него телефонная полоса висела бы на широком экране (и
+    наоборот), а с ней и маркер со стикером. `refresh()` — это обновление.
+  */
+  useEffect(() => {
+    if (!api || !canvasEl || typeof ResizeObserver === 'undefined') return;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => api.refresh());
+    });
+    observer.observe(canvasEl);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [api, canvasEl]);
+
+  // Инструмент «Стикер»: отпустили палец или кнопку на доске — стикер там, где нажали.
+  useEffect(() => {
+    if (!api) return;
+    return api.onPointerUp((tool, down) => {
+      if (tool.type === 'custom' && tool.customType === STICKY_TOOL)
+        addStickyRef.current({ x: down.origin.x, y: down.origin.y }, tool.locked);
+    });
+  }, [api]);
+
+  // Ушёл к участникам (R121, R175): окна и меню редактора закрываются — они в портале у `body`, и слой
+  // доски их не спрячет; свои окна доски — тоже.
+  useEffect(() => {
+    if (!away || !api) return;
+    api.updateScene({
+      appState: {
+        openDialog: null,
+        openMenu: null,
+        openPopup: null,
+        contextMenu: null,
+        showHyperlinkPopup: false,
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+    setConfirm(null);
+    setPending(null);
+  }, [away, api]);
+
+  /** Ссылка на элементе (R176): сайт — в новой вкладке; на объект доски и прочее — никуда. */
+  const openLink = (element: NonDeletedExcalidrawElement, event: CustomEvent) => {
+    event.preventDefault();
+    const target = linkTarget(element.link, location.href);
+    if (target.kind === 'web') window.open(target.href, '_blank', 'noopener,noreferrer');
+  };
+
+  /**
+   * Ссылок на объекты доски не бывает (R176): пункты и кнопки Excalidraw спрятаны (`board.css`), а та, что
+   * пришла иначе — вставкой адреса в поле ссылки, из файла, от старой доски, — снимается с элемента.
+   * Снимает тот, кто может рисовать; заметив это у выбранного своего — говорит почему.
+   */
+  const dropObjectLinks = (elements: readonly ExcalidrawElement[], app: AppState) => {
+    if (!api) return;
+    const version = hashElementsVersion(elements);
+    if (version === linksChecked.current) return;
+    linksChecked.current = version;
+    const here = location.href;
+    const bad = new Set(
+      elements.filter((el) => !el.isDeleted && el.link && isObjectLink(el.link, here)).map((el) => el.id),
+    );
+    if (!bad.size) return;
+    api.updateScene({
+      elements: api
+        .getSceneElementsIncludingDeleted()
+        .map((el) => (bad.has(el.id) ? newElementWith(el, { link: null }) : el)),
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+    if ([...bad].some((id) => app.selectedElementIds[id])) toast.add({ title: t(($) => $.board.objectLink) });
   };
 
   const run = (type: 'board.close' | 'board.clear' | 'board.settings', option?: string) =>
@@ -377,18 +518,24 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     });
   };
 
-  const onChange = (_elements: readonly unknown[], app: AppState) => {
+  const onChange = (elements: readonly ExcalidrawElement[], app: AppState) => {
     sync?.localChange();
     markScene();
+    cursorLayer.current?.move(viewOf(app));
     // Что видно у себя — для тех, кто «следует» за этим участником.
     const view = getVisibleSceneBounds(app);
     sync?.viewport([view[0], view[1], view[2], view[3]]);
-    sync?.select(Object.keys(app.selectedElementIds).filter((id) => app.selectedElementIds[id]));
     const pen = highlighterRef.current;
     if (pen && api && app.activeTool.type !== 'freedraw') {
       restorePen(api, pen);
       setHighlighter(null);
     }
+    setStickyArmed(app.activeTool.type === 'custom' && app.activeTool.customType === STICKY_TOOL);
+    if (!api) return;
+    // «Ссылка на объект» (R176) — окно выбора объекта закрывается, откуда бы его ни открыли.
+    if (app.openDialog?.name === 'elementLinkSelector')
+      api.updateScene({ appState: { openDialog: null }, captureUpdate: CaptureUpdateAction.NEVER });
+    if (canDraw) dropObjectLinks(elements, app);
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -402,6 +549,11 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
   };
 
   const viewOnly = !role;
+  const highlighterLabel = t(($) => $.board.actions.highlighter);
+  const stickyLabel = t(($) => $.board.actions.sticky);
+  // Толщина линии — как у значков Excalidraw рядом (1 px), а не общая для значков Cord.
+  const highlighterIcon = <Highlighter strokeWidth={1.5} data-own-stroke />;
+  const stickyIcon = <StickyNote strokeWidth={1.5} data-own-stroke />;
   const mode = board.drawers === 'host' ? t(($) => $.board.modes.host) : t(($) => $.board.modes.all);
   const canClear = may('board.clear');
   const canSettings = may('board.settings');
@@ -430,30 +582,6 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
             </span>
           </div>
         </div>
-        {canDraw && (
-          <div className="board-bar__tools" role="group" aria-label={t(($) => $.board.actions.menu)}>
-            <Button
-              size="sm"
-              variant="quiet"
-              icon={<Highlighter />}
-              aria-pressed={!!highlighter}
-              disabled={!api}
-              onClick={toggleHighlighter}
-            >
-              {t(($) => $.board.actions.highlighter)}
-            </Button>
-            <Button
-              size="sm"
-              variant="quiet"
-              icon={<StickyNote />}
-              title={t(($) => $.board.stickyHint)}
-              disabled={!api}
-              onClick={addSticky}
-            >
-              {t(($) => $.board.actions.sticky)}
-            </Button>
-          </div>
-        )}
         <div className="board-bar__actions">
           {/* Музыка во встрече — мини-плеером в шапке доски (R128). */}
           <IntegrationBarSlot />
@@ -554,8 +682,10 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
         </p>
       )}
       <div
+        ref={setCanvasEl}
         className="board-canvas"
         data-drop={drop || undefined}
+        data-tool={highlighter ? 'highlighter' : stickyArmed ? 'sticky' : undefined}
         onDragOverCapture={(event) => {
           if (canDraw && [...(event.dataTransfer?.items ?? [])].some((item) => item.kind === 'file'))
             setDrop(true);
@@ -577,6 +707,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
           aiEnabled={false}
           UIOptions={UI_OPTIONS}
           onChange={onChange}
+          onLinkOpen={openLink}
           onPointerUpdate={({ pointer, button }) => sync?.pointer(pointer.x, pointer.y, pointer.tool, button)}
         >
           <MainMenu>
@@ -606,6 +737,49 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
             <MainMenu.DefaultItems.Help />
           </MainMenu>
         </Excalidraw>
+        {/* Курсоры соседей — только стрелкой (R168): над холстом, под интерфейсом редактора. */}
+        <div ref={cursorRoot} className="board-cursors" aria-hidden="true" />
+        {api && <Minimap api={api} />}
+        {api && canDraw && (
+          <>
+            <ToolSlot root={canvasEl} anchor={barAnchor('freedraw')} kind="bar">
+              <ToolToggle
+                name="highlighter"
+                label={highlighterLabel}
+                title={t(($) => $.board.tools.highlighter)}
+                icon={highlighterIcon}
+                checked={!!highlighter}
+                onToggle={toggleHighlighter}
+              />
+            </ToolSlot>
+            <ToolSlot root={canvasEl} anchor={barAnchor('text')} kind="bar">
+              <ToolToggle
+                name="sticky"
+                label={stickyLabel}
+                title={t(($) => $.board.tools.sticky)}
+                icon={stickyIcon}
+                checked={stickyArmed}
+                onToggle={toggleSticky}
+              />
+            </ToolSlot>
+            <ToolSlot root={canvasEl} anchor={menuAnchor('laser')} kind="menu">
+              <MenuTool
+                name="highlighter"
+                label={highlighterLabel}
+                icon={highlighterIcon}
+                checked={!!highlighter}
+                onPick={toggleHighlighter}
+              />
+              <MenuTool
+                name="sticky"
+                label={stickyLabel}
+                icon={stickyIcon}
+                checked={stickyArmed}
+                onPick={() => toggleSticky(false)}
+              />
+            </ToolSlot>
+          </>
+        )}
         {drop && (
           <div className="board-drop" aria-hidden="true">
             {t(($) => $.board.drop)}
@@ -628,7 +802,8 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
         open={!!pending}
         onOpenChange={(open) => !open && setPending(null)}
         title={t(($) => $.board.import.title)}
-        size="sm"
+        size="md"
+        className="board-dialog"
         description={pending ? t(($) => $.board.import.description, { name: pending.name }) : undefined}
         footer={
           <>
@@ -649,7 +824,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
           </>
         }
       >
-        <p className="board-dialog-note">
+        <p className="board-dialog__note">
           {canClear ? t(($) => $.board.import.replaceHint) : t(($) => $.board.import.noReplace)}
         </p>
       </Dialog>
@@ -657,12 +832,13 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
         open={confirm === 'close'}
         onOpenChange={(open) => !open && setConfirm(null)}
         title={t(($) => $.board.close.title)}
-        size="sm"
+        size="md"
+        className="board-dialog"
         description={t(($) => $.board.close.description)}
         footer={
           <>
             <Button
-              variant="quiet"
+              variant="secondary"
               onClick={() => {
                 setConfirm(null);
                 void run('board.close');
@@ -687,13 +863,17 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
           </>
         }
       >
-        <p className="board-dialog-note">{t(($) => $.board.chat.retention)}</p>
+        <p className="board-dialog__note">
+          <Clock3 size={16} aria-hidden="true" />
+          {t(($) => $.board.chat.retention)}
+        </p>
       </Dialog>
       <Dialog
         open={confirm === 'clear'}
         onOpenChange={(open) => !open && setConfirm(null)}
         title={t(($) => $.board.clear.title)}
         size="sm"
+        className="board-dialog"
         description={t(($) => $.board.clear.description)}
         footer={
           <>

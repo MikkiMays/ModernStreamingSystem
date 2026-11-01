@@ -1126,10 +1126,19 @@
       "sticky": "Post-it",
       "drawers": "Chi disegna",
       "drawersAll": "Tutti i partecipanti",
-      "drawersHost": "Solo l'host",
-      "menu": "Menu della lavagna"
+      "drawersHost": "Solo l'host"
     },
     "stickyHint": "Fai doppio clic sul post-it per scrivere",
+    "tools": {
+      "highlighter": "Evidenziatore — tratto largo e semitrasparente",
+      "sticky": "Post-it — fai clic sulla lavagna per posizionarlo"
+    },
+    "minimap": {
+      "label": "Minimappa della lavagna",
+      "title": "Fai clic o trascina il riquadro per spostarti. Doppio clic: tutta la lavagna",
+      "keys": "Le frecce spostano la vista, Invio mostra tutta la lavagna"
+    },
+    "objectLink": "Non si può collegare un oggetto della lavagna — solo un sito web o un indirizzo e-mail",
     "chat": {
       "message": "Lavagna · {{time}}",
       "file": "Lavagna {{time}}",

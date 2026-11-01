@@ -1126,10 +1126,19 @@
       "sticky": "Nota adhesiva",
       "drawers": "Quién dibuja",
       "drawersAll": "Todos los participantes",
-      "drawersHost": "Solo el anfitrión",
-      "menu": "Menú de la pizarra"
+      "drawersHost": "Solo el anfitrión"
     },
     "stickyHint": "Haz doble clic en la nota para escribir",
+    "tools": {
+      "highlighter": "Marcador — trazo ancho y translúcido",
+      "sticky": "Nota adhesiva — haz clic en la pizarra para colocarla"
+    },
+    "minimap": {
+      "label": "Minimapa de la pizarra",
+      "title": "Haz clic o arrastra el marco para moverte. Doble clic: toda la pizarra",
+      "keys": "Las flechas mueven la vista, Intro muestra toda la pizarra"
+    },
+    "objectLink": "No se puede enlazar a un objeto de la pizarra — solo a un sitio web o correo",
     "chat": {
       "message": "Pizarra · {{time}}",
       "file": "Pizarra {{time}}",

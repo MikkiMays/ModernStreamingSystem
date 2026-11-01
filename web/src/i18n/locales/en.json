@@ -1121,10 +1121,19 @@
       "sticky": "Sticky note",
       "drawers": "Who draws",
       "drawersAll": "All participants",
-      "drawersHost": "Host only",
-      "menu": "Whiteboard menu"
+      "drawersHost": "Host only"
     },
     "stickyHint": "Double-click the sticky note to type",
+    "tools": {
+      "highlighter": "Highlighter — wide translucent stroke",
+      "sticky": "Sticky note — click the board to place it"
+    },
+    "minimap": {
+      "label": "Board minimap",
+      "title": "Click or drag the frame to move around. Double-click shows the whole board",
+      "keys": "Arrow keys move the view, Enter shows the whole board"
+    },
+    "objectLink": "Links to board objects aren’t supported — link to a website or email instead",
     "chat": {
       "message": "Whiteboard · {{time}}",
       "file": "Whiteboard {{time}}",

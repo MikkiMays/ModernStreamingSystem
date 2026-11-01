@@ -1116,10 +1116,19 @@
       "sticky": "便利贴",
       "drawers": "谁可以绘图",
       "drawersAll": "所有参与者",
-      "drawersHost": "仅主持人",
-      "menu": "白板菜单"
+      "drawersHost": "仅主持人"
     },
     "stickyHint": "双击便利贴即可输入文字",
+    "tools": {
+      "highlighter": "荧光笔 — 宽而半透明的笔画",
+      "sticky": "便利贴 — 点击白板即可放置"
+    },
+    "minimap": {
+      "label": "白板小地图",
+      "title": "点击或拖动方框即可移动视图，双击查看整个白板",
+      "keys": "方向键移动视图，Enter 查看整个白板"
+    },
+    "objectLink": "无法链接到白板中的对象 — 只能链接到网站或电子邮件",
     "chat": {
       "message": "白板 · {{time}}",
       "file": "白板 {{time}}",

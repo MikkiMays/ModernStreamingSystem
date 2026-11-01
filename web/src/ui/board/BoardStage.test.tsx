@@ -13,8 +13,9 @@ import { excalidrawLanguage } from './lang';
 
 /**
  * Доска на сцене (R159): кто не рисует — смотрит без инструментов и с подписью; кто рисует — с
- * инструментами Excalidraw и заготовками Cord; ни в шапке, ни в меню, ни в окне помощи редактора нет ни
- * одной ссылки наружу; язык — язык Cord.
+ * инструментами Excalidraw, а маркер и стикер Cord — в той же колонке (R174), не в шапке; справа внизу —
+ * мини-карта (R169); ни в шапке, ни в меню, ни в окне помощи редактора нет ни одной ссылки наружу; язык —
+ * язык Cord.
  */
 
 /** Сокет без сети: доска в тесте не подключается никуда. */
@@ -83,20 +84,51 @@ describe('доска на сцене', () => {
     expect(await screen.findByText('Смотрите: рисует ведущий')).toBeInTheDocument();
     await waitFor(() => expect(document.querySelector('.excalidraw')).toBeTruthy());
     expect(document.querySelector('[data-testid="toolbar-rectangle"]')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Маркер' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Стикер' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Маркер' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Стикер' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Сохранить в чат' })).toBeInTheDocument();
+    // Мини-карта — и тому, кто только смотрит.
+    expect(await screen.findByRole('application', { name: 'Мини-карта доски' })).toBeInTheDocument();
   });
 
-  it('кто рисует — инструменты Excalidraw по-русски и «Маркер» со «Стикером»', async () => {
+  it('кто рисует — инструменты Excalidraw по-русски, «Маркер» и «Стикер» — в их колонке, не в шапке', async () => {
     show(meeting(['board.draw', 'board.clear', 'board.settings', 'board.close']));
     await waitFor(() => expect(document.querySelector('[data-testid="toolbar-rectangle"]')).toBeTruthy());
     expect(document.querySelector('[data-testid="toolbar-rectangle"]')?.getAttribute('aria-label')).toBe(
       'Прямоугольник',
     );
-    expect(screen.getByRole('button', { name: 'Маркер' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Стикер' })).toBeInTheDocument();
+    const marker = await screen.findByRole('checkbox', { name: 'Маркер' });
+    const sticky = screen.getByRole('checkbox', { name: 'Стикер' });
+    // Маркер — сразу за пером, стикер — сразу за текстом, в той же полосе инструментов.
+    const before = (input: HTMLElement) =>
+      input.closest('.board-tool-slot')?.previousElementSibling?.querySelector('[data-testid]');
+    expect(before(marker)?.getAttribute('data-testid')).toBe('toolbar-freedraw');
+    expect(before(sticky)?.getAttribute('data-testid')).toBe('toolbar-text');
+    expect(marker.closest('.App-toolbar')).toBeTruthy();
+    expect(document.querySelector('.board-bar')?.textContent).not.toMatch(/Маркер|Стикер/);
+    expect(marker).not.toBeChecked();
+    fireEvent.pointerDown(marker.closest('label')!);
+    fireEvent.click(marker);
+    await waitFor(() => expect(marker).toBeChecked());
+    expect(document.querySelector('.board-canvas')).toHaveAttribute('data-tool', 'highlighter');
     expect(screen.queryByText('Смотрите: рисует ведущий')).toBeNull();
+  });
+
+  it('стикер — инструмент: выбрал — ждёт нажатия по доске; с клавиатуры — встаёт посреди вида', async () => {
+    show(meeting(['board.draw', 'board.clear', 'board.settings', 'board.close']));
+    const sticky = await screen.findByRole('checkbox', { name: 'Стикер' });
+    fireEvent.pointerDown(sticky.closest('label')!);
+    fireEvent.click(sticky);
+    await waitFor(() => expect(sticky).toBeChecked());
+    expect(document.querySelector('.board-canvas')).toHaveAttribute('data-tool', 'sticky');
+    // Ещё раз — инструмент снят.
+    fireEvent.pointerDown(sticky.closest('label')!);
+    fireEvent.click(sticky);
+    await waitFor(() => expect(sticky).not.toBeChecked());
+    // Пробел на флажке — стикер сразу на доске, и в нём уже набирается текст.
+    fireEvent.click(sticky);
+    await waitFor(() => expect(document.querySelector('.excalidraw-wysiwyg')).toBeTruthy());
+    expect(Number(document.querySelector('section.board')?.getAttribute('data-elements'))).toBeGreaterThan(0);
   });
 
   it('нигде в доске нет ссылок наружу: ни в шапке, ни в меню, ни в окне помощи', async () => {

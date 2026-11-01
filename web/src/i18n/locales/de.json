@@ -1121,10 +1121,19 @@
       "sticky": "Haftnotiz",
       "drawers": "Wer zeichnet",
       "drawersAll": "Alle Teilnehmer",
-      "drawersHost": "Nur der Host",
-      "menu": "Whiteboard-Menü"
+      "drawersHost": "Nur der Host"
     },
     "stickyHint": "Doppelklicke auf die Haftnotiz, um zu schreiben",
+    "tools": {
+      "highlighter": "Textmarker — breiter, halbtransparenter Strich",
+      "sticky": "Haftnotiz — auf das Whiteboard klicken, um sie zu platzieren"
+    },
+    "minimap": {
+      "label": "Whiteboard-Übersicht",
+      "title": "Klicken oder den Rahmen ziehen, um sich zu bewegen. Doppelklick zeigt das ganze Whiteboard",
+      "keys": "Pfeiltasten verschieben die Ansicht, Enter zeigt das ganze Whiteboard"
+    },
+    "objectLink": "Links auf Whiteboard-Objekte sind nicht möglich — nur auf Websites oder E-Mail-Adressen",
     "chat": {
       "message": "Whiteboard · {{time}}",
       "file": "Whiteboard {{time}}",

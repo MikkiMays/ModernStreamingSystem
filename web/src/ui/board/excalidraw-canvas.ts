@@ -2,6 +2,7 @@ import { CaptureUpdateAction, reconcileElements, zoomToFitBounds } from '@excali
 import type { ExcalidrawElement, OrderedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type {
+  AppState,
   BinaryFileData,
   Collaborator,
   ExcalidrawImperativeAPI,
@@ -11,11 +12,18 @@ import { isInk } from '../../core/board/export';
 import type { LocalFiles } from '../../core/board/files';
 import type { BoardElement } from '../../core/board/protocol';
 import type { BoardCanvas, Cursor } from '../../core/board/sync';
+import type { View } from '../../core/board/view';
+import type { BoardPerson, CursorLayer } from './cursors';
 
-/** Кто это у доски: имя и цвет курсора. */
-export interface BoardPerson {
-  name: string;
-  color: string;
+/** Вид холста из состояния Excalidraw: прокрутка, масштаб, размер (`core/board/view.ts`). */
+export function viewOf(app: AppState): View {
+  return {
+    scrollX: app.scrollX,
+    scrollY: app.scrollY,
+    zoom: app.zoom.value,
+    width: app.width,
+    height: app.height,
+  };
 }
 
 /**
@@ -28,10 +36,14 @@ export interface BoardPerson {
 export class ExcalidrawCanvas implements BoardCanvas, LocalFiles {
   /** Видимая часть сцены того, за кем следуют, — последняя, к которой подогнан вид. */
   private followedBounds = '';
+  /** Кто из соседей сейчас у Excalidraw и был ли у кого-то лазер — чтобы не будить редактор зря. */
+  private told = '';
+  private laser = false;
 
   constructor(
     private readonly api: ExcalidrawImperativeAPI,
     private readonly people: () => ReadonlyMap<string, BoardPerson>,
+    private readonly layer: CursorLayer | null = null,
   ) {}
 
   elements(): readonly BoardElement[] {
@@ -91,23 +103,40 @@ export class ExcalidrawCanvas implements BoardCanvas, LocalFiles {
     this.api.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
   }
 
+  /**
+   * Курсоры соседей (R168) рисует свой слой — только стрелкой. Excalidraw соседей тоже знает: по ним
+   * он показывает их значки (нажатие — «следовать») и рисует их лазерную указку, — но без курсора, имени и
+   * рамок чужого выделения. Будить его на каждый кадр курсора незачем: только когда сменился состав
+   * соседей или кто-то светит лазером (и кадр после — чтобы след погас).
+   */
   cursors(cursors: ReadonlyMap<string, Cursor>) {
+    this.layer?.set(cursors);
     const people = this.people();
     const collaborators = new Map<SocketId, Collaborator>();
+    let laser = false;
     for (const [id, cursor] of cursors) {
       const person = people.get(id);
       if (!person) continue;
+      if (cursor.tool === 'laser') laser = true;
       collaborators.set(id as SocketId, {
         id,
         socketId: id as SocketId,
         username: person.name,
         color: { background: person.color, stroke: person.color },
-        pointer: { x: cursor.x, y: cursor.y, tool: cursor.tool },
+        pointer: {
+          x: cursor.x,
+          y: cursor.y,
+          tool: cursor.tool,
+          renderCursor: false,
+          laserColor: person.color,
+        },
         button: cursor.button,
-        selectedElementIds: Object.fromEntries(cursor.selection.map((selected) => [selected, true])),
       });
     }
-    this.api.updateScene({ collaborators });
+    const told = [...collaborators.keys()].sort().join(',');
+    if (told !== this.told || laser || this.laser) this.api.updateScene({ collaborators });
+    this.told = told;
+    this.laser = laser;
     this.follow(cursors);
   }
 
