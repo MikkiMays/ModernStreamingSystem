@@ -13,7 +13,7 @@
    `/etc/sysctl.d/90-cord-dev.conf`; задачу cron агенту не даёт поставить автоматический режим среды). Метрика
    замираний хоста (`cord_host_soft_lockups_*`, «Cord — медиа», алерт `HostSoftLockups`):
    ```bash
-   install -m 0755 /opt/ModernStreamingSystem/infra/host/soft-lockups.sh /usr/local/sbin/cord-soft-lockups && echo '*/5 * * * * root /usr/local/sbin/cord-soft-lockups' > /etc/cron.d/cord-soft-lockups && /usr/local/sbin/cord-soft-lockups && cat /var/lib/node_exporter/textfile/cord_host.prom
+   sudo bash /opt/ModernStreamingSystem/infra/host/install-soft-lockups.sh
    ```
    В сессии Claude Code — с префиксом `! `.
    Ответ:
