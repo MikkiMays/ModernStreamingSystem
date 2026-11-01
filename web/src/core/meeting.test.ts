@@ -603,3 +603,64 @@ describe('звук встречи при входе (R161)', () => {
     }
   });
 });
+
+describe('ход ждёт один снимок, а не два (R178)', () => {
+  /** Снимок отвечает через `ms`; номер события — тот, что сейчас в `snapshot`. */
+  function slowSnapshots(ms: number) {
+    fetchMock.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve(new Response(JSON.stringify(snapshot), { status: 200 })), ms),
+        ),
+    );
+  }
+  // Снимок — GET на адрес самой комнаты (`api.snapshot`), без хвоста.
+  const snapshotCalls = () =>
+    fetchMock.mock.calls.filter(([url, init]) => /\/rooms\/room$/.test(String(url)) && !init?.method).length;
+  const event = (sequence: number) => ({
+    eventId: `e${sequence}`,
+    sequence,
+    version: 1,
+    type: 'room.changed',
+    occurredAt: 0,
+    payload: {},
+  });
+
+  it('событие своей команды во время её запроса снимка второго запроса не делает', async () => {
+    slowSnapshots(200);
+    const control = meeting.control as unknown as { command: ReturnType<typeof vi.fn>; onEvent: Function };
+    control.command.mockResolvedValueOnce({ commandId: 'c', ok: true, sequence: 2 });
+    snapshot = { ...snapshot, sequence: 2 };
+    fetchMock.mockClear();
+    const sent = meeting.command('durak.sit');
+    await vi.advanceTimersByTimeAsync(0);
+    // Сокет прислал событие этой команды следом за ответом — снимок уже едет и привезёт его.
+    control.onEvent(event(2), true);
+    await vi.advanceTimersByTimeAsync(250);
+    await sent;
+    expect(snapshotCalls()).toBe(1);
+    expect(meeting.snapshot.get().sequence).toBe(2);
+  });
+
+  it('событие, которое уже в снимке, снимок не перечитывает; новое — перечитывает', async () => {
+    slowSnapshots(10);
+    const control = meeting.control as unknown as { onEvent: Function };
+    fetchMock.mockClear();
+    control.onEvent(event(1), true);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(snapshotCalls()).toBe(0);
+    snapshot = { ...snapshot, sequence: 2 };
+    control.onEvent(event(2), true);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(snapshotCalls()).toBe(1);
+  });
+
+  it('ответ без номера — снимок перечитывается, как раньше', async () => {
+    slowSnapshots(10);
+    fetchMock.mockClear();
+    const sent = meeting.command('durak.sit');
+    await vi.advanceTimersByTimeAsync(20);
+    await sent;
+    expect(snapshotCalls()).toBe(1);
+  });
+});
