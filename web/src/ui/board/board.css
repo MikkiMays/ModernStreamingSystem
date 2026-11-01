@@ -187,6 +187,13 @@
   grid-auto-rows: min-content;
   justify-items: center;
 }
+/* Лазерная указка — и в меню «Ещё инструменты»; отдельной кнопкой под колонкой она упиралась в масштаб. */
+.board-canvas
+  .excalidraw:not(.excalidraw--mobile)
+  .App-toolbar-container
+  > .Island:has(.ToolIcon__LaserPointer) {
+  display: none;
+}
 .board-canvas .excalidraw:not(.excalidraw--mobile) .App-toolbar {
   max-height: calc(100vh - 16rem);
   overflow-y: auto;

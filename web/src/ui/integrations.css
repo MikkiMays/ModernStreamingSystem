@@ -281,10 +281,11 @@
   gap: var(--space-5);
   min-width: 0;
 }
+/* «← Интеграции» — акцентом, как у кинозала и игр (`.text-button`): один вид у всех шагов (R167). */
 .ui-button.music-panel__back {
   justify-self: start;
   margin-inline-start: calc(var(--space-3) * -1);
-  --button-text: var(--text-secondary);
+  --button-text: var(--accent);
 }
 /* «Убрать музыку из встречи» — под очередью, тихой красной строкой (как до R128). */
 .ui-button.music-panel__remove {
