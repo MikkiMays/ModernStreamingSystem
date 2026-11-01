@@ -73,7 +73,9 @@ describe('useSource: адрес потока', () => {
     const { hook, resolve } = setup();
     expect(hook.result.current.status).toBe('loading');
     await flush();
-    expect(resolve).toHaveBeenCalledWith('youtube', 'dQw4w9WgXcQ', 'video');
+    expect(resolve).toHaveBeenCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
+      signal: expect.any(AbortSignal),
+    });
     expect(hook.result.current.source?.url).toBe('/cinema/playlist?sig=1');
     // «Готов» — это метаданные в `<video>`, а не ответ службы.
     expect(hook.result.current.status).toBe('loading');
@@ -107,6 +109,7 @@ describe('useSource: адрес потока', () => {
     expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
       adaptive: false,
       refresh: true,
+      signal: expect.any(AbortSignal),
     });
     expect(echo.suppress).toHaveBeenCalledOnce();
     expect(renewed).toHaveBeenCalledOnce();
@@ -125,6 +128,7 @@ describe('useSource: адрес потока', () => {
     expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
       adaptive: true,
       refresh: true,
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -143,6 +147,7 @@ describe('useSource: адрес потока', () => {
     expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
       adaptive: true,
       refresh: true,
+      signal: expect.any(AbortSignal),
     });
     expect(hook.result.current.expired()).toBe(false);
     expect(resolve).toHaveBeenCalledTimes(3);
@@ -157,6 +162,7 @@ describe('useSource: адрес потока', () => {
     expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
       adaptive: true,
       refresh: true,
+      signal: expect.any(AbortSignal),
     });
     act(() => hook.result.current.dashFailed());
     expect(resolve).toHaveBeenCalledTimes(2);
@@ -166,6 +172,7 @@ describe('useSource: адрес потока', () => {
     expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
       adaptive: false,
       refresh: true,
+      signal: expect.any(AbortSignal),
     });
     expect(hook.result.current.source?.kind).toBe('file');
   });
@@ -184,6 +191,7 @@ describe('useSource: адрес потока', () => {
     expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
       adaptive: true,
       refresh: true,
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -204,6 +212,7 @@ describe('useSource: адрес потока', () => {
     expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
       adaptive: false,
       refresh: true,
+      signal: expect.any(AbortSignal),
     });
     expect(renewed).toHaveBeenCalledOnce();
     expect(hook.result.current.source).toBe(fresh);
@@ -241,6 +250,23 @@ describe('useSource: адрес потока', () => {
       taken = hook.result.current.fileFailed();
     });
     expect(taken).toBe(true);
+  });
+
+  it('другое видео и уход из кинозала снимают вопрос, который ещё идёт (R172)', async () => {
+    const { hook, resolve } = setup();
+    await flush();
+    const signal = (call: number) =>
+      ((resolve.mock.calls[call] as unknown[])[3] as { signal: AbortSignal }).signal;
+    resolve.mockReturnValueOnce(pending<CinemaSource>().promise);
+    hook.rerender({ current: watch({ contentId: 'first-video' }) });
+    expect(signal(1).aborted).toBe(false);
+    resolve.mockReturnValueOnce(pending<CinemaSource>().promise);
+    hook.rerender({ current: watch({ contentId: 'aqz-KE-bpKQ' }) });
+    expect(signal(1).aborted).toBe(true);
+    const second = { signal: signal(2) };
+    expect(second.signal.aborted).toBe(false);
+    hook.unmount();
+    expect(second.signal.aborted).toBe(true);
   });
 
   it('обновление не удалось — отказ его словами или общим текстом', async () => {
