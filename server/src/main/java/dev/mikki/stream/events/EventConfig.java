@@ -1,11 +1,7 @@
 package dev.mikki.stream.events;
 
 import dev.mikki.stream.config.StreamProperties;
-import java.nio.charset.StandardCharsets;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.*;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.listener.*;
 import org.springframework.web.socket.config.annotation.*;
 
 @Configuration
@@ -31,14 +27,5 @@ public class EventConfig implements WebSocketConfigurer {
     registry.addHandler(board, "/api/v1/board").setAllowedOrigins(config.publicUrl());
   }
 
-  @Bean
-  @ConditionalOnProperty(name = "stream.redis-enabled", havingValue = "true")
-  RedisMessageListenerContainer redisEvents(RedisConnectionFactory factory) {
-    var container = new RedisMessageListenerContainer();
-    container.setConnectionFactory(factory);
-    container.addMessageListener(
-        (message, pattern) -> socket.remote(new String(message.getBody(), StandardCharsets.UTF_8)),
-        new ChannelTopic("room-events"));
-    return container;
-  }
+  // Подписка на события других узлов — `RedisEvents`: в фоне, запуск ядра Redis не ждёт.
 }
