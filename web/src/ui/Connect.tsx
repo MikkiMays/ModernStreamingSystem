@@ -26,6 +26,9 @@ import { ServerMenu } from './ServerMenu';
  * In a browser connecting is always automatic (R135): the switch lives only in the Windows
  * client, whose shell remembers it and starts on this screen when it is off.
  */
+/** Паузы между повторами, когда сервер не ответил: дальше — раз в полминуты, пока экран открыт. */
+const RETRY_MS = [2_000, 4_000, 8_000, 15_000, 30_000];
+
 export function Connect({ onConnected }: { onConnected: () => void }) {
   const { t } = useTranslation();
   const desktop = isDesktop();
@@ -56,25 +59,59 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
 
   useEffect(() => {
     let active = true;
-    void serverInfo()
-      .then((capabilities) => {
-        if (!active) return;
-        setInfo(capabilities);
-        // Connecting to an open server asks nothing, so waiting for a click on a screen with
-        // no question on it would be a step for its own sake. A closed one waits unless this
-        // device kept the password.
-        const remembered = thisServer();
-        const ready = !capabilities.passwordRequired || !!remembered.password;
-        if ((remembered.autoConnect || !desktop) && ready && !started.current) {
-          started.current = true;
-          void connect(remembered.password);
-        }
-      })
-      .catch((error) => {
-        if (active) setAttempt({ ok: false, detail: describeFailure(error) });
-      });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let failures = 0;
+    const automatic = () => thisServer().autoConnect || !desktop;
+    /*
+      Сервер не ответил — сбой сети, замирание машины сервера, — а подключение само: пробуем ещё,
+      пока экран открыт, с паузой всё длиннее и сразу, как вернулась сеть. Раньше «Не подключено»
+      оставалось, пока человек сам не нажмёт «Подключиться» (стенд, 01.11.2026: 20 минут после
+      46-секундного замирания хоста).
+    */
+    const retry = () => {
+      if (!active || !automatic()) return;
+      clearTimeout(timer);
+      timer = setTimeout(probe, RETRY_MS[Math.min(failures++, RETRY_MS.length - 1)]);
+    };
+    const probe = () => {
+      void serverInfo()
+        .then(async (capabilities) => {
+          if (!active) return;
+          setInfo(capabilities);
+          // Connecting to an open server asks nothing, so waiting for a click on a screen with
+          // no question on it would be a step for its own sake. A closed one waits unless this
+          // device kept the password.
+          const remembered = thisServer();
+          const ready = !capabilities.passwordRequired || !!remembered.password;
+          if (automatic() && ready && !started.current) {
+            started.current = true;
+            const ok = await connect(remembered.password);
+            // Открытому серверу отказать по паролю нечем: неудача — это сеть, её и повторяем. Закрытый
+            // мог отказать паролем — тогда ждём человека, а не долбим сервер неверным.
+            if (!ok && active && !capabilities.passwordRequired) {
+              started.current = false;
+              retry();
+            }
+          }
+        })
+        .catch((error) => {
+          if (!active) return;
+          setAttempt({ ok: false, detail: describeFailure(error) });
+          retry();
+        });
+    };
+    const online = () => {
+      if (!active || started.current) return;
+      failures = 0;
+      clearTimeout(timer);
+      probe();
+    };
+    window.addEventListener('online', online);
+    probe();
     return () => {
       active = false;
+      clearTimeout(timer);
+      window.removeEventListener('online', online);
     };
     // Deliberately empty: the handshake belongs to this mount. Listing the password here would
     // re-run it on every keystroke.

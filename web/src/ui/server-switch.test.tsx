@@ -83,6 +83,58 @@ describe('экран подключения', () => {
     expect(screen.queryByRole('switch')).toBeNull();
   });
 
+  it('сервер не ответил — пробует ещё сам, с паузой, и подключается, как только сервер ожил', async () => {
+    vi.useFakeTimers();
+    try {
+      session.serverInfo
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      const onConnected = vi.fn();
+      render(<Connect onConnected={onConnected} />);
+      await act(async () => {});
+      expect(screen.getByText('Не подключено')).toBeInTheDocument();
+      expect(session.openConnection).not.toHaveBeenCalled();
+      await act(async () => vi.advanceTimersByTimeAsync(2_000));
+      expect(session.openConnection).not.toHaveBeenCalled();
+      await act(async () => vi.advanceTimersByTimeAsync(4_000));
+      expect(session.openConnection).toHaveBeenCalledTimes(1);
+      expect(onConnected).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('открытый сервер не дал подключиться — это сеть, повтор; закрытый отказал паролем — ждёт человека', async () => {
+    vi.useFakeTimers();
+    try {
+      session.openConnection.mockResolvedValueOnce({ ok: false, detail: 'сеть' });
+      const onConnected = vi.fn();
+      render(<Connect onConnected={onConnected} />);
+      await act(async () => {});
+      expect(session.openConnection).toHaveBeenCalledTimes(1);
+      await act(async () => vi.advanceTimersByTimeAsync(2_000));
+      expect(session.openConnection).toHaveBeenCalledTimes(2);
+      expect(onConnected).toHaveBeenCalled();
+      cleanup();
+
+      session.openConnection.mockClear();
+      session.serverInfo.mockResolvedValue({ name: 'Cord', passwordRequired: true });
+      localStorage.setItem(
+        'cord:servers:v1',
+        JSON.stringify({ url: HERE, name: '', password: 'неверный', autoConnect: true }),
+      );
+      session.openConnection.mockResolvedValueOnce({ ok: false, detail: 'пароль' });
+      render(<Connect onConnected={vi.fn()} />);
+      await act(async () => {});
+      expect(session.openConnection).toHaveBeenCalledTimes(1);
+      await act(async () => vi.advanceTimersByTimeAsync(60_000));
+      expect(session.openConnection).toHaveBeenCalledTimes(1);
+    } finally {
+      session.serverInfo.mockResolvedValue({ name: 'Cord', passwordRequired: false });
+      vi.useRealTimers();
+    }
+  });
+
   it('в приложении выключатель говорит оболочке — она помнит его между запусками', async () => {
     const send = desktop(false);
     localStorage.setItem(
