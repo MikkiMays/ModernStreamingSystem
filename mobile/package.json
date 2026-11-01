@@ -1,7 +1,7 @@
 {
   "name": "@modern-streaming/mobile",
   "private": true,
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Cord for Android: Capacitor shell around the server UI with a call foreground service",
   "author": "@nikgers (https://t.me/nikgers)",
   "type": "module",
