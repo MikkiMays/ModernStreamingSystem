@@ -94,6 +94,14 @@ RESOLVE_DEADLINE = 30.0
 # памяти, и сотня подписанных адресов одной ссылки не должна читать их разом.
 REWRITE_THREADS = 2
 REWRITE_WAITING = 8
+# Готовый файл — кусками, как у YouTube (R172). `<video src>` просит файл открытым диапазоном (`bytes=N-`) и
+# держит соединение, пока не дочитает: всё, что он не забрал, лежит в буферах сокетов по дороге (у Windows —
+# до 16 МБ), и замер стенда показал 48 с фильма впереди просмотренного вместо 15–20 с, которые держит сам
+# Chromium. Ответ на открытый диапазон поэтому — до границы куска в 2 МБ (5 с фильма в 3 Мбит/с): плеер сам
+# спрашивает следующий кусок, когда тот ему нужен, — ровно столько впереди, сколько он решил держать, и ещё
+# не больше куска в пути (22 с в том же замере). Границы кусков общие (кратные `FILE_CHUNK`): следующий
+# вопрос начинается с границы у всех зрителей комнаты. Явный диапазон (`bytes=N-M`: DASH, Safari) — как есть.
+FILE_CHUNK = 2 * 1024 * 1024
 # Сколько чужих ответов подходящего размера (`Segments.largest`, 12 МБ) читается в общую память разом: каждый
 # — до двух своих размеров в памяти, пока читается. Остальные в этот миг идут к зрителю потоком, мимо памяти.
 FOREIGN_READS = 8
@@ -947,10 +955,11 @@ class Cinema:
         ):
             raise HTTPException(416, "Неверный диапазон байтов")
         profile = self._profile(profile_id)
-        # Частичный запрос (перемотка в готовом файле) обслуживается напрямую, потоком.
+        # Частичный запрос (готовый файл, перемотка в нём) — напрямую, потоком; открытый — кусками.
         client = self.net.client_for(provider)
         if range_header:
-            return self._stream(await self._open(client, url, {"Range": range_header}, provider, profile))
+            asked = {"Range": chunked(range_header)}
+            return self._stream(await self._open(client, url, asked, provider, profile))
         # Целый сегмент — то, что просят все и одинаково: он идёт через общую память.
         cached = self.segments.get(url)
         if cached:
@@ -1090,6 +1099,19 @@ class Cinema:
         passed["Cache-Control"] = "private, max-age=600"
         passed.update(SEALED)
         return Relay(upstream, status_code=upstream.status_code, headers=passed)
+
+
+def chunked(range_header: str) -> str:
+    """
+    Открытый диапазон (`bytes=N-`) — до ближайшей границы куска (`FILE_CHUNK`); остальные — как есть. Ответ
+    206 с правдивым `Content-Range` короче, чем просили, плеер дочитывает следующими вопросами сам — так
+    отдают видео и CDN площадок; Chromium (и Electron) проверен замером R172.
+    """
+    found = re.fullmatch(r"bytes=(\d+)-", range_header)
+    if not found:
+        return range_header
+    start = int(found[1])
+    return f"bytes={start}-{(start // FILE_CHUNK + 1) * FILE_CHUNK - 1}"
 
 
 def _kept_for(found: dict[str, Any]) -> float:
