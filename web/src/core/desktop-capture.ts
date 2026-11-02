@@ -2,7 +2,6 @@ import { t } from '../i18n';
 import type { ScreenAudioEvent, ScreenAudioSource } from '../media/capture';
 import type { ScreenAudio } from '../media/profiles';
 import { hasFeature, invokeDesktop, isDesktop, notifyDesktop, onDesktopEvent } from './desktop';
-import { noteFailure } from './failure';
 
 /**
  * Своё окно выбора источника показа в клиенте на Electron (T10, E01-B2, ADR 0001 §4.1).
@@ -130,13 +129,15 @@ function captureAudioTrack(): MediaStreamTrack | null {
 
 /**
  * Причина отказа оболочки → короткая подсказка; показ при этом идёт без звука. Слово оболочки
- * человеку ничего не скажет — оно в журнал и счётчик (R180).
+ * человеку ничего не скажет — оно в журнал (R180).
  */
 function audioProblem(reason: unknown, started: boolean): string {
   if (reason === 'not-a-window') return t(($) => $.media.screen.audio.notWindow);
   if (reason === 'unavailable' || reason === 'native') return t(($) => $.media.screen.audio.unavailable);
   const text = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 120) : '—';
-  noteFailure('screen', 'other', new Error(`capture audio ${started ? 'stopped' : 'failed'}: ${text}`));
+  // Счёт и «Недавние ошибки» — у встречи, которая покажет подсказку (`MediaSession.report`); здесь — слово
+  // оболочки в журнал браузера.
+  console.warn(`[cord] capture audio ${started ? 'stopped' : 'failed'}: ${text}`);
   return started ? t(($) => $.media.screen.audio.stopped) : t(($) => $.media.screen.audio.failed);
 }
 
