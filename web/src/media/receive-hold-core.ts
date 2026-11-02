@@ -56,6 +56,7 @@ export class HoldGate<T> {
   private ssrc: number | null = null;
   private lastArrival: number | null = null;
   private first: number | null = null;
+  private firstArrival = 0;
   private held: T[] = [];
   private holding = false;
   constructor(private holdMs: number) {}
@@ -90,10 +91,15 @@ export class HoldGate<T> {
       if (stale.length) return [...stale, ...this.push(frame, meta)];
     }
     if (!this.holding) return [frame];
-    this.first ??= meta.rtpTimestamp;
+    if (this.first === null) {
+      this.first = meta.rtpTimestamp;
+      this.firstArrival = meta.arrivalMs;
+    }
     this.held.push(frame);
     const spanMs = ((meta.rtpTimestamp - this.first) >>> 0) / TICKS_PER_MS;
-    return spanMs >= this.holdMs ? this.release() : [];
+    // Страховка: метки RTP не растут (браузер их не отдаёт) — держим не дольше двух запасов по часам.
+    const waitedMs = meta.arrivalMs - this.firstArrival;
+    return spanMs >= this.holdMs || waitedMs >= 2 * this.holdMs ? this.release() : [];
   }
 
   /** Отдать всё накопленное и дальше пропускать насквозь до следующего потока. */

@@ -107,6 +107,14 @@ describe('задержка начала стерео-дорожки', () => {
     ).toEqual(['a', 'b', 'c']);
   });
 
+  it('метки RTP не растут — держание кончается по часам, через два запаса, а не никогда', () => {
+    const gate = new HoldGate<string>(100);
+    const meta = (i: number) => ({ ssrc: 4, stereo: true, rtpTimestamp: 0, arrivalMs: i * 20 });
+    const out = Array.from({ length: 12 }, (_, i) => gate.push(`4:${i}`, meta(i)));
+    expect(out.slice(0, 10).every((x) => x.length === 0)).toBe(true);
+    expect(out[10]).toHaveLength(11);
+  });
+
   it('тот же источник после тишины дольше запаса — снова держится (переподписка, обрыв)', () => {
     const gate = new HoldGate<string>(640);
     feed(gate, frames(5, true, 40));

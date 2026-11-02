@@ -13,6 +13,8 @@ import { HoldGate, opusStereo, type HoldMessage } from './receive-hold-core';
 
 interface EncodedAudioFrame {
   data: ArrayBuffer;
+  /** Старое имя метки RTP (Firefox, Safari); новое — `rtpTimestamp` в метаданных. */
+  timestamp?: number;
   getMetadata(): {
     synchronizationSource?: number;
     rtpTimestamp?: number;
@@ -59,10 +61,12 @@ scope.onrtctransform = ({ transformer }) => {
           try {
             const meta = frame.getMetadata();
             const red = meta.mimeType === 'audio/red' || meta.payloadType === RED_PAYLOAD;
+            const rtpTimestamp = meta.rtpTimestamp ?? frame.timestamp;
             out = gate.push(frame, {
               ssrc: meta.synchronizationSource ?? 0,
-              rtpTimestamp: meta.rtpTimestamp ?? 0,
-              stereo: opusStereo(new Uint8Array(frame.data), red),
+              rtpTimestamp: rtpTimestamp ?? 0,
+              // Без метки RTP запас не сосчитать — тогда не держим вовсе.
+              stereo: rtpTimestamp === undefined ? null : opusStereo(new Uint8Array(frame.data), red),
               arrivalMs: performance.now(),
             });
           } catch {
