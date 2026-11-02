@@ -39,10 +39,11 @@ describe('профиль запаса', () => {
     for (const kind of ['conversation', 'media', 'video'] as const)
       expect(profileFor(kind).floorMs).toBeGreaterThan(0);
   });
-  it('музыка живёт в одной секунде для всех: потолок 1000, пол 500', () => {
+  it('музыка живёт в одной секунде для всех: потолок 1000, пол 600 — и начинает с пола (R182)', () => {
     const media = profileFor('media');
     expect(media.ceilingMs).toBe(1000);
-    expect(media.floorMs).toBe(500);
+    expect(media.floorMs).toBe(600);
+    expect(media.startMs).toBe(media.floorMs);
     expect(media.ceilingMs - media.floorMs).toBeLessThanOrEqual(500);
   });
   it('разговор остаётся разговором: 400 мс — потолок, а не цель', () => {
@@ -150,9 +151,9 @@ describe('решение по дорожке', () => {
     expect(buffer.target).toBe(profile.ceilingMs);
   });
 
-  it('после подъёма спуск идёт шагом stepMs каждые calmMs, а не за семнадцать минут', () => {
-    const profile = profileFor('media');
-    const buffer = new PlayoutBuffer('media', profile, 0);
+  it('после подъёма разговор спускается шагом stepMs каждые calmMs, а не за семнадцать минут', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
     buffer.observe(audio(0), 0);
     buffer.observe(audio(2, jittery(5)), 2000);
     buffer.observe(audio(4, jittery(10)), 4000);
@@ -171,9 +172,31 @@ describe('решение по дорожке', () => {
         steps++;
       }
     }
-    // (600+200-500)/100 = 3 шага по 10 с спокойствия — меньше минуты.
-    expect(steps).toBe(3);
-    expect(now - 4000).toBeLessThanOrEqual(3 * profile.calmMs + 6000);
+    // (120 + 120 − 60) / 20 = 9 шагов по 8 с спокойствия — около минуты.
+    expect(steps).toBe((raised - profile.floorMs) / profile.stepMs);
+    expect(now - 4000).toBeLessThanOrEqual(steps * profile.calmMs + 6000);
+  });
+
+  /**
+   * R182. Живой замер 02.11.2026: через десять спокойных секунд цель музыки шла 600 → 500, и NetEq
+   * 1,2 с догонял её ускорением звука на 8 % — посреди трека это слышно. Музыка вниз не шагает.
+   */
+  it('музыка вниз не шагает: поднятый запас держится, сколько бы ни было спокойно', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    buffer.observe(audio(0), 0);
+    buffer.observe(audio(2, jittery(5)), 2000);
+    const raised = buffer.target;
+    expect(raised).toBe(profile.startMs + profile.riseMs);
+    for (let seconds = 4; seconds <= 600; seconds += 2)
+      expect(buffer.observe(audio(seconds, jittery(5)), seconds * 1000).targetMs).toBe(raised);
+  });
+
+  it('музыка с начала спокойствия не уходит со стартовой цели', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    for (let seconds = 0; seconds <= 120; seconds += 2)
+      expect(buffer.observe(audio(seconds), seconds * 1000).targetMs).toBe(profile.startMs);
   });
 
   it('пачка после задержки не становится целью: NetEq ускорится сам, а за потолком — переподписка', () => {
