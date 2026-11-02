@@ -23,10 +23,12 @@
 - [`cord-e2e-against-production`](memory/cord-e2e-against-production.md) — Как за минуту проверить клиента Cord настоящим браузером против боевого сервера, не поднимая локальный стенд
 - [`cord-e2e-create-budget`](memory/cord-e2e-create-budget.md) — Почему e2e против стенда после десятой встречи падают на «Слишком много новых встреч за час» и сколько встреч создаёт весь набор
 - [`cord-figma-export`](memory/cord-figma-export.md) — Как экраны Cord попадают в Figma-файл продукта и на чём там спотыкаешься — план Starter, запрет захвата в слои, кадры по ссылкам upload_assets
+- [`cord-listener-recording`](memory/cord-listener-recording.md) — Как записать то, что слушатель Cord реально слышит в браузере, и почему без счётчика вывода такая запись на этой машине врёт
 - [`cord-ladder-in-place`](memory/cord-ladder-in-place.md) — Почему камера в Cord «моргала» каждые полминуты и как лестница качества теперь шагает без переопубликации
 - [`cord-ivi-stream`](memory/cord-ivi-stream.md) — Откуда ivi в кинозале Cord берёт поток (плеерное API light, а не yt-dlp), что значат его отказы и почему с сервера вне России ivi работать не может
 - [`cord-local-stack-with-sfu`](memory/cord-local-stack-with-sfu.md) — Как поднять рядом с продом Cord полный второй стенд со своим SFU и проверять на нём медиа, ничего не трогая
 - [`cord-moderation-is-soft`](memory/cord-moderation-is-soft.md) — Решение владельца Cord: исключение и выключенный микрофон — не запрет, а конец встречи
+- [`cord-music-join-stretch`](memory/cord-music-join-stretch.md) — Почему у вошедшего посреди музыки Cord она «плыла и шумела» первые секунды, и почему держать начало дорожки можно только трансформом, поставленным до договора
 - [`cord-music-platform-sources`](memory/cord-music-platform-sources.md) — Что YouTube и SoundCloud отдают музыке Cord через yt-dlp без ключей и как узнать 30-секундный фрагмент SoundCloud Go+
 - [`cord-music-silence-and-encode`](memory/cord-music-silence-and-encode.md) — Почему пауза в музыке Cord звучала как поломка и чем меряется, кодек это или сеть
 - [`cord-openapi-regeneration`](memory/cord-openapi-regeneration.md) — Как перегенерировать contracts/openapi.json в Cord, когда прод-ядро отдаёт 404 на /api/openapi
