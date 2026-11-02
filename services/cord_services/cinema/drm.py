@@ -25,7 +25,7 @@ from urllib.parse import urljoin
 import httpx
 from fastapi import HTTPException
 
-DRM = "Видео защищено DRM — показать комнате нельзя"
+DRM = "Видео защищено от копирования — показать его комнате нельзя"
 
 # KEYFORMAT систем DRM: идентификаторы систем защиты из реестра DASH-IF и имена Apple и Microsoft.
 KEY_SYSTEMS = frozenset(

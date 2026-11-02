@@ -397,7 +397,7 @@ class UpstreamFailureTests(Stage):
         await self.refused(
             self.cinema.search("youtube", "big buck", "30"),
             502,
-            ("Поиск не удался: HTTP Error 429: " + "x" * 300)[:200],
+            "Поиск YouTube не удался — попробуйте ещё раз",
         )
 
     async def test_a_playlist_or_a_piece_that_cannot_be_reached_is_a_bad_gateway(self):

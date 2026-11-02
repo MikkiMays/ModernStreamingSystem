@@ -1027,7 +1027,11 @@ class SourceTests(Stage):
         cases = (
             ({"is_paid": True}, {}, "Это платное видео Rutube — показать его комнате нельзя"),
             ({"is_adult": True}, {}, "Видео Rutube с пометкой «для взрослых» в кинозал не попадает"),
-            ({}, {"drm_token": "token"}, "Видео Rutube защищено DRM — показать его комнате нельзя"),
+            (
+                {},
+                {"drm_token": "token"},
+                "Видео Rutube защищено от копирования — показать его комнате нельзя",
+            ),
         )
         for info, options, detail in cases:
             body = recorded("play-vod.json")
@@ -1087,7 +1091,7 @@ class SourceTests(Stage):
                 "Rutube не разрешает показать это видео",
             ),
             ({"is_adult": True}, "Видео Rutube с пометкой «для взрослых» в кинозал не попадает"),
-            ({"drm_token": "token"}, "Видео Rutube защищено DRM — показать его комнате нельзя"),
+            ({"drm_token": "token"}, "Видео Rutube защищено от копирования — показать его комнате нельзя"),
         ):
             self.answer(f"/api/play/options/{video}/", {**recorded("play-vod.json"), **change}, **PLAY)
             self.cinema.sources = Memo(capacity=64)

@@ -41,7 +41,7 @@ COOKIES_REFUSED = "не подошёл файл cookies"
 
 # Что сказать вместо ошибки yt-dlp, когда разбор площадки с охраняемым выходом (`egress.py`) упёрся в
 # его пределы: адрес внутри сети, срок разбора, занятые места.
-INSIDE = "Ссылка ведёт во внутреннюю сеть или на закрытый порт — такие адреса кинозал не открывает"
+INSIDE = "Ссылка ведёт на закрытый адрес — такие кинозал не открывает"
 EXPIRED = "Сайт не отдал видео вовремя — попробуйте ещё раз или другую ссылку"
 BUSY = "Сервер сейчас разбирает много ссылок — попробуйте через минуту"
 CLOSED = "Разбор ссылок сейчас недоступен — попробуйте через минуту"
@@ -52,9 +52,11 @@ TOO_BIG = "Страница слишком большая — такие кин�
 # нулей — это 64 МБ страницы, и «страница» в гигабайт уронила бы службу целиком.
 DECODED_LIMIT = 32 * 1024 * 1024
 # Видео есть, но только кусочками DASH из манифеста сайта: такой поток наш плеер пока не собирает.
-DASH_ONLY = "Сайт отдаёт это видео только потоком DASH — такой кинозал пока не показывает"
+DASH_ONLY = "Сайт отдаёт это видео в виде, который кинозал пока не показывает"
 # Видео есть, но только файлами, которые браузер не играет (`.mpg`, `.avi`, `.wmv`, …).
 UNPLAYABLE = "Сайт отдаёт видео только в виде, который браузер не играет"
+# Разбор не удался по причине, которую человеку не объяснить словами площадки (R180): подробности — в журнал.
+NOT_OPENED = "Не удалось открыть видео — попробуйте позже или другое"
 # Аудио без картинки — тоже годится: плеер играет его с постером. Виды — те, что играют браузеры.
 AUDIO_FILES = ("m4a", "mp3", "aac", "opus", "ogg", "oga", "wav", "flac")
 # Кодеки картинки, которые играют браузеры; `mp4v`, Theora, WMV и прочие — нет.
@@ -377,9 +379,12 @@ class YtDlp:
         except HTTPException:
             raise
         except Exception as error:  # yt_dlp поднимает свои типы; наружу идёт человеческий текст
-            raise refusal(error) or HTTPException(
-                502, f"Не удалось открыть видео: {self.explain(error)}"[:300]
-            ) from None
+            # Текст yt-dlp — в журнал службы (без секретов, `explain`), человеку — фраза: в тексте
+            # yt-dlp имена форматов, адреса и английский (R180).
+            known = refusal(error)
+            if known is None:
+                logger.info("кинозал: %s не открылся: %s", provider, self.explain(error)[:300])
+            raise known or HTTPException(502, NOT_OPENED) from None
 
     def explain(self, error: BaseException | str) -> str:
         """
@@ -820,7 +825,8 @@ class Resolver:
                 raise HTTPException(502, DASH_ONLY)
             if plan.files and formats:
                 kinds = sorted({str(item.get("ext")) for item in formats if item.get("ext")})
-                raise HTTPException(502, f"{UNPLAYABLE}: {', '.join(kinds)}"[:300])
+                logger.info("кинозал: %s отдаёт только %s", provider, ", ".join(kinds)[:120])
+                raise HTTPException(502, UNPLAYABLE)
             raise HTTPException(502, NO_STREAM)
         live = bool(info.get("is_live"))
         if plan.drm and kind == "hls":

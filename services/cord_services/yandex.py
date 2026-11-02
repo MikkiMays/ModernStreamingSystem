@@ -64,7 +64,7 @@ def sign_in_page(url: str) -> None:
     """Страница входа — только Яндекса: чужой адрес под QR-кодом увёл бы пароль человека не туда."""
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.hostname not in SIGN_IN_HOSTS:
-        raise HTTPException(502, "Яндекс вернул неизвестный адрес авторизации")
+        raise HTTPException(502, "Яндекс ответил не так, как ожидалось — попробуйте позже")
 
 
 class Yandex:
@@ -425,7 +425,7 @@ class Yandex:
                 )
             )
         ):
-            raise HTTPException(502, "Яндекс вернул неизвестный адрес аудиофайла")
+            raise HTTPException(502, "Яндекс Музыка не отдала трек — попробуйте другой")
         return parsed._replace(scheme="https", netloc=host).geturl()
 
     async def cover(self, track) -> str | None:
@@ -469,7 +469,7 @@ class Yandex:
             receipt = self.store.receipt("yandex-enqueue:" + room_id, command_id)
             if receipt:
                 if receipt["trackId"] != track_id or receipt["scope"] != scope:
-                    raise HTTPException(409, "Идентификатор команды уже использован")
+                    raise HTTPException(409, "Это действие уже выполнено")
                 return self.store.public(room_id)
             client = self.client(scope)
             tracks = await self.request(client.tracks([track_id]))

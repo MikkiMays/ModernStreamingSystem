@@ -294,7 +294,7 @@ class TokenTests(Stage):
         await self.refused(
             self.cinema.categories("vk", room=ROOM),
             502,
-            "VK Видео не пустил каталог: анонимный вход не принят",
+            "VK Видео не пустил кинозал в каталог — попробуйте позже",
         )
         self.assertEqual(len(self.logins), 2)
         self.assertEqual(len(self.calls), 2)
@@ -302,7 +302,7 @@ class TokenTests(Stage):
     async def test_a_failed_entry_rests_half_a_minute_before_asking_again(self):
         self.entries = [(429, "<html>429 Too Many Requests</html>")]
         self.sections()
-        no_entry = "VK Видео не пустил каталог: анонимный вход не принят"
+        no_entry = "VK Видео не пустил кинозал в каталог — попробуйте позже"
         await self.refused(self.cinema.categories("vk", room=ROOM), 502, no_entry)
         self.now += 29
         await self.refused(self.cinema.categories("vk", room=ROOM), 502, no_entry)
@@ -317,7 +317,7 @@ class TokenTests(Stage):
         await self.refused(
             self.cinema.categories("vk", room=ROOM),
             502,
-            "VK Видео не пустил каталог: анонимный вход не принят",
+            "VK Видео не пустил кинозал в каталог — попробуйте позже",
         )
 
     async def test_the_token_is_not_written_to_the_log_even_when_everything_fails(self):

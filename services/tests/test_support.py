@@ -94,7 +94,7 @@ class StatusCore:
     async def request(self, method, path, data=None, credential=None, headers=None):
         self.calls.append((method, path, data))
         if data["chat"] != "-100123":
-            raise HTTPException(403, "Доступ недоступен или отозван")
+            raise HTTPException(403, "Доступ закрыт или отозван")
         ticket = path.split("/")[-2]
         return {"id": ticket, "number": ticket[:8].upper(), "status": data["status"]}
 
