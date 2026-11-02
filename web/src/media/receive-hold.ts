@@ -52,7 +52,7 @@ function supported() {
   return (
     typeof window !== 'undefined' &&
     typeof RTCPeerConnection !== 'undefined' &&
-    typeof (window as { RTCRtpScriptTransform?: unknown }).RTCRtpScriptTransform === 'function' &&
+    typeof RTCRtpScriptTransform === 'function' &&
     typeof Worker !== 'undefined'
   );
 }
@@ -70,8 +70,6 @@ export function installReceiveHold() {
     worker = null;
     return;
   }
-  const Transform = (window as unknown as { RTCRtpScriptTransform: new (w: Worker, o: unknown) => unknown })
-    .RTCRtpScriptTransform;
   const original = RTCPeerConnection.prototype.addTransceiver;
   RTCPeerConnection.prototype.addTransceiver = function addTransceiver(
     this: RTCPeerConnection,
@@ -82,10 +80,7 @@ export function installReceiveHold() {
     if (worker && trackOrKind === 'audio' && init?.direction === 'recvonly') {
       try {
         const id = nextId++;
-        (transceiver.receiver as RTCRtpReceiver & { transform: unknown }).transform = new Transform(worker, {
-          id,
-          holdMs,
-        });
+        transceiver.receiver.transform = new RTCRtpScriptTransform(worker, { id, holdMs });
         ids.set(transceiver.receiver, id);
       } catch {
         // браузер не принял преобразование — секция работает без него
