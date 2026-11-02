@@ -3,6 +3,7 @@ import { t } from '../../../../i18n';
 import { adBreaks, type AdBreak, type AdFragment } from '../ad-breaks';
 import type { Level } from '../watch-levels';
 import { audioChoices, type AudioChoice, type MediaTrack } from '../watch-tracks';
+import { AHEAD_MIN, aheadFor, BEHIND } from './buffer';
 import type { Playback } from './playback';
 
 /** Умеет ли браузер играть HLS через `hls.js` (то есть есть ли у него MSE). */
@@ -54,19 +55,24 @@ export function attachHls(
   */
   const hls = new Hls({
     enableWorker: true,
-    // Запас назад нужен ровно для того, ради чего люди и жмут «назад»: отмотать
-    // на минуту, не скачивая её заново с нашего же канала.
-    backBufferLength: 120,
     /*
+      Позади — полминуты (R172, `buffer.ts`): короткая отмотка не качает то же самое заново, а
+      остальное плеер отдаёт обратно. Было 120 с — до семидесяти мегабайт памяти за спиной зрителя.
+    */
+    backBufferLength: BEHIND,
+    /*
+      Вперёд — 20–30 с по запасу канала (R172, `buffer.ts`), и не больше: обе границы hls.js меняются
+      на лету (ниже, `FRAG_BUFFERED`). Без них плеер тянул бы вперёд до `maxMaxBufferLength` — по
+      умолчанию 600 с, а с `maxBufferSize` в 60 МБ на ступени в 2 Мбит/с — четыре минуты.
+
       «Вежливый» кинозал (R151). Фильм идёт во время звонка, и на Wi-Fi ноутбука первый набор буфера
       полной скоростью забивал канал: SFU ставил камеры этого человека на паузу, сигнал опаздывал, у
-      всех — «Восстанавливаем связь». Вперёд — 20 с (раньше 30, потолок 30 вместо 60), а оценка канала —
-      с запасом (`abrBandWidthFactor`, `abrBandWidthUpFactor`): уровень выше выбирается, только если
-      его с лихвой хватает и на звонок рядом.
+      всех — «Восстанавливаем связь». Поэтому начало — 20 с, а оценка канала — с запасом
+      (`abrBandWidthFactor`, `abrBandWidthUpFactor`): уровень выше выбирается, только если его с лихвой
+      хватает и на звонок рядом.
     */
-    maxBufferLength: 20,
-    // По умолчанию плеер тянет вперёд до 600 с через наш прокси — память и полоса сервера зря.
-    maxMaxBufferLength: 30,
+    maxBufferLength: AHEAD_MIN,
+    maxMaxBufferLength: AHEAD_MIN,
     abrBandWidthFactor: 0.8,
     abrBandWidthUpFactor: 0.6,
     // Замирание хоста на 20–35 с (MEDIA-DIAGNOSIS §6) — сегменты не отвечают; восемь попыток с
@@ -135,6 +141,17 @@ export function attachHls(
     callbacks.levels(hls.levels as unknown as Level[], hls.autoLevelEnabled ? -1 : hls.currentLevel);
   };
   hls.on(Hls.Events.MANIFEST_PARSED, readLevels);
+  /*
+    Цель буфера вперёд — по каждому загруженному кусочку: оценка полосы против битрейта той ступени,
+    что сейчас играет (`aheadFor`). hls.js читает обе границы из своей настройки на каждом шаге загрузки,
+    поэтому новая цель действует со следующего кусочка, без перезапуска.
+  */
+  hls.on(Hls.Events.FRAG_BUFFERED, () => {
+    const level = hls.levels[hls.currentLevel] ?? hls.levels[hls.nextLoadLevel];
+    const ahead = aheadFor(hls.bandwidthEstimate, level?.bitrate);
+    hls.config.maxBufferLength = ahead;
+    hls.config.maxMaxBufferLength = ahead;
+  });
   hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
     if (callbacks.alive()) callbacks.automatic(data.level);
   });

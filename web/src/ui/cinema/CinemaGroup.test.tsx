@@ -60,9 +60,13 @@ it('выключенной на сервере площадки нет, а пр�
     json({
       providers: [
         entry('youtube'),
-        entry('rutube'),
+        entry('rutube', false, 'Не удалось проверить площадку'),
         entry('vk'),
-        entry('ivi', false, 'ivi отдаёт бесплатное только в России'),
+        {
+          ...entry('ivi', false, 'ivi показывает фильмы только на серверах в России'),
+          code: 'CINEMA_REGION',
+          country: 'DE',
+        },
         entry('link'),
       ],
     }),
@@ -70,14 +74,16 @@ it('выключенной на сервере площадки нет, а пр�
   await waitFor(() => expect(tiles()).toHaveLength(5));
   expect(tiles()).toEqual([
     { name: 'YouTube', note: 'Ролики, фильмы и каналы', disabled: false },
-    { name: 'Rutube', note: 'Эфиры ТВ, сериалы и шоу', disabled: false },
+    // Своя причина службы — русскими словами и подробностями — человеку не показывается (R172, R180).
+    { name: 'Rutube', note: 'Сейчас недоступна', disabled: true },
     { name: 'VK Видео', note: 'Разделы, сообщества и эфиры', disabled: false },
-    { name: 'ivi', note: 'ivi отдаёт бесплатное только в России', disabled: true },
+    // Не та страна сервера — словами каталога по коду, а не русской строкой службы.
+    { name: 'ivi', note: 'ivi работает только с серверов в России', disabled: true },
     { name: 'По ссылке', note: 'Ролик, эфир или плейлист по ссылке', disabled: false },
   ]);
   // Причина — видимый текст самой плитки, а не `title`, который палец не покажет.
   const ivi = screen.getByRole('button', { name: /ivi/ });
-  expect(within(ivi).getByText('ivi отдаёт бесплатное только в России')).toBeVisible();
+  expect(within(ivi).getByText('ivi работает только с серверов в России')).toBeVisible();
   expect(ivi).not.toHaveAttribute('title');
   expect(screen.queryByText('Twitch')).toBeNull();
 });

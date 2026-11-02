@@ -294,6 +294,28 @@ class ProbeTests(Harness):
         self.assertIsNone(self.reach.down(self.source))
         self.assertEqual((await self.call())[1], [1])
 
+    async def test_a_probe_whose_deadline_fired_late_says_nothing_about_the_platform(self):
+        """Цикл событий службы сам стоял (хост замер, GIL у потоков yt-dlp): срок пробы сработал позже,
+        чем должен, — это не «площадки нет», и автомат не мигает (R172, журнал стенда 01.11.2026)."""
+
+        async def stalled(request):
+            time.sleep(0.3)
+            await asyncio.sleep(3600)
+
+        await self.client.aclose()
+        self.client = httpx.AsyncClient(transport=httpx.MockTransport(stalled))
+        with patch.object(reach, "PROBE_TIMEOUT", 0.05), patch.object(reach, "PROBE_LATE", 0.1):
+            with self.assertNoLogs("cord_services.cinema.reach", "WARNING"):
+                self.assertIsNone(await self.reach.probe(self.source))
+                self.clock.now += reach.PROBE_AGAIN
+                self.assertIsNone(await self.reach.probe(self.source))
+        state = self.reach.gauge(self.source)
+        self.assertEqual((state.state, state.probe_misses, state.stalls), (reach.CLOSED, 0, 2))
+        self.assertIn(
+            'cord_cinema_probe_stalls_total{provider="spot"} 2',
+            "\n".join(self.reach.metric_lines([self.source])),
+        )
+
     async def test_any_answer_of_the_probe_means_reach_and_one_miss_between_answers_is_forgotten(self):
         for status in (204, 200, 403, 404, 500):
             self.answer = status

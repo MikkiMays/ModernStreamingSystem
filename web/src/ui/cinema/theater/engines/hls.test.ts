@@ -16,6 +16,7 @@ const mock = vi.hoisted(() => {
       AUDIO_TRACK_SWITCHED: 'audioTrackSwitched',
       SUBTITLE_TRACKS_UPDATED: 'subtitleTracksUpdated',
       LEVEL_LOADED: 'levelLoaded',
+      FRAG_BUFFERED: 'fragBuffered',
       ERROR: 'hlsError',
     };
     static ErrorTypes = {
@@ -23,9 +24,11 @@ const mock = vi.hoisted(() => {
       MEDIA_ERROR: 'mediaError',
       OTHER_ERROR: 'otherError',
     };
-    config: unknown;
+    config: Record<string, unknown>;
     subtitleDisplay = true;
-    levels = [{ height: 180 }, { height: 144 }];
+    levels: { height: number; bitrate?: number }[] = [{ height: 180 }, { height: 144 }];
+    bandwidthEstimate = 2_500_000;
+    nextLoadLevel = 0;
     autoLevelEnabled = true;
     currentLevel = -1;
     audioTracks: { name: string; lang?: string }[] = [];
@@ -33,8 +36,8 @@ const mock = vi.hoisted(() => {
     subtitleTrack = -1;
     liveSyncPosition: number | null = null;
     playingDate: Date | null = null;
-    constructor(config: unknown) {
-      this.config = config;
+    constructor(config: Record<string, unknown>) {
+      this.config = { ...config };
       mock.instances.push(this);
     }
     on(name: string, listener: Listener) {
@@ -87,9 +90,9 @@ describe('HLS через hls.js', () => {
     attachHls(video, '/cinema/playlist?u=1', 'ru', callbacks());
     expect(hls().config).toEqual({
       enableWorker: true,
-      backBufferLength: 120,
+      backBufferLength: 30,
       maxBufferLength: 20,
-      maxMaxBufferLength: 30,
+      maxMaxBufferLength: 20,
       abrBandWidthFactor: 0.8,
       abrBandWidthUpFactor: 0.6,
       fragLoadingMaxRetry: 8,
@@ -111,6 +114,24 @@ describe('HLS через hls.js', () => {
     attachHls(video, '/x', '', callbacks());
     expect((hls().config as { audioPreference?: unknown }).audioPreference).toBeUndefined();
     expect(hlsSupported()).toBe(true);
+  });
+
+  it('вперёд держит 20–30 с по запасу канала над играющей ступенью, и каждый кусочек — заново (R172)', () => {
+    attachHls(document.createElement('video'), '/x', '', callbacks());
+    const engine = hls();
+    const ahead = () => [engine.config.maxBufferLength, engine.config.maxMaxBufferLength];
+    expect(ahead()).toEqual([20, 20]);
+    engine.levels = [{ height: 720, bitrate: 2_000_000 }];
+    engine.currentLevel = 0;
+    engine.bandwidthEstimate = 10_000_000;
+    fire('fragBuffered');
+    expect(ahead()).toEqual([30, 30]);
+    engine.bandwidthEstimate = 4_500_000;
+    fire('fragBuffered');
+    expect(ahead()).toEqual([25, 25]);
+    engine.bandwidthEstimate = 2_500_000;
+    fire('fragBuffered');
+    expect(ahead()).toEqual([20, 20]);
   });
 
   it('рекламу, которую пометил поток записи, сообщает отрезками; у эфира — нет', () => {

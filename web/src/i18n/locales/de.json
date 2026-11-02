@@ -1990,7 +1990,10 @@
       "unreachable": "{{name}} ist von diesem Server aus nicht erreichbar",
       "unreachableHint": "Der Server dieses Meetings kommt gerade nicht an die Plattform heran. Andere Plattformen funktionieren wie gewohnt.",
       "late": "{{name}} hat nicht rechtzeitig geantwortet – versuch es noch einmal",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "region": "{{name}} funktioniert nur von Servern in Russland aus",
+      "regionHint": "Land des Servers dieses Meetings: {{country}}. Andere Kinoplattformen funktionieren wie gewohnt.",
+      "regionHintPlain": "Der Server dieses Meetings steht nicht in Russland. Andere Kinoplattformen funktionieren wie gewohnt."
     },
     "meta": {
       "live": "Live",
@@ -3276,7 +3279,14 @@
     "WAITING_LIMIT": "Aus diesem Netzwerk wartet schon jemand im Warteraum dieses Meetings",
     "WATCH_CLOSED": "Das gemeinsame Ansehen ist beendet",
     "WATCH_INVALID": "Nichts zu öffnen",
-    "WATCH_LIVE": "Ein Livestream lässt sich nicht pausieren oder zurückspulen"
+    "WATCH_LIVE": "Ein Livestream lässt sich nicht pausieren oder zurückspulen",
+    "CINEMA_GEO": "ivi zeigt dieses Video im Land des Servers nicht",
+    "CINEMA_NOT_YET": "Dieses Video ist auf ivi noch nicht erschienen",
+    "CINEMA_NO_VIDEO": "Dieses Video gibt es auf ivi nicht",
+    "CINEMA_PAID": "Das ist ein kostenpflichtiges ivi-Video – es kann dem Raum nicht gezeigt werden",
+    "CINEMA_PROTECTED": "ivi liefert dieses Video nur kopiergeschützt – es kann dem Raum nicht gezeigt werden",
+    "CINEMA_REGION": "ivi zeigt Filme nur auf Servern in Russland",
+    "CINEMA_STREAM_FAILED": "ivi hat dieses Video nicht geliefert – versuch es später noch einmal oder wähle ein anderes"
   },
   "activity": {
     "title": "Aktivität",

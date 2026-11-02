@@ -79,6 +79,18 @@ describe('CinemaApi: сроки ответа (R112)', () => {
     expect(timeout).toHaveBeenLastCalledWith(LINK_TIMEOUT);
   });
 
+  it('resolve снимается сигналом спросившего — ушёл с ролика, вопрос не висит до срока (R172)', async () => {
+    const api = new CinemaApi(admission);
+    const leave = new AbortController();
+    await api.resolve('ivi', '53141', 'video', { signal: leave.signal });
+    const [, init] = calls().at(-1)!;
+    expect(init.signal?.aborted).toBe(false);
+    leave.abort();
+    expect(init.signal?.aborted).toBe(true);
+    // Сигнал — не часть тела вопроса.
+    expect(JSON.parse(init.body as string)).not.toHaveProperty('signal');
+  });
+
   it('вопрос каталога без своего сигнала ждёт срок каталога, а не восемь секунд', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const api = new CinemaApi(admission);

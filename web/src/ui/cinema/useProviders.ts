@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   listedProviders,
+  REGION,
   UNREACHABLE,
   type CinemaApi,
   type CinemaProviderStatus,
@@ -40,6 +41,14 @@ export function useProviders(api: CinemaApi) {
       entry: (id: ProviderId) => entries.get(id),
       /** Не достаёт ли этот сервер до площадки — по слову службы, а не по догадке. */
       unreachable: (id: ProviderId) => entries.get(id)?.code === UNREACHABLE,
+      /**
+       * Работает ли площадка только с серверов другой страны (ivi — только из России, R172): страна этого
+       * сервера кодом (`DE`), пустая строка — служба её не назвала, `null` — площадка не такая.
+       */
+      region: (id: ProviderId) => {
+        const entry = entries.get(id);
+        return entry?.code === REGION ? (entry.country ?? '') : null;
+      },
       /** Спросить службу снова: вернулась ли площадка. */
       refetch: () => void refetch(),
     };

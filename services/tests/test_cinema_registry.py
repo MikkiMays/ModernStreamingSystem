@@ -529,7 +529,7 @@ class RouteTests(unittest.TestCase):
                         # сеть есть: без подмены проверка ходила бы в api.ivi.ru и красила бы main (I1).
                         "id": "ivi",
                         "available": False,
-                        "reason": "ivi отдаёт бесплатное только в России",
+                        "reason": "ivi показывает фильмы только на серверах в России",
                         "account": "none",
                         "connected": False,
                         "features": {
@@ -540,6 +540,9 @@ class RouteTests(unittest.TestCase):
                             "series": True,
                             "live": False,
                         },
+                        # Причина — кодом и со страной сервера: клиент назовёт её на языке человека (R172).
+                        "code": "CINEMA_REGION",
+                        "country": "DE",
                     },
                     # «По ссылке»: поиска нет, серии плейлиста — есть, эфир по ссылке — тоже.
                     {

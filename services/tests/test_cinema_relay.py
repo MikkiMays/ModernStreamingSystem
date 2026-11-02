@@ -10,6 +10,7 @@
 """
 
 import asyncio
+import re
 import unittest
 from urllib.parse import urlencode
 
@@ -17,7 +18,7 @@ import httpx
 from fastapi import FastAPI
 from starlette.requests import ClientDisconnect
 
-from cord_services.cinema import PREFIX, Cinema, routes
+from cord_services.cinema import PREFIX, Cinema, facade, routes
 from cord_services.cinema.transport.relay import OCTET, SEALED, media_type
 from cord_services.cinema.transport.signer import proxied
 
@@ -356,3 +357,65 @@ class Kinds(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FileInChunks(unittest.IsolatedAsyncioTestCase):
+    """
+    Готовый файл — кусками, как у YouTube (R172). `<video src>` просит открытый диапазон и держит соединение,
+    пока не дочитает, — непрочитанное копилось в буферах сокетов (48 с фильма впереди на замере). Открытый
+    диапазон прокси спрашивает у площадки и отдаёт до границы куска; явный — как есть.
+    """
+
+    async def asyncSetUp(self):
+        self.asked: list[str] = []
+        self.size = 5 * facade.FILE_CHUNK + 123
+
+        def film(request: httpx.Request) -> httpx.Response:
+            self.asked.append(request.headers["range"])
+            found = re.fullmatch(r"bytes=(\d+)-(\d*)", request.headers["range"])
+            assert found is not None
+            start = int(found[1])
+            end = min(int(found[2]) if found[2] else self.size - 1, self.size - 1)
+            headers = {
+                "content-type": "video/mp4",
+                "content-range": f"bytes {start}-{end}/{self.size}",
+                "content-length": str(end - start + 1),
+            }
+            return httpx.Response(206, headers=headers, content=b"x" * (end - start + 1))
+
+        self.cinema = Cinema("secret", httpx.AsyncClient(transport=httpx.MockTransport(film)))
+
+    async def asyncTearDown(self):
+        await self.cinema.close()
+
+    async def ask(self, range_header: str) -> str:
+        answer = await self.cinema.fetch(f"{EVIL}/film.mp4", range_header, "link")
+        await answer.upstream.aclose()
+        self.assertEqual(answer.status_code, 206)
+        return answer.headers["content-range"]
+
+    async def test_an_open_range_ends_at_the_chunk_boundary_and_the_next_one_starts_there(self):
+        chunk, size = facade.FILE_CHUNK, self.size
+        self.assertEqual(await self.ask("bytes=0-"), f"bytes 0-{chunk - 1}/{size}")
+        self.assertEqual(await self.ask(f"bytes={chunk}-"), f"bytes {chunk}-{2 * chunk - 1}/{size}")
+        # После перемотки — до ближайшей границы, дальше снова по общим границам: у всей комнаты одни куски.
+        self.assertEqual(await self.ask("bytes=3000000-"), f"bytes 3000000-{2 * chunk - 1}/{size}")
+        # Хвост файла — сколько есть.
+        self.assertEqual(await self.ask(f"bytes={5 * chunk}-"), f"bytes {5 * chunk}-{size - 1}/{size}")
+        # Явный диапазон (DASH, Safari) — ровно тот, что просили.
+        self.assertEqual(await self.ask("bytes=10-20"), f"bytes 10-20/{size}")
+        self.assertEqual(
+            self.asked,
+            [
+                f"bytes=0-{chunk - 1}",
+                f"bytes={chunk}-{2 * chunk - 1}",
+                f"bytes=3000000-{2 * chunk - 1}",
+                f"bytes={5 * chunk}-{6 * chunk - 1}",
+                "bytes=10-20",
+            ],
+        )
+
+    def test_the_chunk_is_a_few_seconds_of_a_film_not_minutes(self):
+        # 2 МБ — 5 с фильма в 3 Мбит/с (ivi MP4-HD720), 2,7 с в 6 Мбит/с.
+        self.assertEqual(facade.FILE_CHUNK, 2 * 1024 * 1024)
+        self.assertEqual(facade.chunked("bytes=-500"), "bytes=-500")

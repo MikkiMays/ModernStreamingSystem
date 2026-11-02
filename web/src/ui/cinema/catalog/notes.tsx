@@ -1,7 +1,7 @@
-import { CloudOff, LoaderCircle, RotateCw } from 'lucide-react';
+import { CloudOff, GlobeLock, LoaderCircle, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { knownProvider } from '../../../core/cinema/link';
-import { LATE, MUSIC_LATE, providerName, refusedBy } from '../../../core/cinema';
+import { countryName, LATE, MUSIC_LATE, providerName, refusedBy } from '../../../core/cinema';
 import { musicSourceName, type MusicSource } from '../../../core/services';
 import type { Translate } from '../../../i18n';
 import { Button } from '../../kit';
@@ -83,6 +83,28 @@ export function Unreachable({ name, onRetry }: { name: string; onRetry: () => vo
       <Button size="sm" icon={<RotateCw />} onClick={onRetry}>
         {t(($) => $.cinema.reach.retry)}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Площадка работает только с серверов другой страны (`CINEMA_REGION`, R172: ivi — только из России) —
+ * вместо всей витрины, сразу и без «Спрашиваем площадку…»: каталог здесь заведомо пуст, и звать в него
+ * незачем. «Повторить» нет: страна сервера от нажатия не изменится. `country` — страна этого сервера
+ * кодом (`DE`), пустая — служба её не назвала.
+ */
+export function Region({ name, country }: { name: string; country: string }) {
+  const { t } = useTranslation();
+  const place = countryName(t, country);
+  return (
+    <div className="cinema-empty cinema-unreachable cinema-region" role="status">
+      <GlobeLock size={40} />
+      <b>{t(($) => $.cinema.reach.region, { name })}</b>
+      <small>
+        {place
+          ? t(($) => $.cinema.reach.regionHint, { country: place })
+          : t(($) => $.cinema.reach.regionHintPlain)}
+      </small>
     </div>
   );
 }

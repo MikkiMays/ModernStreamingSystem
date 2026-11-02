@@ -232,9 +232,12 @@ class ProviderEntry(TypedDict):
     account: Literal["none", "optional", "required"]
     connected: bool
     features: dict[str, bool]
-    # Только у недоступной с этого сервера (`reach.py`): `CINEMA_UNREACHABLE` — по нему клиент называет
-    # причину на своём языке. У доступной ключа нет вовсе.
+    # Только у недоступной: `CINEMA_UNREACHABLE` — сервер не достаёт до площадки (`reach.py`),
+    # `CINEMA_REGION` — площадка работает только из другой страны (ivi — из России); по коду клиент
+    # называет причину на своём языке. У доступной ключа нет вовсе.
     code: NotRequired[str]
+    # У `CINEMA_REGION` — страна этого сервера (ISO 3166-1, `DE`), если площадка её назвала.
+    country: NotRequired[str]
 
 
 # «Ключа нет» — не то же самое, что «ключ есть и он пуст»: `followers: null` у карточки канала

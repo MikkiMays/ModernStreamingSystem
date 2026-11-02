@@ -178,8 +178,12 @@ test('a platform switched off on the server has no tile and no tab, and an unava
 }) => {
   const room = await context(browser, 390);
   const page = await room.newPage();
-  const reason = 'ivi отдаёт бесплатное только в России';
-  await routeCinema(page, { providers: () => providersAnswer(['twitch'], { ivi: reason }) });
+  // Причина — словами каталога по коду службы (`CINEMA_REGION`, R172), а не её русской строкой.
+  const reason = 'ivi работает только с серверов в России';
+  const answer = providersAnswer(['twitch'], { ivi: 'ivi показывает фильмы только на серверах в России' });
+  for (const entry of answer.providers)
+    if (entry.id === 'ivi') Object.assign(entry, { code: 'CINEMA_REGION', country: 'DE' });
+  await routeCinema(page, { providers: () => answer });
   try {
     await startMeeting(page);
     await page.getByRole('button', { name: 'Настройки и действия' }).click();

@@ -53,6 +53,16 @@ it('uses the existing video, offers 1440p independent of viewport and selects st
     error: vi.fn(),
   });
   expect(mock.player.initialize).toHaveBeenCalledWith(video, '/cinema/dash/test', false);
+  // Буфер «как у YouTube» (R172): вперёд 20 с, на верхней ступени — 30 с и у длинного фильма тоже
+  // (по умолчанию у dash.js — 60 с), позади — полминуты.
+  expect(mock.player.updateSettings.mock.calls[0]![0].streaming.buffer).toEqual({
+    fastSwitchEnabled: false,
+    bufferTimeDefault: 20,
+    bufferTimeAtTopQuality: 30,
+    bufferTimeAtTopQualityLongForm: 30,
+    bufferToKeep: 30,
+    bufferPruningInterval: 10,
+  });
   expect(mock.player.setInitialMediaSettingsFor).toHaveBeenCalledWith('audio', { lang: 'ru' });
   const select = mock.player.setCustomInitialTrackSelectionFunction.mock.calls[0]![0];
   const h264 = { type: 'video', bitrateList: [{ height: 1080 }] };

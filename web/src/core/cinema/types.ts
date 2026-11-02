@@ -251,10 +251,13 @@ export interface CinemaProviderStatus {
   connected: boolean;
   features: CinemaProviderFeatures;
   /**
-   * Только у площадки, до которой этот сервер не достаёт (`CINEMA_UNREACHABLE`, R112): по нему
-   * каталог отмечает её и называет причину на языке человека, а не русским `reason` службы.
+   * Только у недоступной площадки: `CINEMA_UNREACHABLE` — этот сервер до неё не достаёт (R112),
+   * `CINEMA_REGION` — площадка работает только с серверов другой страны (ivi — только из России, R172).
+   * По коду каталог называет причину на языке человека, а не русским `reason` службы.
    */
-  code?: 'CINEMA_UNREACHABLE';
+  code?: 'CINEMA_UNREACHABLE' | 'CINEMA_REGION';
+  /** У `CINEMA_REGION` — страна этого сервера (ISO 3166-1: `DE`), если площадка её назвала. */
+  country?: string;
 }
 export interface CinemaProvidersResponse {
   providers: CinemaProviderStatus[];

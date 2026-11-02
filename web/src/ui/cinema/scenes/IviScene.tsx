@@ -1,11 +1,18 @@
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { CinemaApi, PROVIDERS, providerName, QUERY_LONGEST, type CinemaItem } from '../../../core/cinema';
+import {
+  CinemaApi,
+  PROVIDERS,
+  providerName,
+  QUERY_LONGEST,
+  regionRefusal,
+  type CinemaItem,
+} from '../../../core/cinema';
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { More } from '../catalog/More';
-import { Empty, Failure, Following, Loading, retryOf } from '../catalog/notes';
+import { Empty, Failure, Following, Loading, Region, retryOf, Unreachable } from '../catalog/notes';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { SeriesPage } from '../catalog/pages/SeriesPage';
 import { cardsOf } from '../catalog/cards';
@@ -16,6 +23,7 @@ import { useLink } from '../catalog/useLink';
 import { usePage } from '../catalog/usePage';
 import { useKeyed, useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
+import { useProviders } from '../useProviders';
 import type { SceneProps } from '.';
 
 /** Открывается ли сцена без набранного раздела: первая вкладка — «Фильмы» (`14` у площадки). */
@@ -40,8 +48,13 @@ function nowhere(): void {}
  * а не только у сериалов. Серия внутри сериала — по-прежнему широкий кадр (`Tile`): у неё свой
  * кадр и длительность, а не постер всего сериала на каждой карточке.
  *
- * Площадка отсюда недоступна не из России (`GET providers`, `available: false`) — карточка в
- * панели интеграций гаснет с этой причиной раньше, чем сцена вообще откроется.
+ * НЕ ИЗ РОССИИ (R172). ivi отдаёт бесплатное только серверу в России. Сервер в другой стране служба
+ * узнаёт сама (`geocheck/whoami`) и говорит об этом кодом (`CINEMA_REGION` со страной сервера) — в
+ * списке площадок и в отказе на любой вопрос к ivi. Тогда сцена сразу, без «Спрашиваем площадку…»,
+ * говорит, в чём дело, и ни витрины, ни поиска не спрашивает: они заведомо пусты, а пустая витрина и
+ * «не удалось открыть» на каждом фильме выглядели поломкой. Карточка в панели гаснет с той же причиной;
+ * сюда приходят ссылкой или нажав раньше, чем служба ответила. Сервер, который не достаёт до ivi вовсе
+ * (`CINEMA_UNREACHABLE`, R112), — как у остальных площадок: блок «недоступен» с «Повторить».
  */
 export default function IviScene({ provider, at, meeting, onClose }: SceneProps) {
   const { t } = useTranslation();
@@ -57,6 +70,9 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
   /** Открытый раздел; по умолчанию — «Фильмы», а не пусто: у ivi нет отдельной витрины без него. */
   const [section, setSection] = useKeyed(provider, FIRST_TAB);
   const link = useLink(meeting, api);
+  /** Что служба сказала об ivi: работает ли она с этого сервера и почему нет. */
+  const providers = useProviders(api);
+  const down = providers.unreachable(provider);
   /**
    * Ссылку спрашивают, когда её вставили целиком или открыли Enter, — не на паузу в наборе: каждая
    * пауза была бы разбором чужой страницы. Вставленная — сразу, без паузы поиска.
@@ -75,19 +91,26 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
   const home = view.at === 'home';
   /** Набрана ссылка — не поиск: разделы и поиска в это время нет, пока служба не скажет, куда она ведёт. */
   const linked = !!linkOf(settled);
+  /**
+   * Страна сервера, если ivi с него не работает (`CINEMA_REGION`): по списку площадок — или по отказу
+   * любого вопроса, если список ещё не пришёл. Тогда каталог больше ничего не спрашивает.
+   */
+  const told = providers.region(provider);
+  /** Площадка недоступна и ничего не набрано: показывать нечего, спрашивать незачем (как у YouTube). */
+  const quiet = told !== null || (down && !settled);
   const results = useInfiniteQuery({
     queryKey: ['cinema', 'search', provider, settled],
     queryFn: ({ pageParam, signal }) => api.search(provider, settled, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: home && !!settled && !linked,
+    enabled: home && !!settled && !linked && told === null,
     staleTime: 60000,
   });
   // Три вкладки — тот же общий разбор, что у Rutube и VK: площадка отдаёт их разом и надолго.
   const tabs = useQuery({
     queryKey: ['cinema', 'tabs', provider],
     queryFn: ({ signal }) => api.categories(provider, '', '', signal),
-    enabled: home,
+    enabled: home && !quiet,
     staleTime: 3600000,
   });
   const feed = useInfiniteQuery({
@@ -95,10 +118,21 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
     queryFn: ({ pageParam, signal }) => api.category(provider, section, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: home && !settled && !!section,
+    enabled: home && !settled && !!section && !quiet,
     staleTime: 60000,
   });
   const page = usePage(api, provider, view);
+  /*
+    Отказ «только с серверов в России» на любом вопросе — то же, что слово списка площадок: список мог
+    ещё не прийти. Отказавший вопрос больше не спрашивается (отказ лежит в его памяти), и сцена так и
+    остаётся в этом состоянии, без «Повторить» по кругу.
+  */
+  const region =
+    told ??
+    [tabs.error, feed.error, results.error, page.details.error, page.opened.error]
+      .map(regionRefusal)
+      .find((country) => country !== null) ??
+    null;
 
   const found = cardsOf(results.data?.pages);
   const inSection = cardsOf(feed.data?.pages);
@@ -153,7 +187,13 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
       locked={!canUse}
       error={error}
     >
-      {home && linked ? (
+      {region !== null ? <Region name={providerName(t, provider)} country={region} /> : null}
+
+      {region === null && home && down && !settled ? (
+        <Unreachable name={providerName(t, provider)} onRetry={providers.refetch} />
+      ) : null}
+
+      {region === null && home && linked ? (
         <Following
           checking={!!link.checking}
           problem={link.problem}
@@ -162,7 +202,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
         />
       ) : null}
 
-      {home && !settled ? (
+      {region === null && home && !settled && !down ? (
         <>
           {/* Три раздела — вкладками в один ряд над сеткой, одна остановка Tab на ряд (`Tabs`),
               как «Разделы» у Rutube и VK Видео. Ряд лежит в полосе (`cinema-strip`), не в ленте. */}
@@ -195,7 +235,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
         </>
       ) : null}
 
-      {home && settled && !linked ? (
+      {region === null && home && settled && !linked ? (
         <>
           {results.isError ? <Failure problem={results.error} onRetry={retryOf(results)} /> : null}
           {results.data ? <Grid kind="tall">{found.map(card)}</Grid> : null}
@@ -211,7 +251,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
         </>
       ) : null}
 
-      {view.at === 'series' ? (
+      {region === null && view.at === 'series' ? (
         <SeriesPage
           series={page.series}
           title={view.title}
@@ -225,7 +265,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
         />
       ) : null}
 
-      {view.at === 'item' ? (
+      {region === null && view.at === 'item' ? (
         <ItemPage
           item={view.item}
           details={page.details}

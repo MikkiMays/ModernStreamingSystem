@@ -25,6 +25,11 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState('');
   const refreshing = useRef(false);
+  /**
+   * Обновление адреса, которое ещё идёт. Другое видео или уход из кинозала снимают его — и первый
+   * вопрос об адресе — сразу (R172): ответ уже никому не нужен, а вопрос висел бы до своего срока.
+   */
+  const asking = useRef<AbortController | null>(null);
   const sourceGeneration = useRef(0);
   const renewals = useRef(0);
   const latest = useRef(watch);
@@ -41,8 +46,9 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
     setError('');
     setSource(null);
     const current = latest.current;
+    const ask = new AbortController();
     void api
-      .resolve(current.provider, current.contentId, current.kind)
+      .resolve(current.provider, current.contentId, current.kind, { signal: ask.signal })
       .then((resolved) => {
         if (alive) setSource(resolved);
       })
@@ -54,6 +60,9 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
     return () => {
       alive = false;
       sourceGeneration.current++;
+      ask.abort();
+      asking.current?.abort();
+      asking.current = null;
     };
   }, [api, content]);
 
@@ -63,10 +72,13 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
       refreshing.current = true;
       const generation = sourceGeneration.current;
       const current = latest.current;
+      const ask = new AbortController();
+      asking.current = ask;
       try {
         const resolved = await api.resolve(current.provider, current.contentId, current.kind, {
           adaptive,
           refresh: true,
+          signal: ask.signal,
         });
         if (generation !== sourceGeneration.current) return;
         echo.suppress();

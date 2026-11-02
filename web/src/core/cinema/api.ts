@@ -115,13 +115,15 @@ export class CinemaApi {
     provider: ProviderId,
     contentId: string,
     kind: 'video' | 'channel',
-    options: { adaptive?: boolean; refresh?: boolean } = {},
+    { signal, ...options }: { adaptive?: boolean; refresh?: boolean; signal?: AbortSignal } = {},
   ) =>
     request<CinemaSource>(
       `${this.base}/resolve`,
       {
         method: 'POST',
-        signal: AbortSignal.timeout(provider === 'link' ? LINK_TIMEOUT : RESOLVE_TIMEOUT),
+        // Ушёл с ролика — вопрос снимается сразу (R172): браузер не держит его до срока, а служба не
+        // разбирает поток для зрителя, которого уже нет (общий разбор комнаты доведёт она сама).
+        signal: within(provider === 'link' ? LINK_TIMEOUT : RESOLVE_TIMEOUT, signal),
         body: JSON.stringify({
           provider,
           contentId,

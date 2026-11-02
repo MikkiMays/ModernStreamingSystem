@@ -2013,7 +2013,10 @@
       "unreachable": "{{name}} est inaccessible depuis ce serveur",
       "unreachableHint": "Le serveur de cette réunion ne parvient pas à joindre la plateforme pour l'instant. Les autres plateformes fonctionnent normalement.",
       "late": "{{name}} n'a pas répondu à temps — réessayez",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "region": "{{name}} ne fonctionne que depuis des serveurs en Russie",
+      "regionHint": "Pays du serveur de cette réunion : {{country}}. Les autres plateformes du cinéma fonctionnent normalement.",
+      "regionHintPlain": "Le serveur de cette réunion n'est pas en Russie. Les autres plateformes du cinéma fonctionnent normalement."
     },
     "meta": {
       "live": "En direct",
@@ -3309,7 +3312,14 @@
     "WAITING_LIMIT": "Quelqu'un de ce réseau attend déjà dans la salle d'attente de cette réunion",
     "WATCH_CLOSED": "Le visionnage ensemble est terminé",
     "WATCH_INVALID": "Rien à ouvrir",
-    "WATCH_LIVE": "Un direct ne peut être ni mis en pause ni rembobiné"
+    "WATCH_LIVE": "Un direct ne peut être ni mis en pause ni rembobiné",
+    "CINEMA_GEO": "ivi ne diffuse pas cette vidéo dans le pays du serveur",
+    "CINEMA_NOT_YET": "Cette vidéo n'est pas encore sortie sur ivi",
+    "CINEMA_NO_VIDEO": "Cette vidéo n'existe pas sur ivi",
+    "CINEMA_PAID": "C'est une vidéo payante d'ivi — impossible de la montrer à la salle",
+    "CINEMA_PROTECTED": "ivi ne diffuse cette vidéo qu'avec une protection contre la copie — impossible de la montrer à la salle",
+    "CINEMA_REGION": "ivi ne diffuse des films que sur des serveurs situés en Russie",
+    "CINEMA_STREAM_FAILED": "ivi n'a pas fourni cette vidéo — réessayez plus tard ou choisissez-en une autre"
   },
   "activity": {
     "title": "Activité",

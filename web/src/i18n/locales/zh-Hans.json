@@ -1967,7 +1967,10 @@
       "unreachable": "此服务器无法访问 {{name}}",
       "unreachableHint": "本次会议所在的服务器目前无法连接该平台。其他平台照常可用。",
       "late": "{{name}} 未及时响应——请重试",
-      "retry": "重试"
+      "retry": "重试",
+      "region": "{{name}} 仅能通过位于俄罗斯的服务器使用",
+      "regionHint": "本次会议服务器所在国家/地区：{{country}}。影院的其他平台照常可用。",
+      "regionHintPlain": "本次会议的服务器不在俄罗斯。影院的其他平台照常可用。"
     },
     "meta": {
       "live": "直播中",
@@ -3243,7 +3246,14 @@
     "WAITING_LIMIT": "此网络已有人在本会议的等候室中等待",
     "WATCH_CLOSED": "一起看已结束",
     "WATCH_INVALID": "没有可以打开的内容",
-    "WATCH_LIVE": "直播不能暂停或回放"
+    "WATCH_LIVE": "直播不能暂停或回放",
+    "CINEMA_GEO": "ivi 不在服务器所在的国家/地区提供此视频",
+    "CINEMA_NOT_YET": "该视频尚未在 ivi 上线",
+    "CINEMA_NO_VIDEO": "ivi 上没有这个视频",
+    "CINEMA_PAID": "这是 ivi 的付费视频，无法向房间播放",
+    "CINEMA_PROTECTED": "ivi 仅以版权保护方式提供此视频，无法向房间播放",
+    "CINEMA_REGION": "ivi 仅在位于俄罗斯的服务器上提供影片",
+    "CINEMA_STREAM_FAILED": "ivi 未提供此视频，请稍后重试或换一个"
   },
   "activity": {
     "title": "活动",

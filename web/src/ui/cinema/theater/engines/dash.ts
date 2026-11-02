@@ -1,6 +1,7 @@
 import type { MediaInfo, MediaPlayerClass, Representation } from 'dashjs';
 import type { Level } from '../watch-levels';
 import { audioChoices, type AudioChoice, type MediaTrack } from '../watch-tracks';
+import { AHEAD_MAX, AHEAD_MIN, BEHIND } from './buffer';
 import type { Playback } from './playback';
 
 export async function attachDash(
@@ -51,9 +52,21 @@ export async function attachDash(
     debug: { logLevel: 0 },
     streaming: {
       abr: { limitBitrateByPortal: false, autoSwitchBitrate: { video: true, audio: true } },
-      // Replacing buffered media during a simultaneous room seek races codec changes.
-      // Apply manual quality at the next segment boundary instead.
-      buffer: { fastSwitchEnabled: false },
+      buffer: {
+        // Replacing buffered media during a simultaneous room seek races codec changes.
+        // Apply manual quality at the next segment boundary instead.
+        fastSwitchEnabled: false,
+        /*
+          Вперёд — 20–30 с, позади — полминуты (R172, `buffer.ts`). По умолчанию dash.js у фильма длиннее
+          десяти минут держит на верхней ступени 60 с вперёд. Его же логика — «на верхней ступени
+          больше» — и есть наша: верхняя ступень значит, что канал с запасом.
+        */
+        bufferTimeDefault: AHEAD_MIN,
+        bufferTimeAtTopQuality: AHEAD_MAX,
+        bufferTimeAtTopQualityLongForm: AHEAD_MAX,
+        bufferToKeep: BEHIND,
+        bufferPruningInterval: 10,
+      },
     },
   });
   // The engine has already filtered unsupported codecs. Choose the widest supported

@@ -81,6 +81,11 @@ PROBE_TIMEOUT = 2.5
 # недоступность YouTube через секунды после старта, а не через минуты.
 PROBE_MISSES = 2
 PROBE_AGAIN = 5.0
+# Насколько срок пробы может сработать позже, чем должен, прежде чем промах считается не промахом
+# площадки, а нашим: цикл событий службы сам стоял (хост замер, потоки yt-dlp держали GIL), и проба
+# не дошла не потому, что площадки нет. Журнал стенда 01.11.2026: под нагрузкой 20–30 на четыре ядра
+# «недоступна … снова отвечает» мигало у всех площадок по очереди, а у ivi — каждые полчаса (R172).
+PROBE_LATE = 0.5
 # Как часто проба спрашивает отвечающую площадку: одна пустая страница в пять минут площадку не
 # нагружает, а пропажу посреди дня заметит и без запросов людей.
 PROBE_EVERY = 300.0
@@ -262,6 +267,8 @@ class Gauge:
     changes: dict[str, int] = field(default_factory=lambda: {OPEN: 0, CLOSED: 0})
     refused: int = 0
     deadlines: int = 0
+    # Пробы, чей срок вышел, пока стоял сам цикл событий службы: ни «да», ни «нет» (`PROBE_LATE`).
+    stalls: int = 0
 
 
 class Reach:
@@ -457,17 +464,32 @@ class Reach:
         # Клиент — до срока: первый клиент площадки собирается дольше самой пробы (свой TLS и пул).
         client = self._client_for(source.id)
         headers = {"Accept-Encoding": "identity"}
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + PROBE_TIMEOUT
+        # Когда цикл событий на деле дошёл до срока: своя отметка на тот же миг, что и срок пробы, — без
+        # времени, которое потом уходит на закрытие соединения.
+        reached: list[float] = []
+        mark = loop.call_at(deadline, lambda: reached.append(loop.time()))
         try:
-            async with asyncio.timeout(PROBE_TIMEOUT):
+            async with asyncio.timeout_at(deadline):
                 async with client.stream("GET", source.probe, headers=headers, follow_redirects=False):
                     pass
             ok = True
-        except (TimeoutError, httpx.TransportError, OSError):
+        except TimeoutError:
+            if reached and reached[0] - deadline > PROBE_LATE:
+                # Срок сработал с опозданием — значит, всё это время стоял наш цикл событий, а не молчала
+                # площадка: такая проба ничего не говорит о ней и состояния не меняет.
+                state.stalls += 1
+                return None
+            ok = False
+        except (httpx.TransportError, OSError):
             ok = False
         except Exception as error:
             # Текст исключения в журнал не идёт: в нём бывают адреса с ключами доступа.
             logger.warning("кинозал: проба площадки %s упала: %s", source.id, type(error).__name__)
             return None
+        finally:
+            mark.cancel()
         state.probed_at = self.clock()
         self._probed(state, ok)
         return ok
@@ -584,6 +606,9 @@ class Reach:
         name = f"{prefix}_deadline_total"
         lines += _metric(name, "counter", "Запросы к площадке, не уложившиеся в срок.")
         lines += [f'{name}{{provider="{g.id}"}} {g.deadlines}' for g in gauges]
+        name = f"{prefix}_probe_stalls_total"
+        lines += _metric(name, "counter", "Пробы, не засчитанные: пока шли, стояла сама служба.")
+        lines += [f'{name}{{provider="{g.id}"}} {g.stalls}' for g in gauges]
         return lines
 
     def lane_lines(self) -> list[str]:
