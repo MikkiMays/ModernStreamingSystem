@@ -3,8 +3,9 @@
 
 Ядро отвечает RFC 7807 с русским `detail` и стабильным `code`. Тексты для других языков собирает
 клиент по коду (E14), поэтому список кодов должен быть один и проверяемый. Скрипт находит в
-исходниках ядра `new Problem(статус, "КОД", текст[, Map.of(...)])`, `Problem.conflict("КОД", текст)`
-и готовый JSON отказа (`{"code":"КОД","detail":"текст"}` в фильтре запросов), а в службах —
+исходниках ядра `new Problem(статус, "КОД", текст[, Map.of(...)])`, `Problem.conflict("КОД", текст)`,
+помощники игр `fail("КОД", текст)` и `conflict("КОД", текст)` (тоже 409) и готовый JSON отказа
+(`{"code":"КОД","detail":"текст"}` в фильтре запросов), а в службах —
 `Refusal(статус, "КОД", "текст")` (`services/cord_services`, E09), и пишет реестр: код →
 статус, русский текст и, если есть, имена значений, которые отказ несёт рядом с кодом (`params`).
 Текст, склеенный из переменных, остаётся шаблоном с `{}` на месте вставок — по нему видно, какие
@@ -23,7 +24,10 @@ SOURCES = ROOT / "server" / "src" / "main" / "java"
 SERVICES = ROOT / "services" / "cord_services"
 TARGET = ROOT / "contracts" / "errors.json"
 
-START = re.compile(r"new\s+Problem\s*\(|Problem\.conflict\s*\(")
+START = re.compile(r"new\s+Problem\s*\(|Problem\.conflict\s*\(|(?<![\w.])(?:fail|conflict)\s*\(")
+# Свои помощники игр — `fail("КОД", текст)` у Gartic и `conflict("КОД", текст)` у шахмат — тот же
+# `Problem.conflict` (409) под коротким именем: без них коды этих столов в реестр не попадали, и клиент
+# не знал их ни по-русски, ни переводом (R180).
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 CODE = re.compile(r'^"([A-Z][A-Z0-9_]+)"$')
 RAW = re.compile(r'\\"code\\":\\"(?P<code>[A-Z][A-Z0-9_]+)\\",\\"detail\\":\\"(?P<message>(?:[^"\\]|\\[^"])*)\\"')
@@ -103,7 +107,7 @@ def collect() -> dict:
         text = path.read_text(encoding="utf-8")
         for match in START.finditer(text):
             args, _ = arguments(text, match.end())
-            conflict = match.group(0).startswith("Problem.conflict")
+            conflict = not match.group(0).startswith("new")
             if conflict:
                 args = ["409", *args]
             if len(args) < 3 or not args[0].isdigit():
