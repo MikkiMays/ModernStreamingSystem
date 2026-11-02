@@ -110,6 +110,7 @@ import {
 import { choosePipSource, PictureInPicture } from './pip';
 import { readZoom, type Zoom } from './cameras';
 import { t } from '../i18n';
+import { failureText, FriendlyError, type Place } from '../core/failure';
 
 export interface MediaTile {
   id: string;
@@ -1046,7 +1047,7 @@ export class MediaSession {
   private applyCodecAction(action: PlannerAction) {
     if (action.kind === 'hint') {
       // Р-19: ниже некуда — ничего не понижаем, только говорим.
-      this.report(new Error(t(($) => $.media.encoder.cpuHint)));
+      this.report(new FriendlyError(t(($) => $.media.encoder.cpuHint)), 'camera');
       return;
     }
     if (action.kind !== 'switch') return;
@@ -1060,11 +1061,11 @@ export class MediaSession {
     if (action.source === 'camera') {
       void this.switchCameraCodec();
       if (action.reason === 'cpu' || action.reason === 'encode-time')
-        this.report(new Error(t(($) => $.media.encoder.camera)));
+        this.report(new FriendlyError(t(($) => $.media.encoder.camera)), 'camera');
     } else {
       void this.setProfile(this.profile);
       if (action.reason === 'cpu' || action.reason === 'encode-time')
-        this.report(new Error(t(($) => $.media.encoder.screen)));
+        this.report(new FriendlyError(t(($) => $.media.encoder.screen)), 'screen');
     }
   }
   /** Что камера умеет на самом деле — чтобы не просить у неё невозможного молча. */
@@ -1271,8 +1272,12 @@ export class MediaSession {
   private patch(value: Partial<MediaState>) {
     this.state.update((s) => ({ ...s, ...value }));
   }
-  report(error: unknown) {
-    this.patch({ error: error instanceof Error ? error.message : t(($) => $.media.actionFailed) });
+  /**
+   * Ошибка звонка, камеры, микрофона или показа — фразой для человека под сценой; английский текст
+   * браузера и LiveKit — в журнал и счётчик (`core/failure.ts`, R180).
+   */
+  report(error: unknown, place: Place = 'call') {
+    this.patch({ error: failureText(error, place) });
   }
   clearError() {
     this.patch({ error: null });
@@ -1652,7 +1657,7 @@ export class MediaSession {
     }
     if (this.disposed) track.stop();
     // Микрофон уже звучит, только без обработки: сказать об этом, но включение не проваливать.
-    else if (failed) this.report(failed);
+    else if (failed) this.report(failed, 'microphone');
   }
   /**
    * Переподключается только сигнал (R151). На Wi-Fi под тяжёлым кинозалом сокет сигнала опаздывает, а
@@ -2071,7 +2076,7 @@ export class MediaSession {
       this.refreshTracks();
     } catch (error) {
       failed = true;
-      this.report(error);
+      this.report(error, kind);
     } finally {
       this.toggling.delete(kind);
       this.deviceBusy.delete(kind);
@@ -2174,7 +2179,7 @@ export class MediaSession {
         }
         this.preferences.set(savePreferences({ audio }));
       } catch (error) {
-        this.report(error);
+        this.report(error, 'microphone');
       }
     });
     return this.audioChange;
@@ -2224,7 +2229,7 @@ export class MediaSession {
     } catch (error) {
       if (kind === 'videoinput' && previous)
         await this.room.switchActiveDevice(kind, previous).catch(() => {});
-      this.report(error);
+      this.report(error, kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker');
     }
   }
   /**
@@ -2271,7 +2276,7 @@ export class MediaSession {
     } catch (error) {
       if (track instanceof LocalVideoTrack)
         await track.restartTrack({ ...this.cameraRestartNow(), deviceId: previous }).catch(() => {});
-      this.report(error);
+      this.report(error, 'camera');
     } finally {
       this.deviceBusy.delete('camera');
     }
@@ -2329,7 +2334,13 @@ export class MediaSession {
     }
     if (this.screenBusy) return;
     if (!source && !this.capture.supported()) {
-      this.report(new Error(t(($) => $.media.screen.unsupported)));
+      this.report(
+        new FriendlyError(
+          t(($) => $.media.screen.unsupported),
+          'unsupported',
+        ),
+        'screen',
+      );
       return;
     }
     this.screenBusy = true;
@@ -2374,7 +2385,7 @@ export class MediaSession {
       return;
     }
     // Своя дорожка оболочки, а не звук системы: заметки «зрители услышат разговор» здесь нет.
-    if (event.state === 'failed') this.report(new Error(event.message));
+    if (event.state === 'failed') this.report(new FriendlyError(event.message), 'screen');
     void this.dropScreenAudio(link);
   }
   private async publishScreenAudio(link: ScreenAudioLink) {
@@ -2401,7 +2412,7 @@ export class MediaSession {
       this.screenTracks.push(published);
       this.refreshTracks();
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) this.report(error);
+      if (!(error instanceof DOMException && error.name === 'AbortError')) this.report(error, 'screen');
     }
   }
   /** Дорожки оболочки больше нет (отказ, конец, замена): снять с публикации и остановить. */
@@ -2453,14 +2464,14 @@ export class MediaSession {
       stream = await capture;
       if (this.disposed || operation.signal.aborted) return;
       const video = stream.getVideoTracks()[0];
-      if (!video) throw new Error(t(($) => $.media.screen.noTrack));
+      if (!video) throw new FriendlyError(t(($) => $.media.screen.noTrack));
       video.addEventListener('ended', captureEnded, { once: true });
       const settings = video.getSettings();
       // Звук всего экрана — это и звук самого Cord. Если браузер не умеет его вычесть, лучше
       // сказать об этом сразу, чем оставить зрителя гадать, почему он слышит сам себя.
       // Звук приложения и «кроме Cord» идут своей дорожкой оболочки — Cord в них нет по построению.
       if (!link && ownAudioLeaks(video, stream.getAudioTracks()[0]))
-        this.report(new Error(t(($) => $.media.screen.ownAudioLeaks)));
+        this.report(new FriendlyError(t(($) => $.media.screen.ownAudioLeaks)), 'screen');
       this.captureSize = { width: settings.width ?? 1920, height: settings.height ?? 1080 };
       const size = fitSource(this.captureSize.width, this.captureSize.height, profile.resolution);
       await video.applyConstraints({
@@ -2541,7 +2552,7 @@ export class MediaSession {
         });
     } catch (error) {
       if (!(error instanceof DOMException && ['NotAllowedError', 'AbortError'].includes(error.name)))
-        this.report(error);
+        this.report(error, 'screen');
       await this.stopScreen();
     } finally {
       if (this.screenPublishAbort === operation) this.screenPublishAbort = undefined;
@@ -2674,7 +2685,7 @@ export class MediaSession {
         if (this.disposed) track.stop();
         this.refreshTracks();
       } catch (error) {
-        this.report(error);
+        this.report(error, 'camera');
       } finally {
         this.deviceBusy.delete('camera');
       }
@@ -2706,7 +2717,7 @@ export class MediaSession {
         this.applyCameraHint();
         this.refreshTracks();
       } catch (error) {
-        this.report(error);
+        this.report(error, 'camera');
       } finally {
         this.deviceBusy.delete('camera');
       }
@@ -2753,7 +2764,7 @@ export class MediaSession {
       }
       this.refreshTracks();
     } catch (error) {
-      this.report(error);
+      this.report(error, 'screen');
     }
   }
   get requestedProfile() {

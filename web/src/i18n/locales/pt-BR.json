@@ -486,7 +486,6 @@
       "checkSpeakersLabel": "Testar os alto-falantes",
       "previewLabel": "Pré-visualização da câmera, só para você",
       "deviceFailed": "Não foi possível ativar o dispositivo",
-      "micDenied": "Sem acesso ao microfone — permita para o Cord",
       "recordUnsupported": "Este navegador não grava o teste. A barra de nível funciona.",
       "toneFailed": "Não foi possível tocar o som de teste"
     },
@@ -596,9 +595,10 @@
       "recoveryTitle": "Voltando à conversa",
       "recoveryText": "Verifique a sua rede. Tentamos reconectar automaticamente.",
       "blockedTitle": "A rede está bloqueando a chamada",
-      "blockedText": "O servidor responde, mas o áudio e o vídeo não passam — isso acontece atrás de uma VPN ou de um firewall rígido. Desligue a VPN ou troque de rede: vamos conectar sozinhos.",
-      "blockedTls": "Nem a rota de reserva pela porta 443 passou.",
-      "blockedOwner": "Se for assim para todos nesta rede, peça ao dono do servidor para ativar o TURN na porta 443.",
+      "blockedText": "O servidor responde, mas o áudio e o vídeo não passam — isso acontece com VPN ou em uma rede de trabalho restrita. Desligue a VPN ou conecte-se a outra rede: a gente reconecta sozinho.",
+      "blockedTls": "Já tentamos o caminho alternativo — só outra rede vai resolver.",
+      "blockedOwner": "Se for assim para todos nesta rede, avise o dono do servidor — os detalhes estão em Diagnóstico.",
+      "blockedDetails": "Detalhes",
       "seconds": "{{n}} s",
       "controlRecovering": "Restaurando o chat e os controles. Áudio e vídeo continuam funcionando.",
       "thanks": "Obrigado pela conversa.",
@@ -617,7 +617,7 @@
       "panelWidth": "Largura do painel lateral"
     },
     "end": {
-      "session": "Esta sessão foi encerrada. Use um convite para entrar de novo.",
+      "session": "Seu acesso à reunião expirou. Abra o convite para entrar de novo.",
       "closed": "A reunião foi encerrada",
       "left": "Você saiu da reunião",
       "revoked": "Seu acesso à reunião foi encerrado"
@@ -1374,7 +1374,6 @@
       "notRecovered_other": "A conexão não se restabeleceu em {{count}} segundos",
       "recoveryExpired": "O tempo para restabelecer a conexão acabou"
     },
-    "actionFailed": "Não foi possível concluir a ação",
     "participant": "Participante",
     "screen": {
       "unsupported": "Este navegador não suporta compartilhamento de tela",
@@ -1383,16 +1382,16 @@
       "audio": {
         "unavailable": "O módulo de som do Cord para Windows não está rodando — compartilhando sem som.",
         "notWindow": "O som de um app só existe para uma janela — a tela é compartilhada sem som.",
-        "failed": "O som do compartilhamento não começou ({{reason}}) — compartilhando sem som.",
-        "stopped": "O som do compartilhamento parou ({{reason}}) — o compartilhamento continua sem som."
+        "failed": "O som do compartilhamento não começou — compartilhando sem som.",
+        "stopped": "O som do compartilhamento parou — o compartilhamento continua sem som."
       },
       "cancelled": "Compartilhamento de tela cancelado",
-      "noPermission": "O servidor de mídia não deu permissão. Tente compartilhar de novo."
+      "noPermission": "Não foi possível começar a compartilhar a tela. Tente de novo."
     },
     "encoder": {
-      "screen": "O codificador está sobrecarregado. Mudando a tela para um codec compatível.",
-      "camera": "O codificador está sobrecarregado. Mudando a câmera para um codec compatível.",
-      "cpuHint": "O processador não está dando conta de codificar o vídeo. Não reduzimos a qualidade: feche programas pesados ou escolha uma qualidade menor nas configurações."
+      "screen": "O computador não está dando conta de enviar a tela — mudando para um modo mais leve.",
+      "camera": "O computador não está dando conta de enviar a câmera — mudando para um modo mais leve.",
+      "cpuHint": "O computador não está dando conta de processar o vídeo. Não reduzimos a qualidade: feche programas pesados ou escolha uma qualidade menor nas configurações."
     },
     "link": {
       "paths": {
@@ -1421,7 +1420,7 @@
     "ping": {
       "screenTitle": "Latência do canal de controle e o que a sua tela envia para a rede",
       "cameraTitle": "Latência do canal de controle e o que a sua câmera envia para a rede",
-      "controlTitle": "RTT do WebSocket de controle",
+      "controlTitle": "Atraso da conexão com a reunião",
       "httpTitle": "Tempo de resposta do servidor",
       "offline": "Sem conexão",
       "ms": "{{value}} ms",
@@ -2004,7 +2003,6 @@
     "notes": {
       "offline": "Sem conexão com o servidor — tente de novo",
       "timeout": "O servidor não respondeu a tempo — tente de novo",
-      "failed": "Não foi possível concluir a solicitação",
       "asking": "Consultando a plataforma…",
       "pressEnter": "Pressione Enter e o cinema vai abrir este link.",
       "opening": "Abrindo o link…"
@@ -2401,7 +2399,7 @@
   "app": {
     "elsewhere": "A reunião continua em outra aba",
     "notFavorite": "A sala não está mais nos Favoritos",
-    "noSession": "Sessão não encontrada",
+    "noSession": "Esta reunião não está mais aberta neste navegador — entre pelo link ou código",
     "opening": "Abrindo a sala…",
     "closeNotice": "Fechar notificação",
     "downloadTitle": "Cord para Windows",
@@ -2491,7 +2489,7 @@
       "passwordInvalid": "A senha não funcionou. Confira com quem convidou você.",
       "passwordRequired": "Este servidor é protegido por senha. Digite a senha.",
       "tooMany": "Muitas tentativas seguidas. Espere um minuto e tente de novo.",
-      "serverError": "O servidor respondeu com o erro {{status}}. Talvez ele ainda esteja iniciando.",
+      "serverError": "O servidor ainda não está pronto — talvez esteja iniciando. Tente de novo em um minuto.",
       "notCord": "O Cord não responde neste endereço. Recarregue a página daqui a pouco.",
       "timeout": "O Cord não respondeu em oito segundos. Verifique sua internet e tente de novo.",
       "unreachable": "Não foi possível se conectar ao Cord. Verifique sua internet e tente de novo."
@@ -2593,7 +2591,7 @@
     "autojoinHintLabel": "O que a entrada automática faz"
   },
   "chat": {
-    "uploadFailed": "Falha no envio",
+    "uploadFailed": "O arquivo não foi enviado — tente de novo",
     "units": {
       "kib": "{{value}} KiB",
       "mib": "{{value}} MiB",
@@ -3036,7 +3034,9 @@
       "connected": "Conectados",
       "recovering": "Restabelecendo",
       "disconnected": "Não conectados",
-      "blocked": "Não passam: a rede está bloqueando a chamada"
+      "blocked": "Não passam: a rede está bloqueando a chamada",
+      "blockedTls": "A sinalização chegou ao servidor da reunião, mas nenhum caminho de mídia chegou a se estabelecer: nem UDP, nem TCP, nem o relay TURN por TLS na porta 443. Esta rede não deixa a mídia passar — é preciso outra rede.",
+      "blockedNoTls": "A sinalização chegou ao servidor da reunião, mas nenhum caminho de mídia chegou a se estabelecer: nem UDP, nem TCP. Este servidor não oferece relay TURN por TLS na porta 443 — o dono do servidor pode ativá-lo."
     },
     "control": {
       "label": "Chat e controles",

@@ -486,7 +486,6 @@
       "checkSpeakersLabel": "Tester les haut-parleurs",
       "previewLabel": "Aperçu de la caméra, visible par vous seul",
       "deviceFailed": "Impossible d'activer le périphérique",
-      "micDenied": "Pas d'accès au micro — autorisez-le pour Cord",
       "recordUnsupported": "Ce navigateur ne permet pas d'enregistrer un test. La barre de niveau fonctionne.",
       "toneFailed": "Impossible de lire le son de test"
     },
@@ -596,9 +595,10 @@
       "recoveryTitle": "Retour dans la conversation",
       "recoveryText": "Vérifiez votre réseau. Nous réessayons automatiquement.",
       "blockedTitle": "Le réseau bloque l’appel",
-      "blockedText": "Le serveur répond, mais le son et la vidéo ne passent pas — c’est fréquent derrière un VPN ou un pare-feu strict. Désactivez le VPN ou changez de réseau : nous nous connecterons tout seuls.",
-      "blockedTls": "Même la voie de secours par le port 443 n’est pas passée.",
-      "blockedOwner": "Si c’est pareil pour tout le monde sur ce réseau, demandez au propriétaire du serveur d’activer TURN sur le port 443.",
+      "blockedText": "Le serveur répond, mais le son et la vidéo ne passent pas — c’est fréquent avec un VPN ou sur un réseau d’entreprise strict. Désactivez le VPN ou connectez-vous à un autre réseau : nous nous reconnecterons tout seuls.",
+      "blockedTls": "Nous avons déjà essayé la voie de secours — seul un autre réseau aidera.",
+      "blockedOwner": "Si c’est pareil pour tout le monde sur ce réseau, prévenez le propriétaire du serveur — les détails sont dans « Diagnostic ».",
+      "blockedDetails": "Détails",
       "seconds": "{{n}} s",
       "controlRecovering": "Rétablissement du chat et des commandes. L'audio et la vidéo continuent de fonctionner.",
       "thanks": "Merci pour cet échange.",
@@ -617,7 +617,7 @@
       "panelWidth": "Largeur du panneau latéral"
     },
     "end": {
-      "session": "Cette session est terminée. Utilisez une invitation pour revenir.",
+      "session": "Votre accès à la réunion a expiré. Ouvrez l'invitation pour revenir.",
       "closed": "La réunion est terminée",
       "left": "Vous avez quitté la réunion",
       "revoked": "Votre accès à la réunion a pris fin"
@@ -1374,7 +1374,6 @@
       "notRecovered_other": "La connexion ne s'est pas rétablie en {{count}} secondes",
       "recoveryExpired": "Le délai de reconnexion est écoulé"
     },
-    "actionFailed": "Impossible d'effectuer l'action",
     "participant": "Participant",
     "screen": {
       "unsupported": "Ce navigateur ne prend pas en charge le partage d'écran",
@@ -1383,16 +1382,16 @@
       "audio": {
         "unavailable": "Le module son de Cord pour Windows n’est pas lancé : partage sans son.",
         "notWindow": "Le son d’une application n’existe que pour une fenêtre : l’écran est partagé sans son.",
-        "failed": "Le son du partage n’a pas démarré ({{reason}}) : partage sans son.",
-        "stopped": "Le son du partage s’est interrompu ({{reason}}) : le partage continue sans son."
+        "failed": "Le son du partage n’a pas démarré : partage sans son.",
+        "stopped": "Le son du partage s’est interrompu : le partage continue sans son."
       },
       "cancelled": "Partage d'écran annulé",
-      "noPermission": "Le serveur média n'a pas donné son autorisation. Réessayez de partager l'écran."
+      "noPermission": "Impossible de lancer le partage d'écran. Réessayez."
     },
     "encoder": {
-      "screen": "L'encodeur est surchargé. Passage de l'écran à un codec compatible.",
-      "camera": "L'encodeur est surchargé. Passage de la caméra à un codec compatible.",
-      "cpuHint": "Le processeur n’arrive pas à encoder la vidéo à temps. Nous ne baissons pas la qualité : fermez les programmes lourds ou choisissez une qualité inférieure dans les réglages."
+      "screen": "Votre ordinateur n'arrive pas à transmettre l'écran — passage à un mode plus léger.",
+      "camera": "Votre ordinateur n'arrive pas à transmettre la caméra — passage à un mode plus léger.",
+      "cpuHint": "Votre ordinateur n’arrive pas à traiter la vidéo à temps. Nous ne baissons pas la qualité : fermez les programmes lourds ou choisissez une qualité inférieure dans les réglages."
     },
     "link": {
       "paths": {
@@ -1421,7 +1420,7 @@
     "ping": {
       "screenTitle": "Latence du canal de contrôle et débit envoyé depuis votre écran",
       "cameraTitle": "Latence du canal de contrôle et débit envoyé depuis votre caméra",
-      "controlTitle": "RTT du WebSocket de contrôle",
+      "controlTitle": "Délai de la connexion à la réunion",
       "httpTitle": "Temps de réponse du serveur",
       "offline": "Hors ligne",
       "ms": "{{value}} ms",
@@ -2004,7 +2003,6 @@
     "notes": {
       "offline": "Pas de connexion au serveur — réessayez",
       "timeout": "Le serveur n'a pas répondu à temps — réessayez",
-      "failed": "La requête a échoué",
       "asking": "Interrogation de la plateforme…",
       "pressEnter": "Appuyez sur Entrée et le cinéma ouvrira ce lien.",
       "opening": "Ouverture du lien…"
@@ -2401,7 +2399,7 @@
   "app": {
     "elsewhere": "La réunion continue dans un autre onglet",
     "notFavorite": "La salle n'est plus dans vos favoris",
-    "noSession": "Session introuvable",
+    "noSession": "Cette réunion n'est plus ouverte dans ce navigateur — rejoignez-la avec le lien ou le code",
     "opening": "Ouverture de la salle…",
     "closeNotice": "Fermer la notification",
     "downloadTitle": "Cord pour Windows",
@@ -2491,7 +2489,7 @@
       "passwordInvalid": "Ce mot de passe ne convient pas. Vérifiez-le auprès de la personne qui vous a invité.",
       "passwordRequired": "Ce serveur est protégé par un mot de passe. Saisissez-le.",
       "tooMany": "Trop de tentatives d'affilée. Patientez une minute et réessayez.",
-      "serverError": "Le serveur a répondu avec l'erreur {{status}}. Il est peut-être encore en train de démarrer.",
+      "serverError": "Le serveur n'est pas encore prêt — il est peut-être en train de démarrer. Réessayez dans une minute.",
       "notCord": "Cord ne répond pas à cette adresse. Rechargez la page un peu plus tard.",
       "timeout": "Cord n'a pas répondu en huit secondes. Vérifiez votre connexion Internet et réessayez.",
       "unreachable": "Impossible de joindre Cord. Vérifiez votre connexion Internet et réessayez."
@@ -2593,7 +2591,7 @@
     "autojoinHintLabel": "Ce que fait la connexion automatique"
   },
   "chat": {
-    "uploadFailed": "Échec de l'envoi",
+    "uploadFailed": "Le fichier n'a pas été envoyé — réessayez",
     "units": {
       "kib": "{{value}} Kio",
       "mib": "{{value}} Mio",
@@ -3036,7 +3034,9 @@
       "connected": "Connectés",
       "recovering": "Rétablissement",
       "disconnected": "Non connectés",
-      "blocked": "Bloqués : le réseau bloque l’appel"
+      "blocked": "Bloqués : le réseau bloque l’appel",
+      "blockedTls": "La signalisation a atteint le serveur de la réunion, mais aucune voie média ne s’est établie : ni UDP, ni TCP, ni le relais TURN en TLS sur le port 443. Ce réseau ne laisse pas passer les médias — il faut un autre réseau.",
+      "blockedNoTls": "La signalisation a atteint le serveur de la réunion, mais aucune voie média ne s’est établie : ni UDP, ni TCP. Ce serveur ne propose pas de relais TURN en TLS sur le port 443 — le propriétaire du serveur peut l’activer."
     },
     "control": {
       "label": "Chat et commandes",

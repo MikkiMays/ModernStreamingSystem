@@ -1,5 +1,6 @@
 import { RoomEvent, Track, type Room } from 'livekit-client';
 import { t } from '../i18n';
+import { FriendlyError } from '../core/failure';
 
 /** The control API acknowledgement can arrive before the SFU permission update. */
 export function waitForPublishPermissions(
@@ -48,7 +49,10 @@ export function waitForPublishPermissions(
           'AbortError',
         ),
       );
-    const timer = setTimeout(() => finish(new Error(t(($) => $.media.screen.noPermission))), timeoutMs);
+    const timer = setTimeout(
+      () => finish(new FriendlyError(t(($) => $.media.screen.noPermission))),
+      timeoutMs,
+    );
     room.on(RoomEvent.ParticipantPermissionsChanged, check);
     room.on(RoomEvent.Reconnecting, cancel);
     room.on(RoomEvent.SignalReconnecting, cancel);

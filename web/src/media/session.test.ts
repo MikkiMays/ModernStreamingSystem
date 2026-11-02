@@ -963,14 +963,14 @@ describe('сеть не пропускает звонок', () => {
     }
   });
 
-  it('сигнал не дошёл при первом входе — как раньше: отсчёт восстановления и текст ошибки', async () => {
+  it('сигнал не дошёл при первом входе — как раньше: отсчёт восстановления и фраза для человека, а не текст SDK', async () => {
     vi.useFakeTimers();
     const { media, fail, reports } = blockedFixture();
     try {
       fail(null);
       await media.start();
       expect(media.state.get()).toMatchObject({ status: 'recovering', blocked: null });
-      expect(media.state.get().error).toBe('could not establish signal connection');
+      expect(media.state.get().error).toBe('Звук и видео пока не подключились — пробуем ещё раз');
       await vi.advanceTimersByTimeAsync(0);
       expect(reports()).toHaveLength(0);
     } finally {

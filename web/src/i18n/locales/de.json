@@ -486,7 +486,6 @@
       "checkSpeakersLabel": "Lautsprecher testen",
       "previewLabel": "Kameravorschau, nur für dich",
       "deviceFailed": "Gerät konnte nicht aktiviert werden",
-      "micDenied": "Kein Mikrofonzugriff – erlaube ihn für Cord",
       "recordUnsupported": "Dieser Browser kann keine Probe aufnehmen. Die Pegelanzeige funktioniert.",
       "toneFailed": "Testton konnte nicht abgespielt werden"
     },
@@ -595,9 +594,10 @@
       "recoveryTitle": "Zurück ins Gespräch",
       "recoveryText": "Prüfe deine Verbindung. Wir verbinden automatisch neu.",
       "blockedTitle": "Dein Netzwerk blockiert den Anruf",
-      "blockedText": "Der Server ist erreichbar, aber Ton und Video kommen nicht durch – das passiert hinter einem VPN oder einer strengen Firewall. Schalte das VPN aus oder wechsle das Netzwerk: Wir verbinden uns von selbst.",
-      "blockedTls": "Selbst der Ausweichweg über Port 443 kommt nicht durch.",
-      "blockedOwner": "Wenn es allen in diesem Netzwerk so geht, bitte den Serverinhaber, TURN auf Port 443 einzuschalten.",
+      "blockedText": "Der Server ist erreichbar, aber Ton und Video kommen nicht durch – das passiert mit einem VPN oder in einem strengen Firmennetz. Schalte das VPN aus oder verbinde dich mit einem anderen Netzwerk: Wir verbinden uns von selbst neu.",
+      "blockedTls": "Den Ausweichweg haben wir schon versucht – helfen kann nur ein anderes Netzwerk.",
+      "blockedOwner": "Wenn es allen in diesem Netzwerk so geht, sag dem Serverinhaber Bescheid – Details stehen in der Diagnose.",
+      "blockedDetails": "Details",
       "seconds": "{{n}} s",
       "controlRecovering": "Chat und Steuerung werden wiederhergestellt. Audio und Video laufen weiter.",
       "thanks": "Danke für das Gespräch.",
@@ -616,7 +616,7 @@
       "panelWidth": "Breite der Seitenleiste"
     },
     "end": {
-      "session": "Diese Sitzung ist beendet. Nutze eine Einladung, um erneut beizutreten.",
+      "session": "Dein Zugang zum Meeting ist abgelaufen. Öffne die Einladung, um erneut beizutreten.",
       "closed": "Das Meeting ist beendet",
       "left": "Du hast das Meeting verlassen",
       "revoked": "Dein Zugang zum Meeting ist beendet"
@@ -1360,7 +1360,6 @@
       "notRecovered_other": "Die Verbindung wurde nicht innerhalb von {{count}} Sekunden wiederhergestellt",
       "recoveryExpired": "Die Zeit für die Wiederherstellung ist abgelaufen"
     },
-    "actionFailed": "Aktion fehlgeschlagen",
     "participant": "Teilnehmer",
     "screen": {
       "unsupported": "Dieser Browser unterstützt keine Bildschirmfreigabe",
@@ -1369,16 +1368,16 @@
       "audio": {
         "unavailable": "Das Tonmodul von Cord für Windows läuft nicht – es wird ohne Ton geteilt.",
         "notWindow": "App-Ton gibt es nur für ein Fenster – der Bildschirm wird ohne Ton geteilt.",
-        "failed": "Der Ton der Freigabe ist nicht gestartet ({{reason}}) – es wird ohne Ton geteilt.",
-        "stopped": "Der Ton der Freigabe ist abgebrochen ({{reason}}) – es wird ohne Ton weiter geteilt."
+        "failed": "Der Ton der Freigabe ist nicht gestartet – es wird ohne Ton geteilt.",
+        "stopped": "Der Ton der Freigabe ist abgebrochen – es wird ohne Ton weiter geteilt."
       },
       "cancelled": "Bildschirmfreigabe abgebrochen",
-      "noPermission": "Der Medienserver hat die Freigabe nicht erlaubt. Versuche es noch einmal."
+      "noPermission": "Die Bildschirmfreigabe konnte nicht starten. Versuch es noch einmal."
     },
     "encoder": {
-      "screen": "Der Encoder ist überlastet. Der Bildschirm wechselt zu einem kompatiblen Codec.",
-      "camera": "Der Encoder ist überlastet. Die Kamera wechselt zu einem kompatiblen Codec.",
-      "cpuHint": "Der Prozessor kommt mit dem Kodieren des Videos nicht hinterher. Wir senken die Qualität nicht: Schließe aufwendige Programme oder wähle in den Einstellungen eine niedrigere Qualität."
+      "screen": "Dein Computer kommt beim Senden des Bildschirms nicht hinterher – wir wechseln in einen leichteren Modus.",
+      "camera": "Dein Computer kommt beim Senden der Kamera nicht hinterher – wir wechseln in einen leichteren Modus.",
+      "cpuHint": "Dein Computer kommt mit dem Verarbeiten des Videos nicht hinterher. Wir senken die Qualität nicht: Schließe aufwendige Programme oder wähle in den Einstellungen eine niedrigere Qualität."
     },
     "link": {
       "paths": {
@@ -1407,7 +1406,7 @@
     "ping": {
       "screenTitle": "Latenz des Steuerkanals und was dein Bildschirm ins Netz sendet",
       "cameraTitle": "Latenz des Steuerkanals und was deine Kamera ins Netz sendet",
-      "controlTitle": "RTT des Steuer-WebSockets",
+      "controlTitle": "Verzögerung der Verbindung zum Meeting",
       "httpTitle": "Antwortzeit des Servers",
       "offline": "Keine Verbindung",
       "ms": "{{value}} ms",
@@ -1981,7 +1980,6 @@
     "notes": {
       "offline": "Keine Verbindung zum Server – versuch es noch einmal",
       "timeout": "Der Server hat nicht rechtzeitig geantwortet – versuch es noch einmal",
-      "failed": "Die Anfrage ist fehlgeschlagen",
       "asking": "Plattform wird abgefragt…",
       "pressEnter": "Drück Enter, und das Kino öffnet diesen Link.",
       "opening": "Link wird geöffnet…"
@@ -2373,7 +2371,7 @@
   "app": {
     "elsewhere": "Das Meeting läuft in einem anderen Tab weiter",
     "notFavorite": "Der Raum ist nicht mehr in den Favoriten",
-    "noSession": "Sitzung nicht gefunden",
+    "noSession": "Dieses Meeting ist in diesem Browser nicht mehr offen – tritt über den Link oder den Code bei",
     "opening": "Raum wird geöffnet…",
     "closeNotice": "Benachrichtigung schließen",
     "downloadTitle": "Cord für Windows",
@@ -2463,7 +2461,7 @@
       "passwordInvalid": "Das Passwort passt nicht. Frag die Person, die dich eingeladen hat.",
       "passwordRequired": "Dieser Server ist passwortgeschützt. Gib das Passwort ein.",
       "tooMany": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es erneut.",
-      "serverError": "Der Server hat mit Fehler {{status}} geantwortet. Vermutlich startet er noch.",
+      "serverError": "Der Server ist noch nicht bereit – vermutlich startet er noch. Versuch es in einer Minute noch einmal.",
       "notCord": "Cord antwortet unter dieser Adresse nicht. Lade die Seite etwas später neu.",
       "timeout": "Cord hat nicht innerhalb von acht Sekunden geantwortet. Prüfe deine Internetverbindung und versuch es erneut.",
       "unreachable": "Cord ist nicht erreichbar. Prüfe deine Internetverbindung und versuch es erneut."
@@ -2564,7 +2562,7 @@
     "autojoinHintLabel": "Was automatisches Beitreten bewirkt"
   },
   "chat": {
-    "uploadFailed": "Upload fehlgeschlagen",
+    "uploadFailed": "Die Datei wurde nicht hochgeladen – versuch es noch einmal",
     "units": {
       "kib": "{{value}} KiB",
       "mib": "{{value}} MiB",
@@ -3004,7 +3002,9 @@
       "connected": "Verbunden",
       "recovering": "Werden wiederhergestellt",
       "disconnected": "Nicht verbunden",
-      "blocked": "Blockiert: Das Netzwerk lässt den Anruf nicht durch"
+      "blocked": "Blockiert: Das Netzwerk lässt den Anruf nicht durch",
+      "blockedTls": "Die Signalisierung hat den Meeting-Server erreicht, aber kein Medienweg kam je zustande: weder UDP noch TCP noch das TURN-Relay über TLS auf Port 443. Dieses Netzwerk lässt Medien nicht durch – ein anderes Netzwerk ist nötig.",
+      "blockedNoTls": "Die Signalisierung hat den Meeting-Server erreicht, aber kein Medienweg kam je zustande: weder UDP noch TCP. Dieser Server bietet kein TURN-Relay über TLS auf Port 443 an – der Serverinhaber kann es einschalten."
     },
     "control": {
       "label": "Chat und Steuerung",

@@ -202,7 +202,7 @@ describe('звук приложения в показе (E01-B3, capture.app-aud
     expect(bridge.count('capture.audio')).toBe(0);
   });
 
-  it('failed — короткая подсказка по-русски с причиной; чужой режим не трогает', async () => {
+  it('failed — короткая подсказка без слова оболочки (оно — в журнал, R180); чужой режим не трогает', async () => {
     const bridge = bridgeWithEvents(['capture', 'capture.app-audio']);
     const capture = await import('./desktop-capture');
     const seen: { state: string; message?: string }[] = [];
@@ -215,7 +215,7 @@ describe('звук приложения в показе (E01-B3, capture.app-aud
     expect(seen.map((event) => event.state)).toEqual(['failed', 'failed', 'failed']);
     expect(seen[0]!.message).toMatch(/только у окна/);
     expect(seen[1]!.message).toMatch(/без звука/);
-    expect(seen[2]!.message).toContain('окно источника уже закрыто');
+    expect(seen[2]!.message).not.toContain('окно источника уже закрыто');
     expect(seen[2]!.message).toMatch(/без звука/);
   });
 
