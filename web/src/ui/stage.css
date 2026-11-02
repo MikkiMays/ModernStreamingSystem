@@ -501,6 +501,22 @@ button.watch-stream.is-stop:hover {
 .recovery-banner[data-reason='blocked'] {
   max-width: min(36rem, calc(100% - var(--space-8)));
 }
+/* «Подробнее» — в «Диагностику», где техника пути (R180): единственное на плашке, что нажимается. */
+.recovery-banner__more {
+  flex: none;
+  align-self: flex-end;
+  pointer-events: auto;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2);
+  color: var(--stage-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.recovery-banner__more:hover {
+  background: color-mix(in srgb, var(--stage-text) 10%, transparent);
+}
 .recovery-banner b {
   margin-left: var(--space-4);
   font-size: var(--text-lg);

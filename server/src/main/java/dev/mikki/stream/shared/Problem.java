@@ -36,7 +36,7 @@ public class Problem extends RuntimeException {
   }
 
   public static Problem forbidden() {
-    return new Problem(403, "FORBIDDEN", "Доступ недоступен или отозван");
+    return new Problem(403, "FORBIDDEN", "Доступ закрыт или отозван");
   }
 
   public static Problem conflict(String code, String message) {

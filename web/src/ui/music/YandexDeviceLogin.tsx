@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { YandexAuthorization, YandexDevicePoll } from '../../core/services';
 import { t as translate } from '../../i18n';
 import { Button } from '../kit';
+import { failureText } from '../../core/failure';
 
 /** Чем входить по коду устройства: у встречи — в аккаунт комнаты, у настроек — без комнаты (R39). */
 export interface DeviceFlow {
@@ -63,7 +64,7 @@ export function YandexDeviceLogin({
       pending.current = next.id;
       setAuth(next);
     } catch (e) {
-      const message = (e as Error).message;
+      const message = failureText(e, 'music');
       setProblem(message);
       onError?.(message);
     } finally {
@@ -109,7 +110,7 @@ export function YandexDeviceLogin({
         if (disposed) return;
         pending.current = null;
         setAuth(null);
-        setProblem((e as Error).message);
+        setProblem(failureText(e, 'music'));
       }
     };
     timer = setTimeout(() => void poll(), auth.interval * 1000);

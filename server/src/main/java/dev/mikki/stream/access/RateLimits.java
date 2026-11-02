@@ -148,7 +148,7 @@ public class RateLimits {
       // Счётчик в памяти снят, но в Redis он останется и вернётся вместе с Redis: владелец должен
       // знать, что рычаг сработал не до конца. Человека у входа это не касается — только рычаг.
       failed(e);
-      throw new Problem(503, "RATE_SERVICE_UNAVAILABLE", "Сервис входа временно недоступен");
+      throw new Problem(503, "RATE_SERVICE_UNAVAILABLE", "Сервер занят. Попробуйте через минуту");
     }
   }
 

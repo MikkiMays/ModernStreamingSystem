@@ -110,7 +110,7 @@ public class RoomService {
         Admission.class,
         () -> {
           if (!config.admissionOpen())
-            throw new Problem(503, "DRAINING", "Сервер временно не принимает новые комнаты");
+            throw new Problem(503, "DRAINING", "Сервер временно не принимает новые встречи");
           // Дренаж перед выкаткой (W1b): новых встреч нет, идущие доигрывают, вход в них открыт.
           if (maintenance.on()) throw maintenance.refusal();
           var room = new RoomState();
@@ -167,7 +167,7 @@ public class RoomService {
         && busy.stream().filter(r -> origin.equals(r.createdFrom)).count()
             >= abuse.perIp().openRooms())
       throw new Problem(
-          429, "OPEN_ROOMS", "С этого адреса уже идёт несколько встреч. Завершите одну из них");
+          429, "OPEN_ROOMS", "Из вашей сети уже идёт несколько встреч. Завершите одну из них");
     if (profile != null
         && busy.stream().filter(r -> profile.equals(r.createdBy)).count()
             >= abuse.perProfile().openRooms())
@@ -309,8 +309,7 @@ public class RoomService {
     // писали бы вдесятеро больше человека. Предел адреса щедрее — за NAT офис.
     if (address != null
         && limits.exceeded("chat-ip:" + address, config.abuse().perIp().chatMessages()))
-      throw new Problem(
-          429, "CHAT_RATE_IP", "С этого адреса пишут слишком часто. Подождите минуту");
+      throw new Problem(429, "CHAT_RATE_IP", "Из вашей сети пишут слишком часто. Подождите минуту");
   }
 
   /** Снять «щит» досрочно — рычаг владельца сервера (E10) и уборка в тестах. */
@@ -373,7 +372,9 @@ public class RoomService {
           }
           requireOpen(room);
           if (previous.replacedBy != null)
-            throw Problem.conflict("SESSION_REPLACED", "Этот вход уже заменён новой сессией");
+            throw Problem.conflict(
+                "SESSION_REPLACED",
+                "Вы уже вошли в эту встречу в другом окне или на другом устройстве");
           // A fresh media identity fences late leave RPCs and old client callbacks.
           // The room, conversation and host rights survive an explicit return.
           var status = previous.status;
@@ -468,7 +469,8 @@ public class RoomService {
       room.profiles.keySet().retainAll(room.members.keySet());
     }
     if (room.members.size() >= 500)
-      throw new Problem(429, "SESSION_LIMIT", "Достигнут лимит входов за время встречи");
+      throw new Problem(
+          429, "SESSION_LIMIT", "Слишком много повторных входов в эту встречу. Попробуйте позже");
   }
 
   /**
@@ -500,7 +502,7 @@ public class RoomService {
     if (room.waitingFrom.values().stream().filter(from::equals).count()
         >= config.abuse().perIp().waitingPerRoom())
       throw new Problem(
-          429, "WAITING_LIMIT", "С этого адреса уже ждут в зале ожидания этой встречи");
+          429, "WAITING_LIMIT", "Из вашей сети уже ждут в зале ожидания этой встречи");
     room.waitingFrom.put(member.id, from);
   }
 
@@ -819,7 +821,7 @@ public class RoomService {
     requireOpen(room);
     if (!member.mediaAllowed()
         || (member.recoveryDeadline != null && now() >= member.recoveryDeadline))
-      throw new Problem(410, "SESSION_ENDED", "Сессия завершена. Войдите в комнату снова");
+      throw new Problem(410, "SESSION_ENDED", "Вход во встречу закончился. Войдите снова");
   }
 
   /**
@@ -835,10 +837,12 @@ public class RoomService {
    */
   static List<String> decodes(String option) {
     if (option == null || option.isBlank())
-      throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+      throw new Problem(
+          400, "INVALID_COMMAND", "Это действие сейчас недоступно. Обновите страницу");
     var named = List.of(option.split("-"));
     if (!DECODE_CODECS.containsAll(named))
-      throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+      throw new Problem(
+          400, "INVALID_COMMAND", "Это действие сейчас недоступно. Обновите страницу");
     return DECODE_CODECS.stream().filter(named::contains).toList();
   }
 
@@ -1168,7 +1172,8 @@ public class RoomService {
               // отбрасывается (клиент шлёт раз в пять, предел — страховка от залпа).
               if (!member.screen) throw Problem.conflict("SCREEN_ENDED", "Демонстрация завершена");
               if (command.image() == null || command.image().isBlank())
-                throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+                throw new Problem(
+                    400, "INVALID_COMMAND", "Это действие сейчас недоступно. Обновите страницу");
               var key = room.id + ":" + member.id;
               var last = previewAt.get(key);
               if (last == null || now() - last >= PREVIEW_INTERVAL_MS) {
@@ -1623,7 +1628,9 @@ public class RoomService {
                 room.markStarted(now());
               }
             }
-            default -> throw new Problem(400, "UNKNOWN_COMMAND", "Неизвестная команда");
+            default ->
+                throw new Problem(
+                    400, "UNKNOWN_COMMAND", "Сервер не знает этого действия. Обновите страницу");
           }
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
@@ -1790,7 +1797,7 @@ public class RoomService {
 
   private static long gameTurn(Command command) {
     if (command.positionMs() == null)
-      throw new Problem(400, "GAME_TURN_REQUIRED", "Не указан текущий этап игры");
+      throw new Problem(400, "GAME_TURN_REQUIRED", "Игра уже изменилась. Дождитесь обновления");
     return command.positionMs();
   }
 
@@ -2101,7 +2108,7 @@ public class RoomService {
             .optional();
     if (prior.isPresent()) {
       if (!prior.get()[0].equals(fingerprint))
-        throw Problem.conflict("COMMAND_REUSED", "Идентификатор команды уже использован");
+        throw Problem.conflict("COMMAND_REUSED", "Это действие уже выполнено");
       return Json.read(prior.get()[1], type);
     }
     var response = action.get();

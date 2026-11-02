@@ -682,11 +682,15 @@ class YtDlpNetworkTests(unittest.TestCase):
         self.assertEqual(ReadingYoutubeDL.seen[1][1], COOKIES)
 
     def test_a_proxy_password_does_not_reach_the_room(self):
-        with self.assertRaises(HTTPException) as refusal:
-            YtDlp(self.config).probe("https://www.youtube.com/watch?v=fail", "youtube")
+        # Комнате — фраза (R180); причина — в журнал службы, и там без пароля прокси.
+        with self.assertLogs("cord_services.cinema.resolve", "INFO") as journal:
+            with self.assertRaises(HTTPException) as refusal:
+                YtDlp(self.config).probe("https://www.youtube.com/watch?v=fail", "youtube")
         self.assertEqual(refusal.exception.status_code, 502)
-        self.assertNotIn("pa55", refusal.exception.detail)
-        self.assertIn("proxy.example", refusal.exception.detail)
+        self.assertEqual(refusal.exception.detail, "Не удалось открыть видео — попробуйте позже или другое")
+        said = "\n".join(journal.output)
+        self.assertNotIn("pa55", said)
+        self.assertIn("proxy.example", said)
 
 
 class ScriptedYoutubeDL:
@@ -803,12 +807,15 @@ class CookiesFallbackTests(unittest.TestCase):
             RuntimeError("Sign in to confirm you’re not a bot"),
             RuntimeError("HTTP Error 400: SID=secret-session-value; HSID=another-secret"),
         ]
-        with self.assertRaises(HTTPException) as refusal:
-            door.probe("https://www.youtube.com/watch?v=x", "youtube")
+        with self.assertLogs("cord_services.cinema.resolve", "INFO") as journal:
+            with self.assertRaises(HTTPException) as refusal:
+                door.probe("https://www.youtube.com/watch?v=x", "youtube")
         self.assertEqual(refusal.exception.status_code, 502)
-        self.assertNotIn("secret-session-value", refusal.exception.detail)
-        self.assertNotIn("another-secret", refusal.exception.detail)
-        self.assertIn("HTTP Error 400", refusal.exception.detail)
+        self.assertEqual(refusal.exception.detail, "Не удалось открыть видео — попробуйте позже или другое")
+        said = "\n".join(journal.output)
+        self.assertNotIn("secret-session-value", said)
+        self.assertNotIn("another-secret", said)
+        self.assertIn("HTTP Error 400", said)
 
 
 class JsRuntimeLogTests(unittest.TestCase):
@@ -875,10 +882,10 @@ class CookieLeakTests(unittest.TestCase):
         with patch("cord_services.cinema.resolve.cookie_problem", return_value=None):
             refusal, heard = self.heard(probe)
         self.assertEqual(refusal.status_code, 502)
-        self.assertEqual(refusal.detail, "Не удалось открыть видео: не подошёл файл cookies")
+        # Комнате — фраза без текста yt-dlp (R180); причина — в журнал, без значения, но и не молча.
+        self.assertEqual(refusal.detail, "Не удалось открыть видео — попробуйте позже или другое")
         for text in heard:
             self.assertNotIn(SECRET, text)
-        # В журнал ушло то же, что и комнате, — без значения, но и не молча.
         self.assertTrue(any("yt-dlp: не подошёл файл cookies" in text for text in heard), heard)
 
     def test_what_yt_dlp_says_about_cookies_is_told_in_our_words(self):

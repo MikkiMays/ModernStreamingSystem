@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from typing import Any
 from urllib.parse import urlencode
@@ -13,6 +14,8 @@ from .. import address, wire
 from ..paging import PAGE, SEARCH_DEPTH, page
 from ..registry import Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, ytdlp
+
+logger = logging.getLogger(__name__)
 
 YT_FLAT = {
     "quiet": True,
@@ -153,7 +156,8 @@ class YouTube(Provider):
         try:
             found = self.ytdlp.extract(f"ytsearch{limit}:{query}", YT_FLAT, self.id)
         except Exception as error:  # yt_dlp поднимает свои типы; наружу — отказ площадки, не 500
-            raise HTTPException(502, f"Поиск не удался: {self.ytdlp.explain(error)}"[:200]) from None
+            logger.info("кинозал: поиск YouTube не удался: %s", self.ytdlp.explain(error)[:300])
+            raise HTTPException(502, "Поиск YouTube не удался — попробуйте ещё раз") from None
         return [self._item(entry) for entry in found.get("entries", []) or [] if entry and entry.get("id")]
 
     def _channels(self, query: str, limit: int) -> list[wire.Card]:
@@ -248,7 +252,8 @@ class YouTube(Provider):
         except Exception as error:
             if "does not have a" in str(error):
                 return {"channel": None, "items": [], "next": None}
-            raise HTTPException(502, f"Канал не открылся: {self.ytdlp.explain(error)}"[:200]) from None
+            logger.info("кинозал: канал YouTube не открылся: %s", self.ytdlp.explain(error)[:300])
+            raise HTTPException(502, "Канал YouTube не открылся — попробуйте ещё раз") from None
         pictures = found.get("thumbnails") or []
         identity = {
             "id": found.get("channel_id") or channel_id,
@@ -287,7 +292,8 @@ class YouTube(Provider):
             address = f"https://www.youtube.com/playlist?list={playlist_id}"
             found = self.ytdlp.extract(address, options, self.id)
         except Exception as error:
-            raise HTTPException(502, f"Плейлист не открылся: {self.ytdlp.explain(error)}"[:200]) from None
+            logger.info("кинозал: плейлист YouTube не открылся: %s", self.ytdlp.explain(error)[:300])
+            raise HTTPException(502, "Плейлист YouTube не открылся — попробуйте ещё раз") from None
         pictures = found.get("thumbnails") or []
         identity = {
             "id": found.get("channel_id") or "",

@@ -186,7 +186,7 @@ public class FavoriteGroupService {
   }
 
   private static Problem invalid() {
-    return new Problem(400, "INVALID_REQUEST", "Проверьте данные запроса");
+    return new Problem(400, "INVALID_REQUEST", "Проверьте введённое и попробуйте ещё раз");
   }
 
   private static Problem changed() {

@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { ChessTable as ChessState, Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
+import { ApiError } from '../api/client';
 import ChessTable from './ChessTable';
 import { StageExitContext } from './stage-context';
 
@@ -248,7 +249,9 @@ it('respects reduced motion and computes clocks from server time', () => {
 
 it('keeps a rejected server move visible as a recoverable error', async () => {
   const session = room();
-  session.command.mockRejectedValueOnce(new Error('Позиция изменилась. Повторите ход.'));
+  session.command.mockRejectedValueOnce(
+    new ApiError(409, 'GAME_STALE', 'Позиция изменилась. Повторите ход.'),
+  );
   render(<ChessTable meeting={session.meeting} />);
   fireEvent.click(square('e2'));
   await act(async () => fireEvent.click(square('e4')));

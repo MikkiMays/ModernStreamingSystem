@@ -43,6 +43,7 @@ import { ChatText } from './abuse/ChatText';
 import { locale } from '../i18n';
 import { boardFileKind } from '../core/board/export';
 import { backToStage } from './stage-context';
+import { failureText, FriendlyError } from '../core/failure';
 
 export type Panel = 'people' | 'chat' | 'services';
 export function Sidebar({
@@ -145,7 +146,7 @@ export function Sidebar({
     try {
       await meeting.command(type, undefined, targetId);
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'meeting'));
     }
   };
   /*
@@ -191,7 +192,7 @@ export function Sidebar({
         nearBottom.current = true;
       }
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'chat'));
     } finally {
       setSending(false);
     }
@@ -237,20 +238,30 @@ export function Sidebar({
       else await meeting.command('board.open');
     } catch (e) {
       meeting.boardImport.set(null);
-      setError((e as Error).message);
+      setError(failureText(e, 'board'));
     }
   };
   const copyMessage = async (text: string) => {
     setError('');
     try {
-      if (!navigator.clipboard?.writeText) throw new Error(t(($) => $.sidebar.noClipboard));
+      if (!navigator.clipboard?.writeText)
+        throw new FriendlyError(
+          t(($) => $.sidebar.noClipboard),
+          'unsupported',
+        );
       await navigator.clipboard.writeText(text);
       setFeedback(t(($) => $.sidebar.copied));
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
       feedbackTimer.current = setTimeout(() => setFeedback(''), 2200);
     } catch (e) {
       setFeedback('');
-      setError((e as Error).message || t(($) => $.sidebar.copyFailed));
+      setError(
+        failureText(
+          e,
+          'chat',
+          t(($) => $.sidebar.copyFailed),
+        ),
+      );
     }
   };
   const time = (at: number) => (
@@ -455,7 +466,7 @@ export function Sidebar({
                     <IconButton
                       label={t(($) => $.sidebar.download, { name: entry.file.name })}
                       onClick={() =>
-                        void meeting.api.download(entry.file).catch((e) => setError((e as Error).message))
+                        void meeting.api.download(entry.file).catch((e) => setError(failureText(e, 'files')))
                       }
                     >
                       <Download size={20} />
@@ -481,7 +492,7 @@ export function Sidebar({
                       void meeting.api
                         .cancel(file.id)
                         .then(() => queryClient.invalidateQueries({ queryKey: ['files', snapshot.id] }))
-                        .catch((e) => setError((e as Error).message))
+                        .catch((e) => setError(failureText(e, 'files')))
                     }
                   >
                     <X size={20} />

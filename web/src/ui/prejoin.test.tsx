@@ -118,7 +118,8 @@ describe('предвход', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Включить камеру' }));
     });
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent(/Не удалось получить доступ к устройству/);
+    // Отказ браузера — словами о самом устройстве, а не «NotAllowedError» (R180).
+    expect(alert).toHaveTextContent(/Нет доступа к камере/);
     expect(alert.closest('.prejoin-preview')).not.toBeNull();
     expect(within(alert).getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
   });

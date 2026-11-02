@@ -14,6 +14,7 @@ import {
 import { Button, Field, Input, Switch, Textarea } from '../kit';
 import { ChoiceChips } from './Chips';
 import { Attachment, Sent, type Receipt } from './parts';
+import { failureText } from '../../core/failure';
 
 /**
  * Форма обращения (E13, T36, R38): тема чипами, что случилось, по желанию — контакт и диагностика.
@@ -59,7 +60,7 @@ export function SupportForm({ topic: initial = 'other' }: { topic?: SupportTopic
       const answer = await publicApi.support(body);
       setReceipt({ ...answer, contact: !!body.contact });
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'support'));
     } finally {
       setSending(false);
     }

@@ -13,7 +13,7 @@ APK, учёт, ловушки). Здесь — только быстрая па�
 | Изменено | Служба |
 | --- | --- |
 | `web/**`, `infra/Dockerfile.web`, `infra/Caddyfile` | `gateway` (веб собирается **внутрь** него) |
-| `server/**`, `pom.xml`, `infra/Dockerfile.server` | `core` (проверки, права, комнаты, миграции Flyway) |
+| `server/**`, `pom.xml`, `infra/Dockerfile.server`, `contracts/errors.json` | `core` (проверки, права, комнаты, миграции Flyway; реестр ошибок лежит в jar — счётчик ошибок клиента, R180) |
 | `services/**` (кинозал, музыка, Telegram) | `services` и, если `services/sniffer/**`, `sniffer` |
 | `scripts/configure.mjs`, `edge-config.mjs`, `turn-guard.mjs` | `node scripts/configure.mjs --refresh` + `docker compose restart livekit` (и `edge`) |
 | `compose.yaml` | служба с изменённой конфигурацией: `docker compose up -d --no-deps <служба>` |

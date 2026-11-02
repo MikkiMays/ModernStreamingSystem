@@ -14,7 +14,7 @@ import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
-import { Empty, Failure, Following, Loading, retryOf } from '../catalog/notes';
+import { Empty, Failure, Following, Loading, problemText, retryOf } from '../catalog/notes';
 import { ChannelPage } from '../catalog/pages/ChannelPage';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { PlaylistPage } from '../catalog/pages/PlaylistPage';
@@ -199,7 +199,7 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
             <div className="cinema-empty" role="alert">
               <Link2 size={40} />
               <b>{t(($) => $.cinema.vk.down)}</b>
-              <small>{t(($) => $.cinema.vk.downHint, { error: (sections.error as Error).message })}</small>
+              <small>{t(($) => $.cinema.vk.downHint, { error: problemText(t, sections.error) })}</small>
             </div>
           ) : null}
           {feed.isError ? <Failure problem={feed.error} onRetry={retryOf(feed)} /> : null}

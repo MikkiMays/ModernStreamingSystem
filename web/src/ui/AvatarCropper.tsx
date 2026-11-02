@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Slider } from './primitives';
 import { cropRect, encodeAvatar, type AvatarCrop } from '../core/avatar';
+import { failureText } from '../core/failure';
 
 /** Сторона окошка кадрирования в пикселях страницы. Реальный аватар меньше в четыре раза. */
 const STAGE = 256;
@@ -135,7 +136,7 @@ export function AvatarCropper({
             try {
               onSave(encodeAvatar(bitmap, crop));
             } catch (problem) {
-              setError((problem as Error).message);
+              setError(failureText(problem, 'profile'));
             }
           }}
         >

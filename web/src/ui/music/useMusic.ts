@@ -16,6 +16,7 @@ import { foresee, foresightSpent, offeredSources, type Foresight } from '../musi
 import { lastPlatform, offeredPlatforms, type MusicPlatform } from '../music-platforms';
 import { useLastPlatform } from '../PlatformPicker';
 import { useStore } from '../primitives';
+import { failureText } from '../../core/failure';
 
 /**
  * Музыка встречи — одним хуком на всех, кто её показывает (R31, R44): панель интеграций, мини-плеер
@@ -145,8 +146,8 @@ export function useMusic(meeting: Meeting, { poll = true }: { poll?: boolean } =
     try {
       update(await job(), rosterChanged);
     } catch (e) {
-      // Служба не согласилась — на экране неправда. Показываем, как есть.
-      store.update((s) => ({ ...s, foresight: null, error: (e as Error).message }));
+      // Служба не согласилась — на экране неправда: предсказание снимаем, причину — словами (R180).
+      store.update((s) => ({ ...s, foresight: null, error: failureText(e, 'music') }));
     }
   };
   const command: MusicCommand = (action, extra, patch) => {

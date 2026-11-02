@@ -732,15 +732,20 @@ public class Gartic {
     return text.strip().toLowerCase(Locale.ROOT).replace('ё', 'е').replaceAll("\\s+", " ");
   }
 
+  /**
+   * Рисунок от браузера. Что именно в пакете не так, человеку не исправить — рисунок шлёт сам
+   * клиент, — поэтому отказ один, «Не удалось прочитать рисунок» (R180).
+   */
   private static List<GarticStroke> parseStrokes(String text) {
     if (text == null || text.length() > 4000)
-      fail("GARTIC_DRAWING", "Слишком большой пакет рисунка");
+      fail("GARTIC_DRAWING", "Не удалось прочитать рисунок");
     try {
       var root = JSON.readTree(text);
       if (root == null || !root.isObject() || root.size() != 1 || !root.path("strokes").isArray())
-        fail("GARTIC_DRAWING", "Неверный формат рисунка");
+        fail("GARTIC_DRAWING", "Не удалось прочитать рисунок");
       var nodes = root.get("strokes");
-      if (nodes.isEmpty() || nodes.size() > 32) fail("GARTIC_DRAWING", "Неверное число штрихов");
+      if (nodes.isEmpty() || nodes.size() > 32)
+        fail("GARTIC_DRAWING", "Не удалось прочитать рисунок");
       var result = new ArrayList<GarticStroke>();
       for (var node : nodes) {
         if (!node.isObject()
@@ -748,21 +753,21 @@ public class Gartic {
             || !node.path("id").isTextual()
             || !node.path("color").isTextual()
             || !integer(node.path("width"), 1, 40))
-          fail("GARTIC_DRAWING", "Неверные параметры штриха");
+          fail("GARTIC_DRAWING", "Не удалось прочитать рисунок");
         String id = node.get("id").asText();
         String color = node.get("color").asText();
         if (!id.matches("[A-Za-z0-9_-]{1,36}") || !color.matches("#[0-9a-fA-F]{6}"))
-          fail("GARTIC_DRAWING", "Неверный цвет или идентификатор штриха");
+          fail("GARTIC_DRAWING", "Не удалось прочитать рисунок");
         var pointsNode = node.path("points");
         if (!pointsNode.isArray() || pointsNode.isEmpty() || pointsNode.size() > 128)
-          fail("GARTIC_DRAWING", "Штрих должен содержать от 1 до 128 точек");
+          fail("GARTIC_DRAWING", "Не удалось прочитать рисунок");
         var points = new ArrayList<List<Integer>>();
         for (var point : pointsNode) {
           if (!point.isArray()
               || point.size() != 2
               || !integer(point.get(0), 0, 1000)
               || !integer(point.get(1), 0, 1000))
-            fail("GARTIC_DRAWING", "Координаты должны лежать внутри холста");
+            fail("GARTIC_DRAWING", "Не удалось прочитать рисунок");
           points.add(List.of(point.get(0).intValue(), point.get(1).intValue()));
         }
         result.add(

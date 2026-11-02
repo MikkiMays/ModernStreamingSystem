@@ -48,7 +48,7 @@ describe('publication permission handoff', () => {
     const { room, events, abort } = fixture();
     const rejected = expect(
       waitForPublishPermissions(room, [Track.Source.ScreenShare], abort.signal),
-    ).rejects.toThrow('Не получено разрешение');
+    ).rejects.toThrow('Не получилось начать показ экрана');
     await vi.advanceTimersByTimeAsync(9000);
     events.emit(RoomEvent.ParticipantPermissionsChanged);
     await vi.advanceTimersByTimeAsync(1000);

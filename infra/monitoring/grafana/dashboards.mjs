@@ -135,6 +135,14 @@ const dashboards = [
       ['sum(increase(cord_joins_total{door="media",result="ice_failed"}[1h]))', 'медиа не встало (ice_failed)'],
       ['sum(increase(cord_client_reports_total{path="relay-tls"}[1h]))', 'звонки через TURN/TLS 443'],
     ]),
+    // R180: ошибки, которые человек увидел фразой, — где и почему (место интерфейса и код реестра или
+    // вид ошибки браузера). Тексты и адреса в браузере и «Недавних ошибках», не здесь.
+    series('Ошибки, которые видели люди, за час — по месту', [
+      ['sum by (place) (increase(cord_client_errors_total[1h]))', '{{place}}'],
+    ], 'short', { stack: true }),
+    series('Ошибки, которые видели люди, за час — частые', [
+      ['topk(8, sum by (place, code) (increase(cord_client_errors_total[1h])))', '{{place}} · {{code}}'],
+    ]),
     series('Интеграции идут сейчас', [['sum by (kind) (cord_integrations_active)', '{{kind}}']], 'short', { stack: true }),
     // Доска (R159): своя нагрузка мимо транзакций комнаты — доски в памяти, сокеты, правки и записи сцены.
     series('Доска: открыто и смотрят', [

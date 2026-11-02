@@ -4,6 +4,8 @@ COPY pom.xml ./
 COPY server/pom.xml server/pom.xml
 RUN mvn -B -q -pl server -am dependency:go-offline
 COPY server/src server/src
+# Реестр кодов ошибок — в jar (server/pom.xml): им ядро ограничивает коды счётчика ошибок клиента.
+COPY contracts/errors.json contracts/errors.json
 # Подписанный каталог серверов (ADR 0001 §8) — pom.xml кладёт его в jar.
 RUN mvn -B -q -pl server -am package -DskipTests
 

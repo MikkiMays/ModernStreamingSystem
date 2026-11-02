@@ -77,6 +77,7 @@ import { boardJson, boardPng, boardSvg, hasContent, saveFile } from './images';
 import { excalidrawLanguage } from './lang';
 import { Minimap } from './Minimap';
 import { barAnchor, menuAnchor, MenuTool, ToolSlot, ToolToggle } from './tools';
+import { failureDetail, failureText, FriendlyError } from '../../core/failure';
 
 /**
  * Доска встречи (R159): Excalidraw на сцене, рисуют все сразу — или только ведущий.
@@ -245,7 +246,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
       const png = new File([await boardPng(api)], `${name}.png`, { type: 'image/png' });
       const doc = new File([boardJson(api)], `${name}${BOARD_EXTENSION}`, { type: 'application/json' });
       if (!(await meeting.uploader.send(png)) || !(await meeting.uploader.send(doc)))
-        throw new Error(t(($) => $.board.chat.failed));
+        throw new FriendlyError(t(($) => $.board.chat.failed));
       await meeting.command(
         'message.send',
         t(($) => $.board.chat.message, { time }),
@@ -257,9 +258,10 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
       });
       return true;
     } catch (error) {
+      const why = failureDetail(error, 'board');
       toast.add({
         title: t(($) => $.board.chat.failed),
-        description: (error as Error).message,
+        description: why === t(($) => $.board.chat.failed) ? undefined : why,
         type: 'danger',
       });
       return false;
@@ -334,7 +336,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
     } catch (error) {
       toast.add({
         title: t(($) => $.board.import.failed),
-        description: (error as Error).message,
+        description: failureDetail(error, 'board'),
         type: 'danger',
       });
     }
@@ -519,7 +521,7 @@ function BoardSurface({ meeting, board }: { meeting: Meeting; board: BoardView }
   const run = (type: 'board.close' | 'board.clear' | 'board.settings', option?: string) =>
     meeting
       .command(type, undefined, undefined, option ? { option } : undefined)
-      .catch((error) => toast.add({ title: (error as Error).message, type: 'danger' }));
+      .catch((error) => toast.add({ title: failureText(error, 'board'), type: 'danger' }));
 
   /** Закрыть доску: есть нарисованное — сначала спросить, сохранить ли его в чат (R154). */
   const requestClose = () => {

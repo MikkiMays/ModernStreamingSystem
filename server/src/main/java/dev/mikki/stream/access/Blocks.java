@@ -100,9 +100,9 @@ public class Blocks {
    */
   public Block block(String kind, String subject, Duration term, String reason, String by) {
     if (!IP.equals(kind) && !PROFILE.equals(kind))
-      throw new Problem(400, "INVALID_REQUEST", "Проверьте данные запроса");
+      throw new Problem(400, "INVALID_REQUEST", "Проверьте введённое и попробуйте ещё раз");
     if (subject == null || subject.isBlank() || subject.length() > 64)
-      throw new Problem(400, "INVALID_REQUEST", "Проверьте данные запроса");
+      throw new Problem(400, "INVALID_REQUEST", "Проверьте введённое и попробуйте ещё раз");
     long now = clock.millis();
     var length = term == null ? config.abuse().blocks().defaultTerm() : term;
     var block =

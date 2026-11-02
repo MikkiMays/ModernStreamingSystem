@@ -125,9 +125,9 @@ export function callReportText(report: CallReport | null): string {
 }
 
 /* ---------- последние ошибки клиента ----------
-   Кольцо из десяти строк в памяти вкладки: код отказа сервера или текст необработанной ошибки,
-   без адресов и содержимого. Нужны они только для обращения — и уходят, только если человек
-   отметил «Приложить диагностику». */
+   Кольцо из десяти строк в памяти вкладки: код отказа сервера, место и вид ошибки, которую увидел
+   человек, или текст необработанной ошибки (`core/failure.ts`), без адресов и содержимого. Нужны
+   они только для обращения — и уходят, только если человек отметил «Приложить диагностику». */
 const RECENT = 10;
 const errors: string[] = [];
 
@@ -145,15 +145,6 @@ export function noteError(text: string) {
 
 export function recentErrors(): readonly string[] {
   return [...errors];
-}
-
-/** Слушать необработанные ошибки страницы — один раз, из `main.tsx`. */
-export function watchErrors(target: Window = window) {
-  target.addEventListener('error', (event) => noteError(event.message || 'error'));
-  target.addEventListener('unhandledrejection', (event) => {
-    const reason: unknown = event.reason;
-    noteError(reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason));
-  });
 }
 
 /** Окружение для диагностики; в тестах подставляется. */

@@ -35,6 +35,7 @@ import { useFavoritesLimit } from '../useFavorites';
 import { useFavoriteShelf } from '../useFavoriteShelf';
 import { InlineName } from './InlineName';
 import { RoomRow, type DragHandlers, type RoomActions } from './RoomRow';
+import { failureText } from '../../core/failure';
 
 const DRAG_THRESHOLD = 5;
 
@@ -87,7 +88,14 @@ export function FavoritesNav({
   });
 
   const fail = (error: unknown) =>
-    toast.add({ title: (error as Error).message || t(($) => $.favorites.nav.failedAction), type: 'danger' });
+    toast.add({
+      title: failureText(
+        error,
+        'favorites',
+        t(($) => $.favorites.nav.failedAction),
+      ),
+      type: 'danger',
+    });
   const run = (work: Promise<unknown>) => void work.catch(fail);
 
   const actions: RoomActions = {

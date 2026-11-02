@@ -275,6 +275,14 @@ export default function Diagnostics({
               </Metric>
             )}
           </dl>
+          {/* Сеть не пропускает звонок (R149): техника — здесь, а не на плашке встречи (R180). */}
+          {media.blocked && (
+            <p className="diagnostics-card__note" data-tone="warning" role="status">
+              {media.blocked.tls
+                ? t(($) => $.diagnostics.media.blockedTls)
+                : t(($) => $.diagnostics.media.blockedNoTls)}
+            </p>
+          )}
           {/* Рычаг поддержки (`media/turn-tls.ts`): видно, что путь выбран руками, а не сетью. */}
           {meeting.media.relayOnly ? (
             <p className="diagnostics-card__note" data-tone="warning" role="status">

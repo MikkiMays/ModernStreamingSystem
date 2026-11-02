@@ -127,14 +127,18 @@ function captureAudioTrack(): MediaStreamTrack | null {
   return track && track.readyState === 'live' ? track : null;
 }
 
-/** Причина отказа оболочки → короткая подсказка; показ при этом идёт без звука. */
+/**
+ * Причина отказа оболочки → короткая подсказка; показ при этом идёт без звука. Слово оболочки
+ * человеку ничего не скажет — оно в журнал (R180).
+ */
 function audioProblem(reason: unknown, started: boolean): string {
   if (reason === 'not-a-window') return t(($) => $.media.screen.audio.notWindow);
   if (reason === 'unavailable' || reason === 'native') return t(($) => $.media.screen.audio.unavailable);
   const text = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 120) : '—';
-  return started
-    ? t(($) => $.media.screen.audio.stopped, { reason: text })
-    : t(($) => $.media.screen.audio.failed, { reason: text });
+  // Счёт и «Недавние ошибки» — у встречи, которая покажет подсказку (`MediaSession.report`); здесь — слово
+  // оболочки в журнал браузера.
+  console.warn(`[cord] capture audio ${started ? 'stopped' : 'failed'}: ${text}`);
+  return started ? t(($) => $.media.screen.audio.stopped) : t(($) => $.media.screen.audio.failed);
 }
 
 /**

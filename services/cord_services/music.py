@@ -205,7 +205,7 @@ class Music:
             fingerprint = {k: v for k, v in command.items() if k != "commandId"}
             if prior:
                 if prior["request"] != fingerprint:
-                    raise HTTPException(409, "Идентификатор команды уже использован")
+                    raise HTTPException(409, "Это действие уже выполнено")
                 return self.store.public(room_id)
             state = self.store.get(room_id)
             previous_files = [
@@ -274,7 +274,7 @@ class Music:
                 )
                 state["queue"].insert(place, state["queue"].pop(index))
             else:
-                raise HTTPException(400, "Неизвестная музыкальная команда")
+                raise HTTPException(400, "Музыка не знает этого действия — обновите страницу")
             if action in ("pause", "play", "skip", "stop", "seek", "previous"):
                 state["epoch"] += 1
             state["error"] = None

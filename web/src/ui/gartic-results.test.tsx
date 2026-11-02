@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GarticTable as Table } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
+import { ApiError } from '../api/client';
 import { VoiceLevels } from '../media/levels';
 import GarticTable from './GarticTable';
 import { GamePerson } from './GamePeople';
@@ -270,7 +271,7 @@ describe('Shared telephone reveal', () => {
     expect(screen.getByText('Кот на Луне')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Показать шаг 3' }));
     expect(client.command).toHaveBeenCalledTimes(1);
-    await act(async () => reject(new Error('Не удалось открыть шаг')));
+    await act(async () => reject(new ApiError(409, 'GARTIC_ACTION', 'Не удалось открыть шаг')));
     expect(screen.getByRole('alert')).toHaveTextContent('Не удалось открыть шаг');
     expect(screen.getByRole('button', { name: 'Следующий шаг' })).toBeEnabled();
   });

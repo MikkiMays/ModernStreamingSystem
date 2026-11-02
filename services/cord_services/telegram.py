@@ -618,7 +618,7 @@ class Telegram:
         if not re.fullmatch(
             r"[A-Za-z0-9_./-]+", remote_path
         ) or ".." in remote_path.split("/"):
-            raise HTTPException(400, "Telegram не вернул аудиофайл")
+            raise HTTPException(400, "Telegram не отдал аудиофайл — попробуйте ещё раз")
         path = self.store.files / key
         cover = None
         try:
@@ -872,7 +872,7 @@ class Telegram:
                 ):
                     if not self.yandex:
                         raise HTTPException(
-                            503, "Коннектор Яндекс Музыки ещё не подключён"
+                            503, "Яндекс Музыка на этом сервере ещё не подключена"
                         )
                     if not arg:
                         raise HTTPException(

@@ -1557,7 +1557,7 @@ class RoomServiceTest {
    *
    * <p>Тест намеренно ходит через настоящий вызов: список и {@code switch} в {@link RoomService} —
    * это два разных места, и проверять список сам собой бессмысленно. Забытое имя выглядит отсюда
-   * как «Неизвестная команда», а из браузера — как «Проверьте данные запроса».
+   * как {@code UNKNOWN_COMMAND}, а из браузера — как {@code INVALID_REQUEST}.
    */
   @Test
   void everyPokerCommandTheCoreImplementsIsAlsoDeclared() {
@@ -1566,12 +1566,12 @@ class RoomServiceTest {
     poker(host, "poker.sit", null, 0, null);
     for (var type : List.of("poker.settings", "poker.next", "poker.reveal", "poker.stand")) {
       assertThat(Contracts.commandTypes()).contains(type);
-      // Правила могут отказать по существу — но «Неизвестная команда» означало бы, что имени
-      // нет в ядре вовсе.
+      // Правила могут отказать по существу — но UNKNOWN_COMMAND означало бы, что имени нет в
+      // ядре вовсе.
       try {
         poker(host, type, type.equals("poker.settings") ? "auto-deal" : null, null, null);
       } catch (Problem problem) {
-        assertThat(problem.getMessage()).doesNotContain("Неизвестная команда");
+        assertThat(problem.code()).isNotEqualTo("UNKNOWN_COMMAND");
       }
     }
   }

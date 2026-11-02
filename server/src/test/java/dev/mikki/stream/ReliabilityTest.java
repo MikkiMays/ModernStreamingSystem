@@ -234,6 +234,56 @@ class ReliabilityTest {
   }
 
   /**
+   * Ошибки, которые видели люди (R180): сводка без пропуска встречи ложится в счётчик по месту и
+   * коду; чужое слово — {@code other}, неверная сводка — {@code 400}, частая — {@code 429}.
+   */
+  @Test
+  void clientErrorSummariesBecomeBoundedCounters() throws Exception {
+    java.util.function.BiFunction<String, String, Double> count =
+        (place, code) -> {
+          var counter =
+              registry.find("cord.client.errors").tag("place", place).tag("code", code).counter();
+          return counter == null ? 0 : counter.count();
+        };
+    var denied = count.apply("camera", "denied");
+    var full = count.apply("join", "ROOM_FULL");
+    var other = count.apply("board", "other");
+    var address = "198.51.100." + (int) (Math.random() * 250);
+    java.util.function.Function<String, org.springframework.test.web.servlet.RequestBuilder>
+        summary =
+            body ->
+                post("/api/v1/client-errors")
+                    .with(
+                        request -> {
+                          request.setRemoteAddr(address);
+                          return request;
+                        })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body);
+    mvc.perform(
+            summary.apply(
+                """
+                {"errors":[{"place":"camera","code":"denied","count":2},
+                           {"place":"join","code":"ROOM_FULL","count":1},
+                           {"place":"board","code":"Failed to fetch","count":1}]}
+                """))
+        .andExpect(status().isNoContent());
+    assertThat(count.apply("camera", "denied")).isEqualTo(denied + 2);
+    assertThat(count.apply("join", "ROOM_FULL")).isEqualTo(full + 1);
+    assertThat(count.apply("board", "other")).isEqualTo(other + 1);
+    mvc.perform(
+            summary.apply("{\"errors\":[{\"place\":\"camera\",\"code\":\"denied\",\"count\":0}]}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    // Двадцать сводок в минуту с адреса — можно (неверная не в счёт), двадцать первая — нет.
+    for (int i = 2; i <= 20; i++)
+      mvc.perform(summary.apply("{\"errors\":[]}")).andExpect(status().isNoContent());
+    mvc.perform(summary.apply("{\"errors\":[]}"))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+  }
+
+  /**
    * Отдача в сводке (R152): секунды по источнику, кодеку и железу, секунды ограничений по причине и
    * смены кодека — в счётчики; источник не из перечисления — {@code 400}; сводка без отдачи — как
    * прежде. В метках — только перечисления.

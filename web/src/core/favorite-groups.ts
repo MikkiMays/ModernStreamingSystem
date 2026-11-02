@@ -2,6 +2,7 @@ import { request } from '../api/client';
 import { favoriteProfile, type Favorite } from './favorites';
 import { notifyDesktop } from './desktop';
 import { t } from '../i18n';
+import { FriendlyError } from './failure';
 
 /**
  * Группы избранного и то, как комнаты в них лежат (T40, П3).
@@ -193,7 +194,7 @@ function unknownRoute(error: unknown) {
   );
 }
 function olderServer(error: unknown): never {
-  if (unknownRoute(error)) throw new Error(t(($) => $.favorites.errors.groupsUnsupported));
+  if (unknownRoute(error)) throw new FriendlyError(t(($) => $.favorites.errors.groupsUnsupported));
   throw error;
 }
 

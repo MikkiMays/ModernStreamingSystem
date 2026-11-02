@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { CloudOff, GlobeLock, LoaderCircle, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { knownProvider } from '../../../core/cinema/link';
 import { countryName, LATE, MUSIC_LATE, providerName, refusedBy } from '../../../core/cinema';
 import { musicSourceName, type MusicSource } from '../../../core/services';
 import type { Translate } from '../../../i18n';
+import { classify, noteFailure, type Place } from '../../../core/failure';
 import { Button } from '../../kit';
 
 /*
@@ -11,18 +13,17 @@ import { Button } from '../../kit';
   страницы каталога они одни и те же — отличается только текст пустоты.
 */
 
-/** Так `fetch` говорит об обрыве сети: Chrome, Firefox и Safari — каждый своими словами. */
-const OFFLINE = /failed to fetch|networkerror|load failed|network request failed/i;
-
 /**
  * Отказ — словами для человека. Отказ службы приходит уже её словами. Обрыв сети — это `TypeError`
  * самого `fetch`, и его текст английский и браузерный («Failed to fetch»): его человек видеть не
  * должен. Срок запроса, вышедший у браузера, — `TimeoutError`, и он тоже не английский. Площадку,
  * до которой сервер не достаёт или которая не ответила за срок службы (R112), служба называет
  * кодом и именем (`refusedBy`) — и слова здесь свои, на языке человека. Так же — отказы поиска и
- * ссылок музыки (`MUSIC_UNREACHABLE`, `MUSIC_TIMEOUT`).
+ * ссылок музыки (`MUSIC_UNREACHABLE`, `MUSIC_TIMEOUT`). Прочее — общая точка перевода
+ * (`core/failure.ts`, R180): текст исключения, английское слово FastAPI или русская фраза службы на
+ * чужом языке сюда не доходят. Функция чистая — её зовёт и отрисовка; учёт — `problemNoted`.
  */
-export function problemText(t: Translate, problem: unknown): string {
+export function problemText(t: Translate, problem: unknown, place: Place = 'cinema'): string {
   const refused = refusedBy(problem);
   const music = refusedBy(problem, 'music');
   const name =
@@ -37,10 +38,16 @@ export function problemText(t: Translate, problem: unknown): string {
       ? t(($) => $.cinema.reach.late, { name })
       : t(($) => $.cinema.reach.unreachable, { name });
   }
-  if (problem instanceof TypeError && OFFLINE.test(problem.message)) return t(($) => $.cinema.notes.offline);
-  if (problem instanceof DOMException && problem.name === 'TimeoutError')
-    return t(($) => $.cinema.notes.timeout);
-  return (problem as Error | null)?.message || t(($) => $.cinema.notes.failed);
+  const { code, text } = classify(problem, place);
+  if (code === 'offline') return t(($) => $.cinema.notes.offline);
+  if (code === 'timeout') return t(($) => $.cinema.notes.timeout);
+  return text || t(($) => $.failure.places[place]);
+}
+
+/** То же, что `problemText`, и в журнал и счётчик — для обработчиков, а не для отрисовки. */
+export function problemNoted(t: Translate, problem: unknown, place: Place = 'cinema'): string {
+  noteFailure(place, classify(problem, place).code, problem);
+  return problemText(t, problem, place);
 }
 
 /**
@@ -50,6 +57,8 @@ export function problemText(t: Translate, problem: unknown): string {
  */
 export function Failure({ problem, onRetry }: { problem: unknown; onRetry?: () => void }) {
   const { t } = useTranslation();
+  // Учёт — один раз на отказ, а не на каждую отрисовку.
+  useEffect(() => noteFailure('cinema', classify(problem, 'cinema').code, problem), [problem]);
   return (
     <div className="cinema-failure">
       <p className="form-error" role="alert">

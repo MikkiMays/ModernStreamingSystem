@@ -375,7 +375,8 @@ export function MeetingView({
                 <b>{t(($) => $.meeting.view.seconds, { n: media.remaining })}</b>
               </div>
             )}
-            {/* Сигнал есть, медиа нет ни разу (R149): что не так и что помогает — без отсчёта, попытки идут сами. */}
+            {/* Сигнал есть, медиа нет ни разу (R149): что видно и что помогает — без отсчёта, попытки идут
+              сами. Порты и ретрансляторы — в «Диагностике» и журнале, не здесь (R180). */}
             {!ended && media.blocked && (
               <div className="recovery-banner media-stage" data-reason="blocked" role="alert">
                 <WifiOff size={20} />
@@ -388,6 +389,9 @@ export function MeetingView({
                       : t(($) => $.meeting.view.blockedOwner)}
                   </span>
                 </div>
+                <button type="button" className="recovery-banner__more" onClick={() => show('diagnostics')}>
+                  {t(($) => $.meeting.view.blockedDetails)}
+                </button>
               </div>
             )}
             {!ended && <PresenceAsk snapshot={snapshot} presence={presence} />}

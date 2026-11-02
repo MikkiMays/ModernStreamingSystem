@@ -502,7 +502,7 @@ class Sources:
             receipt = self.store.receipt(scope, command_id)
             if receipt:
                 if receipt["url"] != page:
-                    raise HTTPException(409, "Идентификатор команды уже использован")
+                    raise HTTPException(409, "Это действие уже выполнено")
                 return self.store.public(room_id)
             # Площадка отсюда недоступна — отказ сразу, до предела комнаты и места в хранилище.
             self.refuse_if_down(platform)

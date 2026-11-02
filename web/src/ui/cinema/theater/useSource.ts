@@ -3,6 +3,7 @@ import type { Watch } from '../../../api/types';
 import type { CinemaApi, CinemaSource } from '../../../core/cinema';
 import { t } from '../../../i18n';
 import type { Echo } from './useRoomSync';
+import { failureText } from '../../../core/failure';
 
 export type Status = 'loading' | 'ready' | 'blocked' | 'failed';
 
@@ -55,7 +56,13 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
       .catch((e: unknown) => {
         if (!alive) return;
         setStatus('failed');
-        setError((e as Error).message || t(($) => $.cinema.theater.errors.openFailed));
+        setError(
+          failureText(
+            e,
+            'cinema',
+            t(($) => $.cinema.theater.errors.openFailed),
+          ),
+        );
       });
     return () => {
       alive = false;
@@ -88,7 +95,13 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
       } catch (e) {
         if (generation === sourceGeneration.current) {
           setStatus('failed');
-          setError((e as Error).message || t(($) => $.cinema.theater.errors.renewFailed));
+          setError(
+            failureText(
+              e,
+              'cinema',
+              t(($) => $.cinema.theater.errors.renewFailed),
+            ),
+          );
         }
       } finally {
         if (generation === sourceGeneration.current) refreshing.current = false;

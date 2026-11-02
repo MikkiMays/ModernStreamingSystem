@@ -6,6 +6,7 @@ import { notifyDesktop, hasFeature } from './desktop';
 import { signal } from './sounds';
 import { rememberQuality } from '../media/capabilities';
 import { t } from '../i18n';
+import { classify, noteFailure } from './failure';
 
 /**
  * The handshake with the server itself, before any room exists.
@@ -213,14 +214,20 @@ async function attempt(password: string, keep: boolean): Promise<Attempt> {
     return { ok: false, detail: describeFailure(error) };
   }
 }
+/**
+ * Почему не подключились — словами экрана подключения. Код ответа и текст браузера — в журнал и
+ * счётчик (`noteFailure`), человеку — что делать (R180).
+ */
 export function describeFailure(error: unknown): string {
+  const { code, text } = classify(error, 'connect');
+  noteFailure('connect', code, error);
   if (error instanceof ApiError) {
     if (error.code === 'SERVER_PASSWORD_INVALID') return t(($) => $.connect.failure.passwordInvalid);
     if (error.code === 'SERVER_PASSWORD_REQUIRED') return t(($) => $.connect.failure.passwordRequired);
     if (error.status === 429) return t(($) => $.connect.failure.tooMany);
-    if (error.status >= 500) return t(($) => $.connect.failure.serverError, { status: error.status });
+    if (error.status >= 500) return t(($) => $.connect.failure.serverError);
     if (error.status === 404) return t(($) => $.connect.failure.notCord);
-    return error.message;
+    return text ?? t(($) => $.failure.places.connect);
   }
   if (error instanceof DOMException && error.name === 'TimeoutError')
     return t(($) => $.connect.failure.timeout);

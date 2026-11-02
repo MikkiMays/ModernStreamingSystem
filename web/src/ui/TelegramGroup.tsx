@@ -6,6 +6,7 @@ import type { Meeting } from '../core/meeting';
 import { MusicApi, type TelegramLinkCode } from '../core/services';
 import { Button } from './kit';
 import { shelfName } from './integration-shelf';
+import { failureText } from '../core/failure';
 
 /**
  * Telegram во встрече (E09, T04, T30): привязать встречу к беседе и видеть, какие беседы её открывают.
@@ -43,7 +44,7 @@ export function TelegramGroup({ meeting, onBack }: { meeting: Meeting; onBack: (
       setCode(await api.linkTelegram());
       setCopied(false);
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'telegram'));
     }
   };
   const unlink = async (id: string) => {
@@ -51,7 +52,7 @@ export function TelegramGroup({ meeting, onBack }: { meeting: Meeting; onBack: (
     try {
       client.setQueryData(key, await api.unlinkTelegram(id));
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'telegram'));
     }
   };
   const copy = async () => {

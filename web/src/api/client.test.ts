@@ -47,16 +47,16 @@ it('список ошибок проверки FastAPI (422) — одной фр
     ],
   });
   const error = await refusal();
-  expect(error.message).toBe('Проверьте данные запроса');
+  expect(error.message).toBe('Проверьте введённое и попробуйте ещё раз');
   expect(error.status).toBe(422);
   expect(error.code).toBe('REQUEST_FAILED');
 });
 
 it('любой другой не строковый `detail` — та же фраза', async () => {
   answer(400, { detail: { reason: 'x' } });
-  expect((await refusal()).message).toBe('Проверьте данные запроса');
+  expect((await refusal()).message).toBe('Проверьте введённое и попробуйте ещё раз');
   answer(400, { detail: 42 });
-  expect((await refusal()).message).toBe('Проверьте данные запроса');
+  expect((await refusal()).message).toBe('Проверьте введённое и попробуйте ещё раз');
 });
 
 it('отказ словами сервера остаётся его словами, а без слов — «Не удалось выполнить запрос»', async () => {
@@ -234,7 +234,7 @@ it('срок браузера — «Сервер не ответил вовре�
   const error = await request('/rooms', { method: 'POST' }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(DOMException);
   expect((error as DOMException).name).toBe('TimeoutError');
-  expect((error as DOMException).message).toBe(i18next.t(($) => $.api.timeout));
+  expect((error as DOMException).message).toBe(i18next.t(($) => $.failure.timeout));
   expect((error as DOMException).message).not.toMatch(/signal/);
 });
 
@@ -242,7 +242,7 @@ it('обрыв сети — «Нет связи с сервером», а не �
   failing(new TypeError('Failed to fetch'));
   const error = await request('/rooms').catch((e: unknown) => e);
   expect(error).toBeInstanceOf(TypeError);
-  expect((error as TypeError).message).toBe(i18next.t(($) => $.api.offline));
+  expect((error as TypeError).message).toBe(i18next.t(($) => $.failure.offline));
 });
 
 it('отмена самим приложением — как есть: её никто не показывает', async () => {

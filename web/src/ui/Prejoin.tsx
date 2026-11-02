@@ -20,6 +20,7 @@ import { MeetingElsewhere } from './MeetingElsewhere';
 import { Button, Dialog, Field, IconButton, Input, Segmented, Switch } from './kit';
 import { previewConstraints, touchFirst } from '../media/profiles';
 import './prejoin.css';
+import { failureText } from '../core/failure';
 
 export function Prejoin({
   destination,
@@ -58,7 +59,8 @@ export function Prejoin({
   const [mic, setMic] = useState(false);
   const [error, setError] = useState('');
   /** Отказ камеры или микрофона: строка под превью и «Помощь» с ответом на этот вопрос рядом. */
-  const [deviceError, setDeviceError] = useState(false);
+  /** Отказ камеры или микрофона на превью — фразой о самом устройстве (R180); пусто — отказа нет. */
+  const [deviceError, setDeviceError] = useState('');
   const [busy, setBusy] = useState(false);
   // Ядро не пустило: этот профиль уже во встрече `elsewhere` (T52). Человек выбирает в окне.
   const [elsewhere, setElsewhere] = useState<ElsewhereMeeting | null>(null);
@@ -108,7 +110,7 @@ export function Prejoin({
         }
       })
       .catch((e) => {
-        if (active) setError((e as Error).message);
+        if (active) setError(failureText(e, 'telegram'));
       });
     return () => {
       active = false;
@@ -153,7 +155,7 @@ export function Prejoin({
     const other = alreadyInMeeting(e);
     setElsewhere(other);
     setElsewhereNote('');
-    if (!other) setError((e as Error).message);
+    if (!other) setError(failureText(e, 'join'));
   };
   useEffect(() => {
     if (!autoJoining || automaticStarted.current || destination?.kind !== 'favorite') return;
@@ -196,7 +198,7 @@ export function Prejoin({
     if (busy) return;
     setBusy(true);
     setError('');
-    setDeviceError(false);
+    setDeviceError('');
     /*
       Новая встреча (R142): ссылка на неё — в буфер сразу. Запись в буфер начинается здесь, в самом
       нажатии «Начать встречу», а ссылку подставит ответ сервера (`core/invite-copy.ts`); тост
@@ -238,7 +240,7 @@ export function Prejoin({
       if (!(await onElsewhere?.(elsewhere)) && mounted.current)
         setElsewhereNote(t(($) => $.prejoin.elsewhereUnreachable));
     } catch (e) {
-      if (mounted.current) setElsewhereNote((e as Error).message);
+      if (mounted.current) setElsewhereNote(failureText(e, 'join'));
     } finally {
       if (mounted.current) setGoing(false);
     }
@@ -246,7 +248,7 @@ export function Prejoin({
   const toggle = async (kind: 'audio' | 'video') => {
     if (deviceBusy) return;
     setDeviceBusy(true);
-    setDeviceError(false);
+    setDeviceError('');
     const enabled = kind === 'audio' ? mic : camera;
     try {
       if (enabled) {
@@ -301,8 +303,14 @@ export function Prejoin({
         void preview.current.play().catch(() => {});
       }
       refreshDevices();
-    } catch {
-      setDeviceError(true);
+    } catch (e) {
+      setDeviceError(
+        failureText(
+          e,
+          kind === 'video' ? 'camera' : 'microphone',
+          t(($) => $.prejoin.deviceFailed),
+        ),
+      );
     } finally {
       setDeviceBusy(false);
     }
@@ -381,7 +389,7 @@ export function Prejoin({
           {/* Отказ камеры или микрофона — под превью и только после отказа (R74), с ответом рядом (T36). */}
           {deviceError && (
             <div className="prejoin-device-error" role="alert">
-              <span>{t(($) => $.prejoin.deviceFailed)}</span>
+              <span>{deviceError}</span>
               <HelpButton faq="camera" look="text" />
             </div>
           )}

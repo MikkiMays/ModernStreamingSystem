@@ -4,6 +4,7 @@ import { retryCatalog } from './core/cinema/reach';
 import { useTranslation } from 'react-i18next';
 import type { Admission } from './api/types';
 import { RoomApi } from './api/client';
+import { failureText, FriendlyError } from './core/failure';
 import type { Meeting } from './core/meeting';
 import { Home, parseInvite, type Destination, type Theme } from './ui/Home';
 import { Prejoin } from './ui/Prejoin';
@@ -162,7 +163,7 @@ function Workspace() {
             const favorite = favorites.find((f) => f.roomId === command.roomId);
             if (favorite) setFavoriteSettings(favorite);
           })
-          .catch((e) => setError((e as Error).message));
+          .catch((e) => setError(failureText(e, 'favorites')));
         return;
       }
       if (command.type === 'profile.changed' && typeof command.name === 'string') {
@@ -223,19 +224,19 @@ function Workspace() {
         }
         if (command.page === 'favorite') {
           const favorite = (await favoriteApi.list()).find((f) => f.roomId === command.roomId);
-          if (!favorite) throw new Error(t(($) => $.app.notFavorite));
+          if (!favorite) throw new FriendlyError(t(($) => $.app.notFavorite));
           setDestination({ kind: 'favorite', favorite });
           setPage('prejoin');
         }
       };
-      void navigate().catch((e) => setError((e as Error).message));
+      void navigate().catch((e) => setError(failureText(e, 'favorites')));
     });
   }, [page, meeting, theme, avatar, i18n.resolvedLanguage]);
   /** Открыть недавнюю встречу; `false` — открыть не вышло (ошибка уже показана). */
   const recent = async (id: string, restoring = false, quiet = false) => {
     try {
       const admission = getRecent(id);
-      if (!admission) throw new Error(t(($) => $.app.noSession));
+      if (!admission) throw new FriendlyError(t(($) => $.app.noSession));
       admission.snapshot = await new RoomApi(admission).snapshot();
       const self = admission.snapshot.participants.find((p) => p.id === admission.participantId);
       if (admission.snapshot.closedAt || (restoring && self && !sessionStorage.getItem(`cord:ended:${id}`))) {
@@ -246,7 +247,7 @@ function Workspace() {
       }
       return true;
     } catch (e) {
-      if (!quiet) setError((e as Error).message);
+      if (!quiet) setError(failureText(e, 'recent'));
       if (e instanceof Error && 'status' in e && [403, 404, 410].includes(Number(e.status))) removeRecent(id);
       return false;
     }

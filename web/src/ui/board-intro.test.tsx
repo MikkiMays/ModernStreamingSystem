@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import type { Meeting } from '../core/meeting';
 import { readPreferences, type Preferences } from '../core/preferences';
 import { Store } from '../core/store';
+import { ApiError } from '../api/client';
 import { Services } from './Services';
 
 /*
@@ -116,7 +117,9 @@ describe('доска из «Интеграций» (R164)', () => {
   it('отказ ядра — строкой на шаге, шаг остаётся', async () => {
     serve();
     const meeting = meetingWith(['board.open']);
-    meeting.command.mockRejectedValueOnce(new Error('Сейчас активна другая интеграция'));
+    meeting.command.mockRejectedValueOnce(
+      new ApiError(409, 'INTEGRATION_BUSY', 'Сейчас активна другая интеграция'),
+    );
     mount(meeting);
     fireEvent.click(card());
     await act(async () => {

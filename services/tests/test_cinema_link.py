@@ -925,7 +925,7 @@ class Refusals(LinkCase):
             (
                 # Так 25.09.2026 отвечала w3schools.com на честное имя кинозала.
                 ExtractorError("Unable to download webpage: HTTP Error 403: Forbidden", expected=True),
-                "Сайт не пустил кинозал к этой странице (403) — откройте видео на самом сайте",
+                "Сайт не пустил кинозал к этой странице — откройте видео на самом сайте",
             ),
             (
                 ExtractorError("No video formats found!"),
@@ -945,7 +945,7 @@ class Refusals(LinkCase):
         )
         self.assertEqual(
             await self.refused(Protected()),
-            {"item": None, "reason": "Видео защищено DRM — показать комнате нельзя"},
+            {"item": None, "reason": "Видео защищено от копирования — показать его комнате нельзя"},
         )
         with self.assertRaises(HTTPException) as late:
             await self.refused(Expired())
@@ -971,7 +971,7 @@ class Refusals(LinkCase):
                 await self.refused(error)
             self.assertEqual(
                 (broken.exception.status_code, broken.exception.detail),
-                (502, "Разборщик этого сайта не справился со страницей — попробуйте позже или другую ссылку"),
+                (502, "Кинозал не смог разобрать эту страницу — попробуйте позже или другую ссылку"),
             )
 
     async def test_an_answer_that_is_not_a_video_is_not_cached_as_a_failure_to_retry(self):
@@ -1040,7 +1040,10 @@ class Drm(LinkCase):
             }
             cinema = self.make(Door({"https://kino.example/film": self.page(master)}), playlists(routes))
             answer = await cinema.link("https://kino.example/film", room=ROOM)
-            self.assertEqual(answer, {"item": None, "reason": "Видео защищено DRM — показать комнате нельзя"})
+            self.assertEqual(
+                answer,
+                {"item": None, "reason": "Видео защищено от копирования — показать его комнате нельзя"},
+            )
         # Ключ на дорожке звука — тоже DRM.
         routes = {
             master: (200, MASTER),
@@ -1050,7 +1053,7 @@ class Drm(LinkCase):
         cinema = self.make(Door({"https://kino.example/film": self.page(master)}), playlists(routes))
         self.assertEqual(
             (await cinema.link("https://kino.example/film", room=ROOM))["reason"],
-            "Видео защищено DRM — показать комнате нельзя",
+            "Видео защищено от копирования — показать его комнате нельзя",
         )
 
     async def test_aes_128_with_an_open_key_is_ordinary_hls_and_its_key_goes_through_our_proxy(self):
@@ -1076,7 +1079,7 @@ class Drm(LinkCase):
             await cinema.manifest("https://cdn.example/720.m3u8", None, "link")
         self.assertEqual(
             (refused.exception.status_code, refused.exception.detail),
-            (403, "Видео защищено DRM — показать комнате нельзя"),
+            (403, "Видео защищено от копирования — показать его комнате нельзя"),
         )
         # У YouTube DRM узнаётся иначе, и его плейлисты прокси проходит, как и раньше.
         self.assertEqual((await cinema.manifest(youtube, None, "youtube")).status_code, 200)
@@ -1097,7 +1100,7 @@ class Drm(LinkCase):
         cinema = self.make(door)
         self.assertEqual(
             await cinema.link(page, room=ROOM),
-            {"item": None, "reason": "Видео защищено DRM — показать комнате нельзя"},
+            {"item": None, "reason": "Видео защищено от копирования — показать его комнате нельзя"},
         )
 
 
@@ -2201,7 +2204,7 @@ class PlaylistLimits(LinkCase):
             await cinema.manifest(self.URL, None, "link")
         self.assertEqual(
             (busy.exception.status_code, busy.exception.detail),
-            (503, "Сервер сейчас переписывает много плейлистов — попробуйте ещё раз"),
+            (503, "Сервер сейчас занят видео других комнат — попробуйте ещё раз"),
         )
         # Ушёл запрос, чья работа уже в потоке, — место её, пока поток не кончит; ушёл запрос из
         # очереди — его работа снята, и место свободно сразу.

@@ -31,6 +31,20 @@
   </dependencies>
   <build><plugins>
     <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
+    <!-- Реестр кодов ошибок (contracts/errors.json) — в jar: по нему ядро ограничивает коды счётчика
+         ошибок клиента (ClientErrors, R180). Один источник с переводами веба, без копии в server/. -->
+    <plugin>
+      <artifactId>maven-resources-plugin</artifactId>
+      <executions><execution>
+        <id>error-registry</id><phase>process-resources</phase><goals><goal>copy-resources</goal></goals>
+        <configuration>
+          <outputDirectory>${project.build.outputDirectory}/contracts</outputDirectory>
+          <resources><resource>
+            <directory>${project.basedir}/../contracts</directory><includes><include>errors.json</include></includes>
+          </resource></resources>
+        </configuration>
+      </execution></executions>
+    </plugin>
     <plugin><groupId>com.spotify.fmt</groupId><artifactId>fmt-maven-plugin</artifactId><version>2.29</version></plugin>
   </plugins></build>
 </project>

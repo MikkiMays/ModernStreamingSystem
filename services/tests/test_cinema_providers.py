@@ -488,9 +488,10 @@ class YouTubeSearchTests(Stage):
         self.assertEqual(found["items"], self.videos())
 
     async def test_a_broken_search_is_not_swallowed(self):
-        # Задача 4: сырое исключение yt-dlp (было 500) стало отказом площадки 502 с его текстом.
+        # Задача 4: сырое исключение yt-dlp (было 500) стало отказом площадки 502; текст yt-dlp — в
+        # журнал службы, человеку — фраза (R180).
         self.library.answers[self.SEARCH] = RuntimeError("HTTP Error 429")
-        refusal = "Поиск не удался: HTTP Error 429"
+        refusal = "Поиск YouTube не удался — попробуйте ещё раз"
         await self.refused(self.cinema.search("youtube", "Big Buck", ""), 502, refusal)
 
     async def test_one_letter_is_not_a_search(self):
@@ -925,7 +926,7 @@ class YouTubeChannelTests(Stage):
         await self.refused(
             self.cinema.channel("youtube", "UCabcdefghijklmnopqrstuv", "shorts", ""),
             502,
-            ("Канал не открылся: " + "y" * 300)[:200],
+            "Канал YouTube не открылся — попробуйте ещё раз",
         )
         self.assertEqual(self.kept(self.cinema.catalog), {})
 
@@ -1143,7 +1144,9 @@ class YouTubePlaylistTests(Stage):
     async def test_a_failure_is_a_bad_gateway_cut_short(self):
         self.library.answers[self.ADDRESS] = RuntimeError("z" * 300)
         await self.refused(
-            self.cinema.playlist("youtube", self.LIST, ""), 502, ("Плейлист не открылся: " + "z" * 300)[:200]
+            self.cinema.playlist("youtube", self.LIST, ""),
+            502,
+            "Плейлист YouTube не открылся — попробуйте ещё раз",
         )
 
     async def test_a_platform_without_playlists_says_so_before_checking_anything(self):
@@ -1383,7 +1386,7 @@ class DetailsTests(Stage):
         await self.refused(
             self.cinema.details("youtube", "aqz-KE-bpKQ", "video"),
             502,
-            ("Не удалось открыть видео: " + "w" * 400)[:300],
+            "Не удалось открыть видео — попробуйте позже или другое",
         )
 
     async def test_a_twitch_channel_is_its_head_with_the_live_stream_on_top(self):
@@ -1842,7 +1845,7 @@ class ResolveTests(Stage):
         await self.refused(
             self.cinema.resolve(Resolve(provider="youtube", contentId="aqz-KE-bpKQ")),
             502,
-            ("Не удалось открыть видео: Sign in to confirm you're not a bot " + "q" * 400)[:300],
+            "Не удалось открыть видео — попробуйте позже или другое",
         )
         self.assertEqual(self.kept(self.cinema.sources), {})
 

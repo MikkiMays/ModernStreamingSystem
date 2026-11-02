@@ -29,6 +29,7 @@ import { Modal, useStore } from './primitives';
 import { Button } from './kit';
 import { backToStage } from './stage-context';
 import { useStageView } from './useStageView';
+import { failureText } from '../core/failure';
 
 /**
  * Игры в панели интеграций.
@@ -101,7 +102,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
   const blinds = blindsFor(mode, stack);
   const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
     setError('');
-    void meeting.command(type, undefined, undefined, extra).catch((e) => setError((e as Error).message));
+    void meeting.command(type, undefined, undefined, extra).catch((e) => setError(failureText(e, 'games')));
   };
   /*
     Стол открывается одной командой, а правила додепа приезжают следующей.
@@ -122,7 +123,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
           chips: limit < 0 ? undefined : limit,
         });
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'games'));
     }
   };
 
