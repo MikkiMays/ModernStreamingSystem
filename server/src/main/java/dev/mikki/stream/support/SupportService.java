@@ -169,7 +169,7 @@ public class SupportService {
       throw new Problem(
           429,
           "SUPPORT_RATE",
-          "С этого адреса уже пришло несколько обращений. Попробуйте через час");
+          "Из вашей сети уже пришло несколько обращений. Попробуйте через час");
     if (limits.exceeded("support:server", config.perServer()))
       throw new Problem(429, "SUPPORT_BUSY", "Сейчас обращений очень много. Попробуйте чуть позже");
 

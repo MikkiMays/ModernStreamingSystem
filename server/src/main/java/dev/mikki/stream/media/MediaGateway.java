@@ -95,7 +95,8 @@ public class MediaGateway {
       if (!result.isSuccessful()) throw new IllegalStateException("SFU response " + result.code());
       return result.body();
     } catch (Exception e) {
-      throw new Problem(503, "MEDIA_UNAVAILABLE", "Медиасервер временно недоступен");
+      throw new Problem(
+          503, "MEDIA_UNAVAILABLE", "Звонок временно недоступен. Попробуйте через минуту");
     }
   }
 }

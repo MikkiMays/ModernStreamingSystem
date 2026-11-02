@@ -133,18 +133,22 @@ public class RoomSocket extends TextWebSocketHandler {
         } else if (type.equals("ping")) {
           limits.check("ws-ping:" + c.participantId, 60);
           var requestId = body.path("requestId").asText("");
-          if (requestId.length() > 64) throw new Problem(400, "INVALID_PING", "Некорректный PING");
+          if (requestId.length() > 64)
+            throw new Problem(400, "INVALID_PING", "Связь со встречей сбилась. Обновите страницу");
           send(c, Map.of("type", "pong", "serverTime", rooms.now(), "requestId", requestId));
         } else if (type.equals("command")) {
           var command = Json.read(body.path("command").toString(), Contracts.Command.class);
           limits.command(c.credential, command.type());
           if (!validator.validate(command).isEmpty())
-            throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+            throw new Problem(
+                400, "INVALID_COMMAND", "Это действие сейчас недоступно. Обновите страницу");
           var ack = commands.execute(c.roomId, c.credential, command, c.address);
           send(c, Map.of("type", "ack", "ack", ack));
           // Остальным встречу разошлёт `published` — по событиям, зафиксированным командой.
           flush(c);
-        } else throw new Problem(400, "UNKNOWN_COMMAND", "Неизвестная команда");
+        } else
+          throw new Problem(
+              400, "UNKNOWN_COMMAND", "Сервер не знает этого действия. Обновите страницу");
       } catch (Problem e) {
         send(c, Map.of("type", "error", "code", e.code(), "message", e.getMessage()));
         if (e.status() == 403 || e.status() == 410) c.socket.close(CloseStatus.POLICY_VIOLATION);

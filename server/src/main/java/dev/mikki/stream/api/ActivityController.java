@@ -356,7 +356,7 @@ public class ActivityController {
     try {
       return Term.parse(words);
     } catch (IllegalArgumentException e) {
-      throw new Problem(400, "INVALID_REQUEST", "Проверьте данные запроса");
+      throw new Problem(400, "INVALID_REQUEST", "Проверьте введённое и попробуйте ещё раз");
     }
   }
 }

@@ -52,11 +52,11 @@ public class ApiErrors {
 
   @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})
   public ResponseEntity<ProblemDetail> invalid(Exception ignored) {
-    return problem(new Problem(400, "INVALID_REQUEST", "Проверьте данные запроса"));
+    return problem(new Problem(400, "INVALID_REQUEST", "Проверьте введённое и попробуйте ещё раз"));
   }
 
   @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
   public ResponseEntity<ProblemDetail> unreadable(Exception ignored) {
-    return problem(new Problem(400, "INVALID_REQUEST", "Проверьте данные запроса"));
+    return problem(new Problem(400, "INVALID_REQUEST", "Проверьте введённое и попробуйте ещё раз"));
   }
 }

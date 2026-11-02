@@ -37,9 +37,7 @@ public class UploadQuota {
   public void check(String addressKey, long bytes) {
     if (addressKey != null && !limits.fits("uploads:" + addressKey, quota(), bytes))
       throw new Problem(
-          413,
-          "UPLOAD_QUOTA_IP",
-          "С этого адреса загружено слишком много файлов. Попробуйте позже");
+          413, "UPLOAD_QUOTA_IP", "Из вашей сети загружено слишком много файлов. Попробуйте позже");
   }
 
   public void count(String addressKey, long bytes) {
