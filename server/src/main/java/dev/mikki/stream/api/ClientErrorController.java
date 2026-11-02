@@ -30,7 +30,8 @@ public class ClientErrorController {
 
   @PostMapping("/client-errors")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void report(@Valid @RequestBody ClientErrors.ErrorSummary batch, HttpServletRequest http) {
+  public void clientErrors(
+      @Valid @RequestBody ClientErrors.ErrorSummary batch, HttpServletRequest http) {
     limits.check("client-errors-ip:" + address.of(http), PER_MINUTE);
     errors.record(batch);
   }
