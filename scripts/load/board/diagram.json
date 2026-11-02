@@ -1,0 +1,802 @@
+{
+ "title": "Cord — целевая архитектура (Этап 2–3): две ячейки Москва + Франкфурт",
+ "groups": [
+  {
+   "id": "clients",
+   "label": "Клиенты (один React-клиент)",
+   "color": "#e3f2fd"
+  },
+  {
+   "id": "entry",
+   "label": "Глобальный вход",
+   "color": "#fff8e1"
+  },
+  {
+   "id": "msk",
+   "label": "Ячейка «Москва» (Selectel/colo, 1G безлимит → 10G)",
+   "color": "#e8f5e9"
+  },
+  {
+   "id": "fra",
+   "label": "Ячейка «Франкфурт» (Hetzner AX42/AX102)",
+   "color": "#f3e5f5"
+  },
+  {
+   "id": "shared",
+   "label": "Общее между ячейками",
+   "color": "#fbe9e7"
+  },
+  {
+   "id": "external",
+   "label": "Внешние площадки и сервисы",
+   "color": "#eceff1"
+  },
+  {
+   "id": "monitor",
+   "label": "Наблюдаемость (центральная, FRA)",
+   "color": "#fffde7"
+  },
+  {
+   "id": "now",
+   "label": "Сейчас: всё на одной ВМ (4 vCPU, 7,8 ГиБ, 1 Гбит/с, Франкфурт)",
+   "color": "#868e96"
+  },
+  {
+   "id": "num",
+   "label": "Замеры 02.11.2026 (эта машина) → что из них следует",
+   "color": "#e8590c"
+  },
+  {
+   "id": "stages",
+   "label": "Этапы 0 → 3",
+   "color": "#2f9e44"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "web",
+   "label": "Браузер / PWA\nMini App Telegram",
+   "group": "clients",
+   "kind": "client"
+  },
+  {
+   "id": "electron",
+   "label": "Electron (Windows)\nSVC L3T3_KEY, AV1 HW",
+   "group": "clients",
+   "kind": "client"
+  },
+  {
+   "id": "android",
+   "label": "Android (Capacitor)\nодин слой, H.264 HW",
+   "group": "clients",
+   "kind": "client"
+  },
+  {
+   "id": "catalog",
+   "label": "Каталог ячеек (JWS)\n+ probe-адреса\nвыбор по RTT на клиенте",
+   "group": "entry",
+   "kind": "lb"
+  },
+  {
+   "id": "geodns",
+   "label": "GeoDNS cord.nikg.tech\n(статика; необязательно)",
+   "group": "entry",
+   "kind": "lb"
+  },
+  {
+   "id": "msk_turn",
+   "label": "TURN ×2 (coturn / pion+XDP)\n:443 TLS, 3478 UDP\nотдельные IP",
+   "group": "msk",
+   "kind": "turn"
+  },
+  {
+   "id": "msk_l4",
+   "label": "L4 edge ×2 (caddy-l4)\nVRRP floating IP\nTLS/SNI: app·rtc·turn :443",
+   "group": "msk",
+   "kind": "edge"
+  },
+  {
+   "id": "msk_cache",
+   "label": "Кэш кинозала\nCaddy/nginx proxy_cache\nNVMe 20–50 ГБ",
+   "group": "msk",
+   "kind": "cdn"
+  },
+  {
+   "id": "msk_sfu",
+   "label": "LiveKit SFU ×3–8\n8–16 ядер, 1G/10G\nпубличный IP, UDP напрямую",
+   "group": "msk",
+   "kind": "media"
+  },
+  {
+   "id": "msk_gw",
+   "label": "Gateway Caddy ×2\nстатика, /api, forward_auth\nhash(roomId) → ядро",
+   "group": "msk",
+   "kind": "edge"
+  },
+  {
+   "id": "msk_svc",
+   "label": "Службы FastAPI ×2\nTelegram webhook, кинозал,\nмузыка (управление)",
+   "group": "msk",
+   "kind": "service"
+  },
+  {
+   "id": "msk_redis",
+   "label": "Redis Sentinel ×3\nAOF everysec\nLiveKit + ядро + аренды",
+   "group": "msk",
+   "kind": "data"
+  },
+  {
+   "id": "msk_core",
+   "label": "Ядро Java ×2\nбез состояния; лидер по аренде\n(Lifecycle, реконсилер, GameClock)",
+   "group": "msk",
+   "kind": "core"
+  },
+  {
+   "id": "msk_pub",
+   "label": "Пул издателей музыки\nGo + ffmpeg, ×N воркеров\n≤ 40 ботов на воркер",
+   "group": "msk",
+   "kind": "service"
+  },
+  {
+   "id": "msk_relay",
+   "label": "Ретранслятор эфира\n(Go SDK): лист комнаты\nдля зрителей МСК",
+   "group": "msk",
+   "kind": "media"
+  },
+  {
+   "id": "msk_pg",
+   "label": "PostgreSQL 18\nprimary + standby\nPgBouncer",
+   "group": "msk",
+   "kind": "data"
+  },
+  {
+   "id": "fra_turn",
+   "label": "TURN ×2\n:443 TLS, 3478 UDP",
+   "group": "fra",
+   "kind": "turn"
+  },
+  {
+   "id": "fra_l4",
+   "label": "L4 edge ×2 (caddy-l4)\nfailover IP\nTLS/SNI: app·rtc·turn :443",
+   "group": "fra",
+   "kind": "edge"
+  },
+  {
+   "id": "fra_cache",
+   "label": "Кэш кинозала\n(источник для РФ:\nYouTube тянется отсюда)",
+   "group": "fra",
+   "kind": "cdn"
+  },
+  {
+   "id": "fra_sfu",
+   "label": "LiveKit SFU ×3–4\nAX42 1G безлимит /\nAX102 + 10G для эфиров",
+   "group": "fra",
+   "kind": "media"
+  },
+  {
+   "id": "fra_gw",
+   "label": "Gateway Caddy ×2\nстатика, /api\nhash(roomId) → ядро",
+   "group": "fra",
+   "kind": "edge"
+  },
+  {
+   "id": "fra_svc",
+   "label": "Службы FastAPI ×2\n+ sniffer (своя подсеть)",
+   "group": "fra",
+   "kind": "service"
+  },
+  {
+   "id": "fra_redis",
+   "label": "Redis Sentinel ×3",
+   "group": "fra",
+   "kind": "data"
+  },
+  {
+   "id": "fra_core",
+   "label": "Ядро Java ×2\nбез состояния\nлидер по аренде",
+   "group": "fra",
+   "kind": "core"
+  },
+  {
+   "id": "fra_pub",
+   "label": "Пул издателей музыки",
+   "group": "fra",
+   "kind": "service"
+  },
+  {
+   "id": "fra_egress",
+   "label": "LiveKit Egress ×1–2\n≥ 4 ядра на экземпляр\n→ LL-HLS",
+   "group": "fra",
+   "kind": "media"
+  },
+  {
+   "id": "fra_pg",
+   "label": "PostgreSQL 18\nprimary + standby\nPgBouncer",
+   "group": "fra",
+   "kind": "data"
+  },
+  {
+   "id": "s3",
+   "label": "Объектное хранилище S3\nвложения, доска, записи, HLS\nрепликация MSK↔FRA",
+   "group": "shared",
+   "kind": "data"
+  },
+  {
+   "id": "registry",
+   "label": "CI → реестр образов\nвыкатка по digest\nдренаж узлов",
+   "group": "shared",
+   "kind": "service"
+  },
+  {
+   "id": "hls_cdn",
+   "label": "Кэш-узлы HLS / CDN\n(Selectel CDN, Cloudflare)\nэфиры без потолка",
+   "group": "shared",
+   "kind": "cdn"
+  },
+  {
+   "id": "yt",
+   "label": "YouTube · Twitch · VK\nRutube · ivi · «по ссылке»",
+   "group": "external",
+   "kind": "external"
+  },
+  {
+   "id": "tg",
+   "label": "Telegram Bot API\n(webhook)",
+   "group": "external",
+   "kind": "external"
+  },
+  {
+   "id": "overflow",
+   "label": "Перелив (аварийно):\nLiveKit Cloud $0,10–0,12/ГБ\nCloudflare Realtime $0,05/ГБ",
+   "group": "external",
+   "kind": "external"
+  },
+  {
+   "id": "vm",
+   "label": "VictoriaMetrics + vmalert\nGrafana · VictoriaLogs",
+   "group": "monitor",
+   "kind": "monitor"
+  },
+  {
+   "id": "probe",
+   "label": "Пробы из другой ячейки\nGatus · ночной lk load-test",
+   "group": "monitor",
+   "kind": "monitor"
+  },
+  {
+   "id": "now_edge",
+   "label": "edge caddy-l4 :443\nTLS: app · rtc · turn",
+   "group": "now",
+   "kind": "edge"
+  },
+  {
+   "id": "now_gw",
+   "label": "gateway Caddy\nстатика · /api · forward_auth",
+   "group": "now",
+   "kind": "edge"
+  },
+  {
+   "id": "now_core",
+   "label": "ядро Java ×1\nJSON-комната, system_lock\nснимок целиком каждому",
+   "group": "now",
+   "kind": "core"
+  },
+  {
+   "id": "now_sfu",
+   "label": "LiveKit SFU + TURN ×1\nmem 1 ГиБ ≈ 200 участн.\n≈ 450–500 Мбит/с по ЦП",
+   "group": "now",
+   "kind": "media"
+  },
+  {
+   "id": "now_data",
+   "label": "PostgreSQL + Redis\n127.0.0.1, без реплик",
+   "group": "now",
+   "kind": "data"
+  },
+  {
+   "id": "now_svc",
+   "label": "службы (1 процесс Python)\nкинозал-прокси · музыка ·\nTelegram long-poll · sniffer",
+   "group": "now",
+   "kind": "service"
+  },
+  {
+   "id": "n1",
+   "label": "1 ядро SFU ≈ 180–260 Мбит/с\n(видео одним слоем);\nмелкие пакеты ≈ 30 тыс./с на ядро",
+   "group": "num",
+   "kind": "monitor"
+  },
+  {
+   "id": "n2",
+   "label": "канал ВМ: 845 TCP / 900 UDP\nМбит/с без потерь;\nупор раньше — в ЦП (≈ 0,5 Гбит/с)",
+   "group": "num",
+   "kind": "monitor"
+  },
+  {
+   "id": "n3",
+   "label": "человек в комнате из N\nстоит (N−1)×1,2 Мбит/с отдачи:\n6 чел. ≈ 6, 20 чел. ≈ 23 Мбит/с",
+   "group": "num",
+   "kind": "monitor"
+  },
+  {
+   "id": "n4",
+   "label": "этот сервер: ≈ 70–90 чел. в смеси,\n200 в голосе / 1:1,\nодна комната на 20 — и всё",
+   "group": "num",
+   "kind": "monitor"
+  },
+  {
+   "id": "n5",
+   "label": "ядро: чат 200 чел. (комнаты по 20)\n= 2,1 ядра Java+PG, p95 0,6 с;\nвходы 30–60/с, падают с числом комнат",
+   "group": "num",
+   "kind": "monitor"
+  },
+  {
+   "id": "n6",
+   "label": "1000 активных сейчас ≈ 8 Гбит/с,\n≈ 47 ядер → 11 × AX42 ≈ €1 100/мес;\nпосле оптимизаций ≈ 4 Гбит/с, 6 узлов",
+   "group": "num",
+   "kind": "monitor"
+  },
+  {
+   "id": "st0",
+   "label": "Этап 0 — один сервер (недели 1–6)\nвход без глобального замка; проходы только по открытым комнатам;\nснимок один раз + дельты; слои по плитке + пейджинг (решение по Р-32);\nSFU mem 2–3 ГиБ; кэш кинозала; образы из CI\n→ ×1,3 медиа, ×10 ядро, ×2–3 канал",
+   "group": "stages",
+   "kind": "core",
+   "wide": true
+  },
+  {
+   "id": "st1",
+   "label": "Этап 1 — 2–3 сервера, один регион (месяц 2)\nузел управления + медиа-узлы LiveKit через Redis;\nUDP напрямую, TURN на всех узлах; ступень загрузки по кластеру\n→ ≈ 1,7 Гбит/с, 200–400 человек, ≈ €300/мес",
+   "group": "stages",
+   "kind": "core",
+   "wide": true
+  },
+  {
+   "id": "st2",
+   "label": "Этап 2 — ячейки Москва + Франкфурт (месяцы 3–5)\nвыбор ячейки по RTT, префикс комнаты; L4 ×2 VRRP; ядро ×2 без состояния;\nPG standby + PgBouncer; Redis Sentinel; S3; службы ×2, webhook Telegram;\nрегиональный кэш кинозала; центральная наблюдаемость; дренаж узлов\n→ 1000 человек: МСК 7×1G + FRA 4×1G (сейчас) или 4+2 (после оптимизаций)",
+   "group": "stages",
+   "kind": "core",
+   "wide": true
+  },
+  {
+   "id": "st3",
+   "label": "Этап 3 — 1000+ и эфиры (месяцы 6–9)\nузлы 16 ядер/10G; ретранслятор эфира (листы до 10 тыс.);\nEgress → LL-HLS → кэш/CDN; TURN с XDP; третья ячейка копией;\ncolocation — только при > 6–8 узлах в ячейке",
+   "group": "stages",
+   "kind": "core",
+   "wide": true
+  }
+ ],
+ "edges": [
+  {
+   "from": "web",
+   "to": "catalog",
+   "label": "HTTPS: каталог, RTT-пробы",
+   "dashed": true
+  },
+  {
+   "from": "electron",
+   "to": "catalog",
+   "label": "HTTPS: каталог (подпись Ed25519)",
+   "dashed": true
+  },
+  {
+   "from": "android",
+   "to": "geodns",
+   "label": "DNS → ближний edge",
+   "dashed": true
+  },
+  {
+   "from": "web",
+   "to": "msk_l4",
+   "label": "HTTPS / WSS (сигнал, снимок, доска)",
+   "dashed": false
+  },
+  {
+   "from": "web",
+   "to": "msk_sfu",
+   "label": "WebRTC UDP 7882 (SRTP) напрямую",
+   "dashed": false
+  },
+  {
+   "from": "web",
+   "to": "msk_turn",
+   "label": "TURN/TLS :443 (VPN, строгий NAT)",
+   "dashed": true
+  },
+  {
+   "from": "electron",
+   "to": "fra_l4",
+   "label": "HTTPS / WSS",
+   "dashed": false
+  },
+  {
+   "from": "electron",
+   "to": "fra_sfu",
+   "label": "WebRTC UDP (SVC L3T3_KEY)",
+   "dashed": false
+  },
+  {
+   "from": "android",
+   "to": "fra_turn",
+   "label": "TURN/TLS :443",
+   "dashed": true
+  },
+  {
+   "from": "msk_l4",
+   "to": "msk_gw",
+   "label": "HTTP (SNI app)",
+   "dashed": false
+  },
+  {
+   "from": "msk_l4",
+   "to": "msk_sfu",
+   "label": "WSS :7880 сигнал LiveKit (SNI rtc)",
+   "dashed": false
+  },
+  {
+   "from": "msk_l4",
+   "to": "msk_turn",
+   "label": "TLS → TURN (SNI turn)",
+   "dashed": false
+  },
+  {
+   "from": "msk_gw",
+   "to": "msk_core",
+   "label": "HTTP /api, WS комнаты (consistent hash roomId)",
+   "dashed": false
+  },
+  {
+   "from": "msk_gw",
+   "to": "msk_svc",
+   "label": "HTTP /api/v1/services",
+   "dashed": false
+  },
+  {
+   "from": "msk_gw",
+   "to": "msk_cache",
+   "label": "HTTP сегменты кинозала",
+   "dashed": false
+  },
+  {
+   "from": "msk_core",
+   "to": "msk_pg",
+   "label": "SQL (PgBouncer, advisory lock на комнату)",
+   "dashed": false
+  },
+  {
+   "from": "msk_core",
+   "to": "msk_redis",
+   "label": "Redis pub/sub события, INCR seq, аренда лидера, доска",
+   "dashed": false
+  },
+  {
+   "from": "msk_core",
+   "to": "msk_sfu",
+   "label": "Twirp API + webhooks",
+   "dashed": false
+  },
+  {
+   "from": "msk_sfu",
+   "to": "msk_redis",
+   "label": "Redis: кластер LiveKit, выбор узла по региону/загрузке",
+   "dashed": false
+  },
+  {
+   "from": "msk_turn",
+   "to": "msk_sfu",
+   "label": "UDP relay → любой медиа-узел ячейки",
+   "dashed": false
+  },
+  {
+   "from": "msk_svc",
+   "to": "msk_pub",
+   "label": "gRPC/HTTP: запуск бота",
+   "dashed": false
+  },
+  {
+   "from": "msk_pub",
+   "to": "msk_sfu",
+   "label": "WebRTC: Opus 160k + RED×2",
+   "dashed": false
+  },
+  {
+   "from": "msk_svc",
+   "to": "msk_core",
+   "label": "HTTP /internal (права, снимок)",
+   "dashed": true
+  },
+  {
+   "from": "msk_cache",
+   "to": "fra_cache",
+   "label": "HTTPS: источник для РФ (1 поток на фильм)",
+   "dashed": true
+  },
+  {
+   "from": "msk_relay",
+   "to": "fra_sfu",
+   "label": "WebRTC: подписка на корень эфира",
+   "dashed": true
+  },
+  {
+   "from": "msk_relay",
+   "to": "msk_sfu",
+   "label": "WebRTC: публикация в лист",
+   "dashed": true
+  },
+  {
+   "from": "fra_l4",
+   "to": "fra_gw",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_l4",
+   "to": "fra_sfu",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_l4",
+   "to": "fra_turn",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_gw",
+   "to": "fra_core",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_gw",
+   "to": "fra_svc",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_gw",
+   "to": "fra_cache",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_core",
+   "to": "fra_pg",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_core",
+   "to": "fra_redis",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_core",
+   "to": "fra_sfu",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_sfu",
+   "to": "fra_redis",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_turn",
+   "to": "fra_sfu",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_svc",
+   "to": "fra_pub",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_pub",
+   "to": "fra_sfu",
+   "label": "",
+   "dashed": false
+  },
+  {
+   "from": "fra_egress",
+   "to": "fra_sfu",
+   "label": "WebRTC: подписка на эфир",
+   "dashed": false
+  },
+  {
+   "from": "fra_egress",
+   "to": "s3",
+   "label": "HTTPS: сегменты LL-HLS",
+   "dashed": false
+  },
+  {
+   "from": "fra_cache",
+   "to": "yt",
+   "label": "HTTPS: HLS/DASH площадки",
+   "dashed": false
+  },
+  {
+   "from": "msk_cache",
+   "to": "yt",
+   "label": "HTTPS: VK/Rutube/ivi напрямую",
+   "dashed": false
+  },
+  {
+   "from": "s3",
+   "to": "hls_cdn",
+   "label": "HTTP origin pull",
+   "dashed": false
+  },
+  {
+   "from": "hls_cdn",
+   "to": "web",
+   "label": "HLS/LL-HLS зрителям эфира (тысячи)",
+   "dashed": false
+  },
+  {
+   "from": "msk_core",
+   "to": "s3",
+   "label": "S3 API: вложения (tusd), доска",
+   "dashed": true
+  },
+  {
+   "from": "fra_core",
+   "to": "s3",
+   "label": "S3 API",
+   "dashed": true
+  },
+  {
+   "from": "registry",
+   "to": "msk_sfu",
+   "label": "docker pull по digest, дренаж",
+   "dashed": true
+  },
+  {
+   "from": "registry",
+   "to": "fra_core",
+   "label": "docker pull по digest, rolling",
+   "dashed": true
+  },
+  {
+   "from": "tg",
+   "to": "msk_svc",
+   "label": "HTTPS webhook",
+   "dashed": false
+  },
+  {
+   "from": "overflow",
+   "to": "web",
+   "label": "WebRTC (только при аварии/пике)",
+   "dashed": true
+  },
+  {
+   "from": "msk_sfu",
+   "to": "vm",
+   "label": "remote-write: prometheus :6789, node, pg, redis",
+   "dashed": true
+  },
+  {
+   "from": "fra_sfu",
+   "to": "vm",
+   "label": "remote-write",
+   "dashed": true
+  },
+  {
+   "from": "msk_core",
+   "to": "vm",
+   "label": "Micrometer → vmagent",
+   "dashed": true
+  },
+  {
+   "from": "probe",
+   "to": "msk_l4",
+   "label": "HTTPS/UDP пробы из FRA",
+   "dashed": true
+  },
+  {
+   "from": "probe",
+   "to": "fra_l4",
+   "label": "пробы из MSK",
+   "dashed": true
+  },
+  {
+   "from": "now_edge",
+   "to": "now_gw",
+   "label": "HTTP"
+  },
+  {
+   "from": "now_gw",
+   "to": "now_core",
+   "label": "/api, WS"
+  },
+  {
+   "from": "now_edge",
+   "to": "now_sfu",
+   "label": "WSS / TURN-TLS"
+  },
+  {
+   "from": "now_core",
+   "to": "now_data",
+   "label": "SQL, pub/sub"
+  },
+  {
+   "from": "now_gw",
+   "to": "now_svc",
+   "label": "кинозал: все байты"
+  },
+  {
+   "from": "now_core",
+   "to": "now_sfu",
+   "label": "Twirp, вебхуки"
+  },
+  {
+   "from": "st0",
+   "to": "st1",
+   "label": "",
+   "thick": true,
+   "color": "#2f9e44"
+  },
+  {
+   "from": "st1",
+   "to": "st2",
+   "label": "",
+   "thick": true,
+   "color": "#2f9e44"
+  },
+  {
+   "from": "st2",
+   "to": "st3",
+   "label": "",
+   "thick": true,
+   "color": "#2f9e44"
+  }
+ ],
+ "notes": [
+  "Комната целиком живёт в одной ячейке (LiveKit OSS: room на одном узле); префикс кода комнаты MSK-/FRA- ведёт вход в нужную ячейку без общей БД",
+  "Медиа (UDP) идёт напрямую на публичный IP SFU-узла, через L4 — только TLS/WSS/TURN на :443",
+  "Ячейка Москва ≈ 70 % аудитории: 1000 чел. сейчас ≈ 8 Гбит/с (5,3 МСК + 2,5 FRA), после слоёв по плитке и пейджинга ≈ 4 Гбит/с",
+  "Один SFU-узел: 8 ядер/1G ≈ 0,85 Гбит/с; 16 ядер/10G ≈ 2,5–3 Гбит/с; ≈ 200 Мбит/с на ядро одним слоем, ≈ 5 МиБ на участника",
+  "Ядро без состояния: доска и seq в Redis, фоновые задачи — один лидер по аренде; вход без system_lock",
+  "Эфиры > 1 узла: корень в одной ячейке → ретранслятор публикует в листовые комнаты (≤ 2–3 тыс. зрителей на узел); кинозал/публичный эфир → Egress → LL-HLS → кэш/CDN",
+  "Кинозал для РФ: источник YouTube тянет FRA-кэш, MSK-кэш берёт у него одну копию и отдаёт зрителям",
+  "Hetzner: 1G безлимит бесплатно, 10G — 20 ТБ + €1/ТБ → парк 1G-узлов дешевле на терабайт; в РФ брать безлимитный 1G (Selectel), у Hostkey 30–50 ТБ/мес = 150 Мбит/с в среднем"
+ ],
+ "stages": {
+  "title": "Этапы 0 → 3",
+  "items": [
+   {
+    "id": "s0",
+    "label": "Этап 0 — один сервер (недели 1–6)\nвход без глобального замка; проходы только по открытым комнатам;\nснимок один раз + дельты; слои по плитке + пейджинг (решение по Р-32);\nSFU mem 2–3 ГиБ; кэш кинозала; образы из CI\n→ ×1,3 медиа, ×10 ядро, ×2–3 канал"
+   },
+   {
+    "id": "s1",
+    "label": "Этап 1 — 2–3 сервера, один регион (месяц 2)\nузел управления + медиа-узлы LiveKit через Redis;\nUDP напрямую, TURN на всех узлах; ступень загрузки по кластеру\n→ ≈ 1,7 Гбит/с, 200–400 человек, ≈ €300/мес"
+   },
+   {
+    "id": "s2",
+    "label": "Этап 2 — ячейки Москва + Франкфурт (месяцы 3–5)\nвыбор ячейки по RTT, префикс комнаты; L4 ×2 VRRP; ядро ×2 без состояния;\nPG standby + PgBouncer; Redis Sentinel; S3; службы ×2, webhook Telegram;\nрегиональный кэш кинозала; центральная наблюдаемость; дренаж узлов\n→ 1000 человек: МСК 7×1G + FRA 4×1G (сейчас) или 4+2 (после оптимизаций)"
+   },
+   {
+    "id": "s3",
+    "label": "Этап 3 — 1000+ и эфиры (месяцы 6–9)\nузлы 16 ядер/10G; ретранслятор эфира (листы до 10 тыс.);\nEgress → LL-HLS → кэш/CDN; TURN с XDP; третья ячейка копией;\ncolocation — только при > 6–8 узлах в ячейке"
+   }
+  ],
+  "edges": [
+   {
+    "from": "s0",
+    "to": "s1"
+   },
+   {
+    "from": "s1",
+    "to": "s2"
+   },
+   {
+    "from": "s2",
+    "to": "s3"
+   }
+  ]
+ },
+ "subtitle": "Нагрузка и масштабирование Cord, 02.11.2026 · замеры этой машины + проект ячеек · файл для доски Cord (Импорт → Заменить или Добавить)"
+}

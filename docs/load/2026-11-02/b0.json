@@ -1,0 +1,20 @@
+{
+ "label": "b0",
+ "rooms": 1,
+ "members": 3,
+ "people": 3,
+ "presenceMs": 33,
+ "opsMs": 2000,
+ "pres_out_per_s": 86,
+ "pres_in_per_s": 172,
+ "ops_out_per_s": 1.4,
+ "ops_in_per_s": 3,
+ "pres_ms_p50": 3,
+ "pres_ms_p95": 19,
+ "pres_ms_p99": 68,
+ "ops_ms_p50": 4,
+ "ops_ms_p95": 15,
+ "ops_ms_p99": 17,
+ "closes": {},
+ "errors": {}
+}

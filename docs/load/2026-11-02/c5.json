@@ -1,0 +1,313 @@
+{
+ "name": "c5",
+ "rooms": 1,
+ "lk": [
+  "--video-publishers",
+  "5",
+  "--audio-publishers",
+  "5",
+  "--subscribers",
+  "5",
+  "--layout",
+  "5x5",
+  "--no-simulcast"
+ ],
+ "duration": 60,
+ "sfu_cores_avg": 0.27,
+ "sfu_cores_max": 0.308,
+ "sfu_mem_peak_mib": 361.8,
+ "host_busy_avg": 28.519,
+ "host_steal_avg": 9.186,
+ "host_softirq_avg": 1.181,
+ "lo_mbps_avg": 66.086,
+ "samples": [
+  {
+   "t": 2.0,
+   "sfu_cores": 0.288,
+   "sfu_mem_mib": 361.8,
+   "host_busy_pct": 39.5,
+   "host_steal_pct": 3.9,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 10.8
+  },
+  {
+   "t": 4.0,
+   "sfu_cores": 0.261,
+   "sfu_mem_mib": 281.4,
+   "host_busy_pct": 28.2,
+   "host_steal_pct": 9.4,
+   "host_softirq_pct": 1.0,
+   "lo_mbps": 21.8
+  },
+  {
+   "t": 6.0,
+   "sfu_cores": 0.262,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 22.7,
+   "host_steal_pct": 6.1,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 54.5
+  },
+  {
+   "t": 8.0,
+   "sfu_cores": 0.272,
+   "sfu_mem_mib": 282.0,
+   "host_busy_pct": 24.7,
+   "host_steal_pct": 2.2,
+   "host_softirq_pct": 1.3,
+   "lo_mbps": 66.0
+  },
+  {
+   "t": 10.0,
+   "sfu_cores": 0.257,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 19.9,
+   "host_steal_pct": 3.9,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 60.5
+  },
+  {
+   "t": 12.0,
+   "sfu_cores": 0.273,
+   "sfu_mem_mib": 282.0,
+   "host_busy_pct": 24.6,
+   "host_steal_pct": 7.2,
+   "host_softirq_pct": 1.7,
+   "lo_mbps": 69.1
+  },
+  {
+   "t": 14.0,
+   "sfu_cores": 0.265,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 35.1,
+   "host_steal_pct": 16.8,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 62.5
+  },
+  {
+   "t": 16.0,
+   "sfu_cores": 0.272,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 32.7,
+   "host_steal_pct": 17.4,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 70.9
+  },
+  {
+   "t": 18.0,
+   "sfu_cores": 0.268,
+   "sfu_mem_mib": 282.0,
+   "host_busy_pct": 33.5,
+   "host_steal_pct": 13.9,
+   "host_softirq_pct": 1.2,
+   "lo_mbps": 66.2
+  },
+  {
+   "t": 20.0,
+   "sfu_cores": 0.266,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 24.0,
+   "host_steal_pct": 8.2,
+   "host_softirq_pct": 1.2,
+   "lo_mbps": 60.3
+  },
+  {
+   "t": 22.0,
+   "sfu_cores": 0.269,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 22.6,
+   "host_steal_pct": 4.6,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 69.0
+  },
+  {
+   "t": 24.0,
+   "sfu_cores": 0.262,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 25.0,
+   "host_steal_pct": 3.5,
+   "host_softirq_pct": 1.0,
+   "lo_mbps": 63.0
+  },
+  {
+   "t": 26.0,
+   "sfu_cores": 0.279,
+   "sfu_mem_mib": 282.0,
+   "host_busy_pct": 23.5,
+   "host_steal_pct": 5.5,
+   "host_softirq_pct": 1.2,
+   "lo_mbps": 70.9
+  },
+  {
+   "t": 28.0,
+   "sfu_cores": 0.292,
+   "sfu_mem_mib": 281.8,
+   "host_busy_pct": 30.7,
+   "host_steal_pct": 7.9,
+   "host_softirq_pct": 1.3,
+   "lo_mbps": 66.3
+  },
+  {
+   "t": 30.0,
+   "sfu_cores": 0.308,
+   "sfu_mem_mib": 181.1,
+   "host_busy_pct": 23.8,
+   "host_steal_pct": 5.8,
+   "host_softirq_pct": 1.5,
+   "lo_mbps": 60.4
+  },
+  {
+   "t": 32.0,
+   "sfu_cores": 0.277,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 23.8,
+   "host_steal_pct": 5.3,
+   "host_softirq_pct": 1.5,
+   "lo_mbps": 69.0
+  },
+  {
+   "t": 34.0,
+   "sfu_cores": 0.253,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 28.4,
+   "host_steal_pct": 4.4,
+   "host_softirq_pct": 0.9,
+   "lo_mbps": 62.7
+  },
+  {
+   "t": 36.0,
+   "sfu_cores": 0.276,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 32.6,
+   "host_steal_pct": 11.3,
+   "host_softirq_pct": 1.4,
+   "lo_mbps": 70.9
+  },
+  {
+   "t": 38.0,
+   "sfu_cores": 0.262,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 33.3,
+   "host_steal_pct": 16.4,
+   "host_softirq_pct": 1.3,
+   "lo_mbps": 66.1
+  },
+  {
+   "t": 40.0,
+   "sfu_cores": 0.252,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 29.0,
+   "host_steal_pct": 11.1,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 60.3
+  },
+  {
+   "t": 42.0,
+   "sfu_cores": 0.275,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 25.0,
+   "host_steal_pct": 7.3,
+   "host_softirq_pct": 1.3,
+   "lo_mbps": 69.0
+  },
+  {
+   "t": 44.0,
+   "sfu_cores": 0.257,
+   "sfu_mem_mib": 181.1,
+   "host_busy_pct": 39.8,
+   "host_steal_pct": 11.1,
+   "host_softirq_pct": 1.0,
+   "lo_mbps": 62.8
+  },
+  {
+   "t": 46.0,
+   "sfu_cores": 0.269,
+   "sfu_mem_mib": 181.1,
+   "host_busy_pct": 25.6,
+   "host_steal_pct": 8.6,
+   "host_softirq_pct": 1.3,
+   "lo_mbps": 70.8
+  },
+  {
+   "t": 48.0,
+   "sfu_cores": 0.272,
+   "sfu_mem_mib": 181.1,
+   "host_busy_pct": 28.8,
+   "host_steal_pct": 10.3,
+   "host_softirq_pct": 1.3,
+   "lo_mbps": 66.3
+  },
+  {
+   "t": 50.0,
+   "sfu_cores": 0.245,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 37.8,
+   "host_steal_pct": 20.0,
+   "host_softirq_pct": 0.9,
+   "lo_mbps": 60.1
+  },
+  {
+   "t": 52.0,
+   "sfu_cores": 0.286,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 29.8,
+   "host_steal_pct": 11.6,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 69.0
+  },
+  {
+   "t": 54.0,
+   "sfu_cores": 0.256,
+   "sfu_mem_mib": 181.1,
+   "host_busy_pct": 23.8,
+   "host_steal_pct": 4.9,
+   "host_softirq_pct": 1.0,
+   "lo_mbps": 62.9
+  },
+  {
+   "t": 56.0,
+   "sfu_cores": 0.281,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 25.4,
+   "host_steal_pct": 3.8,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 70.9
+  },
+  {
+   "t": 58.0,
+   "sfu_cores": 0.272,
+   "sfu_mem_mib": 181.1,
+   "host_busy_pct": 22.3,
+   "host_steal_pct": 3.9,
+   "host_softirq_pct": 1.1,
+   "lo_mbps": 66.0
+  },
+  {
+   "t": 60.0,
+   "sfu_cores": 0.263,
+   "sfu_mem_mib": 181.1,
+   "host_busy_pct": 32.4,
+   "host_steal_pct": 10.7,
+   "host_softirq_pct": 1.0,
+   "lo_mbps": 60.3
+  },
+  {
+   "t": 62.0,
+   "sfu_cores": 0.278,
+   "sfu_mem_mib": 180.8,
+   "host_busy_pct": 25.9,
+   "host_steal_pct": 7.7,
+   "host_softirq_pct": 1.2,
+   "lo_mbps": 69.1
+  },
+  {
+   "t": 64.0,
+   "sfu_cores": 0.074,
+   "sfu_mem_mib": 148.9,
+   "host_busy_pct": 10.7,
+   "host_steal_pct": 3.3,
+   "host_softirq_pct": 0.4,
+   "lo_mbps": 4.6
+  }
+ ]
+}

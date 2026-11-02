@@ -1,0 +1,222 @@
+{
+ "name": "mus8",
+ "bots": 8,
+ "listeners_per_room": 5,
+ "sfu_cores_avg": 0.214,
+ "music_cores_avg": 0.207,
+ "music_cores_max": 0.245,
+ "music_mem_peak_mib": 196.3,
+ "lo_mbps_avg": 11.145,
+ "samples": [
+  {
+   "t": 2.0,
+   "sfu_cores": 0.679,
+   "music_cores": 0.205,
+   "music_mem_mib": 186.2,
+   "lo_mbps": 29.24
+  },
+  {
+   "t": 4.0,
+   "sfu_cores": 0.324,
+   "music_cores": 0.229,
+   "music_mem_mib": 186.8,
+   "lo_mbps": 12.38
+  },
+  {
+   "t": 6.0,
+   "sfu_cores": 0.236,
+   "music_cores": 0.245,
+   "music_mem_mib": 187.3,
+   "lo_mbps": 11.24
+  },
+  {
+   "t": 8.0,
+   "sfu_cores": 0.242,
+   "music_cores": 0.189,
+   "music_mem_mib": 188.0,
+   "lo_mbps": 11.05
+  },
+  {
+   "t": 10.0,
+   "sfu_cores": 0.215,
+   "music_cores": 0.234,
+   "music_mem_mib": 188.6,
+   "lo_mbps": 11.07
+  },
+  {
+   "t": 12.0,
+   "sfu_cores": 0.226,
+   "music_cores": 0.22,
+   "music_mem_mib": 189.5,
+   "lo_mbps": 11.25
+  },
+  {
+   "t": 14.0,
+   "sfu_cores": 0.213,
+   "music_cores": 0.17,
+   "music_mem_mib": 190.2,
+   "lo_mbps": 11.04
+  },
+  {
+   "t": 16.0,
+   "sfu_cores": 0.215,
+   "music_cores": 0.228,
+   "music_mem_mib": 191.7,
+   "lo_mbps": 11.22
+  },
+  {
+   "t": 18.0,
+   "sfu_cores": 0.222,
+   "music_cores": 0.228,
+   "music_mem_mib": 191.4,
+   "lo_mbps": 11.17
+  },
+  {
+   "t": 20.0,
+   "sfu_cores": 0.217,
+   "music_cores": 0.192,
+   "music_mem_mib": 192.1,
+   "lo_mbps": 11.04
+  },
+  {
+   "t": 22.0,
+   "sfu_cores": 0.237,
+   "music_cores": 0.215,
+   "music_mem_mib": 192.5,
+   "lo_mbps": 11.23
+  },
+  {
+   "t": 24.0,
+   "sfu_cores": 0.218,
+   "music_cores": 0.234,
+   "music_mem_mib": 193.1,
+   "lo_mbps": 11.06
+  },
+  {
+   "t": 26.0,
+   "sfu_cores": 0.222,
+   "music_cores": 0.207,
+   "music_mem_mib": 193.4,
+   "lo_mbps": 11.23
+  },
+  {
+   "t": 28.0,
+   "sfu_cores": 0.207,
+   "music_cores": 0.188,
+   "music_mem_mib": 193.8,
+   "lo_mbps": 11.02
+  },
+  {
+   "t": 30.0,
+   "sfu_cores": 0.202,
+   "music_cores": 0.219,
+   "music_mem_mib": 194.2,
+   "lo_mbps": 11.05
+  },
+  {
+   "t": 32.0,
+   "sfu_cores": 0.213,
+   "music_cores": 0.21,
+   "music_mem_mib": 194.2,
+   "lo_mbps": 11.35
+  },
+  {
+   "t": 34.0,
+   "sfu_cores": 0.224,
+   "music_cores": 0.183,
+   "music_mem_mib": 194.5,
+   "lo_mbps": 11.07
+  },
+  {
+   "t": 36.0,
+   "sfu_cores": 0.214,
+   "music_cores": 0.216,
+   "music_mem_mib": 193.9,
+   "lo_mbps": 11.23
+  },
+  {
+   "t": 38.0,
+   "sfu_cores": 0.217,
+   "music_cores": 0.245,
+   "music_mem_mib": 194.2,
+   "lo_mbps": 11.05
+  },
+  {
+   "t": 40.0,
+   "sfu_cores": 0.207,
+   "music_cores": 0.166,
+   "music_mem_mib": 194.5,
+   "lo_mbps": 11.06
+  },
+  {
+   "t": 42.0,
+   "sfu_cores": 0.217,
+   "music_cores": 0.217,
+   "music_mem_mib": 194.6,
+   "lo_mbps": 11.26
+  },
+  {
+   "t": 44.0,
+   "sfu_cores": 0.21,
+   "music_cores": 0.216,
+   "music_mem_mib": 194.2,
+   "lo_mbps": 11.04
+  },
+  {
+   "t": 46.0,
+   "sfu_cores": 0.198,
+   "music_cores": 0.183,
+   "music_mem_mib": 194.5,
+   "lo_mbps": 11.22
+  },
+  {
+   "t": 48.0,
+   "sfu_cores": 0.206,
+   "music_cores": 0.186,
+   "music_mem_mib": 194.9,
+   "lo_mbps": 11.16
+  },
+  {
+   "t": 50.0,
+   "sfu_cores": 0.21,
+   "music_cores": 0.208,
+   "music_mem_mib": 195.0,
+   "lo_mbps": 11.06
+  },
+  {
+   "t": 52.0,
+   "sfu_cores": 0.211,
+   "music_cores": 0.195,
+   "music_mem_mib": 195.4,
+   "lo_mbps": 11.24
+  },
+  {
+   "t": 54.0,
+   "sfu_cores": 0.216,
+   "music_cores": 0.199,
+   "music_mem_mib": 195.5,
+   "lo_mbps": 11.03
+  },
+  {
+   "t": 56.0,
+   "sfu_cores": 0.21,
+   "music_cores": 0.211,
+   "music_mem_mib": 195.7,
+   "lo_mbps": 11.25
+  },
+  {
+   "t": 58.0,
+   "sfu_cores": 0.246,
+   "music_cores": 0.209,
+   "music_mem_mib": 196.3,
+   "lo_mbps": 11.03
+  },
+  {
+   "t": 60.0,
+   "sfu_cores": 0.213,
+   "music_cores": 0.175,
+   "music_mem_mib": 195.5,
+   "lo_mbps": 11.04
+  }
+ ]
+}
