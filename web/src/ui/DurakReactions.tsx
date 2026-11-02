@@ -4,6 +4,7 @@ import type { DurakTable } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { DURAK_STICKERS, stickerLabel } from '../core/durak-stickers';
 import { Modal } from './primitives';
+import { failureText } from '../core/failure';
 const UNIQUE = DURAK_STICKERS.filter((item) => item.id === item.canonicalId);
 function StickerImage({ src, label }: { src: string; label: string }) {
   const [failed, setFailed] = useState(false);
@@ -57,7 +58,7 @@ export function DurakReactions({
       setLastSent(meeting.serverNow());
       setOpen(false);
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(failureText(cause, 'games'));
     } finally {
       setPending(false);
     }

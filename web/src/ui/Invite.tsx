@@ -6,6 +6,7 @@ import type { Meeting } from '../core/meeting';
 import { allowed } from '../core/permissions';
 import { Modal, useStore } from './primitives';
 import { formatCode } from './Home';
+import { failureText } from '../core/failure';
 
 export function Invite({
   meeting,
@@ -97,7 +98,7 @@ export function Invite({
               await meeting.command('invite.create');
               setCopied(false);
             } catch (e) {
-              setError((e as Error).message);
+              setError(failureText(e, 'invite'));
             }
           }}
         >

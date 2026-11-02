@@ -3,10 +3,11 @@ import { ArrowRight, LoaderCircle, Plus, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { musicSourceName, type MusicState, type PlatformTrack, type YandexTrack } from '../core/services';
 import { unreachableRefusal } from '../core/cinema/reach';
-import { problemText } from './cinema/catalog/notes';
+import { problemNoted } from './cinema/catalog/notes';
 import { Button, IconButton } from './kit';
 import { classifyQuery, formatDuration } from './music-playback';
 import { routeQuery, type MusicPlatform, type SearchPlatform } from './music-platforms';
+import { failureText } from '../core/failure';
 
 type Searchable = SearchPlatform;
 
@@ -142,7 +143,7 @@ export function MusicSearch({
           // Площадка недоступна отсюда — это знание о площадке, а не об одном вопросе: её вкладка
           // помечается, и вместо поиска встаёт «недоступна с этого сервера» с «Повторить».
           if (unreachableRefusal(e)) onUnreachable?.(source);
-          return { status: 'error' as const, found: [], error: problemText(t, e) };
+          return { status: 'error' as const, found: [], error: problemNoted(t, e, 'music') };
         })
         .then((result) => {
           if (asked.current !== ticket) return;
@@ -186,7 +187,7 @@ export function MusicSearch({
           setQuery('');
         } catch (e) {
           if (unreachableRefusal(e)) onUnreachable?.(platform);
-          setError(problemText(t, e));
+          setError(problemNoted(t, e, 'music'));
         } finally {
           setLinking(false);
         }
@@ -201,7 +202,7 @@ export function MusicSearch({
     try {
       added(await item.add(), item.title);
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'music'));
     } finally {
       setAdding(null);
     }

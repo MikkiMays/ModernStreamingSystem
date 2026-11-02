@@ -7,6 +7,7 @@ import { t as translate } from '../i18n';
 import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
 import { SourceMark } from './MusicPlayer';
 import { YandexDeviceLogin, type DeviceFlow } from './music/YandexDeviceLogin';
+import { failureMessage, failureText } from '../core/failure';
 
 /**
  * Аккаунт Яндекс Музыки комнаты — один на всех, и знают о нём двое: эта строка и поле поиска
@@ -93,7 +94,7 @@ export function YandexIntegration({
       }
       setQr(true);
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'music'));
     } finally {
       setBusy(false);
     }
@@ -105,7 +106,7 @@ export function YandexIntegration({
     try {
       save(await api.disconnect());
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'music'));
     } finally {
       setBusy(false);
     }
@@ -187,7 +188,7 @@ export function YandexIntegration({
                   setToken('');
                   onStoredTokenChange(value);
                 } catch (e) {
-                  setError((e as Error).message);
+                  setError(failureText(e, 'music'));
                 } finally {
                   setBusy(false);
                 }
@@ -222,7 +223,7 @@ export function YandexIntegration({
       )}
       {(error || account.isError) && (
         <p className="music-account__error" role="alert">
-          {error || (account.error as Error).message}
+          {error || failureMessage(account.error, 'music')}
         </p>
       )}
     </section>

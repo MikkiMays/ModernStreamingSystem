@@ -11,6 +11,7 @@ import { useStore } from '../primitives';
 import { backToStage } from '../stage-context';
 import { useStageView } from '../useStageView';
 import { useProviders } from './useProviders';
+import { failureText } from '../../core/failure';
 
 /**
  * Кинозал в панели интеграций: выключатель, а не витрина.
@@ -92,7 +93,7 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
                 size="sm"
                 icon={<X />}
                 onClick={() =>
-                  void meeting.command('watch.close').catch((e) => setError((e as Error).message))
+                  void meeting.command('watch.close').catch((e) => setError(failureText(e, 'cinema')))
                 }
               >
                 {t(($) => $.cinema.group.closeForAll)}

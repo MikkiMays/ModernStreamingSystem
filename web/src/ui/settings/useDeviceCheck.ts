@@ -5,6 +5,7 @@ import { t } from '../../i18n';
 import { audioCapture, CordAudioProcessor, needsAudioProcessor } from '../../media/audio';
 import { loadSdk } from '../../media/sdk';
 import { touchFirst } from '../../media/profiles';
+import { failureText } from '../../core/failure';
 
 /** Сколько длится проба микрофона: запись, затем она же сразу звучит и пропадает. */
 export const TEST_SECONDS = 5;
@@ -174,11 +175,11 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
       if (operation === revision.current)
         fail(
           'microphone',
-          e instanceof DOMException && e.name === 'NotAllowedError'
-            ? t(($) => $.settings.voice.micDenied)
-            : e instanceof Error && e.message
-              ? e.message
-              : t(($) => $.settings.voice.deviceFailed),
+          failureText(
+            e,
+            'microphone',
+            t(($) => $.settings.voice.deviceFailed),
+          ),
         );
       return false;
     } finally {
@@ -225,7 +226,14 @@ export function useDeviceCheck(preferences: Preferences, { auto = false }: { aut
     } catch (e) {
       acquired?.stop();
       if (operation === revision.current)
-        fail('camera', e instanceof Error ? e.message : t(($) => $.settings.voice.deviceFailed));
+        fail(
+          'camera',
+          failureText(
+            e,
+            'camera',
+            t(($) => $.settings.voice.deviceFailed),
+          ),
+        );
     } finally {
       if (operation === revision.current) setBusy(null);
     }

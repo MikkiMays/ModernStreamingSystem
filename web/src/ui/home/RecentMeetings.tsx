@@ -28,6 +28,7 @@ import {
   useToast,
 } from '../kit';
 import { useFavoriteMembership, useFavorites } from '../useFavorites';
+import { failureText } from '../../core/failure';
 
 /** Как часто спрашивать ядро, идут ли встречи, пока главная видна. */
 const PRESENCE_MS = 30_000;
@@ -139,7 +140,15 @@ export function RecentMeetings({
       if (status === 404 || status === 410) over(entry);
       // Пропуск больше не годится, а встреча, может быть, идёт: войти по коду, как гость.
       else if (status === 403) onJoin({ kind: 'code', code: entry.code });
-      else toast.add({ title: (error as Error).message || t(($) => $.home.recent.failed), type: 'danger' });
+      else
+        toast.add({
+          title: failureText(
+            error,
+            'recent',
+            t(($) => $.home.recent.failed),
+          ),
+          type: 'danger',
+        });
     } finally {
       setBusy(null);
     }
@@ -173,7 +182,7 @@ export function RecentMeetings({
           type: 'success',
         }),
       )
-      .catch((error: Error) => toast.add({ title: error.message, type: 'danger' }));
+      .catch((error: unknown) => toast.add({ title: failureText(error, 'favorites'), type: 'danger' }));
   };
 
   return (

@@ -47,16 +47,16 @@ it('список ошибок проверки FastAPI (422) — одной фр
     ],
   });
   const error = await refusal();
-  expect(error.message).toBe('Проверьте данные запроса');
+  expect(error.message).toBe('Проверьте введённое и попробуйте ещё раз');
   expect(error.status).toBe(422);
   expect(error.code).toBe('REQUEST_FAILED');
 });
 
 it('любой другой не строковый `detail` — та же фраза', async () => {
   answer(400, { detail: { reason: 'x' } });
-  expect((await refusal()).message).toBe('Проверьте данные запроса');
+  expect((await refusal()).message).toBe('Проверьте введённое и попробуйте ещё раз');
   answer(400, { detail: 42 });
-  expect((await refusal()).message).toBe('Проверьте данные запроса');
+  expect((await refusal()).message).toBe('Проверьте введённое и попробуйте ещё раз');
 });
 
 it('отказ словами сервера остаётся его словами, а без слов — «Не удалось выполнить запрос»', async () => {

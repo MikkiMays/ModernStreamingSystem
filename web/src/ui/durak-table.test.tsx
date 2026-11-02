@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { Meeting } from '../core/meeting';
 import type { DurakTable as Table } from '../api/types';
 import { Store } from '../core/store';
+import { ApiError } from '../api/client';
 import DurakTable from './DurakTable';
 vi.mock('../core/sounds', () => ({
   signal: vi.fn(),
@@ -147,7 +148,7 @@ it('pending commands block double submission and rejection keeps the authoritati
   expect(screen.getByRole('button', { name: '8, трефы' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Беру' }));
   expect(room.command).toHaveBeenCalledTimes(1);
-  await act(async () => reject(new Error('Этот бой уже закончился')));
+  await act(async () => reject(new ApiError(409, 'DURAK_BOUT_OVER', 'Этот бой уже закончился')));
   expect(screen.getByRole('alert')).toHaveTextContent('Этот бой уже закончился');
   expect(screen.getByRole('button', { name: '8, трефы' })).toBeEnabled();
 });
@@ -181,7 +182,7 @@ it('«Сесть за стол» сажает сразу, без «Сохран�
   expect(container.querySelectorAll('.durak-seat')).toHaveLength(4);
   expect(screen.queryByRole('button', { name: 'Сесть за стол' })).toBeNull();
   expect(container).not.toHaveTextContent('Сохраняем');
-  await act(async () => reject(new Error('Ведущий закрыл посадку')));
+  await act(async () => reject(new ApiError(409, 'DURAK_CLOSED', 'Ведущий закрыл посадку')));
   expect(container.querySelectorAll('.durak-seat')).toHaveLength(3);
   expect(screen.getByRole('alert')).toHaveTextContent('Ведущий закрыл посадку');
   expect(screen.getByRole('button', { name: 'Сесть за стол' })).toBeEnabled();
@@ -380,7 +381,7 @@ it('legacy snapshots retain card play even when actions contains only take and p
 });
 it('picking a fresh card clears a refusal from an earlier move', async () => {
   const room = meeting();
-  vi.mocked(room.command).mockRejectedValueOnce(new Error('Этот ход уже недоступен'));
+  vi.mocked(room.command).mockRejectedValueOnce(new ApiError(409, 'DURAK_TURN', 'Этот ход уже недоступен'));
   render(<DurakTable meeting={room} table={table} />);
   pick('8, трефы');
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Отбить 7, трефы' })));
@@ -480,7 +481,7 @@ it('says next to a closed table why the seat is dimmed, and when a latecomer pla
 
 it('cancels the chosen card from the dock and reports a refused move there, not in the turn status (R129)', async () => {
   const room = meeting();
-  vi.mocked(room.command).mockRejectedValueOnce(new Error('Этот ход уже недоступен'));
+  vi.mocked(room.command).mockRejectedValueOnce(new ApiError(409, 'DURAK_TURN', 'Этот ход уже недоступен'));
   const { container } = render(<DurakTable meeting={room} table={table} />);
   pick('7, черви');
   expect(dock(container)).toHaveTextContent('Отбейте выделенную карту или переведите ход');

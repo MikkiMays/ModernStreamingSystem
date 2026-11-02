@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CinemaItem } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import { Store } from '../../../core/store';
+import { ApiError } from '../../../api/client';
 import { useTogether } from './useTogether';
 
 const VIDEO = { provider: 'youtube', kind: 'video', id: 'dQw4w9WgXcQ', title: 'Ролик' } as CinemaItem;
@@ -42,7 +43,7 @@ describe('useTogether: «Смотреть вместе»', () => {
     });
     expect(result.current.busy).toBe('dQw4w9WgXcQ');
     await act(async () => {
-      fail(new Error('Во встрече открыт покерный стол'));
+      fail(new ApiError(409, 'INTEGRATION_BUSY', 'Во встрече открыт покерный стол'));
       await pending;
     });
     expect(result.current.busy).toBe('');

@@ -5,6 +5,7 @@ import type { Meeting } from '../core/meeting';
 import { useStore } from './primitives';
 import { Button, Dialog, Field, Input, Segmented, Switch } from './kit';
 import './meeting-settings.css';
+import { failureText } from '../core/failure';
 
 type Access = 'open' | 'approval';
 
@@ -64,7 +65,13 @@ export function MeetingSettings({
       await meeting.refresh();
       onOpenChange(false);
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : t(($) => $.meeting.settings.saveFailed));
+      setError(
+        failureText(
+          problem,
+          'settings',
+          t(($) => $.meeting.settings.saveFailed),
+        ),
+      );
     } finally {
       setBusy(false);
     }

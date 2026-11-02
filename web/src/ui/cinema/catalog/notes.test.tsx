@@ -25,11 +25,20 @@ it('обрыв сети — по-русски, какими бы словами 
 });
 
 it('отказ службы остаётся её словами, а прочие ошибки — своим текстом', () => {
-  expect(problemText(t, new ApiError(429, 'REQUEST_FAILED', 'Комната слишком часто разбирает ссылки'))).toBe(
-    'Комната слишком часто разбирает ссылки',
+  expect(
+    problemText(
+      t,
+      new ApiError(429, 'REQUEST_FAILED', 'Комната слишком часто разбирает ссылки', {
+        detail: 'Комната слишком часто разбирает ссылки',
+      }),
+    ),
+  ).toBe('Комната слишком часто разбирает ссылки');
+  // Ошибка в коде страницы — не текст для человека (R180): общая фраза места.
+  expect(problemText(t, new TypeError('x is not a function'))).toBe(
+    'Кинозал не ответил — попробуйте ещё раз',
   );
-  expect(problemText(t, new TypeError('x is not a function'))).toBe('x is not a function');
-  expect(problemText(t, null)).toBe('Не удалось выполнить запрос');
+  expect(problemText(t, null)).toBe('Кинозал не ответил — попробуйте ещё раз');
+  expect(problemText(t, null, 'music')).toBe('Музыка не ответила — попробуйте ещё раз');
 });
 
 it('Failure показывает то же, что problemText', () => {

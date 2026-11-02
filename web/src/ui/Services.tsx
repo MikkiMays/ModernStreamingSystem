@@ -14,6 +14,7 @@ import { MusicWidget } from './music/MusicWidget';
 import { useMusic } from './music/useMusic';
 import { gameActivity, musicActivity } from './services-status';
 import { backToStage } from './stage-context';
+import { failureText } from '../core/failure';
 
 /**
  * Панель интеграций встречи: витрина (`IntegrationShelf`) и внутри — группа.
@@ -87,7 +88,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
       // Доска уже на сцене: панель возвращается к витрине, где карточка говорит «Доска открыта».
       setGroup(null);
     } catch (error) {
-      setBoardError((error as Error).message);
+      setBoardError(failureText(error, 'board'));
     } finally {
       setBringing(false);
     }

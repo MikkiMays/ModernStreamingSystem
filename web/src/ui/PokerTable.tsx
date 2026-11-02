@@ -76,6 +76,7 @@ import { TurnRing } from './TurnRing';
 import { tableStatus, type TableStatus } from './poker/table-status';
 import { useCardSounds, usePokerChipSounds, useTurnTicks } from './useGameSounds';
 import { modalOpen } from './modal';
+import { failureText } from '../core/failure';
 
 /**
  * Покерный стол на сцене встречи.
@@ -139,7 +140,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
 
   const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
     setError('');
-    void meeting.command(type, undefined, undefined, extra).catch((e) => setError((e as Error).message));
+    void meeting.command(type, undefined, undefined, extra).catch((e) => setError(failureText(e, 'games')));
   };
 
   /*

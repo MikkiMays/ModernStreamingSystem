@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { autoJoinEnabled, setAutoJoin, type Favorite } from '../core/favorites';
 import { IconButton, Modal } from './primitives';
 import { Switch } from './kit';
+import { failureText } from '../core/failure';
 
 export function FavoriteSettings({
   room,
@@ -65,7 +66,7 @@ export function FavoriteSettings({
               setOpen(false);
               onClose?.();
             } catch (error) {
-              setError((error as Error).message);
+              setError(failureText(error, 'favorites'));
             } finally {
               setBusy(false);
             }

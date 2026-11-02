@@ -8,6 +8,7 @@ import { Avatar } from '../primitives';
 import { Button } from '../kit';
 import { SettingGroup, SettingRow, useRowFlash } from './Row';
 import { rowDomId, rowText } from './sections';
+import { failureText } from '../../core/failure';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
 
@@ -43,7 +44,13 @@ function ProfileCard({ preferences, change }: { preferences: Preferences; change
       await change({ avatar });
     } catch (problem) {
       await change({ avatar: previous }).catch(() => {});
-      setError((problem as Error).message || t(($) => $.settings.profile.refused));
+      setError(
+        failureText(
+          problem,
+          'profile',
+          t(($) => $.settings.profile.refused),
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -105,7 +112,13 @@ function ProfileCard({ preferences, change }: { preferences: Preferences; change
               // человек увидит в рамке, а не то, что оказалось в середине снимка.
               setChosen(await openPicture(picked));
             } catch (problem) {
-              setError((problem as Error).message);
+              setError(
+                failureText(
+                  problem,
+                  'profile',
+                  t(($) => $.avatar.errors.unreadable),
+                ),
+              );
             } finally {
               setBusy(false);
             }

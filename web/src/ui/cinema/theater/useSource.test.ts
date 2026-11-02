@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Watch } from '../../../api/types';
 import type { CinemaApi, CinemaSource } from '../../../core/cinema';
+import { ApiError } from '../../../api/client';
 import { useSource } from './useSource';
 
 const NOW = 1_790_000_000_000;
@@ -82,7 +83,8 @@ describe('useSource: адрес потока', () => {
   });
 
   it('отказ службы — её же словами, а без слов — общим текстом', async () => {
-    const said = setup(new Error('Площадка не отдала поток для этого видео. Попробуйте другое'));
+    const words = 'Площадка не отдала поток для этого видео. Попробуйте другое';
+    const said = setup(new ApiError(502, 'REQUEST_FAILED', words, { detail: words }));
     await flush();
     expect(said.hook.result.current.status).toBe('failed');
     expect(said.hook.result.current.error).toBe(

@@ -39,6 +39,7 @@ import { GamePeople } from './GamePeople';
 import { useChessSounds } from './useGameSounds';
 import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
 import { IconButton, Modal, useMediaQuery, useStore } from './primitives';
+import { failureText } from '../core/failure';
 
 interface Drag {
   from: string;
@@ -144,7 +145,13 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
     try {
       await meeting.command(type, text, undefined, { contentId: table.id, positionMs: table.ply, ...extra });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t(($) => $.chess.sendFailed));
+      setError(
+        failureText(
+          cause,
+          'games',
+          t(($) => $.chess.sendFailed),
+        ),
+      );
     } finally {
       pendingRef.current = false;
       setPending(false);

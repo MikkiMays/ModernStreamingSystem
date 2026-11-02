@@ -13,6 +13,7 @@ import { Check, Eraser, Pencil, RotateCw, Trash2, Undo2, WifiOff } from 'lucide-
 import { useTranslation } from 'react-i18next';
 import { DRAWING_LIMITS, DrawingQueue, drawingPoint, mergeDrawing, type DrawingStroke } from '../core/gartic';
 import { useMediaQuery } from './primitives';
+import { failureText } from '../core/failure';
 
 export interface GarticCanvasHandle {
   flush: () => Promise<void>;
@@ -240,7 +241,7 @@ export default function GarticCanvas({
         current.current.local = current.current.local.filter((stroke) => !accepted.has(stroke.id));
         setLocal((previous) => previous.filter((stroke) => !accepted.has(stroke.id)));
       },
-      failed: (failure) => setError(failure.message),
+      failed: (failure) => setError(failureText(failure, 'games')),
     });
     next.setConnected(current.current.connected);
     queue.current = next;
@@ -383,7 +384,7 @@ export default function GarticCanvas({
       setLocal([]);
       setError('');
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(failureText(cause, 'games'));
     } finally {
       setBusy(false);
     }

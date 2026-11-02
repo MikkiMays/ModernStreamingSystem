@@ -5,6 +5,7 @@ import type { Admission } from '../../api/types';
 import { requestHandover, watchActiveMeetings, type ActiveMeeting } from '../../core/active-meeting';
 import { formatCode } from '../../core/invitation';
 import { Button } from '../kit';
+import { failureText } from '../../core/failure';
 
 /** Встречи соседних вкладок этого браузера; переспрашиваются, когда страница снова на виду. */
 export function useActiveMeetings() {
@@ -65,7 +66,7 @@ export function ActiveMeetingNotice({
           try {
             onResume(await requestHandover(meeting));
           } catch (problem) {
-            setError((problem as Error).message);
+            setError(failureText(problem, 'recent'));
             setBusy(false);
           }
         }}

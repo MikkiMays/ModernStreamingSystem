@@ -78,11 +78,17 @@ describe('форма обращения', () => {
   });
 
   it('показывает отказ сервера словами', async () => {
-    send.mockRejectedValue(new Error('С этого адреса уже пришло несколько обращений'));
+    // Отказ ядра — с кодом, как его отдаёт `api/client` (R180: текст без кода точка перевода не показывает).
+    send.mockRejectedValue(
+      Object.assign(new Error('Из вашей сети уже пришло несколько обращений'), {
+        status: 429,
+        code: 'SUPPORT_RATE',
+      }),
+    );
     render(<SupportForm />);
     fireEvent.change(message(), { target: { value: 'Пятое обращение за час' } });
     fireEvent.click(screen.getByRole('button', { name: 'Отправить' }));
-    expect(await screen.findByText('С этого адреса уже пришло несколько обращений')).toBeInTheDocument();
+    expect(await screen.findByText('Из вашей сети уже пришло несколько обращений')).toBeInTheDocument();
   });
 });
 

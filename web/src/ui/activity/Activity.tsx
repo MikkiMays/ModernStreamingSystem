@@ -27,6 +27,7 @@ import { Button, Field, Input, Select, Tab, TabList, TabPanel, Tabs } from '../k
 import { Logo } from '../primitives';
 import { Bars } from './Bars';
 import './activity.css';
+import { failureText } from '../../core/failure';
 
 /**
  * «Активность» — страница владельца сервера (`/activity`, E10-B, docs/observability.md §12).
@@ -83,9 +84,7 @@ function Login({ onDone }: { onDone: () => void }) {
       setError(
         failure instanceof ApiError && failure.code === 'ADMIN_DISABLED'
           ? t(($) => $.activity.disabled)
-          : failure instanceof Error
-            ? failure.message
-            : t(($) => $.api.requestFailed),
+          : failureText(failure, 'activity'),
       );
     } finally {
       setBusy(false);
@@ -122,7 +121,7 @@ export function useAdmin(onExpired: () => void) {
         return result;
       } catch (failure) {
         if (needsLogin(failure)) onExpired();
-        else setError(failure instanceof Error ? failure.message : String(failure));
+        else setError(failureText(failure, 'activity'));
         return undefined;
       }
     },

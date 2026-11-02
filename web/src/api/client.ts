@@ -11,7 +11,7 @@ import type {
 import { entryHeaders } from '../core/identity';
 import { prepareProof, takeProof, type ProofAction } from '../core/proof';
 import { noteError, type SupportReceipt, type SupportTicket } from '../core/support';
-import { OfflineError, type FailureCount } from '../core/failure';
+import { FriendlyError, OfflineError, type FailureCount } from '../core/failure';
 import type { Challenge } from '../core/proof-solve';
 import { errorText, locale, t } from '../i18n';
 import type { CallReport } from '../media/call-quality';
@@ -351,7 +351,7 @@ export class RoomApi {
     try {
       return await (await this.bytes(`/attachments/${file.id}/content`)).blob();
     } catch {
-      throw new Error(t(($) => $.api.fileUnavailable));
+      throw new FriendlyError(t(($) => $.api.fileUnavailable));
     }
   };
   files = () => request<Attachment[]>(`${this.base}/attachments`, {}, this.credential);

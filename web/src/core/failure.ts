@@ -217,6 +217,24 @@ export function failureText(error: unknown, place: Place, fallback?: string): st
   return text || fallback || t(($) => $.failure.places[place]);
 }
 
+/**
+ * Та же фраза без учёта — для отрисовки: компонент рисует ошибку запроса на каждом рендере, а
+ * считать её нужно один раз (это делает место, где её поймали).
+ */
+export function failureMessage(error: unknown, place: Place, fallback?: string): string {
+  return classify(error, place).text || fallback || t(($) => $.failure.places[place]);
+}
+
+/**
+ * Своя фраза ошибки, если она есть, — для окна или тоста со своим заголовком («Не удалось сохранить
+ * доску в чат» + почему). `undefined` — сказать нечего, кроме заголовка. Учёт — как у `failureText`.
+ */
+export function failureDetail(error: unknown, place: Place): string | undefined {
+  const { code, text } = classify(error, place);
+  noteFailure(place, code, error);
+  return text ?? undefined;
+}
+
 /* ---------- учёт ---------- */
 
 export interface FailureCount {

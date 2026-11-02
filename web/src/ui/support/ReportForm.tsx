@@ -17,6 +17,7 @@ import { Button, Field, Input, Switch, Textarea } from '../kit';
 import { ToggleChips } from './Chips';
 import { callReportSource } from './help';
 import { Attachment, Sent, type Receipt } from './parts';
+import { failureText } from '../../core/failure';
 
 /**
  * «Сообщить о проблеме» (R79): что не так — чипами, подробности по желанию, отчёт о звонке — сам.
@@ -68,7 +69,7 @@ export function ReportForm() {
       const answer = await publicApi.support(body);
       setReceipt({ ...answer, contact: !!body.contact });
     } catch (e) {
-      setError((e as Error).message);
+      setError(failureText(e, 'support'));
     } finally {
       setSending(false);
     }

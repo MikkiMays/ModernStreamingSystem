@@ -190,3 +190,38 @@ describe('учёт', () => {
     ]);
   });
 });
+
+describe('каталог', () => {
+  /*
+    Техника пути и протоколов — только в «Диагностике», на странице владельца сервера («Активность»)
+    и в названиях путей, которые показывает та же «Диагностика» (`media.link.paths`). Всё остальное
+    человек читает как фразу: плашка «Сеть не пропускает звонок» с «портом 443» и «TURN» — то, что
+    владелец назвал непонятным (R180).
+  */
+  // Сокращения — с учётом регистра (TURN — не «Turn on»), «порт» — в любом регистре и падеже.
+  const ACRONYMS =
+    /\b(443|TURN|ICE|TLS|UDP|TCP|WebRTC|WebSocket|HTTP|JSON|SFU|RTT|DRM|DASH|LiveKit|yt-dlp)\b/u;
+  const PORT =
+    /(?<![\u0430-\u044f\u0451])\u043f\u043e\u0440\u0442(\u0430|\u0443|\u043e\u043c)?(?![\u0430-\u044f\u0451])|(?<!\p{L})ports?(?!\p{L})/iu;
+  const technical = (text: string) => ACRONYMS.test(text) || PORT.test(text);
+  const ALLOWED = ['diagnostics.', 'activity.', 'media.link.paths.'];
+  const locales = import.meta.glob<Record<string, unknown>>('../i18n/locales/*.json', {
+    eager: true,
+    import: 'default',
+  });
+
+  function strings(node: unknown, path = ''): [string, string][] {
+    if (typeof node === 'string') return [[path, node]];
+    if (!node || typeof node !== 'object') return [];
+    return Object.entries(node).flatMap(([key, value]) => strings(value, path ? `${path}.${key}` : key));
+  }
+
+  it('порты, протоколы и имена библиотек — только в «Диагностике» и у владельца', () => {
+    const found = Object.entries(locales).flatMap(([file, catalog]) =>
+      strings(catalog)
+        .filter(([path, text]) => !ALLOWED.some((prefix) => path.startsWith(prefix)) && technical(text))
+        .map(([path, text]) => `${file.split('/').pop()} ${path}: ${text}`),
+    );
+    expect(found).toEqual([]);
+  });
+});

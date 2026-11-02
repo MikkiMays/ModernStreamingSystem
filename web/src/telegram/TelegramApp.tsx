@@ -19,6 +19,7 @@ import { BootGate } from '../ui/loader/BootGate';
 import type { Theme } from '../ui/primitives';
 import { probeMicrophone } from './media-probe';
 import type { TelegramShell } from './sdk';
+import { failureText, FriendlyError } from '../core/failure';
 
 const MeetingView = lazy(() =>
   import('../ui/MeetingView').then((module) => ({ default: module.MeetingView })),
@@ -86,7 +87,7 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
           microphone = true;
         }
         const destination = parseInvite(entry.inviteUrl);
-        if (destination.kind !== 'invite') throw new Error(translate(($) => $.invite.parseFailed));
+        if (destination.kind !== 'invite') throw new FriendlyError(translate(($) => $.invite.parseFailed));
         const admission = await publicApi.join(
           destination.roomId,
           { commandId: commandId.current, invite: destination.invite, name: entry.name },
@@ -110,7 +111,7 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
         commandId.current = crypto.randomUUID();
         setStep({
           kind: 'failed',
-          message: (error as Error).message,
+          message: failureText(error, 'join'),
           other: alreadyInMeeting(error)?.roomId ?? null,
         });
       }

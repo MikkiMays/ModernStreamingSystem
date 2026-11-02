@@ -25,6 +25,7 @@ import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
 import { IconButton, useStore } from './primitives';
 import GarticCanvas, { GarticPicture, type GarticCanvasHandle } from './GarticCanvas';
 import '../gartic.css';
+import { failureText } from '../core/failure';
 
 type SendCommand = (
   type: Parameters<Meeting['command']>[0],
@@ -72,7 +73,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
     try {
       await send(type, text, extra);
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(failureText(cause, 'games'));
     } finally {
       pendingAction.current = false;
       setPending(false);
@@ -390,7 +391,7 @@ function ClassicTask({ table, send, connected }: { table: Table; send: SendComma
     try {
       await send('gartic.choose', undefined, { chips: index });
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(failureText(cause, 'games'));
     } finally {
       setPending(false);
     }
@@ -464,7 +465,7 @@ function GuessPanel({ table, send, connected }: { table: Table; send: SendComman
       await send('gartic.guess', guess.trim());
       setGuess('');
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(failureText(cause, 'games'));
     } finally {
       setPending(false);
     }
@@ -571,7 +572,7 @@ function PhoneTask({
       if (drawing) await canvas.current?.flush();
       await send('gartic.submit', drawing ? undefined : text.trim());
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(failureText(cause, 'games'));
     } finally {
       setPending(false);
     }

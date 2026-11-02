@@ -3,6 +3,7 @@ import { Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { MusicState } from '../core/services';
 import { Button } from './kit';
+import { failureText, FriendlyError } from '../core/failure';
 
 /**
  * Свои файлы в общую очередь (R43): одна пунктирная зона, в ней по центру столбиком — значок,
@@ -41,11 +42,11 @@ export function MusicUpload({
     try {
       for (const file of files) {
         if (file.size > maxFileBytes)
-          throw new Error(t(($) => $.music.upload.tooBig, { name: file.name, limit }));
+          throw new FriendlyError(t(($) => $.music.upload.tooBig, { name: file.name, limit }));
         onAdded(await upload(file, controller.signal));
       }
     } catch (e) {
-      if (!controller.signal.aborted) onError((e as Error).message);
+      if (!controller.signal.aborted) onError(failureText(e, 'music'));
     } finally {
       setBusy(false);
       abort.current = null;

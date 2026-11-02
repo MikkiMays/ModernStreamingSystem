@@ -2,6 +2,15 @@ import { Upload } from 'tus-js-client';
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from './store';
 import { t } from '../i18n';
+import { failureText } from './failure';
+
+/** Почему файл не ушёл — фразой для человека: отказ ядра его словами, прочее — «не удалось загрузить». */
+const uploadFailure = (error: unknown) =>
+  failureText(
+    error,
+    'files',
+    t(($) => $.chat.uploadFailed),
+  );
 
 /**
  * Паузы перед повтором резерва при `409 UPLOAD_BUSY`: пять пауз, ≈4,7 с, и шестая попытка. Загрузка у нас «готова», как только tus
@@ -67,9 +76,10 @@ export class Uploader {
           this.state.update((s) => ({ ...s, status: 'done', progress: 1 }));
           this.onComplete();
         },
+        // Текст tus — английский, с адресом и смещением: человеку — фраза, остальное — в журнал (R180).
         onError: (error) => {
           if (generation === this.generation)
-            this.state.update((s) => ({ ...s, status: 'error', error: error.message }));
+            this.state.update((s) => ({ ...s, status: 'error', error: uploadFailure(error) }));
         },
       });
       if (this.state.get().status === 'uploading') this.upload.start();
@@ -78,7 +88,7 @@ export class Uploader {
       this.state.update((s) => ({
         ...s,
         status: 'error',
-        error: error instanceof Error ? error.message : t(($) => $.chat.uploadFailed),
+        error: uploadFailure(error),
       }));
     } finally {
       if (generation === this.generation) this.reserving = false;
@@ -167,7 +177,7 @@ export class Uploader {
       this.upload.start();
     } catch (error) {
       if (generation === this.generation)
-        this.state.update((s) => ({ ...s, status: 'error', error: (error as Error).message }));
+        this.state.update((s) => ({ ...s, status: 'error', error: uploadFailure(error) }));
     }
   }
   async congestion(poor: boolean) {

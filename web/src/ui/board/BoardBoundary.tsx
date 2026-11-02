@@ -2,6 +2,7 @@ import { Component, type ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../kit';
+import { classify, noteFailure } from '../../core/failure';
 
 /**
  * Сбой доски не роняет встречу (R159). У приложения нет общей границы ошибок: исключение внутри
@@ -17,7 +18,8 @@ export class BoardBoundary extends Component<{ children: ReactNode }, { failed: 
   }
 
   componentDidCatch(error: unknown) {
-    console.error('[cord] board', error);
+    // Журнал, недавние ошибки и счётчик — как у любой ошибки, которую увидел человек (R180).
+    noteFailure('board', classify(error, 'board').code, error);
   }
 
   render() {

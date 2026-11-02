@@ -7,6 +7,7 @@ import { formatCode, parseInvite, type Destination } from '../core/invitation';
 import { CordMark } from './brand/Logo';
 import { Button } from './kit';
 import '../home-entry.css';
+import { failureText } from '../core/failure';
 
 /**
  * Вход во встречу — общий для главной в браузере и в клиенте Windows (E02, R65).
@@ -78,7 +79,13 @@ export function HomeEntry({
               setError('');
               onJoin(parseInvite(link));
             } catch (problem) {
-              setError((problem as Error).message);
+              setError(
+                failureText(
+                  problem,
+                  'invite',
+                  t(($) => $.invite.parseFailed),
+                ),
+              );
             }
           }}
         >

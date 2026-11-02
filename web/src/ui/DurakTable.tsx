@@ -56,6 +56,7 @@ import { TurnRing } from './TurnRing';
 import { useVoiceTier } from './useVoice';
 import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
 import { Avatar, IconButton, useStore } from './primitives';
+import { failureText } from '../core/failure';
 
 type SheetKind = 'settings' | 'result' | 'score' | null;
 
@@ -220,7 +221,7 @@ export default function DurakTable({ meeting, table: served }: { meeting: Meetin
     setRefusal('');
     void meeting
       .command(type, undefined, undefined, extra)
-      .catch((error: Error) => refuse(error.message))
+      .catch((error: unknown) => refuse(failureText(error, 'games')))
       .finally(() => {
         pendingRef.current = false;
         setPending(false);
@@ -232,9 +233,9 @@ export default function DurakTable({ meeting, table: served }: { meeting: Meetin
     if (!free || !connected || joining !== null) return;
     setRefusal('');
     setJoining(free.index);
-    void meeting.command('durak.sit').catch((error: Error) => {
+    void meeting.command('durak.sit').catch((error: unknown) => {
       setJoining(null);
-      refuse(error.message);
+      refuse(failureText(error, 'games'));
     });
   };
   const announced = useRef(0);
@@ -288,10 +289,10 @@ export default function DurakTable({ meeting, table: served }: { meeting: Meetin
     setPending(true);
     void meeting
       .command('durak.act', undefined, undefined, { option: shape.option, card, under: shape.under })
-      .catch((error: Error) => {
+      .catch((error: unknown) => {
         setPendingDrag(null);
         motion.reject(card);
-        refuse(error.message);
+        refuse(failureText(error, 'games'));
       })
       .finally(() => {
         pendingRef.current = false;
