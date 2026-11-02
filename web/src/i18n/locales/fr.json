@@ -2411,9 +2411,63 @@
     "requestFailed": "La requête a échoué",
     "fileUnavailable": "Fichier indisponible ou expiré",
     "blockedUntil": "Le propriétaire a fermé l'accès à ce serveur jusqu'au {{date}}",
-    "closedByServerUntil": "Le propriétaire du serveur a mis fin à cette réunion — vous pourrez la rouvrir après le {{date}}",
+    "closedByServerUntil": "Le propriétaire du serveur a mis fin à cette réunion — vous pourrez la rouvrir après le {{date}}"
+  },
+  "failure": {
+    "offline": "Pas de connexion au serveur — réessayez",
     "timeout": "Le serveur n'a pas répondu à temps — réessayez",
-    "offline": "Pas de connexion au serveur — réessayez"
+    "server": "Le serveur est indisponible pour le moment — réessayez dans une minute",
+    "places": {
+      "app": "Un problème est survenu — rechargez la page et réessayez",
+      "connect": "Impossible de se connecter au serveur — réessayez",
+      "join": "Impossible de rejoindre la réunion — réessayez",
+      "meeting": "Ça n'a pas marché — réessayez",
+      "call": "Le son et la vidéo ne sont pas encore connectés — nouvelle tentative",
+      "camera": "Impossible d'activer la caméra — réessayez",
+      "microphone": "Impossible d'activer le micro — réessayez",
+      "screen": "Impossible de partager l'écran — réessayez",
+      "speaker": "Impossible de lire le son sur cet appareil — choisissez-en un autre",
+      "chat": "Le message n'a pas été envoyé — réessayez",
+      "files": "Impossible de transférer le fichier — réessayez",
+      "board": "Le tableau blanc n'a pas répondu — réessayez",
+      "cinema": "Cinéma n'a pas répondu — réessayez",
+      "music": "Musique n'a pas répondu — réessayez",
+      "games": "Le jeu n'a pas répondu — réessayez",
+      "favorites": "Impossible de mettre à jour les Favoris — réessayez",
+      "recent": "Impossible d'ouvrir la réunion — réessayez",
+      "invite": "Impossible d'ouvrir l'invitation — redemandez le lien",
+      "profile": "Impossible d'enregistrer le profil — réessayez",
+      "settings": "Impossible d'enregistrer les paramètres — réessayez",
+      "support": "La demande n'a pas été envoyée — réessayez",
+      "telegram": "Telegram n'a pas répondu — réessayez",
+      "activity": "Impossible de charger les données — réessayez"
+    },
+    "devices": {
+      "camera": {
+        "denied": "Pas d'accès à la caméra — autorisez-le pour Cord dans le navigateur ou les réglages du système",
+        "missing": "Caméra introuvable — vérifiez qu'elle est branchée",
+        "busy": "La caméra est utilisée par une autre application ou ne démarre pas — fermez-la et réessayez",
+        "unsupported": "Ce navigateur ne peut pas utiliser la caméra — ouvrez Cord dans Chrome, Edge, Firefox ou Safari"
+      },
+      "microphone": {
+        "denied": "Pas d'accès au micro — autorisez-le pour Cord dans le navigateur ou les réglages du système",
+        "missing": "Micro introuvable — vérifiez qu'il est branché",
+        "busy": "Le micro est utilisé par une autre application ou ne démarre pas — fermez-le et réessayez",
+        "unsupported": "Ce navigateur ne peut pas utiliser le micro — ouvrez Cord dans Chrome, Edge, Firefox ou Safari"
+      },
+      "screen": {
+        "denied": "Le partage d'écran n'est pas autorisé — autorisez l'enregistrement de l'écran pour le navigateur dans les réglages du système",
+        "missing": "Le navigateur n'a rien trouvé à partager — choisissez de nouveau un écran ou une fenêtre",
+        "busy": "Impossible de capturer l'écran — réessayez ou choisissez une fenêtre",
+        "unsupported": "Ce navigateur ne peut pas partager l'écran — ouvrez Cord dans Chrome, Edge ou Firefox sur un ordinateur"
+      },
+      "speaker": {
+        "denied": "Le navigateur n'a pas permis de choisir la sortie du son — choisissez un appareil dans les réglages du système",
+        "missing": "Appareil audio introuvable — choisissez-en un autre",
+        "busy": "L'appareil audio est occupé ou déconnecté — choisissez-en un autre",
+        "unsupported": "Ce navigateur ne permet pas de choisir la sortie du son"
+      }
+    }
   },
   "kit": {
     "toasts": "Notifications",

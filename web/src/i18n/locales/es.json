@@ -2411,9 +2411,63 @@
     "requestFailed": "No se pudo completar la solicitud",
     "fileUnavailable": "El archivo no está disponible o ha caducado",
     "blockedUntil": "El propietario ha cerrado el acceso a este servidor hasta el {{date}}",
-    "closedByServerUntil": "El propietario del servidor finalizó esta reunión: podrás volver a abrirla después del {{date}}",
+    "closedByServerUntil": "El propietario del servidor finalizó esta reunión: podrás volver a abrirla después del {{date}}"
+  },
+  "failure": {
+    "offline": "Sin conexión con el servidor: inténtalo de nuevo",
     "timeout": "El servidor no respondió a tiempo: inténtalo de nuevo",
-    "offline": "Sin conexión con el servidor: inténtalo de nuevo"
+    "server": "El servidor no está disponible ahora: inténtalo dentro de un minuto",
+    "places": {
+      "app": "Algo salió mal: recarga la página e inténtalo de nuevo",
+      "connect": "No se pudo conectar con el servidor: inténtalo de nuevo",
+      "join": "No se pudo unirse a la reunión: inténtalo de nuevo",
+      "meeting": "No funcionó: inténtalo de nuevo",
+      "call": "El audio y el vídeo aún no se han conectado: lo intentamos de nuevo",
+      "camera": "No se pudo activar la cámara: inténtalo de nuevo",
+      "microphone": "No se pudo activar el micrófono: inténtalo de nuevo",
+      "screen": "No se pudo compartir la pantalla: inténtalo de nuevo",
+      "speaker": "No se pudo reproducir el sonido en este dispositivo: elige otro",
+      "chat": "El mensaje no se envió: inténtalo de nuevo",
+      "files": "No se pudo transferir el archivo: inténtalo de nuevo",
+      "board": "La pizarra no respondió: inténtalo de nuevo",
+      "cinema": "Cine no respondió: inténtalo de nuevo",
+      "music": "Música no respondió: inténtalo de nuevo",
+      "games": "El juego no respondió: inténtalo de nuevo",
+      "favorites": "No se pudieron actualizar los Favoritos: inténtalo de nuevo",
+      "recent": "No se pudo abrir la reunión: inténtalo de nuevo",
+      "invite": "No se pudo abrir la invitación: pide el enlace de nuevo",
+      "profile": "No se pudo guardar el perfil: inténtalo de nuevo",
+      "settings": "No se pudieron guardar los ajustes: inténtalo de nuevo",
+      "support": "La solicitud no se envió: inténtalo de nuevo",
+      "telegram": "Telegram no respondió: inténtalo de nuevo",
+      "activity": "No se pudieron cargar los datos: inténtalo de nuevo"
+    },
+    "devices": {
+      "camera": {
+        "denied": "Sin acceso a la cámara: permítelo para Cord en el navegador o en los ajustes del sistema",
+        "missing": "No se encontró la cámara: comprueba que esté conectada",
+        "busy": "La cámara está en uso por otra app o no arranca: ciérrala allí e inténtalo de nuevo",
+        "unsupported": "Este navegador no puede usar la cámara: abre Cord en Chrome, Edge, Firefox o Safari"
+      },
+      "microphone": {
+        "denied": "Sin acceso al micrófono: permítelo para Cord en el navegador o en los ajustes del sistema",
+        "missing": "No se encontró el micrófono: comprueba que esté conectado",
+        "busy": "El micrófono está en uso por otra app o no arranca: ciérralo allí e inténtalo de nuevo",
+        "unsupported": "Este navegador no puede usar el micrófono: abre Cord en Chrome, Edge, Firefox o Safari"
+      },
+      "screen": {
+        "denied": "No se permite compartir pantalla: permite la grabación de pantalla al navegador en los ajustes del sistema",
+        "missing": "El navegador no encontró nada que compartir: elige una pantalla o ventana de nuevo",
+        "busy": "No se pudo capturar la pantalla: inténtalo de nuevo o elige una ventana",
+        "unsupported": "Este navegador no puede compartir la pantalla: abre Cord en Chrome, Edge o Firefox en un ordenador"
+      },
+      "speaker": {
+        "denied": "El navegador no permitió elegir dónde suena el audio: elige un dispositivo en los ajustes del sistema",
+        "missing": "No se encontró el dispositivo de audio: elige otro",
+        "busy": "El dispositivo de audio está ocupado o desconectado: elige otro",
+        "unsupported": "Este navegador no puede elegir dónde suena el audio"
+      }
+    }
   },
   "kit": {
     "toasts": "Notificaciones",

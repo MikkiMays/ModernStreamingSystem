@@ -8,6 +8,8 @@ import { unlockNotificationAudio } from '../core/sounds';
 import { installDevicePixel } from '../ui/device-pixel';
 import { installInputModality } from '../ui/input-modality';
 import { installScrollActivity } from '../ui/scroll-activity';
+import { startFailureReports, watchFailures } from '../core/failure';
+import { sendFailures } from '../api/client';
 import { startTelegram } from './sdk';
 import { TelegramApp } from './TelegramApp';
 // Путь шрифтов доски (R159) — во входе, раньше ленивого чанка с Excalidraw (см. `src/main.tsx`).
@@ -25,6 +27,9 @@ unlockNotificationAudio();
 installInputModality();
 installDevicePixel();
 installScrollActivity();
+// Ошибки Mini App — в журнал и счётчик ядра, как у приложения (R180).
+watchFailures();
+startFailureReports(sendFailures);
 
 void applyLanguage(readPreferences().language).then(() =>
   createRoot(document.getElementById('root')!).render(<TelegramApp shell={shell} />),

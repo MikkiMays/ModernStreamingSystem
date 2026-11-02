@@ -2383,9 +2383,63 @@
     "requestFailed": "Die Anfrage ist fehlgeschlagen",
     "fileUnavailable": "Die Datei ist nicht verfügbar oder abgelaufen",
     "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt",
-    "closedByServerUntil": "Der Inhaber des Servers hat dieses Meeting beendet – du kannst es nach {{date}} wieder öffnen",
+    "closedByServerUntil": "Der Inhaber des Servers hat dieses Meeting beendet – du kannst es nach {{date}} wieder öffnen"
+  },
+  "failure": {
+    "offline": "Keine Verbindung zum Server – versuch es noch einmal",
     "timeout": "Der Server hat nicht rechtzeitig geantwortet – versuch es noch einmal",
-    "offline": "Keine Verbindung zum Server – versuch es noch einmal"
+    "server": "Der Server ist gerade nicht erreichbar – versuch es in einer Minute noch einmal",
+    "places": {
+      "app": "Etwas ist schiefgelaufen – lade die Seite neu und versuch es noch einmal",
+      "connect": "Verbindung zum Server fehlgeschlagen – versuch es noch einmal",
+      "join": "Beitreten fehlgeschlagen – versuch es noch einmal",
+      "meeting": "Das hat nicht geklappt – versuch es noch einmal",
+      "call": "Ton und Video sind noch nicht verbunden – wir versuchen es erneut",
+      "camera": "Kamera konnte nicht eingeschaltet werden – versuch es noch einmal",
+      "microphone": "Mikrofon konnte nicht eingeschaltet werden – versuch es noch einmal",
+      "screen": "Bildschirm konnte nicht geteilt werden – versuch es noch einmal",
+      "speaker": "Ton kann auf diesem Gerät nicht wiedergegeben werden – wähle ein anderes",
+      "chat": "Nachricht nicht gesendet – versuch es noch einmal",
+      "files": "Datei konnte nicht übertragen werden – versuch es noch einmal",
+      "board": "Das Whiteboard hat nicht reagiert – versuch es noch einmal",
+      "cinema": "Kino hat nicht reagiert – versuch es noch einmal",
+      "music": "Musik hat nicht reagiert – versuch es noch einmal",
+      "games": "Das Spiel hat nicht reagiert – versuch es noch einmal",
+      "favorites": "Favoriten konnten nicht geändert werden – versuch es noch einmal",
+      "recent": "Meeting konnte nicht geöffnet werden – versuch es noch einmal",
+      "invite": "Einladung konnte nicht geöffnet werden – lass dir den Link noch einmal schicken",
+      "profile": "Profil konnte nicht gespeichert werden – versuch es noch einmal",
+      "settings": "Einstellungen konnten nicht gespeichert werden – versuch es noch einmal",
+      "support": "Anfrage nicht gesendet – versuch es noch einmal",
+      "telegram": "Telegram hat nicht reagiert – versuch es noch einmal",
+      "activity": "Daten konnten nicht geladen werden – versuch es noch einmal"
+    },
+    "devices": {
+      "camera": {
+        "denied": "Kein Kamerazugriff – erlaube ihn für Cord im Browser oder in den Systemeinstellungen",
+        "missing": "Keine Kamera gefunden – prüfe, ob sie angeschlossen ist",
+        "busy": "Die Kamera wird von einer anderen App benutzt oder startet nicht – schließ sie dort und versuch es noch einmal",
+        "unsupported": "Dieser Browser kann die Kamera nicht nutzen – öffne Cord in Chrome, Edge, Firefox oder Safari"
+      },
+      "microphone": {
+        "denied": "Kein Mikrofonzugriff – erlaube ihn für Cord im Browser oder in den Systemeinstellungen",
+        "missing": "Kein Mikrofon gefunden – prüfe, ob es angeschlossen ist",
+        "busy": "Das Mikrofon wird von einer anderen App benutzt oder startet nicht – schließ es dort und versuch es noch einmal",
+        "unsupported": "Dieser Browser kann das Mikrofon nicht nutzen – öffne Cord in Chrome, Edge, Firefox oder Safari"
+      },
+      "screen": {
+        "denied": "Bildschirmfreigabe ist nicht erlaubt – erlaube dem Browser die Bildschirmaufnahme in den Systemeinstellungen",
+        "missing": "Der Browser hat nichts zum Teilen gefunden – wähle Bildschirm oder Fenster noch einmal",
+        "busy": "Bildschirm konnte nicht aufgenommen werden – versuch es noch einmal oder wähle ein Fenster",
+        "unsupported": "Dieser Browser kann den Bildschirm nicht teilen – öffne Cord in Chrome, Edge oder Firefox am Computer"
+      },
+      "speaker": {
+        "denied": "Der Browser lässt dich die Tonausgabe nicht wählen – wähle ein Gerät in den Systemeinstellungen",
+        "missing": "Audiogerät nicht gefunden – wähle ein anderes",
+        "busy": "Das Audiogerät ist belegt oder getrennt – wähle ein anderes",
+        "unsupported": "Dieser Browser kann die Tonausgabe nicht wählen"
+      }
+    }
   },
   "kit": {
     "toasts": "Benachrichtigungen",

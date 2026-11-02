@@ -2411,9 +2411,63 @@
     "requestFailed": "Não foi possível concluir a solicitação",
     "fileUnavailable": "O arquivo não está disponível ou expirou",
     "blockedUntil": "O dono fechou o acesso a este servidor até {{date}}",
-    "closedByServerUntil": "O dono do servidor encerrou esta reunião — você poderá reabri-la depois de {{date}}",
+    "closedByServerUntil": "O dono do servidor encerrou esta reunião — você poderá reabri-la depois de {{date}}"
+  },
+  "failure": {
+    "offline": "Sem conexão com o servidor — tente de novo",
     "timeout": "O servidor não respondeu a tempo — tente de novo",
-    "offline": "Sem conexão com o servidor — tente de novo"
+    "server": "O servidor está indisponível agora — tente de novo em um minuto",
+    "places": {
+      "app": "Algo deu errado — recarregue a página e tente de novo",
+      "connect": "Não foi possível conectar ao servidor — tente de novo",
+      "join": "Não foi possível entrar na reunião — tente de novo",
+      "meeting": "Não deu certo — tente de novo",
+      "call": "Áudio e vídeo ainda não conectaram — tentando de novo",
+      "camera": "Não foi possível ligar a câmera — tente de novo",
+      "microphone": "Não foi possível ligar o microfone — tente de novo",
+      "screen": "Não foi possível compartilhar a tela — tente de novo",
+      "speaker": "Não foi possível tocar o som neste dispositivo — escolha outro",
+      "chat": "Mensagem não enviada — tente de novo",
+      "files": "Não foi possível transferir o arquivo — tente de novo",
+      "board": "O quadro não respondeu — tente de novo",
+      "cinema": "Cinema não respondeu — tente de novo",
+      "music": "Música não respondeu — tente de novo",
+      "games": "O jogo não respondeu — tente de novo",
+      "favorites": "Não foi possível atualizar os Favoritos — tente de novo",
+      "recent": "Não foi possível abrir a reunião — tente de novo",
+      "invite": "Não foi possível abrir o convite — peça o link de novo",
+      "profile": "Não foi possível salvar o perfil — tente de novo",
+      "settings": "Não foi possível salvar as configurações — tente de novo",
+      "support": "Solicitação não enviada — tente de novo",
+      "telegram": "O Telegram não respondeu — tente de novo",
+      "activity": "Não foi possível carregar os dados — tente de novo"
+    },
+    "devices": {
+      "camera": {
+        "denied": "Sem acesso à câmera — permita para o Cord no navegador ou nas configurações do sistema",
+        "missing": "Câmera não encontrada — verifique se está conectada",
+        "busy": "A câmera está em uso por outro app ou não inicia — feche-a lá e tente de novo",
+        "unsupported": "Este navegador não consegue usar a câmera — abra o Cord no Chrome, Edge, Firefox ou Safari"
+      },
+      "microphone": {
+        "denied": "Sem acesso ao microfone — permita para o Cord no navegador ou nas configurações do sistema",
+        "missing": "Microfone não encontrado — verifique se está conectado",
+        "busy": "O microfone está em uso por outro app ou não inicia — feche-o lá e tente de novo",
+        "unsupported": "Este navegador não consegue usar o microfone — abra o Cord no Chrome, Edge, Firefox ou Safari"
+      },
+      "screen": {
+        "denied": "O compartilhamento de tela não foi permitido — permita a gravação de tela para o navegador nas configurações do sistema",
+        "missing": "O navegador não encontrou nada para compartilhar — escolha uma tela ou janela de novo",
+        "busy": "Não foi possível capturar a tela — tente de novo ou escolha uma janela",
+        "unsupported": "Este navegador não consegue compartilhar a tela — abra o Cord no Chrome, Edge ou Firefox em um computador"
+      },
+      "speaker": {
+        "denied": "O navegador não deixou escolher onde o som toca — escolha um dispositivo nas configurações do sistema",
+        "missing": "Dispositivo de áudio não encontrado — escolha outro",
+        "busy": "O dispositivo de áudio está ocupado ou desconectado — escolha outro",
+        "unsupported": "Este navegador não consegue escolher onde o som toca"
+      }
+    }
   },
   "kit": {
     "toasts": "Notificações",

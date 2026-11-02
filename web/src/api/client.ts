@@ -11,6 +11,7 @@ import type {
 import { entryHeaders } from '../core/identity';
 import { prepareProof, takeProof, type ProofAction } from '../core/proof';
 import { noteError, type SupportReceipt, type SupportTicket } from '../core/support';
+import { OfflineError, type FailureCount } from '../core/failure';
 import type { Challenge } from '../core/proof-solve';
 import { errorText, locale, t } from '../i18n';
 import type { CallReport } from '../media/call-quality';
@@ -91,7 +92,8 @@ function ownerUntil(code: 'BLOCKED' | 'CLOSED_BY_SERVER', until: number): string
  * (`AbortSignal.timeout`) — `TimeoutError` «signal timed out», обрыв сети — `TypeError` «Failed to
  * fetch», — а эти тексты уходили прямо в предвход и окна («signal timed out» вместо «Сервер не
  * ответил вовремя»). Тип ошибки остаётся тем же: `TimeoutError` по-прежнему узнают по имени
- * (`core/session.ts`, кинозал). Отмена самим приложением (`AbortError`) — как есть: её никто не
+ * (`core/session.ts`, кинозал), обрыв — `OfflineError`, тоже `TypeError`, но отличимый от ошибки в
+ * коде (`core/failure.ts`). Отмена самим приложением (`AbortError`) — как есть: её никто не
  * показывает.
  */
 function transportFailure(error: unknown, method: string, path: string): unknown {
@@ -99,13 +101,13 @@ function transportFailure(error: unknown, method: string, path: string): unknown
   if (error instanceof DOMException && error.name === 'TimeoutError') {
     noteError(`TIMEOUT ${where}`);
     return new DOMException(
-      t(($) => $.api.timeout),
+      t(($) => $.failure.timeout),
       'TimeoutError',
     );
   }
   if (error instanceof TypeError) {
     noteError(`OFFLINE ${where}`);
-    return new TypeError(t(($) => $.api.offline));
+    return new OfflineError(t(($) => $.failure.offline));
   }
   return error;
 }
@@ -159,6 +161,25 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
   }
   const text = await response.text();
   return (text ? JSON.parse(text) : undefined) as T;
+}
+/**
+ * Счёт ошибок клиента — ядру в метрики (R180, `core/failure.ts`): место, код и сколько раз, без
+ * текстов и адресов. Мимо `request`: неудача здесь не ошибка для человека и не строка в недавних
+ * ошибках. `true` — доставлено или повторять незачем (ядро отказало), `false` — не дошло по сети.
+ */
+export async function sendFailures(errors: readonly FailureCount[], keepalive: boolean): Promise<boolean> {
+  try {
+    const response = await fetch('/api/v1/client-errors', {
+      method: 'POST',
+      keepalive,
+      body: JSON.stringify({ errors }),
+      headers: { 'Content-Type': 'application/json', ...(bearer ? { 'X-Cord-Session': bearer } : {}) },
+      ...(keepalive ? {} : { signal: AbortSignal.timeout(8000) }),
+    });
+    return response.status < 500;
+  } catch {
+    return false;
+  }
 }
 const post = (data?: unknown): RequestInit => ({
   method: 'POST',

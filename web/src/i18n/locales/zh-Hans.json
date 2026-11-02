@@ -2355,9 +2355,63 @@
     "requestFailed": "请求失败",
     "fileUnavailable": "文件不可用或已过期",
     "blockedUntil": "服务器所有者已关闭对此服务器的访问，直到 {{date}}",
-    "closedByServerUntil": "服务器所有者已结束此会议，{{date}} 之后可以重新打开",
+    "closedByServerUntil": "服务器所有者已结束此会议，{{date}} 之后可以重新打开"
+  },
+  "failure": {
+    "offline": "无法连接服务器——请重试",
     "timeout": "服务器未及时响应——请重试",
-    "offline": "无法连接服务器——请重试"
+    "server": "服务器暂时不可用——请一分钟后重试",
+    "places": {
+      "app": "出了点问题——请刷新页面后重试",
+      "connect": "无法连接服务器——请重试",
+      "join": "无法加入会议——请重试",
+      "meeting": "操作未成功——请重试",
+      "call": "音视频尚未连接——正在重试",
+      "camera": "无法打开摄像头——请重试",
+      "microphone": "无法打开麦克风——请重试",
+      "screen": "无法共享屏幕——请重试",
+      "speaker": "无法在此设备上播放声音——请选择其他设备",
+      "chat": "消息未发送——请重试",
+      "files": "无法传输文件——请重试",
+      "board": "白板没有响应——请重试",
+      "cinema": "影院没有响应——请重试",
+      "music": "音乐没有响应——请重试",
+      "games": "游戏没有响应——请重试",
+      "favorites": "无法更新收藏——请重试",
+      "recent": "无法打开会议——请重试",
+      "invite": "无法打开邀请——请重新索取链接",
+      "profile": "无法保存个人资料——请重试",
+      "settings": "无法保存设置——请重试",
+      "support": "反馈未发送——请重试",
+      "telegram": "Telegram 没有响应——请重试",
+      "activity": "无法加载数据——请重试"
+    },
+    "devices": {
+      "camera": {
+        "denied": "无法访问摄像头——请在浏览器或系统设置中允许 Cord 使用",
+        "missing": "未找到摄像头——请检查是否已连接",
+        "busy": "摄像头被其他程序占用或无法启动——请在那里关闭后重试",
+        "unsupported": "此浏览器无法使用摄像头——请在 Chrome、Edge、Firefox 或 Safari 中打开 Cord"
+      },
+      "microphone": {
+        "denied": "无法访问麦克风——请在浏览器或系统设置中允许 Cord 使用",
+        "missing": "未找到麦克风——请检查是否已连接",
+        "busy": "麦克风被其他程序占用或无法启动——请在那里关闭后重试",
+        "unsupported": "此浏览器无法使用麦克风——请在 Chrome、Edge、Firefox 或 Safari 中打开 Cord"
+      },
+      "screen": {
+        "denied": "未允许屏幕共享——请在系统设置中允许浏览器录制屏幕",
+        "missing": "浏览器没有找到可共享的内容——请重新选择屏幕或窗口",
+        "busy": "无法捕获屏幕——请重试或选择一个窗口",
+        "unsupported": "此浏览器无法共享屏幕——请在电脑上用 Chrome、Edge 或 Firefox 打开 Cord"
+      },
+      "speaker": {
+        "denied": "浏览器不允许选择声音输出位置——请在系统设置中选择设备",
+        "missing": "未找到音频设备——请选择其他设备",
+        "busy": "音频设备被占用或已断开——请选择其他设备",
+        "unsupported": "此浏览器无法选择声音输出位置"
+      }
+    }
   },
   "kit": {
     "toasts": "通知",

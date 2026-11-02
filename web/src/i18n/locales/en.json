@@ -2383,9 +2383,63 @@
     "requestFailed": "The request failed",
     "fileUnavailable": "The file is unavailable or has expired",
     "blockedUntil": "The owner has closed access to this server until {{date}}",
-    "closedByServerUntil": "The server owner ended this meeting — you can reopen it after {{date}}",
+    "closedByServerUntil": "The server owner ended this meeting — you can reopen it after {{date}}"
+  },
+  "failure": {
+    "offline": "No connection to the server — try again",
     "timeout": "The server didn't respond in time — try again",
-    "offline": "No connection to the server — try again"
+    "server": "The server is unavailable right now — try again in a minute",
+    "places": {
+      "app": "Something went wrong — reload the page and try again",
+      "connect": "Couldn't connect to the server — try again",
+      "join": "Couldn't join the meeting — try again",
+      "meeting": "That didn't work — try again",
+      "call": "Audio and video haven't connected yet — trying again",
+      "camera": "Couldn't turn on the camera — try again",
+      "microphone": "Couldn't turn on the microphone — try again",
+      "screen": "Couldn't share your screen — try again",
+      "speaker": "Couldn't play sound on this device — choose another one",
+      "chat": "Message not sent — try again",
+      "files": "Couldn't transfer the file — try again",
+      "board": "The whiteboard didn't respond — try again",
+      "cinema": "Cinema didn't respond — try again",
+      "music": "Music didn't respond — try again",
+      "games": "The game didn't respond — try again",
+      "favorites": "Couldn't update Favorites — try again",
+      "recent": "Couldn't open the meeting — try again",
+      "invite": "Couldn't open the invite — ask for the link again",
+      "profile": "Couldn't save your profile — try again",
+      "settings": "Couldn't save settings — try again",
+      "support": "Request not sent — try again",
+      "telegram": "Telegram didn't respond — try again",
+      "activity": "Couldn't load the data — try again"
+    },
+    "devices": {
+      "camera": {
+        "denied": "No camera access — allow it for Cord in your browser or system settings",
+        "missing": "Camera not found — check that it's connected",
+        "busy": "The camera is in use by another app or won't start — close it there and try again",
+        "unsupported": "This browser can't use the camera — open Cord in Chrome, Edge, Firefox or Safari"
+      },
+      "microphone": {
+        "denied": "No microphone access — allow it for Cord in your browser or system settings",
+        "missing": "Microphone not found — check that it's connected",
+        "busy": "The microphone is in use by another app or won't start — close it there and try again",
+        "unsupported": "This browser can't use the microphone — open Cord in Chrome, Edge, Firefox or Safari"
+      },
+      "screen": {
+        "denied": "Screen sharing isn't allowed — allow screen recording for your browser in system settings",
+        "missing": "The browser found nothing to share — choose a screen or window again",
+        "busy": "Couldn't capture the screen — try again or choose a window",
+        "unsupported": "This browser can't share the screen — open Cord in Chrome, Edge or Firefox on a computer"
+      },
+      "speaker": {
+        "denied": "The browser didn't let you choose where sound plays — pick a device in system settings",
+        "missing": "Audio device not found — choose another one",
+        "busy": "The audio device is busy or disconnected — choose another one",
+        "unsupported": "This browser can't choose where sound plays"
+      }
+    }
   },
   "kit": {
     "toasts": "Notifications",

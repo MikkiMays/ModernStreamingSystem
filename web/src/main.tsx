@@ -18,7 +18,8 @@ import { unlockNotificationAudio } from './core/sounds';
 import { installInputModality } from './ui/input-modality';
 import { installDevicePixel } from './ui/device-pixel';
 import { installScrollActivity } from './ui/scroll-activity';
-import { watchErrors } from './core/support';
+import { startFailureReports, watchFailures } from './core/failure';
+import { sendFailures } from './api/client';
 unlockNotificationAudio();
 // Кольцо фокуса — только тому, кто ходит клавиатурой (S1, R26).
 installInputModality();
@@ -26,8 +27,10 @@ installInputModality();
 installDevicePixel();
 // Бегунок длинных колонок виден и во время прокрутки с клавиатуры (S2, R17).
 installScrollActivity();
-// Последние ошибки страницы — для обращения в поддержку, если человек сам их приложит (E13).
-watchErrors();
+// Необработанные ошибки страницы — в журнал, последние ошибки обращения (E13) и счётчик ядра; счёт
+// ошибок клиента уходит ядру сводкой раз в 30 с и при уходе со страницы (R180).
+watchFailures();
+startFailureReports(sendFailures);
 
 /**
  * Регистрируется после загрузки и только в браузере.

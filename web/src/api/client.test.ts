@@ -234,7 +234,7 @@ it('срок браузера — «Сервер не ответил вовре�
   const error = await request('/rooms', { method: 'POST' }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(DOMException);
   expect((error as DOMException).name).toBe('TimeoutError');
-  expect((error as DOMException).message).toBe(i18next.t(($) => $.api.timeout));
+  expect((error as DOMException).message).toBe(i18next.t(($) => $.failure.timeout));
   expect((error as DOMException).message).not.toMatch(/signal/);
 });
 
@@ -242,7 +242,7 @@ it('обрыв сети — «Нет связи с сервером», а не �
   failing(new TypeError('Failed to fetch'));
   const error = await request('/rooms').catch((e: unknown) => e);
   expect(error).toBeInstanceOf(TypeError);
-  expect((error as TypeError).message).toBe(i18next.t(($) => $.api.offline));
+  expect((error as TypeError).message).toBe(i18next.t(($) => $.failure.offline));
 });
 
 it('отмена самим приложением — как есть: её никто не показывает', async () => {
