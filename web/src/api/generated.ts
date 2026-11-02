@@ -287,6 +287,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["clientErrors"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/favorites": {
         parameters: {
             query?: never;
@@ -1219,6 +1235,15 @@ export interface components {
             /** Format: int64 */
             statusAt?: number;
             topic?: string;
+        };
+        ErrorCount: {
+            code: string;
+            /** Format: int32 */
+            count?: number;
+            place: string;
+        };
+        ErrorSummary: {
+            errors: components["schemas"]["ErrorCount"][];
         };
         Event: {
             eventId: string;
@@ -2530,6 +2555,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["CatalogLoad"][];
                 };
+            };
+        };
+    };
+    clientErrors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErrorSummary"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
