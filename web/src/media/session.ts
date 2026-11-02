@@ -91,7 +91,8 @@ import { PathRetry, starvedUplink } from './path-retry';
 import { LocalNetworks } from './local-networks';
 import { udpOpen, type IceServerLike } from './udp-probe';
 import { offersTls, readRelayOnly, relayOnlyConfig } from './turn-tls';
-import type { PlayoutClass } from './playout';
+import { profileFor, type PlayoutClass } from './playout';
+import { holdFor, installReceiveHold, releaseReceiveHold, setReceiveHold } from './receive-hold';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { CallQuality, codecOf, type CallReport } from './call-quality';
 import { RxQuality, type RxSummary } from './rx-quality';
@@ -587,6 +588,10 @@ export class MediaSession {
     private capture: CaptureAdapter = browserCapture,
   ) {
     this.recovery = new RecoveryWindow((api.admission.recoverySeconds || 20) * 1000);
+    // Начало музыки — сразу с полным запасом (R182, `receive-hold.ts`): перехват ставится до того, как
+    // LiveKit создаст соединение и добавит в него секции приёма звука.
+    installReceiveHold();
+    this.syncReceiveHold();
     this.room = new Room({
       // ПРИЁМ — РЕШЕНИЕ СМОТРЯЩЕГО. Адаптация выключалась, когда человек выбирал уровень
       // **отдачи** руками: «выбранный уровень относится к обеим сторонам». Это связывало два
@@ -763,6 +768,8 @@ export class MediaSession {
         if (!(track instanceof RemoteAudioTrack) || (only && publication.trackSid !== only)) continue;
         const speech =
           this.playoutKind(participant.identity, publication.source, track.kind) === 'conversation';
+        // Речь не держится (R182): стерео-речь старого клиента отдаётся декодеру сразу, как только известно, кто это.
+        if (speech) releaseReceiveHold(track.receiver);
         // Цепочка пересобрана — LiveKit завёл новый узел громкости на 1: выставить громкость участника
         // сразу, иначе заглушённый собеседник прозвучал бы (T49, `volume.ts`).
         if (this.downmix.sync(publication.trackSid, track, speech) && track.attachedElements.length)
@@ -821,6 +828,7 @@ export class MediaSession {
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
       // открытые настройки и диагностика перерисовывались бы каждые две секунды впустую.
       if (linkChanged(this.link.get(), this.playout.link)) this.link.set(this.playout.link);
+      this.syncReceiveHold();
       // ICE в `disconnected` — путь умер (чаще всего сменился адрес), а SDK ждёт `failed`. Но пока
       // пакеты приходят, это не смерть пути, а очередь узкого канала (R119, `reconnect-plan.ts`).
       const inbound = inboundBytes(this.playout.reports);
@@ -859,14 +867,29 @@ export class MediaSession {
     if (track.kind === Track.Kind.Audio) this.syncDownmix(publication.trackSid);
     // Запас выдаётся сразу при подписке. Ждать первой статистики нельзя: эти две секунды
     // дорожка прожила бы с нулевым буфером, а первые секунды слышны лучше всех прочих.
-    this.playout.prime({
+    const kind = this.playoutKind(participant.identity, publication.source, track.kind);
+    const target = this.playout.prime({
       id: publication.trackSid,
-      kind: this.playoutKind(participant.identity, publication.source, track.kind),
+      kind,
       group: this.playoutGroup(participant.identity, publication.source),
       receiver: track.receiver,
       stats: () => track.getRTCStatsReport(),
     });
+    // Начало стерео-дорожки придерживается до полного запаса (R182): музыке — до её цели, которая после
+    // переподписки могла уже вырасти; речь (стерео бывает от старых клиентов) держать незачем.
+    if (track.kind === Track.Kind.Audio) {
+      if (kind === 'media') setReceiveHold(holdFor(target), track.receiver);
+      else releaseReceiveHold(track.receiver);
+    }
   };
+  /** Сколько держать начало новых стерео-дорожек: цель запаса музыки на нынешнем пути медиа. */
+  private receiveHoldMs = -1;
+  private syncReceiveHold() {
+    const ms = holdFor(profileFor('media', this.playout.link).startMs);
+    if (ms === this.receiveHoldMs) return;
+    this.receiveHoldMs = ms;
+    setReceiveHold(ms);
+  }
   private async checkLive() {
     if (this.disposed || this.liveSampling || this.state.get().status !== 'connected' || document.hidden)
       return;
