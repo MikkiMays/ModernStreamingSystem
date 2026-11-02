@@ -606,7 +606,7 @@
     {
       "id": 13,
       "type": "timeseries",
-      "title": "Интеграции идут сейчас",
+      "title": "Ошибки, которые видели люди, за час — по месту",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -614,6 +614,102 @@
       "gridPos": {
         "x": 0,
         "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (place) (increase(cord_client_errors_total[1h]))",
+          "legendFormat": "{{place}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 60,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Ошибки, которые видели люди, за час — частые",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "topk(8, sum by (place, code) (increase(cord_client_errors_total[1h])))",
+          "legendFormat": "{{place}} · {{code}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Интеграции идут сейчас",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -652,7 +748,7 @@
       }
     },
     {
-      "id": 14,
+      "id": 16,
       "type": "timeseries",
       "title": "Доска: открыто и смотрят",
       "datasource": {
@@ -661,7 +757,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 28,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -709,7 +805,7 @@
       }
     },
     {
-      "id": 15,
+      "id": 17,
       "type": "timeseries",
       "title": "Доска: правки элементов, в секунду",
       "datasource": {
@@ -718,7 +814,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -766,7 +862,7 @@
       }
     },
     {
-      "id": 16,
+      "id": 18,
       "type": "timeseries",
       "title": "Отказы ядра по коду, в минуту (10 частых)",
       "datasource": {
@@ -775,7 +871,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 52,
         "w": 24,
         "h": 8
       },
@@ -814,7 +910,7 @@
       }
     },
     {
-      "id": 17,
+      "id": 19,
       "type": "timeseries",
       "title": "Блокировки",
       "datasource": {
@@ -823,7 +919,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 60,
         "w": 12,
         "h": 8
       },
@@ -862,7 +958,7 @@
       }
     },
     {
-      "id": 18,
+      "id": 20,
       "type": "timeseries",
       "title": "Версия ядра",
       "datasource": {
@@ -871,7 +967,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 52,
+        "y": 60,
         "w": 12,
         "h": 8
       },

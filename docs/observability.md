@@ -93,7 +93,7 @@ Prometheus со встроенными правилами — равноценн
 | --- | --- | --- | --- |
 | Sentry self-hosted 26.10.0 | FSL (через 2 года — Apache-2.0), 9,6 тыс., 16.10.2026 | **4 ядра, 16 ГБ + 16 ГБ свопа, 20 ГБ диска** | больше всей машины |
 | GlitchTip 6.2 | MIT, GitLab, коммиты 16.10.2026 | 256 МБ в all-in-one, рекомендовано 512 МБ; PostgreSQL 14+ | вторая очередь: совместим с Sentry SDK, база — наш PostgreSQL 18 |
-| Своё | — | 0 | первая очередь: клиент шлёт в ядро вид ошибки → `cord_client_errors_total` и строка журнала, без текста |
+| Своё | — | 0 | первая очередь, сделано (R180, §15): клиент шлёт в ядро место и код ошибки, которую видел человек → `cord_client_errors_total{place,code}`, без текста |
 
 ### 2.5 Доступность
 
@@ -178,7 +178,7 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_board_save_failures_total` | counter | — | сцена доски не записалась в `room_boards` (`BoardRooms.save`); панели «Доска: открыто и смотрят» и «Доска: правки элементов» — на «Cord — встречи» (`board/BoardMetrics`) |
 | `cord_livekit_webhooks_total` | counter | `event` | `MediaService` |
 | `cord_retention_deleted_total` | counter | `kind=room\|event\|attachment\|audit\|stats` | уборка |
-| `cord_client_errors_total` | counter | `kind=js\|media\|socket`, `client` | новый `POST /api/client-report` |
+| `cord_client_errors_total` | counter | `place` (место интерфейса), `code` (код реестра или вид ошибки) | `POST /api/v1/client-errors` (R180, §15) |
 | `cord_client_rtt_seconds`, `cord_client_loss_ratio`, `cord_client_jitter_seconds` | histogram | `kind=audio\|video\|screen`, `path=udp\|tcp\|turn` | раз в 30 с из `web/src/media/diagnostics.ts` |
 | `cord_build_info` | gauge = 1 | `version` (`CORD_BUILD`) | подписи выкаток на графиках |
 
@@ -553,6 +553,21 @@ Alertmanager 0.34.1, Grafana OSS 13.2.4, node/postgres/redis-экспортер�
   встречи» — «Сеть не пропустила звонок, за час»: рядом звонки, которые довёз TURN/TLS
   (`cord_client_reports_total{path="relay-tls"}`).
 - Обрыв после первого подключения — по-прежнему восстановление с отсчётом и без этого счёта.
+
+**Ошибки, которые видели люди (R180, 02.11.2026).**
+- Человек видит фразу «что случилось и что сделать» (Р-80); подробности — в журнал браузера (`console.warn`
+  `[cord] <место> failed: <код>`), в «Недавние ошибки» обращения и в счётчик. Одна точка перевода и учёта —
+  `web/src/core/failure.ts` (`failureText`, Р-81).
+- `POST /api/v1/client-errors` — сводка браузера раз в 30 с, пока есть что, и при уходе со страницы
+  (`keepalive`): `{errors: [{place, code, count}]}`, до 60 пар. Место — из `ClientErrors.PLACES` (тот же
+  список, что `PLACES` веба; тест сверяет), код — из реестра `contracts/errors.json` (сборка кладёт его в
+  jar) или вид ошибки (`offline`, `timeout`, `server`, `refused`, `denied`, `no-device`, `device-busy`,
+  `unsupported`, `call`, `aborted`, `bug`, `other`); чужое — `other`. Дверь — как у остального API (пароль
+  сервера), 20 сводок в минуту с адреса. Метр — `cord_client_errors_total{place,code}`; панели «Ошибки,
+  которые видели люди, за час» на «Cord — встречи». Почему не в итоге звонка — Р-82.
+- Отказы ядра по коду по-прежнему считает само ядро (`cord_errors_total{code,status}`): счётчик клиента
+  отвечает на другой вопрос — где человек это увидел и что сломалось у него самого (сеть, устройство,
+  LiveKit, ошибка в коде страницы).
 
 **Не сделано (следующий шаг).**
 - Вторая очередь: VictoriaLogs + Fluent Bit с фильтром приватности; GlitchTip.
