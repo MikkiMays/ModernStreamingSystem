@@ -80,6 +80,35 @@ async function main() {
       show();
     });
     output = await effect.attach(track, choice, 'full');
+  } else if (choice.kind !== 'none' && mode === 'livekit') {
+    // Путь встречи без SFU: LocalVideoTrack + CameraBackground (setProcessor → init), через 5 с —
+    // restartTrack, как при включении камеры и перевороте (processor.restart), затем смена выбора (update).
+    const { LocalVideoTrack } = await import('livekit-client');
+    const { CameraBackground } = await import('../../src/media/background/camera');
+    const { captureVideoTrack } = await import('../../src/media/background/processor');
+    const { BackgroundEffect } = await import('../../src/media/background/effect');
+    const local = new LocalVideoTrack(track, { width, height }, false);
+    const background = new CameraBackground();
+    await background.apply(local, choice, 'full');
+    BackgroundEffect.shared().stats.subscribe(() => {
+      const s = BackgroundEffect.shared().stats.get();
+      if (!s) return;
+      harness.costMs = Math.round(s.costMs * 10) / 10;
+      harness.level = s.level;
+      harness.transport = s.transport;
+      harness.ready = s.active;
+    });
+    const extra = harness as typeof harness & { restarted?: string; switched?: boolean; capture?: string };
+    extra.capture = `${captureVideoTrack(local).getSettings().width}x${captureVideoTrack(local).getSettings().height} raw=${captureVideoTrack(local) !== local.mediaStreamTrack}`;
+    setTimeout(async () => {
+      await local.restartTrack({ width, height });
+      extra.restarted = `${local.getProcessor()?.name ?? 'none'} ${local.mediaStreamTrack.readyState}`;
+      video.srcObject = new MediaStream([local.mediaStreamTrack]);
+      await background.apply(local, { kind: 'blur', strength: 'light' }, 'full');
+      extra.switched = true;
+      show();
+    }, 5000);
+    output = local.mediaStreamTrack;
   } else if (choice.kind !== 'none' && mode === 'before') {
     const { LocalVideoTrack } = await import('livekit-client');
     const { BackgroundProcessor } = await import('@livekit/track-processors');
