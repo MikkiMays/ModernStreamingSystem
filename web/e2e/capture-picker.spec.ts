@@ -71,6 +71,9 @@ test('окно показа: вкладки, режим, качество и п�
   await expect(dialog.getByRole('button', { name: 'Блокнот' })).toBeVisible();
   await dialog.getByRole('tab', { name: 'Весь экран' }).click();
 
+  // «Чёткость» — умолчание (R184, Р-84): выбор — это переключение туда и обратно, и он помнится с отметкой.
+  await expect(dialog.getByRole('radio', { name: 'Чёткость', exact: true })).toBeChecked();
+  await dialog.getByRole('radio', { name: 'Плавность', exact: true }).click();
   await dialog.getByRole('radio', { name: 'Чёткость', exact: true }).click();
   await dialog.getByRole('button', { name: 'Настройки показа' }).click();
   const options = page.locator('.capture-picker__options');
@@ -105,7 +108,13 @@ test('окно показа: вкладки, режим, качество и п�
   const saved = await page.evaluate(
     () => JSON.parse(localStorage.getItem('cord:preferences:v1') ?? '{}').screen as Record<string, unknown>,
   );
-  expect(saved).toMatchObject({ mode: 'sharp', resolution: 720, preview: false, audio: 'none' });
+  expect(saved).toMatchObject({
+    mode: 'sharp',
+    modeChosen: true,
+    resolution: 720,
+    preview: false,
+    audio: 'none',
+  });
   // «Остановить показ» сразу после старта — показ кончается, даже если ещё не разогнался (R81).
   await page
     .locator('#meeting-controls')
