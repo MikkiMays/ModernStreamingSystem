@@ -16,6 +16,7 @@ export type ToWorker =
       frameRate?: number;
     }
   | { type: 'detach' }
+  | { type: 'rate'; frameRate: number | undefined }
   | { type: 'choice'; choice: EngineChoice }
   | { type: 'stop' };
 

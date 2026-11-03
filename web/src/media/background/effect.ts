@@ -22,7 +22,17 @@ import type { SegmenterAssets } from './segmenter';
  * 2. **главный поток, те же потоки** — воркер не поднялся (dev-сервер Vite отдаёт воркер модулем,
  *    а MediaPipe грузится только через `importScripts`; или потоки непередаваемы);
  * 3. **холст** — `<video>` → `VideoFrame` → холст → `captureStream()` (Safari, Firefox): кадры идут
- *    по `requestVideoFrameCallback`, а в скрытой вкладке — реже, как у прежнего обработчика.
+ *    по `requestVideoFrameCallback`, в скрытой вкладке — по таймеру.
+ *
+ * **Выходная дорожка принадлежит странице и устойчива** (ревью R186, A1): генератор кадров создаётся
+ * здесь и живёт, пока держатель не снимет фон; воркер и главный поток только пишут в него через
+ * сток (`WritableStream`). Поэтому переезд с воркера на главный поток, смена камеры, включение после
+ * выключения не меняют `processedTrack` у LiveKit — отправитель и клон у запасного кодека продолжают
+ * получать кадры, а не замирают на последнем.
+ *
+ * **Держатели** (A2): `processor` — обработчик дорожки встречи, `preview` — превью предвхода и
+ * настроек. Движок обслуживает один источник; превью никогда не отбирает его у обработчика: получает
+ * сырую дорожку. Обработчик превью отбирает.
  */
 type TrackProcessorCtor = new (init: { track: MediaStreamTrack }) => {
   readable: ReadableStream<VideoFrame>;
@@ -30,7 +40,8 @@ type TrackProcessorCtor = new (init: { track: MediaStreamTrack }) => {
 type TrackGeneratorCtor = new (init: { kind: 'video' }) => MediaStreamTrack & {
   writable: WritableStream<VideoFrame>;
 };
-const streams = () => {
+export type StreamApis = { Processor: TrackProcessorCtor; Generator: TrackGeneratorCtor } | null;
+const streams = (): StreamApis => {
   const g = globalThis as {
     MediaStreamTrackProcessor?: TrackProcessorCtor;
     MediaStreamTrackGenerator?: TrackGeneratorCtor;
@@ -41,6 +52,7 @@ const streams = () => {
 };
 
 export type Transport = 'worker' | 'main' | 'canvas';
+export type Owner = 'processor' | 'preview';
 export interface BackgroundStats extends EngineStats {
   transport: Transport;
 }
@@ -56,48 +68,94 @@ function assets(): SegmenterAssets {
   };
 }
 
+/**
+ * Картинки фонов, уже раскодированные (A11): по адресу — один `ImageBitmap` на страницу; движку
+ * каждый раз уходит копия (воркер забирает её владением, конвейер закрывает после загрузки в текстуру).
+ */
+const images = new Map<string, Promise<ImageBitmap>>();
+const IMAGES_KEPT = 8;
+async function imageFor(url: string): Promise<ImageBitmap> {
+  let master = images.get(url);
+  if (!master) {
+    master = fetch(url)
+      .then((r) => r.blob())
+      .then((blob) => createImageBitmap(blob));
+    master.catch(() => images.delete(url));
+    images.set(url, master);
+    if (images.size > IMAGES_KEPT) {
+      const [oldest] = images.keys();
+      if (oldest !== undefined) {
+        void images.get(oldest)?.then(
+          (b) => b.close(),
+          () => {},
+        );
+        images.delete(oldest);
+      }
+    }
+  }
+  return createImageBitmap(await master);
+}
+
 /** Что сказать движку под выбор: картинка — растровым `ImageBitmap` (в воркер — владением). */
 async function engineChoice(choice: BackgroundChoice): Promise<EngineChoice> {
   if (choice.kind === 'blur') return { mode: 'blur', strength: choice.strength };
   if (choice.kind === 'image') {
     const url = choice.id === 'custom' ? await customBackgroundUrl() : await builtinBackgroundUrl(choice.id);
     if (!url) return { mode: 'none' };
-    const image = await createImageBitmap(await (await fetch(url)).blob());
-    return { mode: 'image', image };
+    return { mode: 'image', image: await imageFor(url) };
   }
   return { mode: 'none' };
 }
 
-interface Attached {
-  source: MediaStreamTrack;
-  output: MediaStreamTrack;
-  stop: () => void;
+/** Идущая обработка одного источника. `output` — только у пути через холст (свой захват с холста). */
+interface Running {
+  output: MediaStreamTrack | null;
+  stop: () => Promise<void>;
 }
 
 /** Путь кадров: воркер, главный поток или холст. Один живой на страницу. */
 interface Path {
   readonly kind: Transport;
-  attach(source: MediaStreamTrack): Promise<Attached>;
+  /** Пустить кадры `source` через движок в `sink` (сток генератора страницы); без стока — путь через холст. */
+  run(source: MediaStreamTrack, sink: WritableStream<VideoFrame> | null): Promise<Running>;
   choice(choice: EngineChoice): void;
   warm(width: number, height: number): void;
-  stop(): void;
+  frameRate(frameRate: number | undefined): void;
+  stop(): Promise<void>;
 }
+
+/** Параметры pipeTo в сток страницы: сток переживает и остановку, и ошибку, и конец источника. */
+const KEEP_SINK = { preventClose: true, preventAbort: true, preventCancel: true } as const;
 
 const READY_TIMEOUT_MS = 20_000;
 
+/** Воркер — как его видит путь; в тестах подменяется. */
+export interface WorkerLike {
+  postMessage(message: unknown, transfer?: Transferable[]): void;
+  terminate(): void;
+  onmessage: ((event: MessageEvent) => void) | null;
+  onerror: ((event: ErrorEvent) => void) | null;
+}
+
+/** Что подменяют тесты: API потоков, возможность воркера и сам воркер. */
+export interface EffectEnv {
+  streams: () => StreamApis;
+  workerCapable: () => boolean;
+  worker: () => WorkerLike;
+}
+
 class WorkerPath implements Path {
   readonly kind = 'worker';
-  private readonly worker: Worker;
-  private attached: Attached | null = null;
+  private readonly worker: WorkerLike;
   private pending: { resolve: () => void; reject: (e: Error) => void } | null = null;
   /** Поднялся: ошибки до этого решает `start()` (отказ), после — `onError` (переезд на главный поток). */
   private started = false;
   constructor(
+    private readonly env: EffectEnv,
     private readonly onStats: (stats: EngineStats) => void,
     private readonly onError: (message: string) => void,
   ) {
-    // Классический воркер (без `type: 'module'`): MediaPipe грузит wasm через `importScripts`.
-    this.worker = new Worker(new URL('./background.worker.ts', import.meta.url));
+    this.worker = env.worker();
     this.worker.onmessage = (event: MessageEvent<FromWorker>) => {
       const message = event.data;
       if (message.type === 'ready') this.pending?.resolve();
@@ -136,30 +194,31 @@ class WorkerPath implements Path {
       this.pending = null;
     });
   }
-  async attach(source: MediaStreamTrack): Promise<Attached> {
-    const api = streams();
-    if (!api) throw new Error('insertable streams');
-    this.attached?.stop();
+  async run(source: MediaStreamTrack, sink: WritableStream<VideoFrame> | null): Promise<Running> {
+    const api = this.env.streams();
+    if (!api || !sink) throw new Error('insertable streams');
     const processor = new api.Processor({ track: source });
-    const generator = new api.Generator({ kind: 'video' });
-    const { frameRate } = source.getSettings();
-    this.post({ type: 'source', readable: processor.readable, writable: generator.writable, frameRate }, [
-      processor.readable,
-      generator.writable,
-    ]);
-    const attached: Attached = {
-      source,
-      output: generator,
-      stop: () => {
-        if (this.attached === attached) {
-          this.attached = null;
-          this.post({ type: 'detach' });
-        }
-        generator.stop();
+    // Мост: воркер пишет в него, страница переливает в свой сток — генератор остаётся у страницы.
+    const bridge = new TransformStream<VideoFrame, VideoFrame>();
+    const abort = new AbortController();
+    this.post(
+      {
+        type: 'source',
+        readable: processor.readable,
+        writable: bridge.writable,
+        frameRate: source.getSettings().frameRate,
+      },
+      [processor.readable, bridge.writable],
+    );
+    const done = bridge.readable.pipeTo(sink, { ...KEEP_SINK, signal: abort.signal }).catch(() => {});
+    return {
+      output: null,
+      stop: async () => {
+        this.post({ type: 'detach' });
+        abort.abort();
+        await done;
       },
     };
-    this.attached = attached;
-    return attached;
   }
   choice(choice: EngineChoice) {
     this.post({ type: 'choice', choice }, choice.mode === 'image' ? [choice.image] : []);
@@ -167,8 +226,10 @@ class WorkerPath implements Path {
   warm(width: number, height: number) {
     this.post({ type: 'warm', width, height });
   }
-  stop() {
-    this.attached?.stop();
+  frameRate(frameRate: number | undefined) {
+    this.post({ type: 'rate', frameRate });
+  }
+  async stop() {
     this.post({ type: 'stop' });
     // Воркер закрывается сам после `stop`; на всякий случай — через секунду принудительно.
     setTimeout(() => this.worker.terminate(), 1000);
@@ -182,9 +243,11 @@ class WorkerPath implements Path {
 abstract class LocalPath implements Path {
   abstract readonly kind: Transport;
   protected engine: Engine | null = null;
-  protected attached: Attached | null = null;
   private statsTimer: ReturnType<typeof setInterval> | undefined;
-  constructor(protected readonly onStats: (stats: EngineStats) => void) {}
+  constructor(
+    protected readonly env: EffectEnv,
+    protected readonly onStats: (stats: EngineStats) => void,
+  ) {}
   async start() {
     const { Engine } = await import('./engine');
     const canvas =
@@ -193,33 +256,34 @@ abstract class LocalPath implements Path {
     this.engine.onLevel = (state) => console.info(`[cord] background level (${this.kind})`, state);
     this.statsTimer = setInterval(() => this.engine && this.onStats(this.engine.stats), 1000);
   }
-  abstract attach(source: MediaStreamTrack): Promise<Attached>;
+  abstract run(source: MediaStreamTrack, sink: WritableStream<VideoFrame> | null): Promise<Running>;
   choice(choice: EngineChoice) {
     this.engine?.setChoice(choice);
   }
   warm(width: number, height: number) {
-    void this.engine?.warm(width, height);
+    void this.engine?.warm(width, height).catch(() => {});
   }
-  stop() {
-    this.attached?.stop();
+  frameRate(frameRate: number | undefined) {
+    this.engine?.setFrameRate(frameRate);
+  }
+  async stop() {
     clearInterval(this.statsTimer);
-    void this.engine?.dispose();
+    const engine = this.engine;
     this.engine = null;
+    await engine?.dispose();
   }
 }
 
 class MainPath extends LocalPath {
   readonly kind = 'main';
-  async attach(source: MediaStreamTrack): Promise<Attached> {
-    const api = streams();
+  async run(source: MediaStreamTrack, sink: WritableStream<VideoFrame> | null): Promise<Running> {
+    const api = this.env.streams();
     const engine = this.engine;
-    if (!api || !engine) throw new Error('insertable streams');
-    this.attached?.stop();
+    if (!api || !sink || !engine) throw new Error('insertable streams');
     const processor = new api.Processor({ track: source });
-    const generator = new api.Generator({ kind: 'video' });
     const abort = new AbortController();
     engine.resetSource(source.getSettings().frameRate);
-    processor.readable
+    const done = processor.readable
       .pipeThrough(
         new TransformStream<VideoFrame, VideoFrame>({
           transform(frame, controller) {
@@ -228,33 +292,33 @@ class MainPath extends LocalPath {
         }),
         { signal: abort.signal },
       )
-      .pipeTo(generator.writable, { signal: abort.signal })
+      .pipeTo(sink, { ...KEEP_SINK, signal: abort.signal })
       .catch(() => {});
-    const attached: Attached = {
-      source,
-      output: generator,
-      stop: () => {
+    return {
+      output: null,
+      stop: async () => {
         abort.abort();
-        generator.stop();
-        if (this.attached === attached) this.attached = null;
+        await done;
       },
     };
-    this.attached = attached;
-    return attached;
   }
 }
+
+/** Сколько ждать кадра на пути через холст, прежде чем нарисовать сырой кадр самим (сторож, A5). */
+const CANVAS_WATCHDOG_MS = 1000;
 
 /**
  * Путь через холст — для браузеров без `MediaStreamTrackProcessor`: кадр из `<video>`, результат на
  * холст, с холста — `captureStream()`. Холст — в документе, но невидим: Safari не снимает кадры с
- * холста вне документа.
+ * холста вне документа. Кадры — по `requestVideoFrameCallback`; в скрытой вкладке он не зовётся —
+ * тогда по таймеру. Сторож раз в секунду: если ничего не нарисовано, рисует сырой кадр и будит цикл —
+ * дорожка в эфире не замирает, даже если движок споткнулся.
  */
 class CanvasPath extends LocalPath {
   readonly kind = 'canvas';
-  async attach(source: MediaStreamTrack): Promise<Attached> {
+  async run(source: MediaStreamTrack): Promise<Running> {
     const engine = this.engine;
     if (!engine) throw new Error('engine');
-    this.attached?.stop();
     const video = document.createElement('video');
     video.muted = true;
     video.playsInline = true;
@@ -265,47 +329,80 @@ class CanvasPath extends LocalPath {
     document.body.append(canvas);
     const context = canvas.getContext('2d');
     if (!context) throw new Error('canvas');
-    const { frameRate } = source.getSettings();
-    engine.resetSource(frameRate);
-    const output = canvas.captureStream(frameRate || 30).getVideoTracks()[0];
+    engine.resetSource(source.getSettings().frameRate);
+    const output = canvas.captureStream().getVideoTracks()[0];
     if (!output) throw new Error('captureStream');
     let alive = true;
+    let armed = false;
+    let drawnAt = performance.now();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const tick = () => {
-      if (!alive) return;
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth) {
-        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-        }
-        const frame = new VideoFrame(video, { timestamp: Math.round(video.currentTime * 1e6) });
-        const processed = engine.process(frame);
-        context.drawImage(processed, 0, 0, canvas.width, canvas.height);
-        processed.close();
+    const fit = () => {
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
       }
-      schedule();
+    };
+    const hasFrame = () => video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0;
+    const tick = () => {
+      armed = false;
+      if (!alive) return;
+      let frame: VideoFrame | null = null;
+      let processed: VideoFrame | null = null;
+      try {
+        if (hasFrame()) {
+          fit();
+          frame = new VideoFrame(video, { timestamp: Math.round(video.currentTime * 1e6) });
+          processed = engine.process(frame);
+          context.drawImage(processed, 0, 0, canvas.width, canvas.height);
+          drawnAt = performance.now();
+        }
+      } catch (error) {
+        console.warn('[cord] background canvas frame failed', error);
+        try {
+          if (hasFrame()) context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } catch {
+          /* нарисовать не вышло — сторож попробует через секунду */
+        }
+      } finally {
+        // Входной кадр движок закрывает сам, когда отдаёт новый; тот же объект — закрыть один раз.
+        processed?.close();
+        if (frame && frame !== processed) frame.close();
+        schedule();
+      }
     };
     const schedule = () => {
-      if (!alive) return;
-      if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(tick);
-      else timer = setTimeout(tick, 1000 / (frameRate || 30));
+      if (!alive || armed) return;
+      armed = true;
+      const interval = 1000 / (source.getSettings().frameRate || 30);
+      if (!document.hidden && 'requestVideoFrameCallback' in video) video.requestVideoFrameCallback(tick);
+      else timer = setTimeout(tick, interval);
     };
+    const watchdog = setInterval(() => {
+      if (!alive || performance.now() - drawnAt < CANVAS_WATCHDOG_MS) return;
+      try {
+        if (hasFrame()) {
+          fit();
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+      } catch {
+        /* кадра нет — пусть остаётся прошлый */
+      }
+      armed = false;
+      schedule();
+    }, CANVAS_WATCHDOG_MS);
     void video.play().then(schedule, schedule);
-    const attached: Attached = {
-      source,
+    return {
       output,
-      stop: () => {
+      stop: async () => {
         alive = false;
         clearTimeout(timer);
+        clearInterval(watchdog);
         video.pause();
         video.srcObject = null;
         output.stop();
         canvas.remove();
-        if (this.attached === attached) this.attached = null;
       },
     };
-    this.attached = attached;
-    return attached;
   }
 }
 
@@ -323,6 +420,28 @@ function workerCapable(): boolean {
   }
 }
 
+const defaultEnv: EffectEnv = {
+  streams,
+  workerCapable,
+  // Классический воркер (без `type: 'module'`): MediaPipe грузит wasm через `importScripts`.
+  worker: () => new Worker(new URL('./background.worker.ts', import.meta.url)),
+};
+
+interface Attachment {
+  owner: Owner;
+  source: MediaStreamTrack;
+  /** Выходная дорожка держателя — генератор страницы (или захват холста). */
+  output: MediaStreamTrack;
+  sink: WritableStream<VideoFrame> | null;
+  running: Running | null;
+  /** Частота источника, о которой знает движок; меняется на лету (`enforceCameraRate`, A9). */
+  frameRate: number | undefined;
+  rateTimer: ReturnType<typeof setInterval>;
+}
+
+/** Как часто сверять частоту источника с тем, что знает сторож бюджета. */
+const RATE_POLL_MS = 2000;
+
 let shared: BackgroundEffect | null = null;
 
 export class BackgroundEffect {
@@ -334,34 +453,58 @@ export class BackgroundEffect {
   /** Статистика движка — для журнала и диагностики; `null` — движок ещё не поднят. */
   readonly stats = new Store<BackgroundStats | null>(null);
   private path: Promise<Path> | null = null;
-  private attached: Attached | null = null;
+  private attached: Attachment | null = null;
   private choice: BackgroundChoice = { kind: 'none' };
   private release: ReturnType<typeof setTimeout> | undefined;
+  /** Номер последнего `attach`: ленивое снятие, назначенное до него, уже не актуально (A3). */
+  private generation = 0;
   private queue: Promise<unknown> = Promise.resolve();
   /** Воркер однажды не поднялся — больше не пробовать на этой странице. */
   private workerBroken = false;
 
+  constructor(private readonly env: EffectEnv = defaultEnv) {}
+
   /**
-   * Поставить фон на дорожку: вернуть обработанную. Та же дорожка — только смена выбора, та же
-   * обработанная дорожка. Другая дорожка — прежняя обработанная останавливается (её потребитель уже
-   * ушёл или сейчас заменит её сам).
+   * Поставить фон на дорожку и вернуть обработанную. У того же держателя та же дорожка — только смена
+   * выбора; другая дорожка — тот же выход, новый источник (генератор страницы не меняется). Превью не
+   * отбирает движок у обработчика встречи — получает сырую дорожку (A2).
    */
   attach(
     source: MediaStreamTrack,
     choice: BackgroundChoice,
     support: BackgroundSupport,
+    owner: Owner = 'preview',
   ): Promise<MediaStreamTrack> {
+    // Ленивое снятие, назначенное прежним эффектом React, отменяется сразу, а не в очереди (A3).
+    clearTimeout(this.release);
+    this.release = undefined;
+    this.generation++;
     return this.enqueue(async () => {
-      clearTimeout(this.release);
+      const current = this.attached;
+      if (current && current.owner !== owner) {
+        if (owner === 'preview') return source;
+        await this.stopAttachment(current);
+      }
       const path = await this.ensurePath();
+      const wanted = allowed(choice, support) ? choice : ({ kind: 'none' } as BackgroundChoice);
       if (this.attached?.source !== source) {
-        this.attached?.stop();
-        this.attached = null;
         const { width, height } = source.getSettings();
         if (width && height) path.warm(width, height);
-        this.attached = await path.attach(source);
+        if (this.attached && this.attached.sink) {
+          // Тот же держатель, новая дорожка (смена камеры, включение после выключения): новый источник
+          // в тот же сток — `processedTrack` у LiveKit прежний, клон у запасного кодека жив.
+          const attachment = this.attached;
+          await attachment.running?.stop();
+          attachment.running = null;
+          attachment.source = source;
+          attachment.frameRate = source.getSettings().frameRate;
+          attachment.running = await path.run(source, attachment.sink);
+        } else {
+          if (this.attached) await this.stopAttachment(this.attached);
+          this.attached = await this.open(path, owner, source);
+        }
       }
-      await this.apply(path, allowed(choice, support) ? choice : { kind: 'none' });
+      await this.apply(path, wanted);
       return this.attached.output;
     });
   }
@@ -376,14 +519,16 @@ export class BackgroundEffect {
 
   /**
    * Снять фон с дорожки. `lazy` — не сразу, а через такт: React сначала чистит прежний эффект, потом
-   * ставит новый, и немедленное снятие пересобирало бы потоки на каждую смену выбора.
+   * ставит новый, и немедленное снятие пересобирало бы потоки на каждую смену выбора. Снятие, пережившее
+   * новый `attach` (номер поколения другой), ничего не делает.
    */
   detach(source?: MediaStreamTrack, lazy = false) {
+    const generation = this.generation;
     const stop = () => {
       void this.enqueue(async () => {
+        if (generation !== this.generation) return;
         if (!this.attached || (source && this.attached.source !== source)) return;
-        this.attached.stop();
-        this.attached = null;
+        await this.stopAttachment(this.attached);
       });
     };
     clearTimeout(this.release);
@@ -396,13 +541,17 @@ export class BackgroundEffect {
     return this.attached?.source ?? null;
   }
 
+  /** Кто держит движок сейчас. */
+  get owner(): Owner | null {
+    return this.attached?.owner ?? null;
+  }
+
   dispose() {
     void this.enqueue(async () => {
-      this.attached?.stop();
-      this.attached = null;
+      if (this.attached) await this.stopAttachment(this.attached);
       const path = await this.path?.catch(() => null);
-      path?.stop();
       this.path = null;
+      await path?.stop();
       this.stats.set(null);
     });
     if (shared === this) shared = null;
@@ -414,38 +563,89 @@ export class BackgroundEffect {
     return next;
   }
 
-  private async apply(path: Path, choice: BackgroundChoice) {
-    if (JSON.stringify(choice) === JSON.stringify(this.choice) && choice.kind !== 'image') return;
-    this.choice = choice;
-    path.choice(await engineChoice(choice));
+  /** Новый держатель: генератор страницы (сток) или захват с холста. */
+  private async open(path: Path, owner: Owner, source: MediaStreamTrack): Promise<Attachment> {
+    const api = this.env.streams();
+    const generator = api ? new api.Generator({ kind: 'video' }) : null;
+    const sink = generator?.writable ?? null;
+    const running = await path.run(source, sink);
+    const output = generator ?? running.output;
+    if (!output) throw new Error('no output track');
+    const attachment: Attachment = {
+      owner,
+      source,
+      output,
+      sink,
+      running,
+      frameRate: source.getSettings().frameRate,
+      rateTimer: setInterval(() => {
+        const rate = attachment.source.getSettings().frameRate;
+        if (rate !== attachment.frameRate) {
+          attachment.frameRate = rate;
+          void this.path?.then((p) => p.frameRate(rate)).catch(() => {});
+        }
+      }, RATE_POLL_MS),
+    };
+    return attachment;
   }
 
+  private async stopAttachment(attachment: Attachment) {
+    if (this.attached === attachment) this.attached = null;
+    clearInterval(attachment.rateTimer);
+    await attachment.running?.stop();
+    attachment.running = null;
+    attachment.output.stop();
+  }
+
+  /** Применить выбор; отказ (картинка не скачалась, не раскодировалась) не роняет держателя — прежний фон. */
+  private async apply(path: Path, choice: BackgroundChoice) {
+    if (JSON.stringify(choice) === JSON.stringify(this.choice) && choice.kind !== 'image') return;
+    try {
+      const prepared = await engineChoice(choice);
+      this.choice = choice;
+      path.choice(prepared);
+    } catch (error) {
+      console.warn('[cord] background choice failed', error);
+    }
+  }
+
+  /** Путь кадров; отказ открыть не запоминается — следующий вызов пробует снова (A4). */
   private ensurePath(): Promise<Path> {
-    return (this.path ??= this.openPath());
+    if (!this.path) {
+      const opening = this.openPath();
+      this.path = opening;
+      opening.catch(() => {
+        if (this.path === opening) this.path = null;
+      });
+    }
+    return this.path;
   }
 
   private async openPath(): Promise<Path> {
     const onStats = (kind: Transport) => (stats: EngineStats) =>
       this.stats.set({ ...stats, transport: kind });
-    if (!this.workerBroken && workerCapable()) {
-      const worker = new WorkerPath(onStats('worker'), (message) => this.workerFailed(message));
+    if (!this.workerBroken && this.env.workerCapable()) {
+      const worker = new WorkerPath(this.env, onStats('worker'), (message) => this.workerFailed(message));
       try {
         await worker.start();
         return worker;
       } catch (error) {
-        worker.stop();
+        void worker.stop();
         this.workerBroken = true;
         console.warn('[cord] background worker unavailable, running on the main thread', error);
       }
     }
-    const local = streams() ? new MainPath(onStats('main')) : new CanvasPath(onStats('canvas'));
+    const local = this.env.streams()
+      ? new MainPath(this.env, onStats('main'))
+      : new CanvasPath(this.env, onStats('canvas'));
     await local.start();
     return local;
   }
 
   /**
-   * Воркер упал уже в работе (чаще всего — не смог загрузить модель: dev-сервер Vite отдаёт воркер
-   * модулем, где нет `importScripts`): поднять движок на главном потоке и переставить дорожку.
+   * Воркер упал уже в работе (не смог загрузить модель, исключение в движке): поднять движок на главном
+   * потоке и пустить тот же источник в тот же сток. Выходная дорожка держателя не меняется — отправитель
+   * LiveKit ничего не замечает (A1).
    */
   private workerFailed(message: string) {
     if (this.workerBroken) return;
@@ -453,21 +653,17 @@ export class BackgroundEffect {
     console.warn('[cord] background worker failed, running on the main thread:', message);
     void this.enqueue(async () => {
       const previous = await this.path?.catch(() => null);
-      previous?.stop();
       this.path = null;
-      const attached = this.attached;
-      this.attached = null;
+      const attachment = this.attached;
+      await attachment?.running?.stop();
+      if (attachment) attachment.running = null;
+      await previous?.stop();
       const choice = this.choice;
       this.choice = { kind: 'none' };
-      if (!attached) return;
+      if (!attachment) return;
       const path = await this.ensurePath();
-      this.attached = await path.attach(attached.source);
+      attachment.running = await path.run(attachment.source, attachment.sink);
       await this.apply(path, choice);
-      // Потребитель держит прежнюю обработанную дорожку — она остановлена; скажем, что есть новая.
-      this.onReplaced?.(attached.source, this.attached.output);
     });
   }
-
-  /** Обработанная дорожка сменилась не по просьбе потребителя (переезд с воркера на главный поток). */
-  onReplaced?: (source: MediaStreamTrack, output: MediaStreamTrack) => void;
 }

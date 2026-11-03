@@ -130,3 +130,17 @@ describe('интервал кадра от источника (R186)', () => {
     expect(budget.state.level).toBe(0);
   });
 });
+
+describe('смена частоты источника на лету (R186, ревью A9)', () => {
+  it('setFrameRate переписывает интервал: 30 → 60 кадров — бюджет вдвое уже', () => {
+    const budget = new Budget();
+    budget.resetSource(30);
+    expect(budget.state.intervalMs).toBeCloseTo(1000 / 30, 3);
+    budget.setFrameRate(60);
+    expect(budget.state.intervalMs).toBeCloseTo(1000 / 60, 3);
+    // Неизвестная частота — снова по меткам времени кадров.
+    budget.setFrameRate(undefined);
+    for (let i = 0; i < 60; i++) budget.record(i * 20, 1);
+    expect(budget.state.intervalMs).toBeCloseTo(20, 0);
+  });
+});

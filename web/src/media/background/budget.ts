@@ -107,6 +107,14 @@ export class Budget {
     return false;
   }
 
+  /** Частота источника изменилась на лету (`enforceCameraRate` 30 → 60): бюджет кадра — по новой. */
+  setFrameRate(frameRate: number | undefined) {
+    if (frameRate && Number.isFinite(frameRate) && frameRate > 0) {
+      this.interval = 1000 / frameRate;
+      this.fixedInterval = true;
+    } else this.fixedInterval = false;
+  }
+
   /**
    * Новый источник — прежние метки времени к нему не относятся; ступень остаётся: машина та же.
    * `frameRate` источника, если известна, задаёт интервал точнее меток: когда конвейер не успевает,
@@ -115,10 +123,7 @@ export class Budget {
   resetSource(frameRate?: number) {
     this.lastStamp = null;
     this.frames = 0;
-    if (frameRate && Number.isFinite(frameRate) && frameRate > 0) {
-      this.interval = 1000 / frameRate;
-      this.fixedInterval = true;
-    }
+    this.setFrameRate(frameRate);
   }
 }
 
