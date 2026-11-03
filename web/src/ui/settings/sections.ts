@@ -208,6 +208,7 @@ export const ROWS = {
   'camera-background': { section: 'video', anchor: 'camera' },
   'camera-resolution': { section: 'video', anchor: 'camera' },
   'camera-fps': { section: 'video', anchor: 'camera' },
+  'screen-mode': { section: 'video', anchor: 'screen' },
   'screen-resolution': { section: 'video', anchor: 'screen' },
   'screen-fps': { section: 'video', anchor: 'screen' },
   'screen-preview': { section: 'video', anchor: 'screen' },

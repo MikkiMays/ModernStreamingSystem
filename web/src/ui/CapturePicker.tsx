@@ -8,7 +8,7 @@ import {
   type CaptureAudio,
   type CaptureSources,
 } from '../core/desktop-capture';
-import { modeOf, type ScreenMode, type ScreenProfile } from '../media/profiles';
+import { modeOf, screenFps, SHARP_MAX_FPS, type ScreenMode, type ScreenProfile } from '../media/profiles';
 import { Button, Dialog, IconButton, Popover, Segmented, Switch, Tab, TabList, TabPanel, Tabs } from './kit';
 import { QualityRows } from './settings/media-fields';
 // Строки качества — те же, что в настройках «Видео» (R78), и выглядят так же: стили строк — оттуда.
@@ -150,8 +150,9 @@ export function CapturePicker({
   const summary = [
     modeLabel,
     `${profile.resolution}p`,
+    // «Чёткость» идёт до `SHARP_MAX_FPS` (Р-84), и сводка называет то, что пойдёт в сеть.
     mode === 'sharp'
-      ? t(($) => $.capture.fpsUpTo, { fps: profile.fps })
+      ? t(($) => $.capture.fpsUpTo, { fps: screenFps(profile) })
       : t(($) => $.capture.fps, { fps: profile.fps }),
     audio !== 'none'
       ? t(($) => $.capture.audioModes[audio])
@@ -303,7 +304,7 @@ export function CapturePicker({
               options={(['sharp', 'smooth'] as const).map((value) => ({
                 value,
                 label: t(($) => $.capture.modes[value]),
-                title: t(($) => $.capture.modeHints[value]),
+                title: t(($) => $.capture.modeHints[value], { fps: SHARP_MAX_FPS }),
               }))}
             />
             <Popover

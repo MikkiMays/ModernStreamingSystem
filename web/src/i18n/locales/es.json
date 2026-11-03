@@ -156,6 +156,11 @@
         "hint": "Solo la ves tú",
         "keywords": "prueba de cámara"
       },
+      "screen-mode": {
+        "label": "Modo de presentación",
+        "hint": "Nitidez — texto, hasta 15 fps; Fluidez — juegos y vídeo",
+        "keywords": "compartir pantalla modo nitidez fluidez stream"
+      },
       "screen-resolution": {
         "label": "Calidad",
         "hint": "",
@@ -419,6 +424,7 @@
       "fps": "{{label}}: fotogramas por segundo",
       "ceiling": "Este servidor permite hasta {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Cámara: hasta {{resolution}}p",
+      "sharpFps": "En el modo «Nitidez» la presentación va hasta {{fps}} fps: la nitidez importa más que la tasa. Si necesitas la tasa, elige «Fluidez»",
       "group": {
         "screen": "Compartir pantalla",
         "camera": "Vídeo de la cámara"
@@ -3785,7 +3791,7 @@
     },
     "modeHints": {
       "smooth": "Juegos y vídeo: se mantiene la tasa de fotogramas elegida",
-      "sharp": "Texto y escritorio: siempre nítido, tantos fotogramas como permita la conexión"
+      "sharp": "Texto y escritorio: siempre nítido, hasta {{fps}} fotogramas por segundo"
     },
     "options": "Ajustes de la transmisión",
     "preview": "Mostrar vista previa a los espectadores",

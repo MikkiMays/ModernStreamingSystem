@@ -12,7 +12,7 @@ import { SettingGroup, SettingRow } from './Row';
 import { rowText } from './sections';
 import { CameraPreview } from './CameraPreview';
 import { DeviceSelect, useMediaDevices } from './devices';
-import { QualityRows } from './media-fields';
+import { QualityRows, ScreenModeRow } from './media-fields';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
 const noTiles = new Store<MediaTile[]>([]);
@@ -105,6 +105,13 @@ export function VideoSection({
         // Что значит выбранное (X10): нижняя граница, а не цель — одной строкой на всю группу.
         note={t(($) => $.settings.media.floorNote)}
       >
+        <ScreenModeRow
+          value={preferences.screen}
+          onChange={(mode) => {
+            if (meeting) void meeting.media.setScreenMode(mode);
+            else void change({ screen: { ...preferences.screen, mode } });
+          }}
+        />
         <QualityRows
           kind="screen"
           value={preferences.screen}

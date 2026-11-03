@@ -10,7 +10,14 @@ import {
   RESOLUTIONS,
   type Level,
 } from '../../media/capabilities';
-import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
+import {
+  modeOf,
+  SHARP_MAX_FPS,
+  type FrameRate,
+  type Resolution,
+  type ScreenMode,
+  type ScreenProfile,
+} from '../../media/profiles';
 import { Segmented, Slider, Switch, type SegmentedOption } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
@@ -52,6 +59,13 @@ export function QualityRows({
     camera && resolution > CAMERA_MAX
       ? { disabled: true, title: t(($) => $.settings.media.cameraCeiling, { resolution: CAMERA_MAX }) }
       : above(resolution > ceiling.resolution);
+  // «Чёткость» (умолчание показа, Р-84) идёт не выше `SHARP_MAX_FPS`: частота здесь не выбирается, и
+  // причина — в подсказке пункта, как у потолка сервера. Выбор ждёт «Плавности».
+  const sharp = !camera && modeOf(value) === 'sharp';
+  const paced = (fps: FrameRate) =>
+    sharp
+      ? { disabled: true, title: t(($) => $.settings.media.sharpFps, { fps: SHARP_MAX_FPS }) }
+      : above(fps > ceiling.fps);
   return (
     <>
       <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'}>
@@ -77,7 +91,7 @@ export function QualityRows({
             value: fps,
             label: String(fps),
             ariaLabel: `${fps} fps`,
-            ...above(fps > ceiling.fps),
+            ...paced(fps),
           }))}
         />
       </SettingRow>
@@ -86,8 +100,39 @@ export function QualityRows({
 }
 
 /**
+ * Режим показа (R95, Р-84): «Чёткость» — текст и рабочий стол, до 15 кадров, кодек с инструментами
+ * экранного содержимого; «Плавность» — игры и видео, выбранная частота. Умолчание — «Чёткость»; в
+ * записи режим появляется только после выбора здесь или в окне показа клиента Windows. Строка нужна
+ * и в браузере: окна показа там нет, а без неё «Плавность» было бы негде выбрать.
+ */
+export function ScreenModeRow({
+  value,
+  onChange,
+}: {
+  value: Pick<ScreenProfile, 'mode'>;
+  onChange: (mode: ScreenMode) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <SettingRow id="screen-mode">
+      <Segmented<ScreenMode>
+        size="sm"
+        aria-label={t(($) => $.capture.mode)}
+        value={modeOf(value)}
+        onValueChange={onChange}
+        options={(['sharp', 'smooth'] as const).map((mode) => ({
+          value: mode,
+          label: t(($) => $.capture.modes[mode]),
+          title: t(($) => $.capture.modeHints[mode], { fps: SHARP_MAX_FPS }),
+        }))}
+      />
+    </SettingRow>
+  );
+}
+
+/**
  * Качество камеры или показа одной группой — для предпросмотра и окна показа (W7). Пропы — те же,
- * что у `QualityRows`: значение, правка и потолок сервера.
+ * что у `QualityRows`: значение, правка и потолок сервера. У показа — ещё и режим.
  */
 export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
   const { t } = useTranslation();
@@ -96,6 +141,9 @@ export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
       title={t(($) => $.settings.media.group[props.kind])}
       note={props.kind === 'screen' ? t(($) => $.settings.media.floorNote) : undefined}
     >
+      {props.kind === 'screen' && (
+        <ScreenModeRow value={props.value} onChange={(mode) => props.onChange({ ...props.value, mode })} />
+      )}
       <QualityRows {...props} />
     </SettingGroup>
   );

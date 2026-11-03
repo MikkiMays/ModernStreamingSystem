@@ -156,6 +156,11 @@
         "hint": "Nur für dich sichtbar",
         "keywords": "Kameratest"
       },
+      "screen-mode": {
+        "label": "Freigabemodus",
+        "hint": "Scharf — Text, bis 15 fps; Flüssig — Spiele und Videos",
+        "keywords": "Bildschirmfreigabe Modus scharf flüssig Stream"
+      },
       "screen-resolution": {
         "label": "Qualität",
         "hint": "",
@@ -419,6 +424,7 @@
       "fps": "{{label}}: Bildrate",
       "ceiling": "Dieser Server erlaubt bis zu {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Kamera bis {{resolution}}p",
+      "sharpFps": "Im Modus „Scharf“ läuft die Freigabe mit bis zu {{fps}} fps: Schärfe vor Bildrate. Für die Bildrate „Flüssig“ wählen",
       "group": {
         "screen": "Bildschirmfreigabe",
         "camera": "Kameravideo"
@@ -3745,7 +3751,7 @@
     },
     "modeHints": {
       "smooth": "Spiele und Videos: die gewählte Bildrate bleibt",
-      "sharp": "Text und Desktop: immer scharf, so viele Bilder, wie die Verbindung erlaubt"
+      "sharp": "Text und Desktop: immer scharf, bis {{fps}} Bilder pro Sekunde"
     },
     "options": "Freigabe-Einstellungen",
     "preview": "Vorschau für Zuschauer zeigen",

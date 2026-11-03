@@ -156,6 +156,11 @@
         "hint": "Visible par vous seul",
         "keywords": "test caméra"
       },
+      "screen-mode": {
+        "label": "Mode de partage",
+        "hint": "Netteté — texte, 15 fps max ; Fluidité — jeux et vidéo",
+        "keywords": "partage d'écran mode netteté fluidité stream"
+      },
       "screen-resolution": {
         "label": "Qualité",
         "hint": "",
@@ -419,6 +424,7 @@
       "fps": "{{label}} : fréquence d'images",
       "ceiling": "Ce serveur autorise jusqu'à {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Caméra : jusqu’à {{resolution}}p",
+      "sharpFps": "En mode « Netteté », le partage va jusqu’à {{fps}} fps : la netteté prime sur la fréquence. Pour la fréquence, choisissez « Fluidité »",
       "group": {
         "screen": "Partage d'écran",
         "camera": "Vidéo de la caméra"
@@ -3785,7 +3791,7 @@
     },
     "modeHints": {
       "smooth": "Jeux et vidéo : la fréquence d’images choisie est tenue",
-      "sharp": "Texte et bureau : toujours net, autant d’images que la connexion le permet"
+      "sharp": "Texte et bureau : toujours net, jusqu’à {{fps}} images par seconde"
     },
     "options": "Réglages du partage",
     "preview": "Montrer l’aperçu aux spectateurs",
