@@ -437,7 +437,8 @@
       },
       "auto": "Auto",
       "voiceGroup": "Stimme und Mikrofon",
-      "floorNote": "Unter dieser Qualität sendet Cord nie"
+      "floorNote": "Unter dieser Qualität sendet Cord nie",
+      "webScreen": "Im Browser läuft die Bildschirmfreigabe im Modus „Scharf“ mit bis zu {{fps}} fps. Der Modus „Flüssig“ und die Wahl der Bildrate gibt es in der Cord-App für Windows"
     },
     "profile": {
       "refused": "Der Raum hat das Bild nicht angenommen",

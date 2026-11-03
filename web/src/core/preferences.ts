@@ -7,7 +7,7 @@ import {
   type ScreenMode,
   type ScreenProfile,
 } from '../media/profiles';
-import { cameraLevel, nearestLevel } from '../media/capabilities';
+import { allowedScreen, cameraLevel, nearestLevel } from '../media/capabilities';
 import { backgroundChoice, type BackgroundChoice } from '../media/background-effect';
 import type { DeviceChoice } from '../media/session';
 import {
@@ -213,9 +213,12 @@ const key = 'cord:preferences:v1';
  * Режим — только если его выбирали (Р-84): «не выбирал» ≠ «выбрал Плавность», поэтому в записи он не
  * дописывается, а умолчание («чёткость») подставляет `modeOf` там, где режим нужен. Режим из записи до
  * 1.1.4 (без `modeChosen`) — тоже не выбор: тогдашний код дописывал «Плавность» всем.
+ *
+ * В браузере и на телефоне показ — только 720p или 1080p в «Чёткости» (R185, `allowedScreen`): режим и 1440p
+ * из записи там не действуют.
  */
 function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
-  return {
+  return allowedScreen({
     ...nearestLevel(value),
     // Режим без отметки выбора — из записи до 1.1.4, где «Плавность» стояла у всех (R184): не выбор.
     ...(screenModes.includes(value?.mode as ScreenMode) && value?.modeChosen === true
@@ -224,7 +227,7 @@ function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) |
     preview: value?.preview !== false,
     // Звук прошлого показа (окно показа клиента Windows, R60); незнакомое — без звука.
     audio: screenAudios.includes(value?.audio as ScreenAudio) ? value!.audio : 'none',
-  };
+  });
 }
 export function readPreferences(): Preferences {
   let data: Partial<Preferences> = {};

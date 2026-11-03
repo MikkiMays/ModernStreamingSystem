@@ -437,7 +437,8 @@
       },
       "auto": "Auto",
       "voiceGroup": "Voz y micrófono",
-      "floorNote": "Cord nunca envía por debajo de esta calidad"
+      "floorNote": "Cord nunca envía por debajo de esta calidad",
+      "webScreen": "En el navegador, la pantalla se comparte en modo «Nitidez», hasta {{fps}} fps. El modo «Fluidez» y la elección de fotogramas están en la app de Cord para Windows"
     },
     "profile": {
       "refused": "La sala no aceptó la imagen",

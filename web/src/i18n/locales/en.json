@@ -437,7 +437,8 @@
       },
       "auto": "Auto",
       "voiceGroup": "Voice and microphone",
-      "floorNote": "Cord never sends below this quality"
+      "floorNote": "Cord never sends below this quality",
+      "webScreen": "In the browser, screen sharing runs in Sharp mode at up to {{fps}} fps. Smooth mode and frame rate choice are in the Cord app for Windows"
     },
     "profile": {
       "refused": "The room didn't accept the picture",

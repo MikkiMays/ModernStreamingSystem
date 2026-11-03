@@ -437,7 +437,8 @@
       },
       "auto": "Auto",
       "voiceGroup": "Voix et micro",
-      "floorNote": "Cord n'envoie jamais en dessous de cette qualité"
+      "floorNote": "Cord n'envoie jamais en dessous de cette qualité",
+      "webScreen": "Dans le navigateur, le partage d’écran est en mode « Netteté », jusqu’à {{fps}} i/s. Le mode « Fluidité » et le choix de la fréquence sont dans l’app Cord pour Windows"
     },
     "profile": {
       "refused": "La salle a refusé l'image",

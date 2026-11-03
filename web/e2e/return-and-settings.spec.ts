@@ -75,17 +75,15 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     // Камера — 480 / 720 / 1080, умолчание 480p, 1080p виден, но недоступен (Р-35).
     await expect(level(host, 'Камера: качество', '480p')).toBeChecked();
     await expect(level(host, 'Камера: качество', '1080p')).toBeDisabled();
-    // Показ — как у Meet (R184, Р-84): 1080p и «Чёткость» до 15 кадров, частота в ней недоступна.
+    // Показ — как у Meet (R184, Р-84): 1080p и «Чёткость» до 15 кадров. В браузере (R185) — только 720p
+    // и 1080p: ни режима, ни частоты, ни 1440p — они в клиенте для Windows.
     await expect(level(host, 'Экран: качество', '1080p')).toBeChecked();
-    await expect(level(host, 'Режим показа', 'Чёткость')).toBeChecked();
-    await expect(level(host, 'Экран: частота кадров', '60 fps')).toBeDisabled();
-    // Потолок сервера — 1080p60: 1440p виден, но недоступен (R78).
-    await expect(level(host, 'Экран: качество', '1440p')).toBeDisabled();
+    await expect(host.getByRole('radiogroup', { name: 'Экран: качество' }).getByRole('radio')).toHaveCount(2);
+    await expect(host.getByRole('radiogroup', { name: 'Режим показа' })).toHaveCount(0);
+    await expect(host.getByRole('radiogroup', { name: 'Экран: частота кадров' })).toHaveCount(0);
     await level(host, 'Камера: качество', '720p').click();
     await level(host, 'Камера: частота кадров', '60 fps').click();
     await level(host, 'Экран: качество', '720p').click();
-    await level(host, 'Режим показа', 'Плавность').click();
-    await level(host, 'Экран: частота кадров', '60 fps').click();
     await host.emulateMedia({ reducedMotion: 'reduce' });
     expect(
       (await new AxeBuilder({ page: host }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
@@ -150,8 +148,6 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(level(host, 'Камера: качество', '720p')).toBeChecked();
     await expect(level(host, 'Камера: частота кадров', '30 fps')).toBeChecked();
     await expect(level(host, 'Экран: качество', '720p')).toBeChecked();
-    await expect(level(host, 'Режим показа', 'Плавность')).toBeChecked();
-    await expect(level(host, 'Экран: частота кадров', '60 fps')).toBeChecked();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
     await host.getByRole('button', { name: 'Настройки и действия' }).click();

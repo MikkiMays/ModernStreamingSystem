@@ -2,6 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPreferences, savePreferences } from './preferences';
 import { modeOf } from '../media/profiles';
 beforeEach(() => localStorage.clear());
+/** Клиент для Windows (мост v2): режим показа выбирается только там (R185). */
+function asDesktop() {
+  (window as { cordDesktop?: unknown }).cordDesktop = { protocol: { major: 2 } };
+}
+afterEach(() => {
+  delete (window as { cordDesktop?: unknown }).cordDesktop;
+});
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
   // У камеры своё умолчание — 480p30 (`CAMERA_DEFAULT`): «Авто» больше нет.
   expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
@@ -29,7 +36,9 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
   expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
   expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
   expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!)).toEqual(saved);
-  // Сервер, который разрешает 1440p, возвращает выбор человека сам.
+  // Сервер, который разрешает 1440p, возвращает выбор человека сам — в клиенте для Windows (в браузере
+  // показ не выше 1080p, R185).
+  asDesktop();
   localStorage.setItem(
     'cord:quality:v1',
     JSON.stringify({
@@ -220,7 +229,8 @@ it('помнит прошлый выбор площадки у музыки и �
   expect(readPreferences().lastPlatform).toEqual({});
 });
 
-it('показ помнит режим и превью (R95/R80/Р-84): запись без режима — не выбор, превью есть, уровень без них их не стирает', () => {
+it('показ помнит режим и превью (R95/R80/Р-84): запись без режима — не выбор, превью есть, уровень без них их не стирает — клиент для Windows', () => {
+  asDesktop();
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ screen: { resolution: 1080, fps: 30 } }));
   expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30, preview: true });
   // «Не выбирал режим» ≠ «выбрал Плавность»: в записи режима нет, умолчание решает `modeOf`.
@@ -247,7 +257,8 @@ it('показ помнит режим и превью (R95/R80/Р-84): запи
   expect(readPreferences().screen.mode).toBeUndefined();
 });
 
-it('режим показа, записанный до 1.1.4, — не выбор: прежний код дописывал «Плавность» всем (R184)', () => {
+it('режим показа, записанный до 1.1.4, — не выбор: прежний код дописывал «Плавность» всем (R184) — клиент для Windows', () => {
+  asDesktop();
   // Так лежит запись у любого, кто до 1.1.4 сохранял хоть одну настройку: режим без отметки выбора.
   localStorage.setItem(
     'cord:preferences:v1',
@@ -265,6 +276,25 @@ it('режим показа, записанный до 1.1.4, — не выбо�
   const stored = JSON.parse(localStorage.getItem('cord:preferences:v1')!);
   localStorage.setItem('cord:preferences:v1', JSON.stringify(stored));
   expect(modeOf(readPreferences().screen)).toBe('smooth');
+});
+
+it('в браузере показ — 720p или 1080p в «Чёткости»: режим и 1440p из записи не действуют (R185)', () => {
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ screen: { resolution: 1440, fps: 60, mode: 'smooth', modeChosen: true } }),
+  );
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, preview: true });
+  expect(readPreferences().screen.mode).toBeUndefined();
+  expect(modeOf(readPreferences().screen)).toBe('sharp');
+  savePreferences({ screen: { resolution: 720, fps: 30 } });
+  expect(readPreferences().screen.resolution).toBe(720);
+  // Тот же выбор в клиенте для Windows действует: ограничение — у места, не у записи.
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ screen: { resolution: 1080, fps: 60, mode: 'smooth', modeChosen: true } }),
+  );
+  asDesktop();
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60, mode: 'smooth' });
 });
 
 it('показ помнит звук окна показа (R60): старая запись и незнакомое — без звука, правка уровня его не стирает', () => {

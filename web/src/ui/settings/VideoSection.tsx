@@ -12,7 +12,7 @@ import { SettingGroup, SettingRow } from './Row';
 import { rowText } from './sections';
 import { CameraPreview } from './CameraPreview';
 import { DeviceSelect, useMediaDevices } from './devices';
-import { QualityRows, ScreenModeRow } from './media-fields';
+import { QualityRows, ScreenModeRow, ScreenNote } from './media-fields';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
 const noTiles = new Store<MediaTile[]>([]);
@@ -103,7 +103,7 @@ export function VideoSection({
         title={t(($) => $.settings.anchors.screen)}
         anchor="screen"
         // Что значит выбранное (X10): нижняя граница, а не цель — одной строкой на всю группу.
-        note={t(($) => $.settings.media.floorNote)}
+        note={<ScreenNote />}
       >
         <ScreenModeRow
           value={preferences.screen}

@@ -437,7 +437,8 @@
       },
       "auto": "Auto",
       "voiceGroup": "Voce e microfono",
-      "floorNote": "Cord non trasmette mai sotto questa qualità"
+      "floorNote": "Cord non trasmette mai sotto questa qualità",
+      "webScreen": "Nel browser la condivisione dello schermo usa la modalità «Nitidezza», fino a {{fps}} fps. La modalità «Fluidità» e la scelta della frequenza sono nell’app Cord per Windows"
     },
     "profile": {
       "refused": "La stanza non ha accettato l'immagine",

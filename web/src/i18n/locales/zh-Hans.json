@@ -437,7 +437,8 @@
       },
       "auto": "自动",
       "voiceGroup": "语音和麦克风",
-      "floorNote": "Cord 不会以低于此画质发送"
+      "floorNote": "Cord 不会以低于此画质发送",
+      "webScreen": "在浏览器中，屏幕共享使用“清晰”模式，最高 {{fps}} fps。“流畅”模式和帧率选择请使用 Windows 版 Cord 应用"
     },
     "profile": {
       "refused": "房间未接受该图片",

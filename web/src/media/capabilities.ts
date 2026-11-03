@@ -1,3 +1,4 @@
+import { isDesktop } from '../core/desktop';
 import type { FrameRate, Resolution, ScreenProfile } from './profiles';
 
 /**
@@ -60,6 +61,38 @@ export const builtinRules: QualityRules = {
   ceiling: { resolution: 1080, fps: 60 },
   settleMs: 4000,
 };
+
+/**
+ * Что выбирается у показа здесь (R185, Р-88). Клиент для Windows — всё: режим («Чёткость» / «Плавность»), кадр
+ * 720 / 1080 / 1440 (1440 — пока недоступен потолком сервера) и частота. Браузер и приложение для телефона — только
+ * кадр 720 / 1080: режим — всегда «Чёткость», частота — её 15 кадров (`SHARP_MAX_FPS`), без выбора. Владелец:
+ * «для веба оставить только 720 и 1080 и режим четкости… выбирать фпс веб не может». В браузере «Плавность» и
+ * 60 кадров — это программный кодировщик вкладки на пределе и окно показа без звука; клиент для Windows
+ * кодирует железом и выбирает окно, звук и режим своим окном показа.
+ */
+export interface ScreenChoices {
+  resolutions: Resolution[];
+  /** Выбирается ли режим показа. Нет — «Чёткость». */
+  modes: boolean;
+  /** Выбирается ли частота. Нет — частота режима (у «Чёткости» — `SHARP_MAX_FPS`). */
+  frameRates: boolean;
+}
+export const WEB_RESOLUTIONS: Resolution[] = [720, 1080];
+export function screenChoices(app: boolean = isDesktop()): ScreenChoices {
+  return app
+    ? { resolutions: RESOLUTIONS, modes: true, frameRates: true }
+    : { resolutions: WEB_RESOLUTIONS, modes: false, frameRates: false };
+}
+/**
+ * Показ, допустимый здесь (R185): в браузере — кадр не выше 1080 и без режима, то есть «Чёткость». Режим,
+ * выбранный раньше в браузере (1.1.4), здесь не действует; у клиента для Windows своё хранилище, и его выбор
+ * это не трогает.
+ */
+export function allowedScreen(profile: ScreenProfile, app: boolean = isDesktop()): ScreenProfile {
+  if (app) return profile;
+  const { mode: _mode, modeChosen: _chosen, ...rest } = profile;
+  return { ...rest, resolution: Math.min(rest.resolution, Math.max(...WEB_RESOLUTIONS)) as Resolution };
+}
 
 const KEY = 'cord:quality:v1';
 

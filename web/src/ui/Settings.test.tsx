@@ -200,17 +200,24 @@ describe('окно настроек (T26)', () => {
     );
     expect(device.getUserMedia).toHaveBeenCalledTimes(1);
     expect(await screen.findByText('480p · 60 fps', {}, { timeout: 2000 })).toBeInTheDocument();
-    // Показ — та же шкала; под ним — что выбранное значит (X10), строки потолка больше нет.
+    // Показ в браузере (R185) — только 720p и 1080p: ни режима, ни частоты, 1440p нет; под ним — что
+    // выбранное значит (X10) и где остальное. Строки потолка больше нет.
     const shown = screen.getByRole('radiogroup', { name: 'Экран: качество' });
-    // У показа шкала своя и прежняя: 480p и 15 fps — только у камеры.
     expect(
       within(shown)
         .getAllByRole('radio')
         .map((radio) => radio.textContent),
-    ).toEqual(['720p', '1080p', '1440p']);
-    fireEvent.click(within(shown).getByRole('radio', { name: '1080p' }));
-    expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30 });
-    expect(screen.getByText('Ниже этого качества Cord не передаёт')).toBeInTheDocument();
+    ).toEqual(['720p', '1080p']);
+    expect(within(shown).getByRole('radio', { name: '1080p' })).toBeChecked();
+    fireEvent.click(within(shown).getByRole('radio', { name: '720p' }));
+    expect(readPreferences().screen).toMatchObject({ resolution: 720 });
+    expect(screen.queryByRole('radiogroup', { name: 'Режим показа' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Экран: частота кадров' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Ниже этого качества Cord не передаёт. В браузере показ идёт в режиме «Чёткость» — до 15 fps. «Плавность» и выбор частоты — в приложении Cord для Windows',
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Этот сервер допускает/)).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /качество/ })).not.toBeInTheDocument();
     // Превью показа (R80) — то же поле, что в окне показа: preferences.screen.preview.
@@ -221,6 +228,43 @@ describe('окно настроек (T26)', () => {
     // Ушли из раздела — камера отпущена.
     openSection('Микрофон');
     expect(device.stopped()).toBe(true);
+  });
+
+  it('«Видео» в клиенте для Windows (R185): режим, 720/1080 и недоступный 1440p, частота — в «Плавности»', async () => {
+    fakeCamera();
+    (window as { cordDesktop?: unknown }).cordDesktop = {
+      protocol: { major: 2, minor: 0 },
+      features: [],
+      app: { version: '1.1.5', arch: 'x64' },
+      send: vi.fn(),
+      invoke: vi.fn(async () => null),
+      on: vi.fn(() => () => {}),
+    };
+    try {
+      render(<Settings open section="video" onOpenChange={vi.fn()} />);
+      const mode = await screen.findByRole('radiogroup', { name: 'Режим показа' });
+      expect(within(mode).getByRole('radio', { name: 'Чёткость' })).toBeChecked();
+      const shown = screen.getByRole('radiogroup', { name: 'Экран: качество' });
+      expect(
+        within(shown)
+          .getAllByRole('radio')
+          .map((radio) => radio.textContent),
+      ).toEqual(['720p', '1080p', '1440p']);
+      expect(within(shown).getByRole('radio', { name: '1440p' })).toHaveAttribute('aria-disabled', 'true');
+      const fps = screen.getByRole('radiogroup', { name: 'Экран: частота кадров' });
+      expect(within(fps).getByRole('radio', { name: '60 fps' })).toHaveAttribute('aria-disabled', 'true');
+      fireEvent.click(within(mode).getByRole('radio', { name: 'Плавность' }));
+      expect(readPreferences().screen).toMatchObject({ mode: 'smooth' });
+      fireEvent.click(
+        within(screen.getByRole('radiogroup', { name: 'Экран: частота кадров' })).getByRole('radio', {
+          name: '60 fps',
+        }),
+      );
+      expect(readPreferences().screen).toMatchObject({ mode: 'smooth', fps: 60 });
+      expect(screen.getByText('Ниже этого качества Cord не передаёт')).toBeInTheDocument();
+    } finally {
+      delete (window as { cordDesktop?: unknown }).cordDesktop;
+    }
   });
 
   it('«Видео»: камера недоступна — вместо превью объяснение, раздел работает', async () => {

@@ -7,7 +7,7 @@ import {
   CAMERA_RESOLUTIONS,
   CHOICE_FRAME_RATES,
   qualityRules,
-  RESOLUTIONS,
+  screenChoices,
   type Level,
 } from '../../media/capabilities';
 import {
@@ -31,10 +31,10 @@ import { useLiveValue } from './live-value';
  */
 
 /**
- * Разрешение и частота кадров отдачи (R78): сегменты, как SD / HD у Discord, без «Авто». Показ —
- * 720 / 1080 / 1440 и 30 / 60; камера — 480 / 720 / 1080 и 15 / 30 / 60, где 1080 недоступно
- * (`CAMERA_MAX`). Что выше потолка — недоступно, и причина — в подсказке пункта, а не строкой под
- * группой.
+ * Разрешение и частота кадров отдачи (R78): сегменты, как SD / HD у Discord, без «Авто». Показ в клиенте
+ * для Windows — 720 / 1080 / 1440 и 30 / 60, в браузере — только 720 / 1080, без частоты (R185,
+ * `screenChoices`); камера — 480 / 720 / 1080 и 15 / 30 / 60, где 1080 недоступно (`CAMERA_MAX`). Что выше
+ * потолка — недоступно, и причина — в подсказке пункта, а не строкой под группой.
  */
 export function QualityRows({
   kind,
@@ -53,7 +53,8 @@ export function QualityRows({
   const reason = t(($) => $.settings.media.ceiling, { resolution: ceiling.resolution, fps: ceiling.fps });
   const above = (over: boolean) => (over ? { disabled: true, title: reason } : {});
   const camera = kind === 'camera';
-  const resolutions = camera ? CAMERA_RESOLUTIONS : RESOLUTIONS;
+  const choices = screenChoices();
+  const resolutions = camera ? CAMERA_RESOLUTIONS : choices.resolutions;
   const frameRates = camera ? CAMERA_FRAME_RATES : CHOICE_FRAME_RATES;
   const locked = (resolution: Resolution) =>
     camera && resolution > CAMERA_MAX
@@ -81,20 +82,22 @@ export function QualityRows({
           }))}
         />
       </SettingRow>
-      <SettingRow id={kind === 'screen' ? 'screen-fps' : 'camera-fps'}>
-        <Segmented<FrameRate>
-          size="sm"
-          aria-label={t(($) => $.settings.media.fps, { label })}
-          value={value.fps}
-          onValueChange={(fps) => onChange({ ...value, fps })}
-          options={frameRates.map((fps) => ({
-            value: fps,
-            label: String(fps),
-            ariaLabel: `${fps} fps`,
-            ...paced(fps),
-          }))}
-        />
-      </SettingRow>
+      {(camera || choices.frameRates) && (
+        <SettingRow id={kind === 'screen' ? 'screen-fps' : 'camera-fps'}>
+          <Segmented<FrameRate>
+            size="sm"
+            aria-label={t(($) => $.settings.media.fps, { label })}
+            value={value.fps}
+            onValueChange={(fps) => onChange({ ...value, fps })}
+            options={frameRates.map((fps) => ({
+              value: fps,
+              label: String(fps),
+              ariaLabel: `${fps} fps`,
+              ...paced(fps),
+            }))}
+          />
+        </SettingRow>
+      )}
     </>
   );
 }
@@ -102,8 +105,8 @@ export function QualityRows({
 /**
  * Режим показа (R95, Р-84): «Чёткость» — текст и рабочий стол, до 15 кадров, кодек с инструментами
  * экранного содержимого; «Плавность» — игры и видео, выбранная частота. Умолчание — «Чёткость»; в
- * записи режим появляется только после выбора здесь или в окне показа клиента Windows. Строка нужна
- * и в браузере: окна показа там нет, а без неё «Плавность» было бы негде выбрать.
+ * записи режим появляется только после выбора здесь или в окне показа клиента Windows. В браузере строки
+ * нет (R185): там показ — всегда «Чёткость».
  */
 export function ScreenModeRow({
   value,
@@ -113,6 +116,7 @@ export function ScreenModeRow({
   onChange: (mode: ScreenMode) => void;
 }) {
   const { t } = useTranslation();
+  if (!screenChoices().modes) return null;
   return (
     <SettingRow id="screen-mode">
       <Segmented<ScreenMode>
@@ -139,13 +143,28 @@ export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
   return (
     <SettingGroup
       title={t(($) => $.settings.media.group[props.kind])}
-      note={props.kind === 'screen' ? t(($) => $.settings.media.floorNote) : undefined}
+      note={props.kind === 'screen' ? <ScreenNote /> : undefined}
     >
       {props.kind === 'screen' && (
         <ScreenModeRow value={props.value} onChange={(mode) => props.onChange({ ...props.value, mode })} />
       )}
       <QualityRows {...props} />
     </SettingGroup>
+  );
+}
+
+/**
+ * Пояснение под качеством показа: что значит выбранное (X10), а в браузере — ещё и где остальное (R185): «Плавность»
+ * и частота — в клиенте для Windows.
+ */
+export function ScreenNote() {
+  const { t } = useTranslation();
+  const floor = t(($) => $.settings.media.floorNote);
+  if (screenChoices().modes) return floor;
+  return (
+    <>
+      {floor}. {t(($) => $.settings.media.webScreen, { fps: SHARP_MAX_FPS })}
+    </>
   );
 }
 
