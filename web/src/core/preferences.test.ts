@@ -247,6 +247,26 @@ it('показ помнит режим и превью (R95/R80/Р-84): запи
   expect(readPreferences().screen.mode).toBeUndefined();
 });
 
+it('режим показа, записанный до 1.1.4, — не выбор: прежний код дописывал «Плавность» всем (R184)', () => {
+  // Так лежит запись у любого, кто до 1.1.4 сохранял хоть одну настройку: режим без отметки выбора.
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ screen: { resolution: 1080, fps: 30, mode: 'smooth' } }),
+  );
+  expect(readPreferences().screen.mode).toBeUndefined();
+  expect(modeOf(readPreferences().screen)).toBe('sharp');
+  // Любая правка настроек дочищает запись.
+  savePreferences({ layout: 'speaker' });
+  expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).screen).not.toHaveProperty('mode');
+  // Выбор с 1.1.4 помнится — и переживает правку уровня и чтение записи, пришедшей от оболочки.
+  savePreferences({ screen: { resolution: 1080, fps: 30, mode: 'smooth' } });
+  savePreferences({ screen: { resolution: 720, fps: 60 } });
+  expect(readPreferences().screen).toMatchObject({ resolution: 720, fps: 60, mode: 'smooth' });
+  const stored = JSON.parse(localStorage.getItem('cord:preferences:v1')!);
+  localStorage.setItem('cord:preferences:v1', JSON.stringify(stored));
+  expect(modeOf(readPreferences().screen)).toBe('smooth');
+});
+
 it('показ помнит звук окна показа (R60): старая запись и незнакомое — без звука, правка уровня его не стирает', () => {
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ screen: { resolution: 1080, fps: 30 } }));
   expect(readPreferences().screen.audio).toBe('none');

@@ -211,12 +211,16 @@ const key = 'cord:preferences:v1';
  *
  * Показ — уровень плюс режим, превью и звук (R95/R80/R60); записи без них — превью есть, без звука.
  * Режим — только если его выбирали (Р-84): «не выбирал» ≠ «выбрал Плавность», поэтому в записи он не
- * дописывается, а умолчание («чёткость») подставляет `modeOf` там, где режим нужен.
+ * дописывается, а умолчание («чёткость») подставляет `modeOf` там, где режим нужен. Режим из записи до
+ * 1.1.4 (без `modeChosen`) — тоже не выбор: тогдашний код дописывал «Плавность» всем.
  */
 function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
   return {
     ...nearestLevel(value),
-    ...(screenModes.includes(value?.mode as ScreenMode) ? { mode: value!.mode } : {}),
+    // Режим без отметки выбора — из записи до 1.1.4, где «Плавность» стояла у всех (R184): не выбор.
+    ...(screenModes.includes(value?.mode as ScreenMode) && value?.modeChosen === true
+      ? { mode: value.mode, modeChosen: true as const }
+      : {}),
     preview: value?.preview !== false,
     // Звук прошлого показа (окно показа клиента Windows, R60); незнакомое — без звука.
     audio: screenAudios.includes(value?.audio as ScreenAudio) ? value!.audio : 'none',
@@ -360,7 +364,16 @@ export function savePreferences(patch: Partial<Preferences>): Preferences {
   const next = {
     ...current,
     ...patch,
-    ...(patch.screen ? { screen: { ...current.screen, ...patch.screen } } : {}),
+    ...(patch.screen
+      ? {
+          screen: {
+            ...current.screen,
+            ...patch.screen,
+            // Режим в правке — выбор человека (окно показа, настройки) или уже помнившийся выбор (R184).
+            ...(patch.screen.mode ? { modeChosen: true as const } : {}),
+          },
+        }
+      : {}),
   };
   try {
     localStorage.setItem(key, JSON.stringify(next));
