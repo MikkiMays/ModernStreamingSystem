@@ -50,8 +50,13 @@ export const CAMERA_MAX: Resolution = 720;
  */
 export const CAMERA_DEFAULT: Level = { resolution: 480, fps: 30 };
 
+/**
+ * Старт показа — 1080p (R184, Р-84): экран 1080p, ужатый до 720, мылил текст самим масштабом, ещё до
+ * кодировщика — Meet никогда так не делает. 30 кадров — потолок «Плавности»; «Чёткость» по
+ * умолчанию идёт до 15 (`profiles.ts` → `SHARP_MAX_FPS`). То же стоит в `application.yml`.
+ */
 export const builtinRules: QualityRules = {
-  default: { resolution: 720, fps: 30 },
+  default: { resolution: 1080, fps: 30 },
   ceiling: { resolution: 1080, fps: 60 },
   settleMs: 4000,
 };

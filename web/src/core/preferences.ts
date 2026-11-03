@@ -1,9 +1,10 @@
 import { notifyDesktop } from './desktop';
 import {
-  defaultScreenMode,
   screenAudios,
+  screenModes,
   touchFirst,
   type ScreenAudio,
+  type ScreenMode,
   type ScreenProfile,
 } from '../media/profiles';
 import { cameraLevel, nearestLevel } from '../media/capabilities';
@@ -208,13 +209,14 @@ const key = 'cord:preferences:v1';
  * потолка) и забытые `automaticFps`/режим содержимого. Всё это сводится к ближайшему допустимому
  * уровню при чтении; сама запись не переписывается — другой сервер может разрешать больше.
  *
- * Показ — уровень плюс режим, превью и звук (R95/R80/R60); старые записи без них — «плавность»,
- * превью есть, без звука.
+ * Показ — уровень плюс режим, превью и звук (R95/R80/R60); записи без них — превью есть, без звука.
+ * Режим — только если его выбирали (Р-84): «не выбирал» ≠ «выбрал Плавность», поэтому в записи он не
+ * дописывается, а умолчание («чёткость») подставляет `modeOf` там, где режим нужен.
  */
 function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
   return {
     ...nearestLevel(value),
-    mode: value?.mode === 'sharp' ? 'sharp' : defaultScreenMode,
+    ...(screenModes.includes(value?.mode as ScreenMode) ? { mode: value!.mode } : {}),
     preview: value?.preview !== false,
     // Звук прошлого показа (окно показа клиента Windows, R60); незнакомое — без звука.
     audio: screenAudios.includes(value?.audio as ScreenAudio) ? value!.audio : 'none',

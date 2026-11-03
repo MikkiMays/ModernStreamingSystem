@@ -123,22 +123,33 @@ describe('окно показа', () => {
         .map((item) => item.textContent),
     ).toEqual(['Чёткость', 'Плавность']);
     fireEvent.click(within(mode).getByRole('radio', { name: 'Чёткость' }));
-    // «Чёткость» держит кадр, а кадров — сколько позволяет канал: частота — верхняя.
-    expect(summary()).toBe('Чёткость · 1080p · до 30 fps');
+    // «Чёткость» держит кадр, а кадров — не больше 15 (Р-84): сводка называет то, что пойдёт в сеть.
+    expect(summary()).toBe('Чёткость · 1080p · до 15 fps');
     fireEvent.click(screen.getByRole('button', { name: 'Настройки показа' }));
     const quality = await screen.findByRole('radiogroup', { name: 'Экран: качество' });
     fireEvent.click(within(quality).getByRole('radio', { name: '720p' }));
+    // Частота в «Чёткости» не выбирается — пункты недоступны и объясняют почему.
+    const sixty = within(screen.getByRole('radiogroup', { name: 'Экран: частота кадров' })).getByRole(
+      'radio',
+      { name: '60 fps' },
+    );
+    expect(sixty).toHaveAttribute('data-disabled');
+    expect(sixty).toHaveAttribute('title', expect.stringContaining('до 15 fps'));
+    expect(summary()).toBe('Чёткость · 720p · до 15 fps');
+    // В «Плавности» частота снова выбирается и идёт как выбрана (переключение закрывает шестерёнку).
+    fireEvent.click(within(mode).getByRole('radio', { name: 'Плавность' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки показа' }));
     fireEvent.click(
-      within(screen.getByRole('radiogroup', { name: 'Экран: частота кадров' })).getByRole('radio', {
+      within(await screen.findByRole('radiogroup', { name: 'Экран: частота кадров' })).getByRole('radio', {
         name: '60 fps',
       }),
     );
-    expect(summary()).toBe('Чёткость · 720p · до 60 fps');
+    expect(summary()).toBe('Плавность · 720p · 60 fps');
     fireEvent.doubleClick(within(sourcesGroup()).getAllByRole('button')[0]!);
     expect(onChoose).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'screen:0:0',
-        profile: expect.objectContaining({ mode: 'sharp', resolution: 720, fps: 60 }),
+        profile: expect.objectContaining({ mode: 'smooth', resolution: 720, fps: 60 }),
       }),
     );
   });

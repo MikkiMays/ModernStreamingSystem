@@ -156,6 +156,11 @@
         "hint": "Only you can see it",
         "keywords": "camera test"
       },
+      "screen-mode": {
+        "label": "Share mode",
+        "hint": "Sharp — text, up to 15 fps; Smooth — games and video",
+        "keywords": "screen share mode sharp smooth stream"
+      },
       "screen-resolution": {
         "label": "Quality",
         "hint": "",
@@ -419,6 +424,7 @@
       "fps": "{{label}}: frame rate",
       "ceiling": "This server allows up to {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Camera goes up to {{resolution}}p",
+      "sharpFps": "In Sharp mode the share runs at up to {{fps}} fps: sharpness over frame rate. Pick Smooth if you need the frame rate",
       "group": {
         "screen": "Screen share",
         "camera": "Camera video"
@@ -3751,7 +3757,7 @@
     },
     "modeHints": {
       "smooth": "Games and video: the chosen frame rate holds",
-      "sharp": "Text and desktop: always sharp, as many frames as the connection allows"
+      "sharp": "Text and desktop: always sharp, up to {{fps}} frames per second"
     },
     "options": "Sharing settings",
     "preview": "Show preview to viewers",

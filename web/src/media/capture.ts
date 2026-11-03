@@ -83,7 +83,7 @@ export const browserCapture: CaptureAdapter = {
  */
 export async function deviceCapture(
   deviceId: string,
-  profile: Pick<ScreenProfile, 'resolution' | 'fps'>,
+  profile: Pick<ScreenProfile, 'resolution' | 'fps' | 'mode'>,
   withSound: boolean,
 ): Promise<MediaStream> {
   const sound = withSound ? await deviceSound(deviceId) : null;

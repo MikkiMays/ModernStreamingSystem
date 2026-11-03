@@ -21,7 +21,10 @@ export type FrameRate = 15 | 30 | 60;
 export interface ScreenProfile {
   resolution: Resolution;
   fps: FrameRate;
-  /** Режим показа (R95). Нет — `smooth`: так читают старые записи и камера. */
+  /**
+   * Режим показа (R95). Нет — человек режим не выбирал, и действует умолчание `defaultScreenMode`
+   * («чёткость», Р-84); `smooth` в записи — только явный выбор. У камеры поля нет.
+   */
   mode?: ScreenMode;
   /** Слать ли зрителям превью показа (R80). Нет — да. */
   preview?: boolean;
@@ -38,14 +41,33 @@ export const screenAudios: readonly ScreenAudio[] = ['none', 'system', 'app', 's
  * Два режима показа, как у Discord («Игры» / «Пользовательские», R95).
  *
  * `smooth` — игры и видео: выбранная частота, полоса под движение. `sharp` — текст, рабочий стол,
- * презентации: чёткость всегда, при нехватке полосы кодировщик сбрасывает кадры (5–10 fps —
- * как у Телемоста), разрешение не трогается ни в одном режиме (X10).
+ * презентации: чёткость всегда, кадров не больше `SHARP_MAX_FPS`, при нехватке полосы кодировщик
+ * сбрасывает кадры дальше (5 fps у застывшего экрана — как у Meet), разрешение не трогается ни в
+ * одном режиме (X10).
+ *
+ * УМОЛЧАНИЕ — «ЧЁТКОСТЬ» (R184, Р-84). Владелец: «в Мите прям отличное качество, сделай как в Мите,
+ * возможно с принципиальным уменьшением фпс». «Плавность» по умолчанию давала H.264 из железа на
+ * 720p30: аппаратный H.264 без инструментов экранного содержимого мылит текст и «плывёт» при
+ * прокрутке. Кто ничего не выбирал — показывает текст и рабочий стол, а не игру; игра и видео —
+ * явный выбор «Плавности», и он помнится.
  */
 export type ScreenMode = 'smooth' | 'sharp';
 export const screenModes: ScreenMode[] = ['smooth', 'sharp'];
-export const defaultScreenMode: ScreenMode = 'smooth';
+export const defaultScreenMode: ScreenMode = 'sharp';
 export const modeOf = (profile: Pick<ScreenProfile, 'mode'>): ScreenMode =>
-  profile.mode === 'sharp' ? 'sharp' : 'smooth';
+  profile.mode === 'smooth' ? 'smooth' : 'sharp';
+/**
+ * Потолок частоты «Чёткости». У каждого кадра — вдвое-вчетверо больше бит при той же полосе, чем
+ * на 30–60 кадрах: 1080p на 4 Мбит/с — это 266 Кбит на кадр вместо 133, и текст читается и при
+ * прокрутке, а не только когда экран замер. Заодно программные AV1/VP9 с инструментами экранного
+ * содержимого (`codec-policy.ts`) посильны машине с меньшим числом ядер: кадр за 66 мс, а не за 33.
+ * Это и есть «принципиальное уменьшение fps» из слов владельца; в «Плавности» выбранная частота —
+ * как была.
+ */
+export const SHARP_MAX_FPS = 15 as const satisfies FrameRate;
+/** Частота, которая пойдёт в захват и кодировщик: в «чёткости» — не выше `SHARP_MAX_FPS`. */
+export const screenFps = (profile: Pick<ScreenProfile, 'fps' | 'mode'>): FrameRate =>
+  modeOf(profile) === 'sharp' ? (Math.min(profile.fps, SHARP_MAX_FPS) as FrameRate) : profile.fps;
 const bitrates = {
   480: { 15: 0.75, 30: 1.2, 60: 2 },
   720: { 15: 1.5, 30: 3, 60: 5 },
@@ -57,25 +79,30 @@ const bitrates = {
  * каждый — почти ключевой. Два мегабита на 720p, четыре на 1080p, шесть на 1440p (§9.2).
  */
 const sharpBitrates: Record<Resolution, number> = { 480: 1, 720: 2, 1080: 4, 1440: 6 };
-/** What a level asks of the link, in bits per second. */
+/** Полоса показа под уровень и режим, бит/с: без режима — «чёткость» (`modeOf`). */
 export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps' | 'mode'>) {
   if (modeOf(level) === 'sharp') return sharpBitrates[level.resolution] * 1000000;
   return bitrates[level.resolution][level.fps] * 1000000;
 }
+/** Полоса камеры под уровень: та же таблица, что у «плавности» показа, — режима у камеры нет. */
+export const cameraBitrate = (level: Pick<ScreenProfile, 'resolution' | 'fps'>) =>
+  bitrates[level.resolution][level.fps] * 1000000;
 /**
  * Что просить у `getDisplayMedia` (или у оболочки) под выбранный уровень.
  *
  * `ideal`, а не `exact`: экран меньше запрошенного не растянуть, и требовать этого нельзя —
  * `exact` означал бы отказ захватывать вовсе. Частота — и `ideal`, и `max`: больше выбранного
- * браузер не отдаёт, меньше — отдаёт только если не может (в `sharp` это ожидаемо).
+ * браузер не отдаёт, меньше — отдаёт только если не может (в `sharp` это ожидаемо). Частота —
+ * та, что пойдёт в кодировщик (`screenFps`): захватывать 30 кадров ради 15 — греть процессор.
  */
 export function captureConstraints(
-  profile: Pick<ScreenProfile, 'resolution' | 'fps'>,
+  profile: Pick<ScreenProfile, 'resolution' | 'fps' | 'mode'>,
 ): MediaTrackConstraints {
+  const fps = screenFps(profile);
   return {
     width: { ideal: Math.round((profile.resolution * 16) / 9) },
     height: { ideal: profile.resolution },
-    frameRate: { ideal: profile.fps, max: profile.fps },
+    frameRate: { ideal: fps, max: fps },
   };
 }
 export function fitSource(width: number, height: number, resolution: Resolution) {
@@ -129,7 +156,7 @@ export function screenOptions(profile: ScreenProfile, shape: PublishShape = BASE
     ...backupOptions(shape),
     screenShareEncoding: {
       maxBitrate: targetBitrate(profile),
-      maxFramerate: profile.fps,
+      maxFramerate: screenFps(profile),
       priority: 'high',
     },
     degradationPreference: 'maintain-resolution',
@@ -155,8 +182,8 @@ export function policyLevel(kind: 'camera' | 'screen', profile: ScreenProfile): 
   return {
     width,
     height: profile.resolution,
-    fps: profile.fps,
-    bitrate: targetBitrate(kind === 'camera' ? { ...profile, mode: 'smooth' } : profile),
+    fps: kind === 'camera' ? profile.fps : screenFps(profile),
+    bitrate: kind === 'camera' ? cameraBitrate(profile) : targetBitrate(profile),
   };
 }
 /**
@@ -274,7 +301,7 @@ export function cameraOptions(profile: ScreenProfile, shape: PublishShape = BASE
   return {
     videoCodec: shape.codec,
     ...backupOptions(shape),
-    videoEncoding: { maxBitrate: targetBitrate(profile), maxFramerate: profile.fps },
+    videoEncoding: { maxBitrate: cameraBitrate(profile), maxFramerate: profile.fps },
     degradationPreference: 'maintain-resolution',
     simulcast: shape.simulcast,
     ...(shape.scalabilityMode ? { scalabilityMode: shape.scalabilityMode } : {}),
@@ -321,7 +348,7 @@ export function layerTunes(
   const scale = (height: number) => Math.max(1, sourceShort / Math.max(2, height));
   const top = Math.min(sourceShort, level.resolution);
   const tunes: LayerTune[] = [
-    { scaleResolutionDownBy: scale(top), maxBitrate: targetBitrate(level), maxFramerate: level.fps },
+    { scaleResolutionDownBy: scale(top), maxBitrate: cameraBitrate(level), maxFramerate: level.fps },
   ];
   let above = top;
   for (let index = helpers.length - 1; index >= 0; index--) {

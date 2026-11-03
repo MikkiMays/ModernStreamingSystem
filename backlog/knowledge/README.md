@@ -46,6 +46,7 @@
 
 - [`cord-ui-traps`](memory/cord-ui-traps.md) — Три ловушки интерфейса Cord, которые выглядели как сломанные ручки, а не как неверные значения
 - [`cord-voice-levels`](memory/cord-voice-levels.md) — Кто говорит в Cord считает сам зритель (AnalyserNode в media/levels.ts), а не SFU — где это ломается и чем проверять
+- [`cord-screen-hint-livekit`](memory/cord-screen-hint-livekit.md) — Почему «Чёткость» показа на AV1/VP9 не включала screen content coding: livekit-client сбивает `contentHint` внутри `publishTrack`, лечится возвратом после неё
 - [`cord-video-quality-levers`](memory/cord-video-quality-levers.md) — Где в Cord ломается качество видео: кодек камеры, потолок «Авто», adaptiveStream и один предел LiveKit, который снаружи не убирается
 - [`cord-watch-together`](memory/cord-watch-together.md) — Кинозал Cord: видео тянет сервер и проксирует HLS, а не браузер — почему так и где грабли
 - [`cord-web-on-phone`](memory/cord-web-on-phone.md) — Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона

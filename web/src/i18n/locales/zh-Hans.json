@@ -156,6 +156,11 @@
         "hint": "仅你可见",
         "keywords": "摄像头测试"
       },
+      "screen-mode": {
+        "label": "共享模式",
+        "hint": "清晰——文字，最高 15 fps；流畅——游戏和视频",
+        "keywords": "屏幕共享 模式 清晰 流畅 直播"
+      },
       "screen-resolution": {
         "label": "画质",
         "hint": "",
@@ -419,6 +424,7 @@
       "fps": "{{label}}：帧率",
       "ceiling": "此服务器最高支持 {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "摄像头最高 {{resolution}}p",
+      "sharpFps": "“清晰”模式下共享最高 {{fps}} fps：清晰度优先于帧率。需要帧率请选择“流畅”",
       "group": {
         "screen": "屏幕共享",
         "camera": "摄像头视频"
@@ -3711,7 +3717,7 @@
     },
     "modeHints": {
       "smooth": "游戏和视频：保持所选帧率",
-      "sharp": "文字和桌面：始终清晰，帧数视网络情况而定"
+      "sharp": "文字和桌面：始终清晰，最高 {{fps}} 帧/秒"
     },
     "options": "共享设置",
     "preview": "向观看者显示预览",

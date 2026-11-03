@@ -156,6 +156,11 @@
         "hint": "Visibile solo a te",
         "keywords": "test videocamera"
       },
+      "screen-mode": {
+        "label": "Modalità di condivisione",
+        "hint": "Nitidezza — testo, max 15 fps; Fluidità — giochi e video",
+        "keywords": "condivisione schermo modalità nitidezza fluidità stream"
+      },
       "screen-resolution": {
         "label": "Qualità",
         "hint": "",
@@ -419,6 +424,7 @@
       "fps": "{{label}}: frame rate",
       "ceiling": "Questo server consente fino a {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Fotocamera: fino a {{resolution}}p",
+      "sharpFps": "In modalità «Nitidezza» la condivisione va fino a {{fps}} fps: la nitidezza conta più della frequenza. Per la frequenza scegli «Fluidità»",
       "group": {
         "screen": "Condivisione schermo",
         "camera": "Video della videocamera"
@@ -3791,7 +3797,7 @@
     },
     "modeHints": {
       "smooth": "Giochi e video: la frequenza scelta resta stabile",
-      "sharp": "Testo e desktop: sempre nitido, tanti fotogrammi quanti ne permette la connessione"
+      "sharp": "Testo e desktop: sempre nitido, fino a {{fps}} fotogrammi al secondo"
     },
     "options": "Impostazioni della condivisione",
     "preview": "Mostra l’anteprima agli spettatori",

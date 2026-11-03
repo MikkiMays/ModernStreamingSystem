@@ -128,17 +128,41 @@ export interface CodecDecision extends PublishShape {
 /** VP8 одним слоем — то, что кодируется всегда. */
 export const BASELINE: PublishShape = { codec: 'vp8', simulcast: false, backup: false };
 
+/**
+ * Бюджет программной ступени: до какого уровня она посильна и сколько ядер ей для этого нужно.
+ * Ступень берётся, если уровень укладывается хотя бы в один бюджет и ядер не меньше, чем у самого
+ * дешёвого из подходящих.
+ */
+interface Budget {
+  height: number;
+  fps: number;
+  cores: number;
+}
+
 interface Rung {
   codec: Codec;
   hw: boolean;
-  /** Потолок уровня для программной ступени: выше неё процессор не вытянет — значит, и не берём. */
-  max?: { height: number; fps: number };
-  /** Сколько ядер нужно программной ступени (кроме последней). */
-  cores?: number;
+  /** Бюджеты программной ступени (кроме последней): выше всех — не берём, ядер меньше — не берём. */
+  budgets?: readonly Budget[];
 }
 
 const hw = (codec: Codec): Rung => ({ codec, hw: true });
-const sw = (codec: Codec, max?: Rung['max'], cores?: number): Rung => ({ codec, hw: false, max, cores });
+const sw = (codec: Codec, ...budgets: Budget[]): Rung => ({
+  codec,
+  hw: false,
+  ...(budgets.length ? { budgets } : {}),
+});
+
+/**
+ * Бюджеты программных AV1/VP9 у «Чёткости» (Р-47, Р-84). До 1080p30 — восемь ядер, как было. До
+ * 1080p15 — четыре: это умолчание показа (`SHARP_MAX_FPS`), кадр за 66 мс вместо 33, а libaom в
+ * screencast-режиме берёт скорость 11, libvpx — 8–9 (`libaom_av1_encoder.cc`, `libvpx_vp9_encoder.cc`).
+ * Перебор — не тихая деградация: при `cpu`/долгом кадре сторож отступает на H.265/H.264 в железе.
+ */
+const SHARP_SOFTWARE: Budget[] = [
+  { height: 1080, fps: 15, cores: 4 },
+  { height: 1080, fps: 30, cores: 8 },
+];
 
 /**
  * Лестницы — сверху вниз; аппаратные ступени, кроме явно программных (Р-47).
@@ -146,16 +170,24 @@ const sw = (codec: Codec, max?: Rung['max'], cores?: number): Rung => ({ codec, 
  * Камера ПК: AV1 → H.265 → VP9 → H.264 в железе, затем VP9 программно до 720p30 при запасе ядер,
  * затем H.264 как есть. «Плавность»: AV1 → H.265 → H.264 в железе — 60 кадров программно не
  * вытянуть. «Чёткость»: AV1 и VP9 первыми (screen content coding: текст чище при той же полосе),
- * программно — до 1080p30, потом H.265/H.264 в железе. Телефон: H.264 → VP9 в железе → VP8.
+ * программно — по бюджетам `SHARP_SOFTWARE`, потом H.265/H.264 в железе. Телефон: H.264 → VP9 в
+ * железе → VP8.
  */
 const DESKTOP: Record<PolicySource, readonly Rung[]> = {
-  camera: [hw('av1'), hw('h265'), hw('vp9'), hw('h264'), sw('vp9', { height: 720, fps: 30 }, 4), sw('h264')],
+  camera: [
+    hw('av1'),
+    hw('h265'),
+    hw('vp9'),
+    hw('h264'),
+    sw('vp9', { height: 720, fps: 30, cores: 4 }),
+    sw('h264'),
+  ],
   'screen-smooth': [hw('av1'), hw('h265'), hw('h264'), sw('h264')],
   'screen-sharp': [
     hw('av1'),
     hw('vp9'),
-    sw('av1', { height: 1080, fps: 30 }, 8),
-    sw('vp9', { height: 1080, fps: 30 }, 8),
+    sw('av1', ...SHARP_SOFTWARE),
+    sw('vp9', ...SHARP_SOFTWARE),
     hw('h265'),
     hw('h264'),
     sw('h264'),
@@ -285,11 +317,20 @@ export function decideCodec(input: PolicyInput): CodecDecision {
       skip('gpu');
       continue;
     }
-    if (rung.max && (input.level.height > rung.max.height || input.level.fps > rung.max.fps)) {
-      skip('level');
-      continue;
+    if (rung.budgets) {
+      const fitting = rung.budgets.filter(
+        (budget) => input.level.height <= budget.height && input.level.fps <= budget.fps,
+      );
+      if (!fitting.length) {
+        skip('level');
+        continue;
+      }
+      if ((input.cores ?? 0) < Math.min(...fitting.map((budget) => budget.cores))) {
+        skip('cpu');
+        continue;
+      }
     }
-    if (!last && !rung.hw && ((input.cores ?? 0) < (rung.cores ?? 0) || input.health?.cpuTight)) {
+    if (!last && !rung.hw && input.health?.cpuTight) {
       skip('cpu');
       continue;
     }

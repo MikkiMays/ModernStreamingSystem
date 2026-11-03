@@ -22,6 +22,7 @@ import { RecoveryWindow } from '../core/recovery';
 import {
   cameraHint,
   fitSource,
+  screenFps,
   screenHint,
   screenOptions,
   type ScreenMode,
@@ -664,7 +665,13 @@ export class MediaSession {
       })
       .on(RoomEvent.TrackUnsubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnpublished, this.refreshTracks)
-      .on(RoomEvent.LocalTrackPublished, this.refreshTracks)
+      .on(RoomEvent.LocalTrackPublished, (publication) => {
+        // Любая публикация показа — и после полного переподключения (`republishAllTracks`) — проходит
+        // через `publish` LiveKit, который сбивает подсказку на `motion`; возвращаем её каждый раз.
+        if (publication.source === Track.Source.ScreenShare && publication.track?.mediaStreamTrack)
+          this.applyScreenHint(publication.track.mediaStreamTrack);
+        this.refreshTracks();
+      })
       .on(RoomEvent.LocalTrackUnpublished, this.refreshTracks)
       .on(RoomEvent.ParticipantConnected, this.refreshTracks)
       .on(RoomEvent.ParticipantDisconnected, this.refreshTracks)
@@ -2500,7 +2507,7 @@ export class MediaSession {
       await video.applyConstraints({
         width: { max: size.width },
         height: { max: size.height },
-        frameRate: { max: profile.fps },
+        frameRate: { max: screenFps(profile) },
       });
       // Screencast-режим Chromium (R91): кодировщик не понижает разрешение и не включает
       // quality scaler — при нехватке полосы сбрасывает кадры, а не чёткость.
@@ -2535,6 +2542,7 @@ export class MediaSession {
             : {}),
         });
         if (publication.track) this.screenTracks.push(publication.track);
+        if (track === video) this.applyScreenHint(video);
         if (this.disposed || operation.signal.aborted) {
           await this.stopScreen();
           return;
@@ -2619,6 +2627,24 @@ export class MediaSession {
       }
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
+  }
+  /**
+   * Вернуть показу screencast-режим после публикации (R184, Р-84).
+   *
+   * livekit-client 2.22 при показе VP9/AV1 одним потоком SVC ставит дорожке `contentHint = 'motion'`
+   * (`LocalParticipant.publish`: «Chrome does not allow more than 5 fps with L1T3»). Для libwebrtc
+   * `motion` — это `is_screencast = false` (`pc/rtp_sender.cc`): без инструментов экранного
+   * содержимого (VP9 `VP9E_SET_TUNE_CONTENT`, AV1 `AOM_CONTENT_SCREEN` + палитра), с шумодавом и
+   * настройками под лица — то есть «Чёткость» на AV1/VP9 теряла ровно то, ради чего выбрана.
+   * Предел в 5 кадров, которого боится LiveKit, живёт только в старом пути без `scalabilityMode`
+   * (`vp9/svc_config.cc`: `ConfigureSvcScreenSharing`, `kMaxScreenSharingLayerFramerateFps`); при
+   * `L1T3` через `scalabilityMode` слои собирает `GetVp9SvcConfig` с полной частотой, а у застывшего
+   * экрана кодировщик сам уходит на 5 кадров (`variable_framerate_screenshare`) — как Meet. Смена
+   * подсказки у живой дорожки перенастраивает кодировщик (`VideoRtpSender::OnChanged`), поэтому
+   * возвращаем её сразу после `publishTrack`, а не до него.
+   */
+  private applyScreenHint(video: MediaStreamTrack) {
+    if (video.readyState === 'live' && video.contentHint !== screenHint) video.contentHint = screenHint;
   }
   async stopScreen() {
     this.screenPublishAbort?.abort();
@@ -2765,7 +2791,7 @@ export class MediaSession {
       await track.mediaStreamTrack.applyConstraints({
         width: { max: size.width },
         height: { max: size.height },
-        frameRate: { max: profile.fps },
+        frameRate: { max: screenFps(profile) },
       });
       track.mediaStreamTrack.contentHint = screenHint;
       if (this.disposed || generation !== this.screenGeneration) return;
@@ -2781,6 +2807,7 @@ export class MediaSession {
         ...this.screenOptionsNow(profile),
         source: Track.Source.ScreenShare,
       });
+      this.applyScreenHint(track.mediaStreamTrack);
       if (this.disposed || generation !== this.screenGeneration) {
         await this.room.localParticipant.unpublishTrack(track, true);
         return;
@@ -2842,7 +2869,7 @@ export class MediaSession {
         const reading = readUpstream(report);
         const delta = upstreamDelta(this.upstreamReadings.get(source), reading);
         this.upstreamReadings.set(source, reading);
-        const targetFps = source === 'screen' ? this.profile.fps : this.cameraProfile.fps;
+        const targetFps = source === 'screen' ? screenFps(this.profile) : this.cameraProfile.fps;
         if (index === 0 && reading.width)
           this.outbound.set({
             source,

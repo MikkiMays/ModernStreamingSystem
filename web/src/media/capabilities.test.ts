@@ -25,8 +25,10 @@ describe('правила качества с сервера', () => {
     expect(qualityLevels()).toEqual({ resolutions: [720, 1080, 1440], frameRates: [15, 30, 60] });
   });
 
-  it('без поля quality (старый сервер) действуют встроенные умолчания 720p30 и потолок 1080p60', () => {
+  it('без поля quality (старый сервер) действуют встроенные умолчания 1080p30 и потолок 1080p60', () => {
     expect(rememberQuality({ maxParticipants: 10 })).toEqual(builtinRules);
+    // Показ начинается с 1080p (Р-84): экран 1080p не ужимается до 720 — текст мылил сам масштаб.
+    expect(builtinRules.default).toEqual({ resolution: 1080, fps: 30 });
     expect(qualityLevels()).toEqual({ resolutions: [720, 1080], frameRates: [15, 30, 60] });
   });
 
@@ -53,11 +55,11 @@ describe('правила качества с сервера', () => {
 
 describe('миграция сохранённого уровня', () => {
   it('«Авто» становится уровнем по умолчанию с сервера', () => {
-    expect(nearestLevel({ resolution: 1080, fps: 30, automatic: true })).toEqual({
-      resolution: 720,
+    expect(nearestLevel({ resolution: 720, fps: 60, automatic: true })).toEqual({
+      resolution: 1080,
       fps: 30,
     });
-    expect(nearestLevel(undefined)).toEqual({ resolution: 720, fps: 30 });
+    expect(nearestLevel(undefined)).toEqual({ resolution: 1080, fps: 30 });
   });
 
   it('1440p опускается к потолку, частота выше потолка — тоже', () => {
@@ -75,6 +77,6 @@ describe('миграция сохранённого уровня', () => {
 
   it('допустимый выбор остаётся как есть, незнакомое число — умолчание', () => {
     expect(nearestLevel({ resolution: 1080, fps: 15 })).toEqual({ resolution: 1080, fps: 15 });
-    expect(nearestLevel({ resolution: 9999, fps: -1 } as never)).toEqual({ resolution: 720, fps: 30 });
+    expect(nearestLevel({ resolution: 9999, fps: -1 } as never)).toEqual({ resolution: 1080, fps: 30 });
   });
 });
