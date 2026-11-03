@@ -1,4 +1,14 @@
-import { ArrowLeft, Mic, MicOff, Video, VideoOff, ArrowRight, LoaderCircle, Settings2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  ArrowRight,
+  LoaderCircle,
+  Settings2,
+  Sparkles,
+} from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { prepareHuman, publicApi, RoomApi } from '../api/client';
@@ -17,7 +27,9 @@ import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
 import { beginInviteCopy, inviteLink } from '../core/invite-copy';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
-import { Button, Dialog, Field, IconButton, Input, Segmented, Switch } from './kit';
+import { Button, Dialog, Field, IconButton, Input, Popover, Segmented, Switch } from './kit';
+import { BackgroundPicker, useBackgroundSupport } from './BackgroundPicker';
+import { useBackgroundPreview } from './useBackgroundPreview';
 import { previewConstraints, touchFirst } from '../media/profiles';
 import './prejoin.css';
 import { failureText } from '../core/failure';
@@ -57,6 +69,10 @@ export function Prejoin({
   const [choices, setChoices] = useState<DeviceChoice>(() => readPreferences().devices);
   const [camera, setCamera] = useState(false);
   const [mic, setMic] = useState(false);
+  /** Дорожка камеры превью — для фона (R186): выбранный фон виден здесь же, до входа. */
+  const [videoTrack, setVideoTrack] = useState<MediaStreamTrack | null>(null);
+  const backgrounds = useBackgroundSupport();
+  const processed = useBackgroundPreview(videoTrack, preferences.background);
   const [error, setError] = useState('');
   /** Отказ камеры или микрофона: строка под превью и «Помощь» с ответом на этот вопрос рядом. */
   /** Отказ камеры или микрофона на превью — фразой о самом устройстве (R180); пусто — отказа нет. */
@@ -81,6 +97,13 @@ export function Prejoin({
       .then(setDevices)
       .catch(() => {});
   };
+  // Что показывает превью: обработанную дорожку, когда фон выбран и готов, иначе сам захват.
+  useEffect(() => {
+    const element = preview.current;
+    if (!element || !camera) return;
+    element.srcObject = processed ? new MediaStream([processed]) : stream.current;
+    void element.play().catch(() => {});
+  }, [camera, processed]);
   useEffect(() => {
     mounted.current = true;
     void import('../media/session');
@@ -292,6 +315,7 @@ export function Prejoin({
       }
       if (kind === 'video') {
         setCamera(!enabled);
+        setVideoTrack(stream.current.getVideoTracks()[0] ?? null);
         cameraUsed.current = true;
       } else setMic(!enabled);
       if (preview.current) {
@@ -375,15 +399,41 @@ export function Prejoin({
                   {camera ? <Video /> : <VideoOff />}
                 </IconButton>
               </div>
-              <IconButton
-                tone="stage"
-                size="lg"
-                label={t(($) => $.prejoin.settingsButton)}
-                className="preview-settings"
-                onClick={() => setSettings(true)}
-              >
-                <Settings2 />
-              </IconButton>
+              <div className="preview-tools">
+                {/* Фон (R186) — здесь же, у превью, как в Meet и Телемосте: выбор виден сразу на себе. */}
+                {backgrounds && backgrounds !== 'none' && (
+                  <Popover
+                    title={t(($) => $.background.title)}
+                    width={320}
+                    side="top"
+                    trigger={
+                      <IconButton
+                        tone="stage"
+                        size="lg"
+                        label={t(($) => $.background.title)}
+                        className="preview-settings"
+                        pressed={preferences.background.kind !== 'none'}
+                      >
+                        <Sparkles />
+                      </IconButton>
+                    }
+                  >
+                    <BackgroundPicker
+                      value={preferences.background}
+                      onChange={(background) => setPreferences(savePreferences({ background }))}
+                    />
+                  </Popover>
+                )}
+                <IconButton
+                  tone="stage"
+                  size="lg"
+                  label={t(($) => $.prejoin.settingsButton)}
+                  className="preview-settings"
+                  onClick={() => setSettings(true)}
+                >
+                  <Settings2 />
+                </IconButton>
+              </div>
             </div>
           </div>
           {/* Отказ камеры или микрофона — под превью и только после отказа (R74), с ответом рядом (T36). */}
