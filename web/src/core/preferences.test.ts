@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPreferences, savePreferences } from './preferences';
+import { modeOf } from '../media/profiles';
 beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
   // У камеры своё умолчание — 480p30 (`CAMERA_DEFAULT`): «Авто» больше нет.
@@ -219,24 +220,31 @@ it('помнит прошлый выбор площадки у музыки и �
   expect(readPreferences().lastPlatform).toEqual({});
 });
 
-it('показ помнит режим и превью (R95/R80): старые записи — «плавность» и превью есть, уровень без них их не стирает', () => {
+it('показ помнит режим и превью (R95/R80/Р-84): запись без режима — не выбор, превью есть, уровень без них их не стирает', () => {
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ screen: { resolution: 1080, fps: 30 } }));
-  expect(readPreferences().screen).toMatchObject({
-    resolution: 1080,
-    fps: 30,
-    mode: 'smooth',
-    preview: true,
-  });
-  savePreferences({ screen: { resolution: 1080, fps: 30, mode: 'sharp', preview: false } });
-  expect(readPreferences().screen).toMatchObject({ mode: 'sharp', preview: false });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30, preview: true });
+  // «Не выбирал режим» ≠ «выбрал Плавность»: в записи режима нет, умолчание решает `modeOf`.
+  expect(readPreferences().screen.mode).toBeUndefined();
+  expect(modeOf(readPreferences().screen)).toBe('sharp');
+  savePreferences({ screen: { resolution: 1080, fps: 30, mode: 'smooth', preview: false } });
+  expect(readPreferences().screen).toMatchObject({ mode: 'smooth', preview: false });
   // Ряд качества знает только кадр и частоту — режим и превью остаются.
   savePreferences({ screen: { resolution: 720, fps: 60 } });
-  expect(readPreferences().screen).toMatchObject({ resolution: 720, fps: 60, mode: 'sharp', preview: false });
+  expect(readPreferences().screen).toMatchObject({
+    resolution: 720,
+    fps: 60,
+    mode: 'smooth',
+    preview: false,
+  });
+  // Правка без режима не дописывает его в запись: «не выбирал» сохраняется как «не выбирал».
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ screen: { resolution: 1080, fps: 30 } }));
+  savePreferences({ screen: { resolution: 720, fps: 30 } });
+  expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).screen).not.toHaveProperty('mode');
   localStorage.setItem(
     'cord:preferences:v1',
     JSON.stringify({ screen: { resolution: 1080, fps: 30, mode: 'blurry' } }),
   );
-  expect(readPreferences().screen.mode).toBe('smooth');
+  expect(readPreferences().screen.mode).toBeUndefined();
 });
 
 it('показ помнит звук окна показа (R60): старая запись и незнакомое — без звука, правка уровня его не стирает', () => {

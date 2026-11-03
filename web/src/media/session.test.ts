@@ -123,6 +123,42 @@ describe('screen publication handoff', () => {
     }
   });
 
+  /**
+   * livekit-client ставит показу VP9/AV1 `contentHint = 'motion'` внутри `publishTrack` — и
+   * кодировщик теряет screencast-режим (Р-84). Подсказка возвращается после публикации, а захват и
+   * кодировщик в «чёткости» по умолчанию просят не больше 15 кадров.
+   */
+  it('возвращает screencast-подсказку после публикации и просит у захвата частоту «чёткости»', async () => {
+    const { media, room, video, permissions, publishTrack } = screenFixture();
+    publishTrack.mockImplementation(async () => {
+      // Как LiveKit: подсказка сбита посреди публикации.
+      (video as unknown as { contentHint: string }).contentHint = 'motion';
+      return {
+        track: {
+          source: Track.Source.ScreenShare,
+          kind: Track.Kind.Video,
+          mediaStreamTrack: video,
+          stop: video.stop,
+        },
+      };
+    });
+    permissions.canPublishSources.push(Track.sourceToProto(Track.Source.ScreenShare));
+    room.emit(RoomEvent.ParticipantPermissionsChanged);
+    try {
+      media.share({ resolution: 1080, fps: 30 });
+      await vi.waitFor(() => expect(publishTrack).toHaveBeenCalledOnce());
+      expect((video as unknown as { contentHint: string }).contentHint).toBe('detail');
+      expect(video.applyConstraints).toHaveBeenCalledWith(
+        expect.objectContaining({ frameRate: { max: 15 }, height: { max: 1080 } }),
+      );
+      expect((publishTrack.mock.calls[0] as unknown[])[1]).toMatchObject({
+        screenShareEncoding: { maxFramerate: 15, maxBitrate: 4000000 },
+      });
+    } finally {
+      media.dispose();
+    }
+  });
+
   it('releases the reservation and capture if the participant leaves while waiting', async () => {
     const { media, api, video, publishTrack } = screenFixture();
     media.share(media.requestedProfile);

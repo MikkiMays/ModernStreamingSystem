@@ -5,13 +5,16 @@ import {
   cameraCapture,
   cameraOptions,
   captureConstraints,
+  defaultScreenMode,
   fitSource,
   forcedCameraConstraints,
   modeOf,
   policyLevel,
   policySourceOf,
+  screenFps,
   screenHint,
   screenOptions,
+  SHARP_MAX_FPS,
   SIMULCAST_BACKUP,
   targetBitrate,
 } from './profiles';
@@ -35,7 +38,7 @@ describe('screen profiles', () => {
    * же размера — временные слои у VP9/AV1.
    */
   it('отдаёт выбранный уровень одним слоем без понижения разрешения', () => {
-    const options = screenOptions({ resolution: 1440, fps: 60 }, av1);
+    const options = screenOptions({ resolution: 1440, fps: 60, mode: 'smooth' }, av1);
     expect(options.screenShareEncoding?.maxBitrate).toBe(16000000);
     expect(options.screenShareEncoding?.maxFramerate).toBe(60);
     expect(options.screenShareEncoding?.priority).toBe('high');
@@ -54,8 +57,9 @@ describe('screen profiles', () => {
     expect(targetBitrate({ resolution: 1080, fps: 15, mode: 'sharp' })).toBe(4000000);
     expect(targetBitrate({ resolution: 1440, fps: 30, mode: 'sharp' })).toBe(6000000);
     expect(targetBitrate({ resolution: 1080, fps: 60, mode: 'smooth' })).toBe(10000000);
-    expect(targetBitrate({ resolution: 1080, fps: 60 })).toBe(10000000);
-    expect(modeOf({ mode: undefined })).toBe('smooth');
+    // Без режима — «чёткость» (Р-84): полоса кадра, а не частоты.
+    expect(targetBitrate({ resolution: 1080, fps: 60 })).toBe(4000000);
+    expect(modeOf({ mode: undefined })).toBe('sharp');
     expect(modeOf({ mode: 'sharp' })).toBe('sharp');
     // Оба режима — screencast и без понижения разрешения: разница только в полосе и кодеке.
     for (const mode of ['sharp', 'smooth'] as const) {
@@ -69,11 +73,57 @@ describe('screen profiles', () => {
   });
 
   it('захват просит выбранный кадр как ideal и частоту как потолок', () => {
-    expect(captureConstraints({ resolution: 1440, fps: 60 })).toEqual({
+    expect(captureConstraints({ resolution: 1440, fps: 60, mode: 'smooth' })).toEqual({
       width: { ideal: 2560 },
       height: { ideal: 1440 },
       frameRate: { ideal: 60, max: 60 },
     });
+  });
+
+  /**
+   * «Как в Meet» (R184, Р-84): кто режим не выбирал — показывает в «Чёткости». «Плавность» — только
+   * явный выбор; запись без режима — не выбор, и старое умолчание «плавность» к ней не применяется.
+   */
+  it('режим по умолчанию — «Чёткость»; «Плавность» — только явно', () => {
+    expect(defaultScreenMode).toBe('sharp');
+    expect(modeOf({})).toBe('sharp');
+    expect(modeOf({ mode: undefined })).toBe('sharp');
+    expect(modeOf({ mode: 'smooth' })).toBe('smooth');
+    expect(policySourceOf('screen', {})).toBe('screen-sharp');
+    expect(policySourceOf('screen', { mode: 'smooth' })).toBe('screen-smooth');
+  });
+
+  /**
+   * «Чёткость» платит частотой за чёткость: не больше 15 кадров — у каждого кадра вдвое-вчетверо
+   * больше бит при той же полосе, текст читается и при прокрутке; программные AV1/VP9 посильны
+   * машине с меньшим числом ядер. Выбранная частота остаётся потолком «Плавности».
+   */
+  it('«Чёткость» — не больше 15 кадров: захват, кодировщик и вопрос кодировщику — об одном', () => {
+    expect(SHARP_MAX_FPS).toBe(15);
+    expect(screenFps({ fps: 30 })).toBe(15);
+    expect(screenFps({ fps: 60, mode: 'sharp' })).toBe(15);
+    expect(screenFps({ fps: 15, mode: 'sharp' })).toBe(15);
+    expect(screenFps({ fps: 60, mode: 'smooth' })).toBe(60);
+    expect(captureConstraints({ resolution: 1080, fps: 30 }).frameRate).toEqual({ ideal: 15, max: 15 });
+    expect(captureConstraints({ resolution: 1080, fps: 60, mode: 'smooth' }).frameRate).toEqual({
+      ideal: 60,
+      max: 60,
+    });
+    expect(screenOptions({ resolution: 1080, fps: 30 }, av1).screenShareEncoding).toMatchObject({
+      maxBitrate: 4000000,
+      maxFramerate: 15,
+    });
+    expect(
+      screenOptions({ resolution: 1080, fps: 30, mode: 'smooth' }, av1).screenShareEncoding,
+    ).toMatchObject({ maxBitrate: 6000000, maxFramerate: 30 });
+    expect(policyLevel('screen', { resolution: 1080, fps: 60 })).toEqual({
+      width: 1920,
+      height: 1080,
+      fps: 15,
+      bitrate: 4000000,
+    });
+    // Камере потолок «Чёткости» не писан: у неё режима показа нет.
+    expect(policyLevel('camera', { resolution: 720, fps: 30 }).fps).toBe(30);
   });
 
   it('у H.264 и VP8 временных слоёв не просит, но и разрешение не трогает', () => {
@@ -125,22 +175,22 @@ describe('screen profiles', () => {
       fps: 30,
       bitrate: 1200000,
     });
-    expect(policyLevel('screen', { resolution: 1080, fps: 60, mode: 'sharp' })).toEqual({
+    expect(policyLevel('screen', { resolution: 1080, fps: 60, mode: 'smooth' })).toEqual({
       width: 1920,
       height: 1080,
       fps: 60,
-      bitrate: 4000000,
+      bitrate: 10000000,
     });
     // У камеры режима показа нет: «чёткость», оставшаяся в записи, полосу камеры не меняет.
     expect(policyLevel('camera', { resolution: 720, fps: 30, mode: 'sharp' }).bitrate).toBe(3000000);
     expect(policySourceOf('screen', { mode: 'sharp' })).toBe('screen-sharp');
-    expect(policySourceOf('screen', {})).toBe('screen-smooth');
+    expect(policySourceOf('screen', {})).toBe('screen-sharp');
     expect(policySourceOf('camera', { mode: 'sharp' })).toBe('camera');
   });
 
   /** «Авто» нет: любой уровень — выбранный, и держит размер кадра, а не торгуется им. */
   it('публикует выбранное сразу и держит кадр у экрана и у камеры', () => {
-    const screen = screenOptions({ resolution: 720, fps: 30 }, vp8);
+    const screen = screenOptions({ resolution: 720, fps: 30, mode: 'smooth' }, vp8);
     expect(screen.screenShareEncoding).toMatchObject({ maxBitrate: 3000000, maxFramerate: 30 });
     expect(screen.degradationPreference).toBe('maintain-resolution');
     const camera = cameraOptions({ resolution: 720, fps: 30 });

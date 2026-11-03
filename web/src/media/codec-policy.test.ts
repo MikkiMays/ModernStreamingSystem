@@ -28,6 +28,8 @@ function probe(...entries: [Codec, Scalability, Answer][]): ProbeAnswers {
 const level720 = { width: 1280, height: 720, fps: 30, bitrate: 3_000_000 };
 const level1080x60 = { width: 1920, height: 1080, fps: 60, bitrate: 10_000_000 };
 const level1080x30 = { width: 1920, height: 1080, fps: 30, bitrate: 4_000_000 };
+/** «Чёткость» по умолчанию: 1080p до 15 кадров, 4 Мбит/с (Р-84). */
+const level1080x15 = { width: 1920, height: 1080, fps: 15, bitrate: 4_000_000 };
 const gpu = (...vendors: GpuHint['vendors'][number][]): GpuHint => ({ vendors, source: 'shell' });
 /** Chromium на Windows декодирует всё; Firefox — без H.265; Safari без A17/M3 — без AV1. */
 const chrome: Codec[] = ['av1', 'h265', 'vp9', 'h264', 'vp8'];
@@ -146,6 +148,45 @@ describe('показ', () => {
     expect(sharp(rtx30)).toMatchObject({ codec: 'av1', hw: false, scalabilityMode: 'L1T3' });
     expect(sharp(rtx30, level1080x60).codec).toBe('h265');
     expect(sharp(rtx30, level1080x30, 4).codec).toBe('h265');
+  });
+
+  /**
+   * «Чёткость» по умолчанию идёт до 15 кадров (Р-84): кадр за 66 мс вместо 33 — программным AV1/VP9
+   * с инструментами экранного содержимого хватает четырёх ядер там, где на 30 кадрах нужно восемь.
+   * Это пересчёт бюджета, а не скрытая деградация: кадр и частота остаются выбранными.
+   */
+  it('«Чёткость» на 15 кадрах: программный AV1/VP9 до 1080p — уже с четырёх ядер', () => {
+    const sharp = (probeAnswers: ProbeAnswers, cores: number, level = level1080x15) =>
+      decideCodec(input({ source: 'screen-sharp', level, probe: probeAnswers, gpu: gpu('nvidia'), cores }));
+    expect(sharp(rtx30, 4)).toMatchObject({ codec: 'av1', hw: false, scalabilityMode: 'L1T3' });
+    expect(sharp(rtx30, 8)).toMatchObject({ codec: 'av1', hw: false });
+    // AV1 отверг сторож — VP9 программно тоже посилен четырём ядрам.
+    const noAv1 = decideCodec(
+      input({
+        source: 'screen-sharp',
+        level: level1080x15,
+        probe: rtx30,
+        gpu: gpu('nvidia'),
+        cores: 4,
+        health: { failed: new Map([[rungKey('av1', false), 'encode-time' as FailReason]]) },
+      }),
+    );
+    expect(noAv1).toMatchObject({ codec: 'vp9', hw: false });
+    // Двух ядер мало и на 15 кадрах — H.265 в железе; причина пропуска — процессор, а не уровень.
+    const weak = sharp(rtx30, 2);
+    expect(weak.codec).toBe('h265');
+    expect(weak.skipped).toContainEqual({ codec: 'av1', hw: false, why: 'cpu' });
+    expect(weak.skipped).toContainEqual({ codec: 'vp9', hw: false, why: 'cpu' });
+    // На 30 кадрах четырёх ядер по-прежнему мало (прежний бюджет), на восьми — хватает.
+    const thirty = sharp(rtx30, 4, level1080x30);
+    expect(thirty.codec).toBe('h265');
+    expect(thirty.skipped).toContainEqual({ codec: 'av1', hw: false, why: 'cpu' });
+    // 1440p программно не кодируем ни при каких ядрах — это уже «уровень».
+    const big = sharp(rtx30, 16, { width: 2560, height: 1440, fps: 15, bitrate: 6_000_000 });
+    expect(big.codec).toBe('h265');
+    expect(big.skipped).toContainEqual({ codec: 'av1', hw: false, why: 'level' });
+    // Аппаратные ступени бюджета не знают: Intel на двух ядрах — VP9 в железе.
+    expect(sharp(intel, 2).codec).toBe('vp9');
   });
 
   it('у показа VP9/AV1 — только L1T3: аппаратный L1T1 не годится, LiveKit всё равно поставит L1T3', () => {

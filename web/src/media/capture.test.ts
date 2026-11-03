@@ -44,7 +44,8 @@ function devices() {
 
 it('устройство захвата (R60): тот же уровень, что у показа, звук — вход той же группы и без обработки', async () => {
   const getUserMedia = devices();
-  await deviceCapture('elgato', { resolution: 1080, fps: 60 }, true);
+  // Карта захвата — это игра или приставка: «плавность», выбранная частота идёт как есть.
+  await deviceCapture('elgato', { resolution: 1080, fps: 60, mode: 'smooth' }, true);
   expect(getUserMedia).toHaveBeenCalledWith({
     video: {
       deviceId: { exact: 'elgato' },
