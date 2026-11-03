@@ -2321,7 +2321,8 @@
       "pin": "Präsentation von {{name}} anpinnen",
       "pinOwn": "Eigene Präsentation anpinnen",
       "unpin": "Präsentation loslösen",
-      "chip": "{{name}} präsentiert"
+      "chip": "{{name}} präsentiert",
+      "people": "Teilnehmer neben der Präsentation"
     }
   },
   "dock": {

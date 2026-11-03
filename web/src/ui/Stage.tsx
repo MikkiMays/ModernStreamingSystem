@@ -9,7 +9,19 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { HeadphoneOff, MicOff, MonitorUp, PinOff, WifiLow, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import {
+  HeadphoneOff,
+  Maximize2,
+  MicOff,
+  Minimize2,
+  MonitorUp,
+  PinOff,
+  RotateCcw,
+  Users,
+  WifiLow,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
@@ -210,7 +222,17 @@ function VoiceRing({ meeting, id }: { meeting: Meeting; id: string }) {
   return <span className="person-voice" data-voice={tier || undefined} aria-hidden="true" />;
 }
 
-export function Stage({ meeting }: { meeting: Meeting }) {
+/**
+ * Полный экран встречи (R187): у показа — своя кнопка «На весь экран» и двойной щелчок по кадру. Цель та же,
+ * что у кнопки пульта, — документ целиком (`MeetingView.tsx`): так в полном экране работают меню, панели и пульт.
+ */
+export interface StageFullscreen {
+  /** Встреча развёрнута на весь экран. */
+  full: boolean;
+  toggle: () => void;
+}
+
+export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: StageFullscreen }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const participants = snapshot.participants;
@@ -259,6 +281,12 @@ export function Stage({ meeting }: { meeting: Meeting }) {
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, [viewing?.screenId]);
+  /*
+    Лента участников в полном экране (R187). Развернули — значит, хотят показ целиком: экран на всю ширину, лента
+    спрятана, как «развернуть демонстрацию» у Телемоста и «В центре внимания» у Meet. Вернуть лицо рядом — кнопкой
+    «Показать участников»; выбор живёт до конца встречи.
+  */
+  const [stripInFull, setStripInFull] = useState(false);
   /*
     Кто показан крупно — считается здесь, до всех выходов из компонента.
 
@@ -473,11 +501,14 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         className="stage watch-stage presentation-stage media-stage"
         data-paused={paused ? 'true' : undefined}
         data-own={own ? 'true' : undefined}
+        data-strip={fullscreen?.full && stripInFull ? 'shown' : undefined}
       >
         <div className="presentation-main">
           <div
             className="screen-viewport"
             style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
+            // Двойной щелчок по кадру — на весь экран и обратно, как у плеера (R187).
+            onDoubleClick={fullscreen?.toggle}
             onPointerDown={(e) => {
               if (zoom <= 1) return;
               e.currentTarget.setPointerCapture(e.pointerId);
@@ -569,6 +600,25 @@ export function Stage({ meeting }: { meeting: Meeting }) {
             >
               <RotateCcw size={20} />
             </IconButton>
+            {fullscreen?.full && (others.length > 0 || strip.length > 0) && (
+              <IconButton
+                tone="stage"
+                label={t(($) => $.stage.presentation.people)}
+                pressed={stripInFull}
+                onClick={() => setStripInFull((shown) => !shown)}
+              >
+                <Users size={20} />
+              </IconButton>
+            )}
+            {fullscreen && (
+              <IconButton
+                tone="stage"
+                label={fullscreen.full ? t(($) => $.dock.windowed) : t(($) => $.dock.fullscreen)}
+                onClick={fullscreen.toggle}
+              >
+                {fullscreen.full ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+              </IconButton>
+            )}
           </div>
         </div>
         {others.length + strip.length > 0 && (

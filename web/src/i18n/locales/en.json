@@ -2321,7 +2321,8 @@
       "pin": "Pin {{name}}’s presentation",
       "pinOwn": "Pin your presentation",
       "unpin": "Unpin presentation",
-      "chip": "{{name}} is presenting"
+      "chip": "{{name}} is presenting",
+      "people": "People next to the presentation"
     }
   },
   "dock": {

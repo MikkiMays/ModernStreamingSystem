@@ -143,6 +143,41 @@ describe('показ крупно (R183)', () => {
   });
 });
 
+describe('показ на весь экран (R187, как у Телемоста и Meet)', () => {
+  const watching = () =>
+    fakeMeeting({
+      people: [person('me', 'Я'), sharing('ann', 'Аня', 'S1')],
+      tracks: [video('TR_scr', 'ann', Track.Source.ScreenShare)],
+      viewing: { participantId: 'ann', screenId: 'S1' },
+    });
+
+  it('кнопка на показе и двойной щелчок по кадру разворачивают встречу', () => {
+    const toggle = vi.fn();
+    render(<Stage meeting={watching()} fullscreen={{ full: false, toggle }} />);
+    const main = document.querySelector<HTMLElement>('.presentation-main')!;
+    fireEvent.click(within(main).getByRole('button', { name: 'Полноэкранный режим' }));
+    expect(toggle).toHaveBeenCalledOnce();
+    fireEvent.doubleClick(main.querySelector('.screen-viewport')!);
+    expect(toggle).toHaveBeenCalledTimes(2);
+    // Не развёрнуто — переключателя ленты нет: лента и так рядом.
+    expect(screen.queryByRole('button', { name: 'Участники рядом с показом' })).toBeNull();
+  });
+
+  it('в полном экране лента спрятана, пока её не вернули; «Выйти из полноэкранного режима» — на показе', () => {
+    const toggle = vi.fn();
+    render(<Stage meeting={watching()} fullscreen={{ full: true, toggle }} />);
+    const stage = document.querySelector<HTMLElement>('.watch-stage')!;
+    expect(stage).not.toHaveAttribute('data-strip');
+    const people = screen.getByRole('button', { name: 'Участники рядом с показом' });
+    expect(people).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(people);
+    expect(stage).toHaveAttribute('data-strip', 'shown');
+    expect(people).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Выйти из полноэкранного режима' }));
+    expect(toggle).toHaveBeenCalledOnce();
+  });
+});
+
 describe('показ — отдельная плитка в сетке (R183)', () => {
   it('открепивший видит показ первой плиткой; плитка человека — без кнопки показа', () => {
     const meeting = fakeMeeting({ people: [person('me', 'Я'), sharing('ann', 'Аня', 'S1')] });

@@ -993,10 +993,25 @@ button.watch-stream.is-stop:hover {
   bottom: calc(var(--dock-fullscreen-bottom) + var(--dock-height) + var(--space-2));
   transition: opacity var(--motion-base) var(--ease-standard);
 }
-.meeting-fullscreen.controls-hidden .screen-tools {
+/* Подписи и кнопки поверх показа уходят вместе с пультом: в полном экране виден только экран (R187). */
+.meeting-fullscreen .presentation-main > :is(.tile-unpin, .presentation-caption) {
+  transition: opacity var(--motion-base) var(--ease-standard);
+}
+.meeting-fullscreen.controls-hidden .screen-tools,
+.meeting-fullscreen.controls-hidden .presentation-main > :is(.tile-unpin, .presentation-caption) {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
+}
+/*
+  Показ в полном экране (R187) — целиком, от края до края, как «развернуть демонстрацию» у Телемоста и «В центре
+  внимания» у Meet: лента участников спрятана, пока её не вернули кнопкой «Участники рядом с показом».
+*/
+.meeting-fullscreen .watch-stage:not([data-strip='shown']) > .presentation-strip {
+  display: none;
+}
+.meeting-fullscreen .watch-stage:not([data-strip='shown']) > .presentation-main {
+  border-radius: 0;
 }
 
 /* ---------- узкие экраны ---------- */

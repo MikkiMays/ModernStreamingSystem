@@ -2348,7 +2348,8 @@
       "pin": "Épingler la présentation de {{name}}",
       "pinOwn": "Épingler votre présentation",
       "unpin": "Détacher la présentation",
-      "chip": "{{name}} présente"
+      "chip": "{{name}} présente",
+      "people": "Participants à côté de la présentation"
     }
   },
   "dock": {

@@ -2348,7 +2348,8 @@
       "pin": "Fissa la presentazione di {{name}}",
       "pinOwn": "Fissa la tua presentazione",
       "unpin": "Sblocca la presentazione",
-      "chip": "{{name}} sta presentando"
+      "chip": "{{name}} sta presentando",
+      "people": "Partecipanti accanto alla presentazione"
     }
   },
   "dock": {

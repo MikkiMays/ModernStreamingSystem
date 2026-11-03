@@ -437,7 +437,7 @@ export function MeetingView({
                   открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
                 <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
                 {/* Показ крупно открепляют на нём самом, как и закреплённую камеру (R83, R183). */}
-                <Stage meeting={meeting} />
+                <Stage meeting={meeting} fullscreen={{ full: fullscreen, toggle: toggleFullscreen }} />
               </>
             )}
             {(audioBlocked || audioAsleep) && !ended && (
