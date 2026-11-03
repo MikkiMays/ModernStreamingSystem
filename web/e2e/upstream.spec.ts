@@ -30,14 +30,19 @@ test('камера держит выбранный кадр на время по
     await expect.poll(height, { timeout: 15000 }).toBeGreaterThan(400);
 
     await page.getByRole('button', { name: 'Показать экран', exact: true }).click();
-    await expect(page.getByText('Вы показываете экран')).toBeVisible({ timeout: 20000 });
+    // Свой показ сам встаёт крупно (R183): своя плитка уезжает в ленту — дождаться её кадра.
+    await expect(page.locator('.watch-stage[data-own="true"]')).toBeVisible({ timeout: 20000 });
+    await expect.poll(height, { timeout: 15000 }).toBeGreaterThan(400);
     // Десять секунд показа — ни одного кадра мельче выбранного.
     for (let i = 0; i < 10; i++) {
       expect(await height()).toBeGreaterThan(400);
       await page.waitForTimeout(1000);
     }
 
-    await page.getByRole('button', { name: 'Остановить показ', exact: true }).click();
+    await page
+      .locator('#meeting-controls')
+      .getByRole('button', { name: 'Остановить показ', exact: true })
+      .click();
     await expect.poll(height, { timeout: 20000 }).toBeGreaterThan(400);
   } finally {
     await context.close();

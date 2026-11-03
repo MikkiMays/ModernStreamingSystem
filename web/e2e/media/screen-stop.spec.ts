@@ -45,10 +45,13 @@ test('остановка показа закрывает просмотр у з�
     await guest!.getByRole('button', { name: 'Войти во встречу' }).click();
     await expect(guest!.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 60000 });
     await host!.getByRole('button', { name: 'Показать экран', exact: true }).click();
-    await guest!.getByRole('button', { name: /Смотреть стрим/ }).click({ timeout: 20000 });
+    // Показ сам встаёт крупно у зрителя (R183).
     await expect(guest!.locator('video.screen-video')).toHaveCount(1, { timeout: 20000 });
     const t0 = Date.now();
-    await host!.getByRole('button', { name: /Остановить показ|Завершить показ/ }).click();
+    await host!
+      .locator('#meeting-controls')
+      .getByRole('button', { name: 'Остановить показ', exact: true })
+      .click();
     await expect(guest!.locator('video.screen-video')).toHaveCount(0, { timeout: 5000 });
     const took = Date.now() - t0;
     console.log('просмотр закрылся у зрителя через', took, 'мс');

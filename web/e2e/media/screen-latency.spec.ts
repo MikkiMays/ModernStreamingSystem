@@ -62,7 +62,7 @@ test('показ доходит до зрителя в выбранном раз
     await expect(guest!.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 60000 });
     const t0 = Date.now();
     await host!.getByRole('button', { name: 'Показать экран', exact: true }).click();
-    await guest!.getByRole('button', { name: /Смотреть стрим/ }).click({ timeout: 10000 });
+    // Показ сам встаёт крупно у зрителя (R183): нажимать нечего, время — от нажатия у показывающего.
     let ready = 0;
     while (Date.now() - t0 < 10000) {
       const height = await guest!.evaluate(async () => {

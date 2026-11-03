@@ -67,58 +67,70 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await host!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await host!.getByRole('button', { name: 'Включить камеру', exact: true }).click();
     await host!.getByRole('button', { name: 'Включить микрофон', exact: true }).click();
-    // Показ, камера и микрофон публикуются разом через настоящий SFU; на медленном стенде кнопка у
-    // зрителя появлялась через 5 с с небольшим — ровно за умолчанием `expect`.
-    await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1, { timeout: 20000 });
-    await expect(guest!.locator('video.screen-video')).toHaveCount(0);
-    await expect(guest!.locator('.person-tile video')).toHaveCount(1);
-    await expect(guest!.locator('audio')).toHaveCount(1);
-    const ownCamera = (page: (typeof pages)[number]) =>
-      page.locator('.person-tile video').evaluate((v: HTMLVideoElement) => {
-        const track = (v.srcObject as MediaStream).getVideoTracks()[0]!;
-        return {
-          device: track.getSettings().deviceId ?? '',
-          state: track.readyState,
-          frames: v.videoWidth > 0,
-        };
-      });
-    const localCapture = await ownCamera(host!);
-    const micId = await guest!
-      .locator('audio')
-      .evaluate((v: HTMLAudioElement) => (v.srcObject as MediaStream).getAudioTracks()[0]!.id);
-    await guest!.getByRole('button', { name: /Смотреть стрим/ }).click();
-    await expect(guest!.locator('.person-tile')).toHaveCount(0);
+    // Плитки людей — без плиток показа (R183): у показа подпись «Экран: …» тоже содержит имя.
+    const people = (page: (typeof pages)[number]) => page.locator('.person-tile:not(.presentation-tile)');
+    const dock = (page: (typeof pages)[number]) => page.locator('#meeting-controls');
+    // Показ сам встаёт крупно у зрителя, как в Google Meet (R183): экран — главным, все трое — лентой рядом.
+    // Показ, камера и микрофон публикуются разом через настоящий SFU; на медленном стенде показ у зрителя
+    // открывался через 5 с с небольшим — ровно за умолчанием `expect`.
+    await expect(guest!.locator('.watch-stage video.screen-video')).toHaveCount(1, { timeout: 20000 });
     await expect
       .poll(() => guest!.locator('video.screen-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
       .toBeGreaterThan(0);
+    await expect(guest!.locator('.presentation-strip .person-tile')).toHaveCount(3);
+    await expect(guest!.locator('.presentation-strip .person-tile video')).toHaveCount(1);
     await expect(guest!.locator('audio')).toHaveCount(2);
-    await guest!.getByRole('button', { name: 'Вернуться в разговор' }).click();
+    // У показывающего — свой экран на своей сцене (своя дорожка) и «Вы показываете экран» в шапке.
+    await expect(host!.locator('.watch-stage[data-own="true"] video.screen-video')).toHaveCount(1);
+    await expect(host!.getByRole('status').filter({ hasText: 'Вы показываете экран' })).toBeVisible();
+    const ownCamera = (page: (typeof pages)[number]) =>
+      people(page)
+        .locator('video')
+        .evaluate((v: HTMLVideoElement) => {
+          const track = (v.srcObject as MediaStream).getVideoTracks()[0]!;
+          return {
+            device: track.getSettings().deviceId ?? '',
+            state: track.readyState,
+            frames: v.videoWidth > 0,
+          };
+        });
+    const localCapture = await ownCamera(host!);
+    // «Открепить показ» — сетка, где показ — отдельная плитка первой; подписки на экран больше нет.
+    await guest!.getByRole('button', { name: 'Открепить показ' }).click();
+    await expect(guest!.locator('.watch-stage')).toHaveCount(0);
+    await expect(guest!.locator('.people-grid .person-tile')).toHaveCount(4);
+    await expect(guest!.locator('.people-grid .person-tile').first()).toHaveClass(/presentation-tile/);
     await expect(guest!.locator('video.screen-video')).toHaveCount(0);
+    await expect(guest!.locator('audio')).toHaveCount(1);
+    const micId = await guest!
+      .locator('audio')
+      .evaluate((v: HTMLAudioElement) => (v.srcObject as MediaStream).getAudioTracks()[0]!.id);
+    // Нажатие по плитке показа — снова крупно; открепил — тот же микрофон, а не новая дорожка.
+    await guest!.getByRole('button', { name: 'Закрепить показ: Экран 1' }).click();
+    await expect(guest!.locator('.watch-stage video.screen-video')).toHaveCount(1);
+    await expect(guest!.locator('audio')).toHaveCount(2);
+    await guest!.getByRole('button', { name: 'Открепить показ' }).click();
     await expect(guest!.locator('audio')).toHaveCount(1);
     expect(
       await guest!
         .locator('audio')
         .evaluate((v: HTMLAudioElement) => (v.srcObject as MediaStream).getAudioTracks()[0]!.id),
     ).toBe(micId);
-    await guest!.getByRole('button', { name: 'Показать экран', exact: true }).click();
-    // Свою демонстрацию открыть нельзя: у показывающего на своей плитке подпись, а не кнопка.
-    // Единственная кнопка, которую видит guest, — на чужой плитке.
-    // Подпись — тот же `screen.started`, что и кнопка у зрителя выше (T48): до неё «Готовится
-    // показ…», пока кодировщик не дал кадр целевого размера или не кончилось окно разгона
-    // (`settleMs`, 4 с). Раннер CI без GPU целевого кадра не даёт — окно истекает всегда, и подпись
-    // приходит через 4 с + публикация + круг команды, на полсекунды позже умолчания `expect`.
-    await expect(guest!.getByText('Вы показываете экран')).toBeVisible({ timeout: 20000 });
-    await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1);
-    await expect(third!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(2);
-    await expect(third!.locator('video.screen-video')).toHaveCount(0);
+    await dock(guest!).getByRole('button', { name: 'Показать экран', exact: true }).click();
+    // Свой показ — крупно у себя, как только опубликован; у третьего новый показ сменяет прежний.
+    // Подпись в шапке — когда дорожка опубликована, а зрителям показ открывается после `screen.started`
+    // (T48): кадр целевого размера или конец окна разгона (`settleMs`, 4 с). Раннер CI без GPU целевого
+    // кадра не даёт — окно истекает всегда, на полсекунды позже умолчания `expect`.
+    await expect(guest!.locator('.watch-stage[data-own="true"]')).toBeVisible({ timeout: 20000 });
+    await expect(third!.locator('.presentation-main .person-caption')).toHaveText('Экран: Экран 2', {
+      timeout: 20000,
+    });
+    await expect(third!.locator('.presentation-strip .presentation-tile')).toHaveCount(1);
     for (const name of ['Экран 1', 'Экран 2']) {
-      await third!
-        .locator('.person-tile')
-        .filter({ hasText: name })
-        .getByRole('button', { name: /Смотреть стрим/ })
-        .click();
+      if (!(await third!.locator('.presentation-main .person-caption').textContent())?.endsWith(name))
+        await third!.getByRole('button', { name: `Закрепить показ: ${name}` }).click();
+      await expect(third!.locator('.presentation-main .person-caption')).toHaveText(`Экран: ${name}`);
       await expect(third!.locator('video.screen-video')).toHaveCount(1);
-      await expect(third!.locator('.person-tile')).toHaveCount(0);
       await expect
         .poll(
           () =>
@@ -128,21 +140,24 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
           { timeout: 15000 },
         )
         .toBeGreaterThan(3);
-      await third!.getByRole('button', { name: 'Вернуться в разговор' }).click();
     }
-    await guest!.locator('.person-tile').filter({ hasText: 'Экран 1' }).click({ button: 'right' });
+    await third!.getByRole('button', { name: 'Открепить показ' }).click();
+    await expect(third!.locator('.people-grid .presentation-tile')).toHaveCount(2);
+    await people(guest!).filter({ hasText: 'Экран 1' }).click({ button: 'right' });
     await guest!.getByRole('menuitem', { name: 'Закрепить камеру', exact: true }).click();
     // Закрепление помечает плитку, а не прячет комнату. Раньше оно выбрасывало всех остальных
     // из списка — закрепив собеседника, вы переставали видеть встречу; это был фильтр, а не
-    // раскладка, и здесь проверялось именно старое поведение.
-    await expect(guest!.locator('.person-tile')).toHaveCount(3);
+    // раскладка, и здесь проверялось именно старое поведение. Свой показ закрепление сняло с крупного.
+    await expect(guest!.locator('.watch-stage')).toHaveCount(0);
+    await expect(people(guest!)).toHaveCount(3);
     await expect(guest!.locator('.person-tile[data-pinned="true"]')).toHaveCount(1);
     await expect(guest!.locator('.person-tile[data-pinned="true"]')).toContainText('Экран 1');
-    // Закреплённый — крупно над лентой остальных, с «Открепить» на плитке и в меню (R83).
+    // Закреплённый — крупно над лентой остальных, с «Открепить» на плитке и в меню (R83); показы — в ленте.
     await expect(guest!.locator('.spotlight-main .person-tile[data-pinned="true"]')).toHaveCount(1);
-    await expect(guest!.locator('.spotlight-strip .person-tile')).toHaveCount(2);
+    await expect(guest!.locator('.spotlight-strip .person-tile:not(.presentation-tile)')).toHaveCount(2);
+    await expect(guest!.locator('.spotlight-strip .presentation-tile')).toHaveCount(2);
     await expect(guest!.getByRole('button', { name: 'Открепить: Экран 1' })).toBeVisible();
-    await guest!.locator('.person-tile').filter({ hasText: 'Экран 1' }).click({ button: 'right' });
+    await people(guest!).filter({ hasText: 'Экран 1' }).click({ button: 'right' });
     await expect(guest!.getByRole('menuitem', { name: 'Открепить камеру', exact: true })).toBeVisible();
     await guest!.keyboard.press('Escape');
     // Своя камера зеркалится, чужая — нет: признак теперь facingMode, а не «моя дорожка».
@@ -159,10 +174,10 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await guest!.getByRole('menuitem', { name: /^Говорящий/ }).click();
     await expect(guest!.locator('.stage[data-layout="speaker"]')).toHaveCount(1);
     await expect(guest!.locator('.person-tile[data-focused="true"]')).toContainText('Экран 1');
-    await expect(guest!.locator('.person-tile')).toHaveCount(3);
+    await expect(people(guest!)).toHaveCount(3);
     await guest!.getByRole('button', { name: 'Расположение участников' }).click();
     await guest!.getByRole('menuitem', { name: /^Сетка/ }).click();
-    // Своя камера пережила и просмотр чужого экрана, и смену раскладки: то же устройство,
+    // Своя камера пережила и показ крупно, и смену раскладки: то же устройство,
     // живая дорожка, идущие кадры. Сверять id самой дорожки здесь больше нельзя: «Авто»
     // поднимает уровень, а показ экрана уводит камеру в маленький кадр — и то и другое
     // пересобирает дорожку намеренно, так что совпадение id зависело бы от того, успел ли
@@ -170,22 +185,19 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     expect(await ownCamera(host!)).toEqual({ ...localCapture, state: 'live', frames: true });
     await guest!.getByRole('button', { name: 'Открепить: Экран 1' }).click();
     await expect(guest!.locator('.person-tile[data-pinned="true"]')).toHaveCount(0);
-    await expect(guest!.locator('.people-grid .person-tile')).toHaveCount(3);
-    await third!.getByRole('button', { name: 'Показать экран', exact: true }).click();
+    await expect(guest!.locator('.people-grid .person-tile:not(.presentation-tile)')).toHaveCount(3);
+    await dock(third!).getByRole('button', { name: 'Показать экран', exact: true }).click();
     await expect(third!.getByRole('alert')).toContainText('Уже транслируются два экрана');
     await third!.getByRole('button', { name: 'Скрыть уведомление' }).click();
-    await third!
-      .locator('.person-tile')
-      .filter({ hasText: 'Экран 1' })
-      .getByRole('button', { name: /Смотреть стрим/ })
-      .click();
+    await third!.getByRole('button', { name: 'Закрепить показ: Экран 1' }).click();
     // Идёт показ — кнопка в пульте красная, с крестиком (R77).
-    await expect(host!.getByRole('button', { name: 'Остановить показ', exact: true })).toHaveClass(
+    await expect(dock(host!).getByRole('button', { name: 'Остановить показ', exact: true })).toHaveClass(
       /ui-icon-button--danger/,
     );
-    await host!.getByRole('button', { name: 'Остановить показ', exact: true }).click();
+    await dock(host!).getByRole('button', { name: 'Остановить показ', exact: true }).click();
     await expect(third!.locator('video.screen-video')).toHaveCount(0);
-    await expect(third!.locator('.person-tile')).toHaveCount(3);
+    await expect(people(third!)).toHaveCount(3);
+    await expect(host!.getByText('Вы показываете экран')).toHaveCount(0);
     await expect(host!.locator('[data-media-status="connected"]')).toBeVisible();
     await third!.getByRole('button', { name: 'Полноэкранный режим', exact: true }).click();
     await expect(third!.locator('.meeting-page')).toHaveClass(/meeting-fullscreen/);

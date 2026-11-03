@@ -65,8 +65,10 @@ test('превью показа доходит до зрителя, которы
     await guest!.getByRole('button', { name: 'Войти во встречу' }).click();
     await expect(guest!.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 30000 });
     await host!.getByRole('button', { name: 'Показать экран', exact: true }).click();
-    await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1, { timeout: 30000 });
     const t0 = Date.now();
+    // Показ сам встаёт крупно (R183); открепивший видит его плиткой с превью — подписки на экран нет.
+    await guest!.getByRole('button', { name: 'Открепить показ' }).click({ timeout: 30000 });
+    await expect(guest!.getByRole('button', { name: 'Закрепить показ: Экран' })).toHaveCount(1);
     for (let i = 0; i < 25; i++) {
       const state = await guest!.evaluate(() => {
         const el = document.querySelector('.screen-preview') as HTMLElement | null;

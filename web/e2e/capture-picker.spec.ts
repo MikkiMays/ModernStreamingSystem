@@ -92,7 +92,9 @@ test('окно показа: вкладки, режим, качество и п�
   await dialog.getByRole('button', { name: 'Экран 1' }).click();
   await share.click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Остановить показ', exact: true })).toBeVisible({
+  await expect(
+    page.locator('#meeting-controls').getByRole('button', { name: 'Остановить показ', exact: true }),
+  ).toBeVisible({
     timeout: 20000,
   });
   const calls = await page.evaluate(
@@ -105,7 +107,10 @@ test('окно показа: вкладки, режим, качество и п�
   );
   expect(saved).toMatchObject({ mode: 'sharp', resolution: 720, preview: false, audio: 'none' });
   // «Остановить показ» сразу после старта — показ кончается, даже если ещё не разогнался (R81).
-  await page.getByRole('button', { name: 'Остановить показ', exact: true }).click();
+  await page
+    .locator('#meeting-controls')
+    .getByRole('button', { name: 'Остановить показ', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: 'Показать экран', exact: true })).toBeVisible({
     timeout: 5000,
   });
