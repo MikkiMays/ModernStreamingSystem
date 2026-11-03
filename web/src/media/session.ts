@@ -55,13 +55,9 @@ import {
 } from '../core/preferences';
 import { setMeetingDeafened, signal } from '../core/sounds';
 import { MicSentinel } from './mic-sentinel';
-import {
-  allowed,
-  backgroundSupport,
-  CameraBackground,
-  NO_BACKGROUND,
-  type BackgroundSupport,
-} from './background-effect';
+import { allowed, backgroundSupport, NO_BACKGROUND, type BackgroundSupport } from './background-effect';
+import { CameraBackground } from './background/camera';
+import { captureVideoTrack } from './background/processor';
 import { recallVolume, rememberVolume } from '../core/volumes';
 import { SpeechDownmix } from './downmix';
 import { receivedLevel, waitForPause } from './speech-pause';
@@ -1101,8 +1097,9 @@ export class MediaSession {
   /** Что камера умеет на самом деле — чтобы не просить у неё невозможного молча. */
   private cameraCapabilities() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    // С фоном `mediaStreamTrack` — обработанная дорожка (генератор), а не камера: её возможности пусты.
     return track instanceof LocalVideoTrack
-      ? track.mediaStreamTrack.getCapabilities?.()
+      ? captureVideoTrack(track).getCapabilities?.()
       : this.deviceTracks.get(Track.Source.Camera)?.mediaStreamTrack.getCapabilities?.();
   }
   /** Чем захватывать камеру и как её публиковать при нынешнем составе отдачи. */
@@ -1150,6 +1147,8 @@ export class MediaSession {
     void this.applyBackground();
   }
   private readonly background = new CameraBackground();
+  /** Движок фона страницы: поднят — остановить при выходе из встречи вместе с дорожками. */
+  private backgroundEngineUsed = false;
   /** Что умеет устройство — спрашивается, только когда фон выбран: обработка грузится лениво. */
   private backgroundSupported: Promise<BackgroundSupport> | null = null;
   /** Поставить выбранный фон на камеру; где нельзя (iPhone, слабый телефон) — камера как есть. */
@@ -1160,9 +1159,15 @@ export class MediaSession {
     if (choice.kind === 'none' && !this.background.active) return;
     this.backgroundSupported ??= backgroundSupport();
     const support = await this.backgroundSupported;
+    if (this.disposed) return;
+    const wanted = allowed(choice, support) ? choice : NO_BACKGROUND;
+    if (wanted.kind !== 'none') this.backgroundEngineUsed = true;
     await this.background
-      .apply(track, allowed(choice, support) ? choice : NO_BACKGROUND)
+      .apply(track, wanted, support)
       .catch((error) => console.warn('[cord] background effect failed', error));
+    // Обработанная дорожка у LiveKit сменилась (`mediaStreamTrack`): превью «Видео» и плитка читают её
+    // из списка дорожек — пересобрать его, иначе превью показывало бы сырую камеру до другого события.
+    this.refreshTracks();
   }
   /**
    * Потребовать у камеры выбранную частоту, а не попросить.
@@ -1173,7 +1178,8 @@ export class MediaSession {
   private async enforceCameraRate() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (!(track instanceof LocalVideoTrack)) return;
-    const media = track.mediaStreamTrack;
+    // Ограничения — камере, а не обработанной дорожке: генератор кадров их молча принимает и ничего не меняет.
+    const media = captureVideoTrack(track);
     // `applyConstraints` заменяет набор целиком: зум (`applyCameraZoom`) едет вместе с кадром,
     // иначе смена частоты сбросила бы его.
     const zoom = (media.getConstraints?.().advanced ?? []).filter((set) => 'zoom' in set);
@@ -1881,18 +1887,21 @@ export class MediaSession {
         try {
           const track = this.deviceTracks.get(source);
           if (source === Track.Source.Camera) await this.ensureCameraCodec();
-          if (track && liveCapture(track))
+          if (track && liveCapture(track)) {
             await this.room.localParticipant.publishTrack(track, {
               ...(source === Track.Source.Camera ? this.cameraOptionsNow() : microphoneOptions()),
               source,
             });
-          else if (source === Track.Source.Camera) {
+            if (source === Track.Source.Camera) this.applyCameraHint();
+          } else if (source === Track.Source.Camera) {
             await this.room.localParticipant.setCameraEnabled(
               true,
               this.cameraCaptureNow(),
               this.cameraOptionsNow(),
             );
             this.forgetZoom();
+            // Новый захват после обрыва — без подсказки, частоты и фона он шёл бы сырым (R186).
+            this.applyCameraHint();
           } else {
             // Захват кончился — дорожку с её обработчиком (граф RNNoise на общем контексте) не
             // бросать, а остановить: иначе ворклет крутился бы до конца встречи.
@@ -2242,7 +2251,7 @@ export class MediaSession {
         kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker'
       ] ||
       (kind === 'videoinput' && activeCamera instanceof LocalVideoTrack
-        ? activeCamera.mediaStreamTrack.getSettings().deviceId
+        ? captureVideoTrack(activeCamera).getSettings().deviceId
         : undefined);
     try {
       await this.room.switchActiveDevice(kind, id);
@@ -2270,7 +2279,7 @@ export class MediaSession {
    */
   private rememberCamera() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-    const id = track instanceof LocalVideoTrack ? track.mediaStreamTrack.getSettings().deviceId : undefined;
+    const id = track instanceof LocalVideoTrack ? captureVideoTrack(track).getSettings().deviceId : undefined;
     if (!id) return;
     this.room.options.videoCaptureDefaults = { ...this.room.options.videoCaptureDefaults, deviceId: id };
     this.saveSettings({ devices: { ...this.preferences.get().devices, camera: id } });
@@ -2281,7 +2290,7 @@ export class MediaSession {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     const previous =
       this.preferences.get().devices.camera ||
-      (track instanceof LocalVideoTrack ? track.mediaStreamTrack.getSettings().deviceId : undefined);
+      (track instanceof LocalVideoTrack ? captureVideoTrack(track).getSettings().deviceId : undefined);
     try {
       const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
         (d) => d.kind === 'videoinput',
@@ -2293,7 +2302,8 @@ export class MediaSession {
         return;
       }
       if (!(track instanceof LocalVideoTrack)) return;
-      const currentFacing = track.mediaStreamTrack.getSettings().facingMode;
+      // Сторону знает камера, не обработанная дорожка (R186).
+      const currentFacing = captureVideoTrack(track).getSettings().facingMode;
       const next = devices[(devices.findIndex((d) => d.deviceId === previous) + 1) % devices.length];
       await track.restartTrack({
         ...this.cameraRestartNow(),
@@ -2318,7 +2328,7 @@ export class MediaSession {
    */
   cameraZoom(): Zoom | null {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-    return track instanceof LocalVideoTrack ? readZoom(track.mediaStreamTrack) : null;
+    return track instanceof LocalVideoTrack ? readZoom(captureVideoTrack(track)) : null;
   }
 
   async applyCameraZoom(value: number) {
@@ -2327,7 +2337,7 @@ export class MediaSession {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (!(track instanceof LocalVideoTrack)) return;
     const clamped = Math.min(range.max, Math.max(range.min, value));
-    const media = track.mediaStreamTrack;
+    const media = captureVideoTrack(track);
     // `applyConstraints` заменяет все ограничения разом: кадр и нижняя граница частоты
     // (`enforceCameraRate`) идут вместе с зумом, иначе зум сбросил бы их. Зум — «advanced»: браузер,
     // который его не знает, молча пропускает его, а не проваливает весь вызов.
@@ -2960,6 +2970,9 @@ export class MediaSession {
     this.screenTracks.forEach((t) => t.stop());
     this.deviceTracks.forEach((t) => t.stop());
     this.deviceTracks.clear();
+    // Движок фона с моделью живёт у страницы; после встречи он не нужен — вернуть память и воркер.
+    if (this.backgroundEngineUsed)
+      void import('./background/effect').then(({ BackgroundEffect }) => BackgroundEffect.shared().dispose());
     this.screenTracks = [];
     void this.room.disconnect(true);
     // Контекст свой, а не SDK: SDK закрывает только те, что создал сам.
