@@ -8,6 +8,7 @@
 
 - [`codex-handoff-review`](memory/codex-handoff-review.md) — Что чаще всего оказывается сломанным в Cord под отчётом «всё прошло» — проверять при каждом приёме чужой работы
 - [`cord-audio-verification`](memory/cord-audio-verification.md) — Как на этой машине послушать, что на самом деле приходит в комнату Cord
+- [`cord-background-worker-classic`](memory/cord-background-worker-classic.md) — Воркер фона в видео классический из-за `importScripts` MediaPipe; на dev-сервере Vite он не поднимается, и движок идёт на главном потоке
 - [`cord-call-in-background`](memory/cord-call-in-background.md) — Что держит разговор Cord в фоне на телефоне, где это живёт в коде и на какие грабли SDK и платформ уже наступали (E12)
 - [`cord-call-in-pocket`](memory/cord-call-in-pocket.md) — Почему встреча Cord рвалась у телефона с погашенным экраном и на каких двух сторонах это лечится
 - [`cord-capacity-numbers`](memory/cord-capacity-numbers.md) — Чем меряется ёмкость сервера Cord и три числа, которые решают спор про железо
