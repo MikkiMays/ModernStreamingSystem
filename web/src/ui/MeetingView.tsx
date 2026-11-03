@@ -40,6 +40,7 @@ import { MicHotkey } from '../core/mic-hotkey';
 import { hasFeature, notifyDesktop, onDesktopCommand, onNotificationAction } from '../core/desktop';
 import { desktopSettingsAvailable, toggleDesktopOverlay } from '../core/desktop-settings';
 import { stageFullscreen, useFullscreen } from '../core/fullscreen';
+import { stageView } from '../core/stage-view';
 import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
@@ -95,9 +96,13 @@ export function MeetingView({
   const root = useRef<HTMLElement>(document.documentElement);
   const { full: fullscreen, targetFull, toggle: toggleMeetingFullscreen } = useFullscreen(root);
   // На сцене фильм — кнопка пульта разворачивает плеер (R144, Р-41), а не всю встречу: у обеих
-  // кнопок одна цель. Свернуть — тем же, что развернули.
+  // кнопок одна цель. Свернуть — тем же, что развернули. Плеер — только пока он на виду: ушедший к
+  // участникам или открывший показ (R121, R187) разворачивает встречу, иначе во весь экран встал бы
+  // спрятанный плеер — чёрный экран вместо показа.
   const toggleFullscreen = () => {
-    const stage = stageFullscreen();
+    const shown =
+      stageView(meeting.stageOccupant(), meeting.stageAway.get(), !!meeting.viewing.get()) === 'integration';
+    const stage = shown ? stageFullscreen() : null;
     if (stage && (!fullscreen || !targetFull)) stage();
     else toggleMeetingFullscreen();
   };
@@ -119,7 +124,7 @@ export function MeetingView({
     const timer = setInterval(() => {
       const held = [
         ...document.querySelectorAll<HTMLElement>(
-          `[role="menu"], ${MODAL_SELECTOR}, .call-footer :focus-visible`,
+          `[role="menu"], ${MODAL_SELECTOR}, .call-footer :focus-visible, .media-stage :focus-visible`,
         ),
       ].some((element) => element.checkVisibility() && !element.closest('[aria-hidden="true"]'));
       setControlsVisible(held || Date.now() - lastActivity.current < 3000);
@@ -437,7 +442,7 @@ export function MeetingView({
                   открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
                 <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
                 {/* Показ крупно открепляют на нём самом, как и закреплённую камеру (R83, R183). */}
-                <Stage meeting={meeting} fullscreen={{ full: fullscreen, toggle: toggleFullscreen }} />
+                <Stage meeting={meeting} fullscreen={{ full: targetFull, toggle: toggleMeetingFullscreen }} />
               </>
             )}
             {(audioBlocked || audioAsleep) && !ended && (

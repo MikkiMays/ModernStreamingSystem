@@ -287,6 +287,8 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
     «Показать участников»; выбор живёт до конца встречи.
   */
   const [stripInFull, setStripInFull] = useState(false);
+  // Сцена сменила размер — сдвиг увеличенного кадра считался по прежней и может увести кадр за край.
+  useEffect(() => setPan({ x: 0, y: 0 }), [fullscreen?.full]);
   /*
     Кто показан крупно — считается здесь, до всех выходов из компонента.
 
@@ -507,8 +509,9 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
           <div
             className="screen-viewport"
             style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
-            // Двойной щелчок по кадру — на весь экран и обратно, как у плеера (R187).
-            onDoubleClick={fullscreen?.toggle}
+            // Двойной щелчок по кадру — на весь экран и обратно, как у плеера (R187). Увеличенный кадр двигают
+            // перетаскиванием, и два быстрых сдвига — тоже двойной щелчок: тогда он не разворачивает.
+            onDoubleClick={zoom > 1 ? undefined : fullscreen?.toggle}
             onPointerDown={(e) => {
               if (zoom <= 1) return;
               e.currentTarget.setPointerCapture(e.pointerId);

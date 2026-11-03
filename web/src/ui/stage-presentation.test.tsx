@@ -163,6 +163,14 @@ describe('показ на весь экран (R187, как у Телемост�
     expect(screen.queryByRole('button', { name: 'Участники рядом с показом' })).toBeNull();
   });
 
+  it('увеличенный кадр двигают перетаскиванием — двойной щелчок по нему не разворачивает', () => {
+    const toggle = vi.fn();
+    render(<Stage meeting={watching()} fullscreen={{ full: false, toggle }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Увеличить' }));
+    fireEvent.doubleClick(document.querySelector('.screen-viewport')!);
+    expect(toggle).not.toHaveBeenCalled();
+  });
+
   it('в полном экране лента спрятана, пока её не вернули; «Выйти из полноэкранного режима» — на показе', () => {
     const toggle = vi.fn();
     render(<Stage meeting={watching()} fullscreen={{ full: true, toggle }} />);

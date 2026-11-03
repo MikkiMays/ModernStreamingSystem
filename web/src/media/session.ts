@@ -44,7 +44,7 @@ import {
 } from './codec-planner';
 import { gpuHint, policyPlatform, probeEncoders, sendableCodecs, watchCpuPressure } from './codec-probe';
 import { rememberLayout, retune } from './retune';
-import { settleMs } from './capabilities';
+import { allowedScreen, settleMs } from './capabilities';
 import { readScreenSample, ScreenReadiness } from './screen-ready';
 import { reconnectAction, type ReconnectTrigger } from './reconnect-plan';
 import {
@@ -2384,6 +2384,7 @@ export class MediaSession {
       return;
     }
     this.screenBusy = true;
+    profile = allowedScreen(profile);
     const link = audio ? this.linkScreenAudio(audio) : undefined;
     const capture = source ? source() : this.capture.capture(profile);
     void this.publishScreen(capture, profile, link).finally(() => {
@@ -2681,7 +2682,8 @@ export class MediaSession {
     return this.setProfile({ ...this.profile, mode });
   }
   setProfile(profile: ScreenProfile) {
-    this.profile = { ...this.preferences.get().screen, ...profile };
+    // В браузере показ — только 720p/1080p в «Чёткости» (R185), что бы ни пришло от вызывающего.
+    this.profile = allowedScreen({ ...this.preferences.get().screen, ...profile });
     this.preferences.set(savePreferences({ screen: profile }));
     this.profileChange = this.profileChange.then(() => this.applyProfile(this.profile));
     return this.profileChange;
