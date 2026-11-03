@@ -1,19 +1,25 @@
-import type { LocalVideoTrack } from 'livekit-client';
 import { touchFirst } from './profiles';
 
 /**
- * Фон в видео (R153, владелец 31.10.2026: «Фон в видео как в телемосте и других подобных»).
+ * Фон в видео (R153, владелец 31.10.2026: «Фон в видео как в телемосте и других подобных»; R186 —
+ * «нужно явно проработать, желательно сделать как в телемосте или в гугл мит»).
  *
  * Выбор принадлежит человеку и устройству (`preferences.background`): нет, размытие — лёгкое или
- * сильное, — один из встроенных фонов или своё фото. Обработка — `@livekit/track-processors`
- * (MediaPipe, сегментация человека): модель и wasm отдаёт свой сервер (`public/mediapipe/`,
+ * сильное, — один из встроенных фонов или своё фото. Обработка — свой конвейер `media/background/`
+ * (Р-89): сегментация MediaPipe Selfie Segmenter в воркере, уточнение маски по кадру, размытие без
+ * ореола, подмена с «оборачиванием светом»; модель и wasm отдаёт свой сервер (`public/mediapipe/`,
  * `vite.config.ts` → `mediapipeAssets`), а не CDN — CSP их не пустила бы, и ослаблять её нельзя.
+ *
+ * Этот модуль — лёгкий: его тянет `core/preferences.ts` в первую загрузку, поэтому здесь только
+ * выбор, проверка поддержки, картинки фонов и хранилище своего фото. Движок (`background/effect.ts`)
+ * и обработчик LiveKit (`background/processor.ts`) грузятся по требованию.
  *
  * Встроенные фоны рисуются здесь же на холсте — спокойные градиенты в тон Cord, без чужих фотографий и
  * их лицензий. Своё фото уменьшается до 1280×720 и живёт в IndexedDB этого устройства.
  *
- * Где можно: компьютер — полностью; Android — только размытие и только при «современной» обработке
- * (`supportsModernBackgroundProcessors`, иначе телефон перегревается); iPhone и Telegram — нет.
+ * Где можно: компьютер — полностью; Android — только размытие и только с потоками кадров
+ * (`MediaStreamTrackProcessor`: иначе кадры идут через `<video>` и холст, и телефон перегревается);
+ * iPhone и Telegram — нет.
  */
 export type BackgroundChoice =
   | { kind: 'none' }
@@ -24,9 +30,6 @@ export const BUILTIN_BACKGROUNDS = ['graphite', 'mist', 'dawn', 'forest', 'sea',
 export type BuiltinBackground = (typeof BUILTIN_BACKGROUNDS)[number];
 
 export const NO_BACKGROUND: BackgroundChoice = { kind: 'none' };
-
-/** Радиус размытия: «лёгкое» — фон читается, «сильное» — пятна цвета. */
-export const BLUR_RADIUS = { light: 6, strong: 14 } as const;
 
 /** Проверка записи из настроек: неизвестное — «без фона», а не ошибка. */
 export function backgroundChoice(value: unknown): BackgroundChoice {
@@ -43,17 +46,45 @@ export function backgroundChoice(value: unknown): BackgroundChoice {
 
 export type BackgroundSupport = 'full' | 'blur' | 'none';
 
+/** Чем браузер умеет гнать кадры (R186): потоки кадров (лучше) или `<video>` и холст (запасной путь). */
+export function frameApis(): { streams: boolean; canvas: boolean; webgl2: boolean; frames: boolean } {
+  const g = globalThis as { MediaStreamTrackProcessor?: unknown; MediaStreamTrackGenerator?: unknown };
+  const streams =
+    typeof g.MediaStreamTrackProcessor === 'function' && typeof g.MediaStreamTrackGenerator === 'function';
+  const canvas = typeof HTMLCanvasElement !== 'undefined' && 'captureStream' in HTMLCanvasElement.prototype;
+  const frames = typeof VideoFrame !== 'undefined';
+  let webgl2 = false;
+  try {
+    webgl2 = typeof document !== 'undefined' && !!document.createElement('canvas').getContext('webgl2');
+  } catch {
+    webgl2 = false;
+  }
+  return { streams, canvas, webgl2, frames };
+}
+
+/** Что умеет это устройство по возможностям браузера и тому, телефон ли это (чистая часть — тест). */
+export function supportFrom(
+  apis: ReturnType<typeof frameApis>,
+  touch: boolean,
+  ua: string,
+  telegram: boolean,
+): BackgroundSupport {
+  if (/iPhone|iPad|iPod/i.test(ua) || telegram) return 'none';
+  if (!apis.webgl2 || !apis.frames || !(apis.streams || apis.canvas)) return 'none';
+  if (touch) return apis.streams ? 'blur' : 'none';
+  return 'full';
+}
+
 /** Что умеет это устройство: зависит от браузера и от того, телефон ли это. */
 export async function backgroundSupport(): Promise<BackgroundSupport> {
   if (typeof window === 'undefined' || typeof document === 'undefined') return 'none';
-  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) return 'none';
-  if ((window as { Telegram?: unknown }).Telegram) return 'none';
   try {
-    const { supportsBackgroundProcessors, supportsModernBackgroundProcessors } =
-      await import('@livekit/track-processors');
-    if (!supportsBackgroundProcessors()) return 'none';
-    if (touchFirst()) return supportsModernBackgroundProcessors() ? 'blur' : 'none';
-    return 'full';
+    return supportFrom(
+      frameApis(),
+      touchFirst(),
+      navigator.userAgent,
+      !!(window as { Telegram?: unknown }).Telegram,
+    );
   } catch {
     return 'none';
   }
@@ -170,73 +201,5 @@ export async function customBackgroundUrl(): Promise<string | null> {
     return url;
   } catch {
     return null;
-  }
-}
-
-type Processor = Awaited<ReturnType<typeof createProcessor>>;
-
-async function createProcessor() {
-  const { BackgroundProcessor } = await import('@livekit/track-processors');
-  return BackgroundProcessor({
-    mode: 'disabled',
-    assetPaths: {
-      tasksVisionFileSet: `${location.origin}/mediapipe/wasm`,
-      modelAssetPath: `${location.origin}/mediapipe/selfie_segmenter.tflite`,
-    },
-  });
-}
-
-/** Что сказать обработчику под этот выбор; `null` — фото нет, остаёмся без фона. */
-async function switchOptions(choice: BackgroundChoice) {
-  if (choice.kind === 'blur')
-    return { mode: 'background-blur' as const, blurRadius: BLUR_RADIUS[choice.strength] };
-  if (choice.kind === 'image') {
-    const imagePath =
-      choice.id === 'custom' ? await customBackgroundUrl() : await builtinBackgroundUrl(choice.id);
-    return imagePath ? { mode: 'virtual-background' as const, imagePath } : null;
-  }
-  return null;
-}
-
-/**
- * Фон у одной дорожки камеры: ставит обработчик при первом эффекте и переключает его на лету —
- * без переопубликации и без мигания у зрителей. «Без фона» снимает обработчик целиком: лишний
- * проход кадров через холст стоит процессора, а значит и кадров.
- */
-export class CameraBackground {
-  private processor: Processor | null = null;
-  private track: LocalVideoTrack | null = null;
-  private queue: Promise<void> = Promise.resolve();
-
-  /** Стоит ли обработчик на дорожке сейчас. */
-  get active(): boolean {
-    return this.processor !== null;
-  }
-
-  /** Применить выбор к дорожке (или к новой дорожке после смены камеры/кодека). */
-  apply(track: LocalVideoTrack | null | undefined, choice: BackgroundChoice): Promise<void> {
-    this.queue = this.queue.catch(() => {}).then(() => this.run(track ?? null, choice));
-    return this.queue;
-  }
-
-  private async run(track: LocalVideoTrack | null, choice: BackgroundChoice) {
-    if (this.track && this.track !== track) {
-      this.processor = null;
-      this.track = null;
-    }
-    if (!track) return;
-    const options = choice.kind === 'none' ? null : await switchOptions(choice);
-    if (!options) {
-      if (this.processor) await track.stopProcessor().catch(() => {});
-      this.processor = null;
-      this.track = track;
-      return;
-    }
-    if (!this.processor || track.getProcessor() !== this.processor) {
-      this.processor = await createProcessor();
-      await track.setProcessor(this.processor);
-    }
-    this.track = track;
-    await this.processor.switchTo(options);
   }
 }
