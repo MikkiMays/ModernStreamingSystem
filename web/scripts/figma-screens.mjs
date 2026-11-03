@@ -2613,13 +2613,22 @@ const SCENARIO_STEPS = [
   {
     id: 'meeting-screen-tile',
     group: 'Встреча',
-    title: 'Демонстрация — Аня показывает экран, у зрителей «Смотреть стрим»',
-    src: 'ui/Stage.tsx, media/session.ts',
-    async run({ D, people }) {
+    title: 'Демонстрация — показ отдельной плиткой (зритель открепил)',
+    src: 'ui/Stage.tsx, core/presentation.ts',
+    async run({ D, M, people }) {
       const anya = people[0].page;
       await closeOverlays(anya);
       await anya.getByRole('button', { name: 'Показать экран' }).click();
-      await anya.getByRole('button', { name: 'Остановить показ' }).waitFor({ timeout: 30000 });
+      await anya
+        .locator('#meeting-controls')
+        .getByRole('button', { name: 'Остановить показ' })
+        .waitFor({ timeout: 30000 });
+      // Показ сам встаёт крупно у всех (R183) — плитку видит тот, кто его открепил.
+      for (const page of [D, M]) {
+        await page.locator('video.screen-video').first().waitFor({ timeout: 30000 });
+        await page.getByRole('button', { name: 'Открепить показ' }).click();
+        await page.locator('.presentation-tile').first().waitFor({ timeout: 10000 });
+      }
       await D.waitForTimeout(6000);
     },
   },
@@ -2630,20 +2639,21 @@ const SCENARIO_STEPS = [
     src: 'ui/Stage.tsx, ui/stage.css',
     async run({ D, M }) {
       for (const page of [D, M]) {
-        const watch = page.getByRole('button', { name: /Смотреть стрим/ }).first();
-        await watch.waitFor({ timeout: 20000 });
-        await watch.click();
+        await page
+          .getByRole('button', { name: /^Закрепить показ:/ })
+          .first()
+          .click({ timeout: 20000 });
         await page.locator('video.screen-video').first().waitFor({ timeout: 20000 });
       }
       await D.waitForTimeout(3000);
     },
     async after({ D, M, people }) {
       for (const page of [D, M]) {
-        const back = page.getByRole('button', { name: /Вернуться в разговор/ }).first();
+        const back = page.getByRole('button', { name: 'Открепить показ' }).first();
         if (await back.isVisible().catch(() => false)) await back.click();
       }
       const anya = people[0].page;
-      await anya.getByRole('button', { name: 'Остановить показ' }).click();
+      await anya.locator('#meeting-controls').getByRole('button', { name: 'Остановить показ' }).click();
       await D.waitForTimeout(1500);
     },
   },

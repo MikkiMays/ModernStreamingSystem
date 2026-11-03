@@ -571,10 +571,14 @@ export class Meeting {
     const screenId = person.screenId;
     const previous = this.viewing.get();
     const revision = ++this.viewRevision;
+    // Выбор сделан — ждавшие показы сами уже не откроются (они остаются плитками и чипами).
+    this.noteReadyScreens();
     this.viewing.set({ screenId, participantId });
     this.pinnedCamera.set(null);
     // Показ крупно — это вид участников (R121): закрыли его — сетка, а не интеграция.
     this.stageAway.set(this.stageOccupant()?.kind ?? null);
+    // Подписчики ухода (`settlePresentation`) могли открыть другой показ — тогда этот вызов уже не главный.
+    if (revision !== this.viewRevision) return;
     if (own) {
       this.media.watchScreen(null);
       if (previous && previous.participantId !== self) this.tellViewClosed(previous.screenId);
@@ -614,6 +618,19 @@ export class Meeting {
   }
   /** Какие показы уже открывались сами (R183): каждый — один раз, закрытый сам не возвращается. */
   private seenScreens = new Set<string>();
+  /**
+   * Человек сам выбрал, что смотреть (открыл показ, закрепил камеру): готовые показы считаются замеченными и
+   * сами уже не встанут крупно поверх его выбора. Иначе уход от интеграции, который делает этот выбор,
+   * тут же открыл бы ждавший показ (ревью R183).
+   */
+  private noteReadyScreens() {
+    const list = presentations(
+      this.snapshot.get().participants,
+      this.admission.participantId,
+      this.media.state.get().screen,
+    );
+    for (const show of list) if (show.ready) this.seenScreens.add(show.screenId);
+  }
   /**
    * Открыть крупно новый показ, если он есть, а сцена у этого зрителя свободна для него (`core/presentation.ts`).
    * Зовётся на каждый снимок, на свою публикацию показа и на уход от интеграции к участникам.
@@ -702,6 +719,7 @@ export class Meeting {
    */
   pinCamera(participantId: string) {
     this.returnToConversation();
+    this.noteReadyScreens();
     this.pinnedCamera.set(participantId);
     // Закрепить при занятой сцене — значит смотреть людей: закреплённый крупно бывает только в их виде (R121).
     this.stageAway.set(this.stageOccupant()?.kind ?? null);
@@ -722,6 +740,8 @@ export class Meeting {
     // Каталог открывают, чтобы его видеть: ушедший к участникам возвращается в кинозал (R121).
     if (provider) this.stageAway.set(null);
     this.settleStage();
+    // Закрыл свой каталог — сцена свободна: ждавший показ встаёт крупно сразу, а не со следующим снимком (R183).
+    if (!provider) this.settlePresentation();
   }
   private tellDeafened = () => {
     if (this.disposed) return;

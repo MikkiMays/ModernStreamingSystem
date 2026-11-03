@@ -519,6 +519,8 @@ describe('выход из интеграции к участникам (R121)', 
     await room({ watch: { provider: 'youtube' } as unknown as Snapshot['watch'] });
     meeting.pinCamera('ann');
     expect(meeting.stageAway.get()).toBe('cinema');
+    expect(meeting.pinnedCamera.get()).toBe('ann');
+    expect(meeting.viewing.get()).toBeNull();
     meeting.openStream('ann');
     expect(meeting.viewing.get()).not.toBeNull();
     meeting.returnToStage();
@@ -607,6 +609,44 @@ describe('показ крупно сам, как в Meet (R183)', () => {
     });
     expect(meeting.viewing.get()).toBeNull();
     meeting.leaveStage();
+    expect(meeting.viewing.get()?.screenId).toBe('s1');
+  });
+
+  it('выбрал показ сам — открывается он, а не другой, ждавший за интеграцией (ревью R183)', async () => {
+    const bob = { ...ann(), id: 'bob', name: 'bob', screenId: 's2' };
+    await room([person('guest', 'CONNECTED'), ann(), bob], {
+      watch: { provider: 'youtube' } as unknown as Snapshot['watch'],
+    });
+    expect(meeting.viewing.get()).toBeNull();
+    meeting.openStream('bob');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(meeting.viewing.get()).toEqual({ screenId: 's2', participantId: 'bob' });
+    expect(meeting.media.watchScreen).toHaveBeenLastCalledWith('bob');
+    meeting.returnToConversation();
+    await next([person('guest', 'CONNECTED'), ann(), bob]);
+    expect(meeting.viewing.get()).toBeNull();
+  });
+
+  it('закрепил камеру при интеграции — закрепление, а не ждавший показ (ревью R183)', async () => {
+    await room([person('guest', 'CONNECTED'), ann()], {
+      poker: { seats: [] } as unknown as Snapshot['poker'],
+    });
+    meeting.pinCamera('ann');
+    expect(meeting.pinnedCamera.get()).toBe('ann');
+    expect(meeting.viewing.get()).toBeNull();
+    await next([person('guest', 'CONNECTED'), ann()], {
+      poker: { seats: [] } as unknown as Snapshot['poker'],
+    });
+    expect(meeting.pinnedCamera.get()).toBe('ann');
+    expect(meeting.viewing.get()).toBeNull();
+  });
+
+  it('закрыл свой каталог — ждавший показ открывается сразу, а не со следующим снимком (ревью R183)', async () => {
+    await room([person('guest', 'CONNECTED')]);
+    meeting.openCinema('youtube');
+    await next([person('guest', 'CONNECTED'), ann()]);
+    expect(meeting.viewing.get()).toBeNull();
+    meeting.openCinema(null);
     expect(meeting.viewing.get()?.screenId).toBe('s1');
   });
 
