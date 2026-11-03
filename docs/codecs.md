@@ -38,7 +38,7 @@ spatial layer encoding») — уходило в libvpx → `cpu` → сторо�
 |---|---|---|
 | Камера | AV1 HW → H.265 HW → VP9 HW → H.264 HW → VP9 SW (≤ 720p30, ≥ 4 ядер) → H.264 | H.264 HW → VP9 HW → VP8 |
 | Показ «Плавность» | AV1 HW → H.265 HW → H.264 HW → H.264 | то же |
-| Показ «Чёткость» | AV1 HW → VP9 HW → AV1 SW → VP9 SW (≤ 1080p30, ≥ 8 ядер) → H.265 HW → H.264 HW → H.264 | то же |
+| Показ «Чёткость» (умолчание, до 15 кадров) | AV1 HW → VP9 HW → AV1 SW → VP9 SW (≤ 1080p15 при ≥ 4 ядрах, ≤ 1080p30 при ≥ 8) → H.265 HW → H.264 HW → H.264 | то же |
 
 Ни одного ответа (браузер не знает `type:'webrtc'`) — H.264, если браузер его отдаёт, иначе VP8, как
 до политики. AV1 из Safari и Firefox и VP9 из Firefox LiveKit не публикует (`supportsAV1`/`supportsVP9`)
@@ -147,8 +147,12 @@ Arc и Meteor Lake+. Ключ читается до `ready`, поэтому ре
 
 - VP9/AV1 simulcast по rid заработает только с LiveKit новее 1.13.6 — до тех пор слабому зрителю VP9/AV1
   достаются временные слои `L1T3`, а не копия поменьше.
-- LiveKit при показе VP9/AV1 без раскладки по rid ставит `contentHint = 'motion'` (обход ошибки Chromium
-  со screencast и `L1T3`), то есть инструменты screen content у «Чёткости» на VP9/AV1 не включаются.
+- LiveKit при показе VP9/AV1 без раскладки по rid ставит `contentHint = 'motion'` («Chrome does not allow more
+  than 5 fps with L1T3»), то есть выключает screencast-режим libwebrtc. С 03.11.2026 (R184, Р-84) Cord
+  возвращает `detail` сразу после `publishTrack` (`applyScreenHint`): предел 5 кадров живёт только в старом
+  пути без `scalabilityMode` (`vp9/svc_config.cc` → `ConfigureSvcScreenSharing`), а при `L1T3` через
+  `scalabilityMode` слои собирает `GetVp9SvcConfig` с полной частотой. Если «Диагностика» при прокрутке
+  показывает 5 кадров на VP9 — это тот самый старый путь, и возврат подсказки надо снять.
 - У H.265 временных слоёв нет: слабому зрителю на H.265 SFU может только приостановить видео.
 - Лимит сессий NVENC: камера simulcast (3) + показ (1–2) + копии H.264 для несовместимых зрителей — до 6–9
   сессий; потребительский драйвер NVIDIA держит 8.
