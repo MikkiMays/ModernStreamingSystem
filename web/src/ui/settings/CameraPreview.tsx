@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { VideoOff } from 'lucide-react';
 import { previewConstraints, type ScreenProfile } from '../../media/profiles';
+import { NO_BACKGROUND, type BackgroundChoice } from '../../media/background-effect';
+import { useBackgroundPreview } from '../useBackgroundPreview';
 import { rowDomId, rowText } from './sections';
 
 type State = 'starting' | 'live' | 'denied' | 'failed';
@@ -44,6 +46,9 @@ function show(
  * Открыть превью — тоже включить камеру: на телефоне это фронтальная (`front`, Р-35), как во встрече и
  * на предвходе, а не запомненная после «перевернуть». Какая камера вышла, превью сообщает (`onDevice`) —
  * список камер рядом показывает её.
+ *
+ * Свой захват идёт через движок фона (R186, `background`): выбранный в строке «Фон» виден на себе сразу,
+ * как в Meet. Дорожка встречи (`live`) уже обработана — её не трогаем.
  */
 export function CameraPreview({
   deviceId,
@@ -51,6 +56,7 @@ export function CameraPreview({
   profile,
   live,
   onDevice,
+  background,
 }: {
   deviceId?: string;
   /** Просить фронтальную камеру, а не `deviceId`. */
@@ -60,6 +66,8 @@ export function CameraPreview({
   live?: MediaStreamTrack | null;
   /** Какая камера показана — устройство дорожки, когда оно известно. */
   onDevice?: (deviceId: string) => void;
+  /** Фон для своего захвата; нет — показывать как есть. */
+  background?: BackgroundChoice;
 }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
@@ -75,6 +83,19 @@ export function CameraPreview({
   const [result, setResult] = useState<{ source: string; state: State } | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
   const state: State = live ? 'live' : result && result.source === source ? result.state : 'starting';
+  /** Свой захват — в состоянии, а не только в ref: от него зависит обработанная дорожка (`useBackgroundPreview`). */
+  const [captured, setCaptured] = useState<MediaStreamTrack | null>(null);
+  const processed = useBackgroundPreview(live ? null : captured, background ?? NO_BACKGROUND);
+  useEffect(() => {
+    const element = video.current;
+    if (live || !captured || !processed || !element) return;
+    element.srcObject = new MediaStream([processed]);
+    void element.play().catch(() => {});
+    return () => {
+      // Фон сняли — назад к сырому захвату (если он ещё жив); иначе превью осталось бы на остановленной дорожке.
+      if (captured.readyState === 'live') element.srcObject = new MediaStream([captured]);
+    };
+  }, [live, captured, processed]);
 
   useEffect(() => {
     if (!live) return;
@@ -116,6 +137,7 @@ export function CameraPreview({
         track = captured.getVideoTracks()[0] ?? null;
         own.current = track;
         if (track) show(element, captured, track, reported.current);
+        setCaptured(track);
         finish('live');
       })
       .catch((error: unknown) => {
@@ -126,6 +148,7 @@ export function CameraPreview({
       cancelled = true;
       track?.stop();
       own.current = null;
+      setCaptured(null);
       if (element) element.srcObject = null;
     };
   }, [source, capturing]);

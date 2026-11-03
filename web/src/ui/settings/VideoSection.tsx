@@ -63,6 +63,7 @@ export function VideoSection({
             profile={preferences.camera}
             live={live?.readyState === 'live' ? live : null}
             onDevice={setShown}
+            background={preferences.background}
           />
           <div className="setting-camera__rows">
             <SettingRow id="camera-device" stack>
