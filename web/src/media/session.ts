@@ -216,7 +216,12 @@ function connection(): EventTarget | undefined {
  * шумодава, он «жив», даже когда сам микрофон кончился (`captureTrack`).
  */
 function liveCapture(track: LocalTrack) {
-  const raw = track instanceof LocalAudioTrack ? captureTrack(track) : track.mediaStreamTrack;
+  const raw =
+    track instanceof LocalAudioTrack
+      ? captureTrack(track)
+      : track instanceof LocalVideoTrack
+        ? captureVideoTrack(track)
+        : track.mediaStreamTrack;
   return raw.readyState === 'live';
 }
 function createAudioContext(): AudioContext | null {
@@ -1098,9 +1103,12 @@ export class MediaSession {
   private cameraCapabilities() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     // С фоном `mediaStreamTrack` — обработанная дорожка (генератор), а не камера: её возможности пусты.
+    const held = this.deviceTracks.get(Track.Source.Camera);
     return track instanceof LocalVideoTrack
       ? captureVideoTrack(track).getCapabilities?.()
-      : this.deviceTracks.get(Track.Source.Camera)?.mediaStreamTrack.getCapabilities?.();
+      : held instanceof LocalVideoTrack
+        ? captureVideoTrack(held).getCapabilities?.()
+        : held?.mediaStreamTrack.getCapabilities?.();
   }
   /** Чем захватывать камеру и как её публиковать при нынешнем составе отдачи. */
   private cameraCaptureNow() {
@@ -1162,9 +1170,17 @@ export class MediaSession {
     if (this.disposed) return;
     const wanted = allowed(choice, support) ? choice : NO_BACKGROUND;
     if (wanted.kind !== 'none') this.backgroundEngineUsed = true;
+    const removing = wanted.kind === 'none' && this.background.active;
+    // LiveKit после `stopProcessor` заново ставит захвату свои первоначальные ограничения — без нижней
+    // границы частоты (`enforceCameraRate`) и без зума (R36). Зум читаем до снятия, возвращаем после.
+    const zoom = removing ? this.cameraZoom()?.value : undefined;
     await this.background
       .apply(track, wanted, support)
       .catch((error) => console.warn('[cord] background effect failed', error));
+    if (removing && !this.disposed) {
+      await this.enforceCameraRate();
+      if (zoom !== undefined) await this.applyCameraZoom(zoom);
+    }
     // Обработанная дорожка у LiveKit сменилась (`mediaStreamTrack`): превью «Видео» и плитка читают её
     // из списка дорожек — пересобрать его, иначе превью показывало бы сырую камеру до другого события.
     this.refreshTracks();
@@ -2891,7 +2907,8 @@ export class MediaSession {
             mbps: delta.seconds > 0 ? (delta.bytes * 8) / delta.seconds / 1000000 : 0,
             limitation: reading.limitation,
             targetFps,
-            sourceFps: track.mediaStreamTrack?.getSettings?.().frameRate,
+            // Частота камеры, а не выхода конвейера фона (ревью R186, A8).
+            sourceFps: captureVideoTrack(track).getSettings?.().frameRate,
             dormant: reading.dormant,
             settling: performance.now() - this.videoChangedAt[source] < this.settleMs,
           });

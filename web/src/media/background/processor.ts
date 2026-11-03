@@ -7,7 +7,12 @@ import { BackgroundEffect } from './effect';
  * (`BackgroundEffect`). LiveKit зовёт `init` при установке, `restart` — при каждом включении камеры,
  * смене устройства, перевороте и смене качества (`restartTrack`), `destroy` — при снятии и остановке.
  * Прежний обработчик на `restart` пересоздавал wasm и модель; здесь это лишь новая дорожка-источник
- * у того же движка: секунды чёрного кадра после включения больше нет.
+ * у того же движка — и тот же выход (`processedTrack`): генератор принадлежит странице.
+ *
+ * `init` и `restart` **не бросают** (ревью R186, A4): исключение посреди `setMediaStreamTrack` у LiveKit
+ * оставило бы новую дорожку камеры без `replaceTrack`, а отправителю — мёртвый генератор. При отказе
+ * `processedTrack` остаётся пустым, и LiveKit публикует сырую дорожку (ставить её в `processedTrack`
+ * нельзя: `internalStopProcessor` остановил бы её).
  */
 export class CordBackgroundProcessor implements TrackProcessor<Track.Kind.Video, VideoProcessorOptions> {
   readonly name = 'cord-background';
@@ -23,7 +28,12 @@ export class CordBackgroundProcessor implements TrackProcessor<Track.Kind.Video,
 
   async init(opts: VideoProcessorOptions) {
     this.source = opts.track;
-    this.processedTrack = await this.effect.attach(opts.track, this.choice, this.support);
+    try {
+      this.processedTrack = await this.effect.attach(opts.track, this.choice, this.support, 'processor');
+    } catch (error) {
+      console.warn('[cord] background processor failed, publishing the camera as is', error);
+      this.processedTrack = undefined;
+    }
   }
 
   async restart(opts: VideoProcessorOptions) {

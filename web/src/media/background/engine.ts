@@ -10,8 +10,15 @@ import { Segmenter, type SegmenterAssets } from './segmenter';
  * `VideoFrame`. Порядок на кадре: загрузить кадр в конвейер → если сторож бюджета велит — посчитать
  * модель и уточнить маску → свести с фоном → новый кадр с той же меткой времени.
  *
- * Пока модель грузится или фон «нет» — кадр уходит как есть: ни чёрного кадра, ни задержки на
- * включении. Своё и чужое время считается на каждом кадре и идёт в сторож (`Budget`) и в статистику.
+ * Пока модель грузится, кадр **не уходит сырым** (ревью R186, A10): сводится с пустой маской — весь
+ * кадр размыт или закрыт картинкой. Комнату за спиной лучше не показать лишнюю секунду, чем показать.
+ * Фон «нет» — кадр как есть. Своё и чужое время считается на каждом кадре и идёт в сторож (`Budget`) и
+ * в статистику.
+ *
+ * Потеря контекста WebGL (A6): по `webglcontextlost` движок пропускает кадры как есть, по
+ * `webglcontextrestored` (или при следующем источнике, если контекст уже вернулся) собирает конвейер
+ * и модель заново — движок живёт всю страницу, и один сброс видеокарты не должен выключить фон до
+ * перезагрузки.
  */
 export type EngineChoice =
   | { mode: 'none' }
@@ -28,8 +35,8 @@ export interface EngineStats extends BudgetState {
 }
 
 export class Engine {
-  private readonly pipeline: Pipeline;
-  private readonly segmenter: Segmenter;
+  private pipeline: Pipeline;
+  private segmenter: Segmenter;
   private readonly budget = new Budget();
   private choice: EngineChoice = { mode: 'none' };
   private segmentMs = 0;
@@ -37,14 +44,49 @@ export class Engine {
   private outputsAt = 0;
   private fps = 0;
   private disposed = false;
+  /** Контекст WebGL потерян — кадры идут как есть, пока не вернётся. */
+  private lost = false;
   /** Сторож сменил ступень — сказать наружу (журнал, диагностика). */
   onLevel?: (state: BudgetState) => void;
   /** Модель не загрузилась — наружу: воркер отчитается странице, та перейдёт на главный поток. */
   onError?: (error: unknown) => void;
 
-  constructor(canvas: OffscreenCanvas | HTMLCanvasElement, assets: SegmenterAssets) {
+  constructor(
+    private readonly canvas: OffscreenCanvas | HTMLCanvasElement,
+    private readonly assets: SegmenterAssets,
+  ) {
     this.pipeline = new Pipeline(canvas);
     this.segmenter = new Segmenter(canvas, assets);
+    canvas.addEventListener('webglcontextlost', this.onLost as EventListener);
+    canvas.addEventListener('webglcontextrestored', this.onRestored as EventListener);
+  }
+
+  private onLost = (event: Event) => {
+    // Без `preventDefault` браузер не станет восстанавливать контекст.
+    event.preventDefault();
+    this.lost = true;
+    console.warn('[cord] background webgl context lost');
+  };
+
+  private onRestored = () => {
+    this.rebuild();
+  };
+
+  /** Собрать конвейер и модель заново на том же холсте (после потери контекста). */
+  private rebuild() {
+    if (this.disposed) return;
+    const oldSegmenter = this.segmenter;
+    try {
+      this.pipeline.dispose();
+    } catch {
+      /* старый контекст мёртв — удалять нечего */
+    }
+    this.pipeline = new Pipeline(this.canvas);
+    this.segmenter = new Segmenter(this.canvas, this.assets);
+    void oldSegmenter.dispose().catch(() => {});
+    this.lost = false;
+    this.setChoice(this.choice);
+    console.info('[cord] background webgl context restored');
   }
 
   /** Загрузить модель под кадр заранее — чтобы первый кадр с фоном не ждал. Отказ — наружу. */
@@ -61,8 +103,14 @@ export class Engine {
     }
   }
 
+  /** Частота источника изменилась на лету — сторожу бюджета новый интервал кадра. */
+  setFrameRate(frameRate: number | undefined) {
+    this.budget.setFrameRate(frameRate);
+  }
+
   /** Новый источник кадров: прошлая маска к нему не относится; `frameRate` — его частота, если известна. */
   resetSource(frameRate?: number) {
+    if (this.lost && !this.pipeline.gl.isContextLost()) this.rebuild();
     this.pipeline.resetTemporal();
     this.budget.resetSource(frameRate);
   }
@@ -81,18 +129,18 @@ export class Engine {
    * Исключение конвейера не роняет поток: кадр уходит как есть.
    */
   process(frame: VideoFrame): VideoFrame {
-    if (this.disposed || this.choice.mode === 'none') return frame;
+    if (this.disposed || this.lost || this.choice.mode === 'none') return frame;
+    // Картинка ещё не загружена — размывать нечем и закрывать нечем: как есть, это миг после выбора.
+    if (this.choice.mode === 'image' && !this.pipeline.hasImage) return frame;
     const model = modelFor(frame.displayWidth, frame.displayHeight);
     const segmenter = this.segmenter.ready(model);
-    if (!segmenter) {
-      void this.segmenter.load(model).catch((error) => this.onError?.(error));
-      return frame;
-    }
+    if (!segmenter) void this.segmenter.load(model).catch((error) => this.onError?.(error));
     const started = performance.now();
     try {
       this.pipeline.upload(frame);
-      // Первую маску ждём во что бы то ни стало: без неё сводить не с чем.
-      if (this.budget.shouldSegment() || !this.pipeline.ready) {
+      // Первую маску ждём во что бы то ни стало: без неё сводить не с чем — до неё маска пустая,
+      // и кадр уходит целиком размытым (или закрытым картинкой), а не сырым.
+      if (segmenter && (this.budget.shouldSegment() || !this.pipeline.ready)) {
         const t = performance.now();
         this.segmenter.segment(segmenter, frame, (mask) =>
           this.pipeline.refineMask(mask.texture, mask.width, mask.height),
@@ -100,14 +148,11 @@ export class Engine {
         const cost = performance.now() - t;
         this.segmentMs = this.segmentMs ? this.segmentMs * 0.8 + cost * 0.2 : cost;
       }
-      if (!this.pipeline.ready) return frame;
       this.pipeline.render();
-      const output = new VideoFrame(this.pipeline.canvas, {
-        timestamp: frame.timestamp,
-        alpha: 'discard',
-      });
+      const stamp = frame.timestamp;
+      const output = new VideoFrame(this.pipeline.canvas, { timestamp: stamp, alpha: 'discard' });
       frame.close();
-      this.count(started);
+      this.count(stamp / 1000, started);
       return output;
     } catch (error) {
       console.warn('[cord] background frame failed', error);
@@ -115,9 +160,9 @@ export class Engine {
     }
   }
 
-  private count(started: number) {
+  private count(stampMs: number, started: number) {
     const now = performance.now();
-    if (this.budget.record(now, now - started)) this.onLevel?.(this.budget.state);
+    if (this.budget.record(stampMs, now - started)) this.onLevel?.(this.budget.state);
     this.outputs++;
     if (now - this.outputsAt >= 1000) {
       this.fps = this.outputsAt ? Math.round((this.outputs * 1000) / (now - this.outputsAt)) : this.outputs;
@@ -128,6 +173,8 @@ export class Engine {
 
   async dispose() {
     this.disposed = true;
+    this.canvas.removeEventListener('webglcontextlost', this.onLost as EventListener);
+    this.canvas.removeEventListener('webglcontextrestored', this.onRestored as EventListener);
     await this.segmenter.dispose();
     this.pipeline.dispose();
   }

@@ -111,7 +111,12 @@ export class Pipeline {
     this.look = look;
   }
 
-  /** Картинка фона (покрытием, кадр обрезает лишнее); `null` — убрать. */
+  /** Есть ли картинка фона. */
+  get hasImage(): boolean {
+    return this.image !== null;
+  }
+
+  /** Картинка фона (покрытием, кадр обрезает лишнее); `null` — убрать. Копию закрывает сам. */
   setImage(image: ImageBitmap | null) {
     const { gl } = this;
     if (this.image) gl.deleteTexture(this.image);
@@ -124,6 +129,8 @@ export class Pipeline {
     this.imageWidth = image.width;
     this.imageHeight = image.height;
     this.imageSoftDirty = true;
+    // Копия картинки — наша (`effect.ts` → `imageFor`): после загрузки в текстуру она не нужна.
+    image.close();
   }
 
   /** Новый источник: прошлой маски у него нет — первая уточнённая маска берётся как есть. */

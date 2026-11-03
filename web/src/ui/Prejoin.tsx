@@ -319,7 +319,8 @@ export function Prejoin({
         cameraUsed.current = true;
       } else setMic(!enabled);
       if (preview.current) {
-        preview.current.srcObject = stream.current;
+        // `srcObject` ставит эффект ниже (сырой захват или обработанный фон): переключение микрофона
+        // не должно подменять обработанное превью сырым (ревью R186, A7).
         // Зеркалим себя, а не камеру: у задней зеркала нет, там смотрят на мир.
         // `environment` — единственное, что его отменяет; молчание камеры значит «фронтальная».
         const facing = stream.current.getVideoTracks()[0]?.getSettings().facingMode;

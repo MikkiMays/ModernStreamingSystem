@@ -64,6 +64,9 @@ async function handle(message: ToWorker) {
       abort?.abort();
       abort = null;
       return;
+    case 'rate':
+      engine?.setFrameRate(message.frameRate);
+      return;
     case 'choice':
       engine?.setChoice(message.choice);
       return;

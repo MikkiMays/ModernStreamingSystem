@@ -32,9 +32,9 @@ export function useBackgroundPreview(
       if (!alive || !allowed(choice, support)) return;
       const engine = await effect;
       if (!alive) return;
-      engine.onReplaced = (source, output) => alive && source === track && setProcessed({ source, output });
-      const output = await engine.attach(track, choice, support);
-      if (alive) setProcessed({ source: track, output });
+      const output = await engine.attach(track, choice, support, 'preview');
+      // Движок занят обработчиком встречи — вернулась сырая дорожка: показывать её как есть.
+      if (alive) setProcessed(output === track ? null : { source: track, output });
     })().catch((error) => console.warn('[cord] background preview failed', error));
     return () => {
       alive = false;

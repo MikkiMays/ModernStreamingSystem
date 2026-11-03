@@ -71,7 +71,7 @@ void main() {
 /** Уменьшение вдвое: билинейная выборка в центре 2×2 — ровно среднее четырёх точек. */
 export const DOWNSAMPLE = `#version 300 es
 precision mediump float;
-in vec2 v_uv;
+in highp vec2 v_uv;
 uniform sampler2D u_src;
 out vec4 o_color;
 void main() {
@@ -94,7 +94,7 @@ void main() {
  */
 export const BLUR = `#version 300 es
 precision mediump float;
-in vec2 v_uv;
+in highp vec2 v_uv;
 uniform sampler2D u_src;
 uniform sampler2D u_mask;
 uniform vec2 u_step;
@@ -141,7 +141,7 @@ void main() {
  */
 export const COMPOSITE = `#version 300 es
 precision mediump float;
-in vec2 v_uv;
+in highp vec2 v_uv;
 uniform sampler2D u_frame;
 uniform sampler2D u_mask;
 uniform sampler2D u_bg;

@@ -37,9 +37,10 @@ export function VideoSection({
   const devices = useMediaDevices();
   // Камера встречи, если она включена: превью показывает её, а не захватывает камеру второй раз.
   const tiles = useStore(meeting?.media.tracks ?? noTiles);
-  const camera = tiles.find(
-    (tile) => tile.local && tile.source === ('camera' satisfies `${Track.Source.Camera}`) && !tile.muted,
+  const published = tiles.find(
+    (tile) => tile.local && tile.source === ('camera' satisfies `${Track.Source.Camera}`),
   );
+  const camera = published && !published.muted ? published : undefined;
   const live = camera?.track.mediaStreamTrack;
   /*
     Превью — тоже включение камеры: на телефоне оно открывается фронтальной (Р-35), как встреча и
@@ -63,7 +64,10 @@ export function VideoSection({
             profile={preferences.camera}
             live={live?.readyState === 'live' ? live : null}
             onDevice={setShown}
-            background={preferences.background}
+            // Во встрече с опубликованной камерой превью через движок фона не идёт (ревью R186, A2): при
+            // перезапуске дорожки `mediaStreamTrack` на миг — остановленный генератор, превью захватило бы
+            // камеру само и отобрало бы движок у обработчика встречи. Фон там и так виден на дорожке встречи.
+            background={meeting && published ? undefined : preferences.background}
           />
           <div className="setting-camera__rows">
             <SettingRow id="camera-device" stack>
