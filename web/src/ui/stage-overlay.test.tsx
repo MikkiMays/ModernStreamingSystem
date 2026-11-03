@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Snapshot } from '../api/types';
@@ -182,5 +182,32 @@ describe('слой поверх сцены', () => {
       meeting.snapshot.set(snapshot({ durak: { seats: [{ memberId: 'me' }, { memberId: 'ann' }] } })),
     );
     expect(screen.queryByRole('button', { name: 'Дурак · 2 за столом' })).toBeNull();
+  });
+});
+
+describe('чужой показ при интеграции на сцене (R183)', () => {
+  const ann = {
+    id: 'ann',
+    name: 'Аня',
+    status: 'CONNECTED',
+    service: null,
+    screen: true,
+    screenId: 'S1',
+    screenStarted: true,
+  };
+  it('крупно сам не встаёт — о нём говорит чип, нажатие открывает показ', () => {
+    const room = { ...snapshot(), poker: { seats: [] }, participants: [ann] } as unknown as Snapshot;
+    const meeting = fakeMeeting(room);
+    const openStream = vi.fn();
+    Object.assign(meeting, { openStream });
+    show(meeting);
+    fireEvent.click(screen.getByRole('button', { name: /Аня показывает экран/ }));
+    expect(openStream).toHaveBeenCalledWith('ann');
+  });
+
+  it('сцена свободна — чипа нет: показ и так крупно или плиткой в сетке', () => {
+    const meeting = fakeMeeting({ ...snapshot(), participants: [ann] } as unknown as Snapshot);
+    show(meeting);
+    expect(screen.queryByRole('button', { name: /показывает экран/ })).toBeNull();
   });
 });

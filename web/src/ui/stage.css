@@ -61,8 +61,9 @@
   background: var(--call-bg);
   color: var(--stage-text);
 }
-.stage-wrap:has(.watch-stage) {
-  padding: 0;
+/* Ширина ленты участников справа от показа (R183) — её знает и слой чипов, чтобы лечь на показ, а не на ленту. */
+.stage-wrap:has(> .watch-stage) {
+  --presentation-aside: clamp(144px, 15vw, 248px);
 }
 .stage {
   height: 100%;
@@ -457,6 +458,41 @@ button.watch-stream.is-stop:hover {
   letter-spacing: 0.06em;
 }
 
+/*
+  Плитка показа — «отдельный участник» (R183): кадр показа 16:9, нажатие по всей плитке — показ крупно. У
+  своего — живой кадр своей дорожки, у чужого — превью и «Смотреть стрим», пока его не открыли.
+*/
+.presentation-tile {
+  --tile-aspect: 16 / 9;
+  background: var(--stage-bg);
+}
+.presentation-tile .screen-video {
+  position: absolute;
+  inset: 0;
+}
+.presentation-open {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.presentation-open:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset-inset);
+}
+.presentation-open:hover .watch-stream {
+  background: var(--surface-3);
+}
+.presentation-tile[data-own] .presentation-open:hover {
+  background: color-mix(in srgb, var(--stage-bg) 24%, transparent);
+}
+
 /* ---------- плашки на сцене ---------- */
 /*
   Сообщения о связи лежат поверх сцены и ничего не спрашивают — значит, и нажатий не ловят: под
@@ -685,14 +721,52 @@ button.watch-stream.is-stop:hover {
   line-height: 1.7;
 }
 
-/* ---------- чужой экран ---------- */
+/* ---------- показ крупно (R183, как у Google Meet) ---------- */
+/*
+  Экран — главным, участники — лентой справа: кадр показа почти всегда 16:9, и на широкой сцене место по
+  бокам от него всё равно пустое — лента его и занимает. На узком и вертикальном экране лента уходит вниз.
+  Сцена с полями, как разговор: пульт не ложится на нижний край показа, где у презентаций подписи.
+*/
 .watch-stage {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   width: 100%;
   height: 100%;
-  padding: 0;
+}
+.presentation-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-4);
   background: var(--stage-bg);
+}
+.presentation-strip {
+  flex: none;
+}
+@media (min-width: 701px) and (min-aspect-ratio: 5 / 4) {
+  .watch-stage {
+    flex-direction: row;
+  }
+  .watch-stage > .presentation-strip {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: safe center;
+    width: var(--presentation-aside);
+    height: auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .watch-stage > .presentation-strip .person-tile {
+    flex: none;
+    width: 100%;
+    height: auto;
+    max-width: none;
+  }
 }
 .screen-viewport {
   position: relative;
@@ -717,8 +791,9 @@ button.watch-stream.is-stop:hover {
 }
 .screen-tools {
   position: absolute;
-  right: var(--space-3);
-  bottom: calc(var(--dock-space) + var(--space-2));
+  z-index: 3;
+  right: var(--space-2);
+  bottom: var(--space-2);
   display: flex;
   align-items: center;
   gap: var(--space-0-5);
@@ -1046,6 +1121,7 @@ button.watch-stream.is-stop:hover {
   /* «…» у плитки в полосе лиц не нужен: те же действия — у строки человека в открытом листе рядом
      и долгим нажатием по самой плитке. Кнопка ростом в полполосы заслоняла лицо, а у плиток за
      краем полосы оставалась за краем экрана (аудит чёткости E15-B на 360). */
+  .meeting-body.panel-open .watch-stage > .presentation-strip,
   .meeting-body.panel-open .lens-switch,
   .meeting-body.panel-open .screen-tools,
   .meeting-body.panel-open .tile-unpin > span,

@@ -9,17 +9,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import {
-  HeadphoneOff,
-  MicOff,
-  MonitorUp,
-  MonitorX,
-  PinOff,
-  WifiLow,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-} from 'lucide-react';
+import { HeadphoneOff, MicOff, MonitorUp, PinOff, WifiLow, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
@@ -27,8 +17,9 @@ import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
 import { stageOccupant, stageView } from '../core/stage-view';
+import { presentations, type Presentation } from '../core/presentation';
 import { ParticipantMenu } from './ParticipantMenu';
-import { Avatar, useMediaQuery, useStore } from './primitives';
+import { Avatar, useStore } from './primitives';
 import { IconButton } from './kit';
 import { LensSwitch } from './CameraMenu';
 import { useVoiceTier } from './useVoice';
@@ -235,8 +226,6 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   const layout = useStore(meeting.media.preferences).layout;
   /** От какой интеграции этот зритель ушёл к участникам (R121) — у себя, комната об этом не знает. */
   const away = useStore(meeting.stageAway);
-  /** Касание: показ в пульте не кнопкой, а пунктом «ещё» — останавливают его со своей плитки. */
-  const coarse = useMediaQuery('(pointer: coarse)');
   /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
   const [focus, setFocus] = useState<string | null>(null);
   /*
@@ -279,6 +268,13 @@ export function Stage({ meeting }: { meeting: Meeting }) {
     встречи. Стоило одного зелёного прогона e2e, чтобы это стало видно.
   */
   const people = participants.filter((p) => !p.service && p.status !== 'WAITING');
+  const self = meeting.admission.participantId;
+  /*
+    Показы экрана — отдельными плитками, «отдельными участниками», как в Meet (R183). Свой готов, как только
+    своя дорожка опубликована: её видно в дорожках сессии — без сети и без снимка ядра.
+  */
+  const ownScreen = tracks.find((t) => t.local && t.source === Track.Source.ScreenShare && !t.muted);
+  const shows = presentations(participants, self, !!ownScreen);
   const focused = focusedParticipant({
     pinned,
     speaking,
@@ -288,7 +284,8 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   useEffect(() => {
     if (focused !== focus) setFocus(focused);
   }, [focused, focus]);
-  const plan = useMemo(() => gridPlan(people.length, box), [people.length, box]);
+  /* Показ — плитка сетки наравне с людьми, и первой: так у Meet, и так его находят глазами. */
+  const plan = useMemo(() => gridPlan(shows.length + people.length, box), [shows.length, people.length, box]);
   /*
     Кто крупно над лентой остальных (R83, R84): закреплённый руками — в любой раскладке, а в
     «Говорящем» — тот, кто держит слово. Раньше в сетке закрепление ставило только рамку `inset`,
@@ -297,6 +294,11 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   */
   const pinnedHere = pinned && people.some((p) => p.id === pinned) ? pinned : null;
   const spotlight = people.length > 1 ? (pinnedHere ?? (layout === 'speaker' ? focused : null)) : null;
+  /** Место плитки в сетке (`ui/grid.ts`): две доли колонки, чтобы неполный ряд вставал посередине. */
+  const cell = (index: number, placed: boolean): CSSProperties | undefined =>
+    placed && plan.cells[index]
+      ? { gridRow: plan.cells[index].row, gridColumn: `${plan.cells[index].column} / span 2` }
+      : undefined;
   /**
    * Одна и та же плитка и в сетке, и в ленте под общим плеером: в кинозале у неё отбирают
    * только место в сетке. Разводить это на два похожих куска разметки значило бы чинить
@@ -309,10 +311,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
     const mic = tracks.find(
       (t) => t.participantId === person.id && t.source === Track.Source.Microphone && !t.muted,
     );
-    const self = person.id === meeting.admission.participantId;
-    const sharing = !!(person.screen && person.screenId && person.screenStarted);
-    // Слот взят, а кадра целевого качества ещё нет: показ открывается зрителям после него (T48).
-    const preparing = !!(person.screen && person.screenId && !person.screenStarted);
+    const mine = person.id === self;
     /*
       Пауза камеры от SFU (R117) — надпись сверху плитки, на месте «Восстанавливаем связь…», и одна
       из двух по старшинству:
@@ -320,8 +319,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
       2. участник переподключается — «Восстанавливаем связь…»: кадр стоит из-за него, а не из-за
          нашего канала, и «слабая связь» на его плитке указала бы не туда;
       3. иначе — «Видео приостановлено: слабая связь».
-      «Готовится показ…» и «Смотреть стрим» — про экран и живут в середине плитки: с паузой камеры
-      они не спорят. Своё переподключение и зависание кадра решает сессия: надписи гаснут, пока нет
+      Показ экрана живёт своей плиткой (R183), а не поверх плитки человека. Своё переподключение и зависание кадра решает сессия: надписи гаснут, пока нет
       связи, а сторож зависаний не трогает дорожку на паузе.
     */
     const recovering = person.status === 'RECOVERING';
@@ -332,32 +330,17 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         person={person}
         key={person.id}
         className="person-tile"
-        data-sharing={sharing ? 'true' : undefined}
         data-paused={paused ? 'true' : undefined}
         data-pinned={pinned === person.id ? 'true' : undefined}
         // Крупно над лентой — закреплённый или говорящий. Смена говорящего переносит две плитки
         // между крупным местом и лентой; выбор залипает (`ui/focus.ts`), так что это редкость.
         data-focused={spotlight === person.id ? 'true' : undefined}
-        style={
-          placed && plan.cells[index]
-            ? ({
-                gridRow: plan.cells[index].row,
-                gridColumn: `${plan.cells[index].column} / span 2`,
-              } as CSSProperties)
-            : undefined
-        }
+        style={cell(index, placed)}
       >
         {camera ? (
           <VideoTrack tile={camera} />
         ) : (
           <div className="person-placeholder">
-            {sharing && (
-              <div
-                className="screen-preview"
-                aria-hidden="true"
-                style={previews[person.id] ? { backgroundImage: `url(${previews[person.id]})` } : undefined}
-              />
-            )}
             <Avatar name={person.name} src={person.avatar} large />
           </div>
         )}
@@ -373,10 +356,10 @@ export function Stage({ meeting }: { meeting: Meeting }) {
           )}
           <span>
             {person.name}
-            {self ? t(($) => $.stage.you) : ''}
+            {mine ? t(($) => $.stage.you) : ''}
           </span>
         </div>
-        {self && camera && <LensSwitch meeting={meeting} tile={camera} />}
+        {mine && camera && <LensSwitch meeting={meeting} tile={camera} />}
         {/* Закреплённая — с кнопкой «Открепить» на самой плитке: меню «…» не единственный путь назад. */}
         {pinned === person.id && (
           <button
@@ -390,131 +373,213 @@ export function Stage({ meeting }: { meeting: Meeting }) {
             <span>{t(($) => $.stage.unpin)}</span>
           </button>
         )}
-        {preparing && (
-          <span className="watch-stream is-preparing" role="status">
-            <MonitorUp size={16} />
-            <span>{t(($) => $.stage.preparing)}</span>
-          </span>
-        )}
-        {sharing &&
-          (self ? (
-            coarse ? (
-              /* На телефоне кнопки показа в пульте нет (там переворот камеры) — остановить показ
-                 можно прямо со своей плитки, красной кнопкой с крестиком (R77). Она же и говорит,
-                 что показ идёт: длинная подпись «Вы показываете экран» здесь лишняя (R27). */
-              <button
-                type="button"
-                className="watch-stream is-stop"
-                onClick={() => void meeting.media.stopScreen()}
-              >
-                <MonitorX size={16} aria-hidden="true" />
-                <span>{t(($) => $.dock.unshare)}</span>
-              </button>
-            ) : (
-              <span className="watch-stream is-own">
-                <MonitorUp size={16} />
-                <span>{t(($) => $.stage.sharing)}</span>
-                <span className="live-badge">LIVE</span>
-              </span>
-            )
-          ) : (
-            <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
-              <MonitorUp size={16} />
-              <span>{t(($) => $.stage.watch)}</span>
-              <span className="live-badge">LIVE</span>
-            </button>
-          ))}
         {recovering && <div className="tile-recovery">{t(($) => $.stage.recovering)}</div>}
         {paused && <VideoPausedNote />}
       </ParticipantMenu>
     );
   };
-  /** Чужой экран во всю сцену — с лупой и перетаскиванием увеличенного кадра. */
-  const screenView = (viewing: { screenId: string; participantId: string }) => {
+  /** Подпись показа: «Экран: Аня» — как «Аня (презентация)» у Meet; свой — «Ваш экран». */
+  const showName = (show: Presentation) =>
+    show.own ? t(($) => $.stage.presentation.own) : t(($) => $.stage.screenOf, { name: show.name });
+  /**
+   * Плитка показа — «отдельный участник» (R183). Нажатие — показ крупно. Свой — живой своей дорожкой (без
+   * сети); чужой — размытым превью раз в несколько секунд и «Смотреть стрим», пока его не открыли: подписка
+   * на чужой экран держалась бы у каждого в комнате, даже у тех, кто его открепил (`media/screen-preview.ts`).
+   */
+  const presentationTile = (show: Presentation, index: number, placed: boolean) => {
+    const name = showName(show);
+    return (
+      <div
+        key={`screen:${show.screenId}`}
+        className="person-tile presentation-tile"
+        data-own={show.own ? 'true' : undefined}
+        data-preparing={show.ready ? undefined : 'true'}
+        style={cell(index, placed)}
+      >
+        {show.own && ownScreen ? (
+          <VideoTrack tile={ownScreen} screen />
+        ) : (
+          <div
+            className="screen-preview"
+            aria-hidden="true"
+            style={
+              previews[show.participantId]
+                ? { backgroundImage: `url(${previews[show.participantId]})` }
+                : undefined
+            }
+          />
+        )}
+        {show.ready ? (
+          <button
+            type="button"
+            className="presentation-open"
+            aria-label={
+              show.own
+                ? t(($) => $.stage.presentation.pinOwn)
+                : t(($) => $.stage.presentation.pin, { name: show.name })
+            }
+            title={
+              show.own
+                ? t(($) => $.stage.presentation.pinOwn)
+                : t(($) => $.stage.presentation.pin, { name: show.name })
+            }
+            onClick={() => meeting.openStream(show.participantId)}
+          >
+            {!show.own && (
+              <span className="watch-stream" aria-hidden="true">
+                <MonitorUp size={16} />
+                <span>{t(($) => $.stage.watch)}</span>
+                <span className="live-badge">LIVE</span>
+              </span>
+            )}
+          </button>
+        ) : (
+          // Слот взят, а кадра целевого качества ещё нет: показ открывается зрителям после него (T48).
+          <span className="watch-stream is-preparing" role="status">
+            <MonitorUp size={16} />
+            <span>{t(($) => $.stage.preparing)}</span>
+          </span>
+        )}
+        <div className="person-caption">
+          <MonitorUp size={16} aria-hidden="true" />
+          <span>{name}</span>
+        </div>
+      </div>
+    );
+  };
+  /** Своя плитка в ленте — первой: её ищут глазами чаще прочих (Discord, Телемост). */
+  const selfFirst = (list: typeof people) =>
+    [...list].sort((a, b) => Number(b.id === self) - Number(a.id === self));
+  /**
+   * Показ крупно (R183, как у Meet): экран — главным, все участники — лентой справа (на узком и вертикальном
+   * — снизу), камера показывающего тоже. Другие показы — плитками в начале ленты. Чужой экран — с лупой и
+   * перетаскиванием увеличенного кадра; свой — своей дорожкой, без сети.
+   */
+  const presentationView = (viewing: { screenId: string; participantId: string }) => {
+    const own = viewing.participantId === self;
     const screen = tracks.find(
       (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
     );
     // Пауза показа (R117) — только поверх кадра, который уже есть («Подключаемся к стриму…» старше),
     // и не у переподключающегося показывающего: тогда кадр стоит из-за него, а не из-за нашего канала.
     const sharer = participants.find((p) => p.id === viewing.participantId);
-    const paused = !!screen && sharer?.status !== 'RECOVERING' && !!pausedVideo[screen.id];
+    const paused = !own && !!screen && sharer?.status !== 'RECOVERING' && !!pausedVideo[screen.id];
+    const show = shows.find((item) => item.screenId === viewing.screenId);
+    const name = show ? showName(show) : t(($) => $.stage.screenOf, { name: sharer?.name ?? '' });
+    const others = shows.filter((item) => item.screenId !== viewing.screenId);
+    const strip = selfFirst(people);
     return (
-      <div className="stage watch-stage media-stage" data-paused={paused ? 'true' : undefined}>
-        <div
-          className="screen-viewport"
-          style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
-          onPointerDown={(e) => {
-            if (zoom <= 1) return;
-            e.currentTarget.setPointerCapture(e.pointerId);
-            drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
-          }}
-          onPointerMove={(e) => {
-            if (!drag.current) return;
-            const b = e.currentTarget.getBoundingClientRect();
-            setPan({
-              x: Math.max(
-                (-b.width * (zoom - 1)) / 2,
-                Math.min((b.width * (zoom - 1)) / 2, drag.current.px + e.clientX - drag.current.x),
-              ),
-              y: Math.max(
-                (-b.height * (zoom - 1)) / 2,
-                Math.min((b.height * (zoom - 1)) / 2, drag.current.py + e.clientY - drag.current.y),
-              ),
-            });
-          }}
-          onPointerUp={() => {
-            drag.current = null;
-          }}
-          onPointerCancel={() => {
-            drag.current = null;
-          }}
-        >
-          {screen ? (
-            <div
-              className="screen-transform"
-              style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+      <div
+        className="stage watch-stage presentation-stage media-stage"
+        data-paused={paused ? 'true' : undefined}
+        data-own={own ? 'true' : undefined}
+      >
+        <div className="presentation-main">
+          <div
+            className="screen-viewport"
+            style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
+            onPointerDown={(e) => {
+              if (zoom <= 1) return;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+            }}
+            onPointerMove={(e) => {
+              if (!drag.current) return;
+              const b = e.currentTarget.getBoundingClientRect();
+              setPan({
+                x: Math.max(
+                  (-b.width * (zoom - 1)) / 2,
+                  Math.min((b.width * (zoom - 1)) / 2, drag.current.px + e.clientX - drag.current.x),
+                ),
+                y: Math.max(
+                  (-b.height * (zoom - 1)) / 2,
+                  Math.min((b.height * (zoom - 1)) / 2, drag.current.py + e.clientY - drag.current.y),
+                ),
+              });
+            }}
+            onPointerUp={() => {
+              drag.current = null;
+            }}
+            onPointerCancel={() => {
+              drag.current = null;
+            }}
+          >
+            {screen ? (
+              <div
+                className="screen-transform"
+                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+              >
+                <VideoTrack
+                  tile={screen}
+                  screen
+                  onPlaying={own ? undefined : () => meeting.screenPlaying(viewing.screenId)}
+                />
+              </div>
+            ) : (
+              <div className="stream-loading" role="status">
+                {t(($) => $.stage.streamConnecting)}
+              </div>
+            )}
+            {paused && <VideoPausedNote announce />}
+          </div>
+          {/* «Открепить» — как у закреплённой камеры (R83): показ уходит плиткой в сетку, нажатие по ней
+              возвращает его крупно. */}
+          <button
+            type="button"
+            className="tile-unpin"
+            aria-label={t(($) => $.stage.presentation.unpin)}
+            title={t(($) => $.stage.presentation.unpin)}
+            onClick={() => meeting.returnToConversation()}
+          >
+            <PinOff aria-hidden="true" />
+            <span>{t(($) => $.stage.unpin)}</span>
+          </button>
+          <div className="person-caption presentation-caption">
+            <MonitorUp size={16} aria-hidden="true" />
+            <span>{name}</span>
+          </div>
+          <div className="screen-tools">
+            <IconButton
+              tone="stage"
+              label={t(($) => $.stage.zoomOut)}
+              disabled={zoom <= 1}
+              onClick={() => {
+                setZoom((z) => Math.max(1, z - 0.5));
+                setPan({ x: 0, y: 0 });
+              }}
             >
-              <VideoTrack tile={screen} screen onPlaying={() => meeting.screenPlaying(viewing.screenId)} />
-            </div>
-          ) : (
-            <div className="stream-loading" role="status">
-              {t(($) => $.stage.streamConnecting)}
-            </div>
-          )}
-          {paused && <VideoPausedNote announce />}
+              <ZoomOut size={20} />
+            </IconButton>
+            <span>{Math.round(zoom * 100)}%</span>
+            <IconButton
+              tone="stage"
+              label={t(($) => $.stage.zoomIn)}
+              disabled={zoom >= 4}
+              onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
+            >
+              <ZoomIn size={20} />
+            </IconButton>
+            <IconButton
+              tone="stage"
+              label={t(($) => $.stage.fit)}
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+            >
+              <RotateCcw size={20} />
+            </IconButton>
+          </div>
         </div>
-        <div className="screen-tools">
-          <IconButton
-            tone="stage"
-            label={t(($) => $.stage.zoomOut)}
-            disabled={zoom <= 1}
-            onClick={() => {
-              setZoom((z) => Math.max(1, z - 0.5));
-              setPan({ x: 0, y: 0 });
-            }}
+        {others.length + strip.length > 0 && (
+          <div
+            className="people-strip presentation-strip media-stage"
+            data-count={others.length + strip.length}
           >
-            <ZoomOut size={20} />
-          </IconButton>
-          <span>{Math.round(zoom * 100)}%</span>
-          <IconButton
-            tone="stage"
-            label={t(($) => $.stage.zoomIn)}
-            disabled={zoom >= 4}
-            onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
-          >
-            <ZoomIn size={20} />
-          </IconButton>
-          <IconButton
-            tone="stage"
-            label={t(($) => $.stage.fit)}
-            onClick={() => {
-              setZoom(1);
-              setPan({ x: 0, y: 0 });
-            }}
-          >
-            <RotateCcw size={20} />
-          </IconButton>
-        </div>
+            {others.map((item, index) => presentationTile(item, index, false))}
+            {strip.map((person, index) => tile(person, others.length + index, false))}
+          </div>
+        )}
       </div>
     );
   };
@@ -708,14 +773,11 @@ export function Stage({ meeting }: { meeting: Meeting }) {
 
   let peopleView: ReactNode = null;
   if (view !== 'integration') {
-    if (viewing) peopleView = screenView(viewing);
+    if (viewing) peopleView = presentationView(viewing);
     else if (spotlight) {
       const big = people.find((person) => person.id === spotlight)!;
-      // В ленте своя плитка первой — её ищут глазами чаще прочих (Discord, Телемост).
-      const self = meeting.admission.participantId;
-      const rest = people
-        .filter((person) => person.id !== spotlight)
-        .sort((a, b) => Number(b.id === self) - Number(a.id === self));
+      // В ленте показы — первыми (R183), за ними своя плитка: её ищут глазами чаще прочих.
+      const rest = selfFirst(people.filter((person) => person.id !== spotlight));
       peopleView = (
         <div
           className="stage conversation-stage camera-stage media-stage"
@@ -723,8 +785,9 @@ export function Stage({ meeting }: { meeting: Meeting }) {
           data-spotlight="true"
         >
           <div className="spotlight-main">{tile(big, 0, false)}</div>
-          <div className="people-strip spotlight-strip media-stage" data-count={rest.length}>
-            {rest.map((person, index) => tile(person, index, false))}
+          <div className="people-strip spotlight-strip media-stage" data-count={shows.length + rest.length}>
+            {shows.map((show, index) => presentationTile(show, index, false))}
+            {rest.map((person, index) => tile(person, shows.length + index, false))}
           </div>
         </div>
       );
@@ -733,7 +796,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         <div className="stage conversation-stage camera-stage media-stage" data-layout={layout}>
           <div
             className="people-grid"
-            data-count={people.length}
+            data-count={shows.length + people.length}
             ref={setStage}
             /*
               Колонок объявляется вдвое больше, чем плиток в ряду, и каждая плитка занимает две
@@ -749,7 +812,8 @@ export function Stage({ meeting }: { meeting: Meeting }) {
                 : undefined
             }
           >
-            {people.map((person, index) => tile(person, index, layout === 'grid'))}
+            {shows.map((show, index) => presentationTile(show, index, layout === 'grid'))}
+            {people.map((person, index) => tile(person, shows.length + index, layout === 'grid'))}
           </div>
         </div>
       );

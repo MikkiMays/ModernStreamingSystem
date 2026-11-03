@@ -607,7 +607,6 @@
       "waitingTitle": "The host will let you in soon",
       "waitingSettle": "Make yourself comfortable.",
       "waitingMedia": "Your audio and camera aren't being shared yet.",
-      "returnToConversation": "Back to the conversation",
       "unlockAudio": "Turn on meeting sound",
       "dismissError": "Dismiss notification",
       "collapseControls": "Collapse controls",
@@ -2309,7 +2308,14 @@
       "remove": "Remove from meeting",
       "actions": "Actions: {{name}}"
     },
-    "deafened": "Meeting sound off"
+    "deafened": "Meeting sound off",
+    "presentation": {
+      "own": "Your screen",
+      "pin": "Pin {{name}}’s presentation",
+      "pinOwn": "Pin your presentation",
+      "unpin": "Unpin presentation",
+      "chip": "{{name}} is presenting"
+    }
   },
   "dock": {
     "media": "Microphone and camera",

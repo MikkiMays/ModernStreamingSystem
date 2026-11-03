@@ -608,7 +608,6 @@
       "waitingTitle": "O anfitrião vai deixar você entrar em breve",
       "waitingSettle": "Fique à vontade.",
       "waitingMedia": "Seu áudio e sua câmera ainda não estão sendo transmitidos.",
-      "returnToConversation": "Voltar à conversa",
       "unlockAudio": "Ativar o som da reunião",
       "dismissError": "Ocultar notificação",
       "collapseControls": "Recolher os controles",
@@ -2336,7 +2335,14 @@
       "remove": "Remover da reunião",
       "actions": "Ações: {{name}}"
     },
-    "deafened": "Som da reunião desligado"
+    "deafened": "Som da reunião desligado",
+    "presentation": {
+      "own": "Sua tela",
+      "pin": "Fixar a apresentação de {{name}}",
+      "pinOwn": "Fixar sua apresentação",
+      "unpin": "Desafixar a apresentação",
+      "chip": "{{name}} está apresentando"
+    }
   },
   "dock": {
     "media": "Microfone e câmera",

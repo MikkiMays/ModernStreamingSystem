@@ -82,7 +82,6 @@ export function MeetingView({
 }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
-  const viewing = useStore(meeting.viewing);
   /*
     На весь экран разворачивается документ, а не страница встречи.
 
@@ -437,16 +436,8 @@ export function MeetingView({
                 {/* Активные интеграции — чипами поверх сцены справа сверху (R30). Со сцены панель
                   открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
                 <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
+                {/* Показ крупно открепляют на нём самом, как и закреплённую камеру (R83, R183). */}
                 <Stage meeting={meeting} />
-                {/* Из чужого экрана — в разговор; закреплённую камеру открепляют на ней самой (R83). */}
-                {viewing && (
-                  <button
-                    className="return-conversation media-stage"
-                    onClick={() => meeting.returnToConversation()}
-                  >
-                    <ArrowLeft size={16} /> {t(($) => $.meeting.view.returnToConversation)}
-                  </button>
-                )}
               </>
             )}
             {(audioBlocked || audioAsleep) && !ended && (

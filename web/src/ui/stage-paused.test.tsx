@@ -121,7 +121,7 @@ describe('пауза камеры на плитке', () => {
     expect(tileOf('Аня').getAttribute('data-paused')).toBeNull();
   });
 
-  it('«Готовится показ…» — про экран: с паузой камеры они рядом, а не вместо', () => {
+  it('«Готовится показ…» — на плитке показа (R183), пауза камеры — на плитке человека', () => {
     const meeting = fakeMeeting({
       people: [
         person('me', 'Я'),
@@ -130,7 +130,9 @@ describe('пауза камеры на плитке', () => {
     });
     meeting.media.videoPaused.set({ TR_cam: true });
     render(<Stage meeting={meeting} />);
-    expect(within(tileOf('Аня')).getByText('Готовится показ…')).toBeVisible();
+    const show = document.querySelector<HTMLElement>('.presentation-tile')!;
+    expect(within(show).getByText('Готовится показ…')).toBeVisible();
+    expect(within(tileOf('Аня')).queryByText('Готовится показ…')).toBeNull();
     expect(within(tileOf('Аня')).getByText(PAUSED)).toBeVisible();
   });
 });

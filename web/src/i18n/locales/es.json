@@ -608,7 +608,6 @@
       "waitingTitle": "El anfitrión te dejará entrar pronto",
       "waitingSettle": "Ponte cómodo.",
       "waitingMedia": "Tu audio y tu cámara aún no se transmiten.",
-      "returnToConversation": "Volver a la conversación",
       "unlockAudio": "Activar el sonido de la reunión",
       "dismissError": "Ocultar notificación",
       "collapseControls": "Contraer los controles",
@@ -2336,7 +2335,14 @@
       "remove": "Quitar de la reunión",
       "actions": "Acciones: {{name}}"
     },
-    "deafened": "Sonido de la reunión apagado"
+    "deafened": "Sonido de la reunión apagado",
+    "presentation": {
+      "own": "Tu pantalla",
+      "pin": "Fijar la presentación de {{name}}",
+      "pinOwn": "Fijar tu presentación",
+      "unpin": "Dejar de fijar la presentación",
+      "chip": "{{name}} está presentando"
+    }
   },
   "dock": {
     "media": "Micrófono y cámara",

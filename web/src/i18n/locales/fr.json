@@ -608,7 +608,6 @@
       "waitingTitle": "L'hôte va bientôt vous faire entrer",
       "waitingSettle": "Installez-vous confortablement.",
       "waitingMedia": "Votre son et votre caméra ne sont pas encore transmis.",
-      "returnToConversation": "Revenir à la conversation",
       "unlockAudio": "Activer le son de la réunion",
       "dismissError": "Masquer la notification",
       "collapseControls": "Réduire les commandes",
@@ -2336,7 +2335,14 @@
       "remove": "Retirer de la réunion",
       "actions": "Actions : {{name}}"
     },
-    "deafened": "Son de la réunion coupé"
+    "deafened": "Son de la réunion coupé",
+    "presentation": {
+      "own": "Votre écran",
+      "pin": "Épingler la présentation de {{name}}",
+      "pinOwn": "Épingler votre présentation",
+      "unpin": "Détacher la présentation",
+      "chip": "{{name}} présente"
+    }
   },
   "dock": {
     "media": "Micro et caméra",

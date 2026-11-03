@@ -607,7 +607,6 @@
       "waitingTitle": "Der Host lässt dich gleich herein",
       "waitingSettle": "Mach es dir bequem.",
       "waitingMedia": "Ton und Kamera werden noch nicht übertragen.",
-      "returnToConversation": "Zurück zum Gespräch",
       "unlockAudio": "Meeting-Ton einschalten",
       "dismissError": "Benachrichtigung ausblenden",
       "collapseControls": "Steuerung einklappen",
@@ -2309,7 +2308,14 @@
       "remove": "Aus dem Meeting entfernen",
       "actions": "Aktionen: {{name}}"
     },
-    "deafened": "Meeting-Ton aus"
+    "deafened": "Meeting-Ton aus",
+    "presentation": {
+      "own": "Dein Bildschirm",
+      "pin": "Präsentation von {{name}} anpinnen",
+      "pinOwn": "Eigene Präsentation anpinnen",
+      "unpin": "Präsentation loslösen",
+      "chip": "{{name}} präsentiert"
+    }
   },
   "dock": {
     "media": "Mikrofon und Kamera",

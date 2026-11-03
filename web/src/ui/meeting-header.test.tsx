@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { publicApi } from '../api/client';
@@ -142,4 +142,16 @@ it('PING — в строке о встрече рядом с кодом, а не
   } finally {
     savePreferences({ showPing: false });
   }
+});
+
+it('свой показ идёт — «Вы показываете экран» и «Остановить показ», как у Meet (R183)', () => {
+  const meeting = fakeMeeting();
+  const stopScreen = vi.fn(async () => {});
+  Object.assign(meeting.media, { stopScreen });
+  show(meeting);
+  expect(screen.queryByText('Вы показываете экран')).toBeNull();
+  act(() => (meeting.media.state as unknown as Store<object>).set({ status: 'connected', screen: true }));
+  expect(screen.getByText('Вы показываете экран')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Остановить показ' }));
+  expect(stopScreen).toHaveBeenCalledOnce();
 });

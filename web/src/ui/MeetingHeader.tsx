@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Pencil, Star } from 'lucide-react';
+import { Link, MonitorUp, MonitorX, Pencil, Star } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { MediaState } from '../media/session';
 import type { Participant } from '../api/types';
@@ -157,6 +157,26 @@ export function MeetingHeader({
         </div>
       </div>
       <div className="meeting-header__actions">
+        {/* Свой показ идёт — как у Meet («Вы показываете · Остановить показ», R183): видно всегда, и это
+            путь остановки на телефоне, где кнопки показа в пульте нет (R77). */}
+        {media.screen && !ended && (
+          <div className="meeting-header__presenting">
+            <span className="meeting-header__presenting-label" role="status">
+              <MonitorUp size={16} aria-hidden="true" />
+              <span>{t(($) => $.stage.sharing)}</span>
+            </span>
+            <button
+              type="button"
+              className="meeting-header__stop"
+              aria-label={t(($) => $.dock.unshare)}
+              title={t(($) => $.dock.unshare)}
+              onClick={() => void meeting.media.stopScreen()}
+            >
+              <MonitorX size={16} aria-hidden="true" />
+              <span>{t(($) => $.dock.unshare)}</span>
+            </button>
+          </div>
+        )}
         {/* На пределе кнопка не `disabled`, а `aria-disabled`: выключенная теряет фокус и подсказку,
             а здесь подсказка и есть ответ на вопрос «почему не добавляется». */}
         <IconButton

@@ -4,6 +4,7 @@ import {
   Clapperboard,
   Club,
   Crown,
+  MonitorUp,
   Music2,
   Pencil,
   Presentation,
@@ -13,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
+import { presentations } from '../core/presentation';
 import type { MusicState } from '../core/services';
 import type { Translate } from '../i18n';
 import { useIntegrationBarSlot } from './IntegrationBar';
@@ -200,7 +202,17 @@ export function StageOverlay({
   const { occupant, view } = useStageView(meeting);
   const bar = view === 'integration' ? slot : null;
   const chips = stageChips(t, snapshot, { present: false }, occupant?.kind ?? null);
-  const empty = chips.length === 0 && (mini.view.kind === 'none' || !!bar) && !children;
+  /*
+    Чужой показ при интеграции на сцене (R183): крупно сам он не встаёт — у столов ход по часам, фильм идёт
+    для всех, — поэтому о нём говорит чип, и одно нажатие открывает его крупно. Чёлка вернёт к интеграции.
+  */
+  const shows =
+    view === 'integration'
+      ? presentations(snapshot.participants, meeting.admission.participantId, false).filter(
+          (show) => !show.own && show.ready,
+        )
+      : [];
+  const empty = chips.length === 0 && shows.length === 0 && (mini.view.kind === 'none' || !!bar) && !children;
   const music = <MusicMini meeting={meeting} mini={mini} placement={bar ? 'bar' : 'stage'} />;
   return (
     <div
@@ -210,6 +222,25 @@ export function StageOverlay({
       aria-hidden={empty || undefined}
       data-empty={empty || undefined}
     >
+      {shows.map((show) => (
+        <button
+          key={show.screenId}
+          type="button"
+          className="stage-chip media-stage"
+          data-kind="screen"
+          onClick={() => meeting.openStream(show.participantId)}
+        >
+          <span className="stage-chip__brand" aria-hidden="true">
+            <MonitorUp />
+          </span>
+          <span className="stage-chip__label">
+            {t(($) => $.stage.presentation.chip, { name: show.name })}
+          </span>
+          <span className="stage-chip__live" aria-hidden="true">
+            LIVE
+          </span>
+        </button>
+      ))}
       {chips.map((chip) => {
         const Icon = ICONS[chip.kind];
         return (

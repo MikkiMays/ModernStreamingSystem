@@ -16,7 +16,15 @@ import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
 import { allowed } from './permissions';
 import { knownProvider } from './cinema/link';
-import { awayAfter, newFilm, stageOccupant, type StageKind, type StageOccupant } from './stage-view';
+import {
+  awayAfter,
+  newFilm,
+  stageOccupant,
+  stageView,
+  type StageKind,
+  type StageOccupant,
+} from './stage-view';
+import { presentations, presentationToOpen } from './presentation';
 import type { LatencyStats } from './board/latency';
 import {
   DesktopNotifier,
@@ -178,6 +186,10 @@ export class Meeting {
         this.screenGoneSeen = gone.seq;
         if (this.viewing.get()?.participantId === gone.identity) this.stopViewing();
       }),
+      // Свой показ: опубликован — встаёт крупно (R183), снят — сцена закрывается, не дожидаясь снимка.
+      this.media.state.subscribe(this.settleOwnScreen),
+      // Сцена освободилась (ушёл от интеграции к участникам) — показ, который ждал, открывается (R183).
+      this.stageAway.subscribe(this.settlePresentation),
       this.media.state.subscribe(() => {
         const state = this.media.state.get();
         void this.uploader.congestion(
@@ -340,6 +352,7 @@ export class Meeting {
       return;
     }
     this.reportDecodes(self);
+    if (self.status !== 'WAITING') this.settlePresentation();
     if (
       ['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status) &&
       this.media.state.get().status === 'idle'
@@ -542,19 +555,31 @@ export class Meeting {
       rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     return ack;
   }
+  /**
+   * Показ на сцену крупно (R183): чужой — подпиской на его дорожку и `view.open` ядру, свой — своей
+   * дорожкой, без сети. Свой раньше не открывался вовсе («смотреть свой экран через сеть незачем»), а Meet
+   * показывает показывающему его же экран — и через сеть его здесь никто не ведёт: подписки на себя нет,
+   * ядру о своём просмотре не говорим.
+   */
   openStream(participantId: string) {
-    // Никто не смотрит собственную демонстрацию: `watchScreen` управляет только чужими
-    // подписками, поэтому сюда попадала бы своя локальная дорожка — тот же экран, на котором
-    // всё и происходит, с задержкой и без возможности выйти обратно естественным путём.
-    if (participantId === this.admission.participantId) return;
+    const self = this.admission.participantId;
+    const own = participantId === self;
     const person = this.snapshot.get().participants.find((p) => p.id === participantId);
     if (!person?.screen || !person.screenId) return;
+    // Свой — только когда дорожка есть: без неё на сцене было бы «Подключаемся к стриму…» к самому себе.
+    if (own && !this.media.state.get().screen) return;
     const screenId = person.screenId;
+    const previous = this.viewing.get();
     const revision = ++this.viewRevision;
     this.viewing.set({ screenId, participantId });
     this.pinnedCamera.set(null);
-    // Чужой экран открыт во всю сцену — это вид участников (R121): закрыли его — сетка, а не интеграция.
+    // Показ крупно — это вид участников (R121): закрыли его — сетка, а не интеграция.
     this.stageAway.set(this.stageOccupant()?.kind ?? null);
+    if (own) {
+      this.media.watchScreen(null);
+      if (previous && previous.participantId !== self) this.tellViewClosed(previous.screenId);
+      return;
+    }
     this.media.watchScreen(participantId);
     this.viewChange = this.viewChange
       .catch(() => {})
@@ -573,18 +598,61 @@ export class Meeting {
     this.closeViewing();
     this.pinnedCamera.set(null);
   }
-  /** Закрыть чужой экран, открытый во всю сцену, — и сказать ядру, что смотреть его перестали. */
+  /** Закрыть показ, открытый крупно, — и сказать ядру, что чужой показ смотреть перестали. */
   private closeViewing() {
     const old = this.viewing.get();
     this.viewRevision++;
     this.viewing.set(null);
     this.media.watchScreen(null);
-    if (old)
-      this.viewChange = this.viewChange
-        .catch(() => {})
-        .then(() => (this.disposed ? undefined : this.command('view.close', undefined, old.screenId)))
-        .catch(() => {});
+    if (old && old.participantId !== this.admission.participantId) this.tellViewClosed(old.screenId);
   }
+  private tellViewClosed(screenId: string) {
+    this.viewChange = this.viewChange
+      .catch(() => {})
+      .then(() => (this.disposed ? undefined : this.command('view.close', undefined, screenId)))
+      .catch(() => {});
+  }
+  /** Какие показы уже открывались сами (R183): каждый — один раз, закрытый сам не возвращается. */
+  private seenScreens = new Set<string>();
+  /**
+   * Открыть крупно новый показ, если он есть, а сцена у этого зрителя свободна для него (`core/presentation.ts`).
+   * Зовётся на каждый снимок, на свою публикацию показа и на уход от интеграции к участникам.
+   */
+  private settlePresentation = () => {
+    if (this.disposed || this.ended.get()) return;
+    const self = this.admission.participantId;
+    const snapshot = this.snapshot.get();
+    if (snapshot.participants.find((p) => p.id === self)?.status === 'WAITING') return;
+    const list = presentations(snapshot.participants, self, this.media.state.get().screen);
+    const view = stageView(this.stageOccupant(), this.stageAway.get(), !!this.viewing.get());
+    const { open, seen } = presentationToOpen(list, this.seenScreens, view);
+    for (const id of seen) this.seenScreens.add(id);
+    if (open && this.viewing.get()?.screenId !== open.screenId) this.openStream(open.participantId);
+  };
+  private ownScreenGone?: ReturnType<typeof setTimeout>;
+  /**
+   * Свой показ: опубликован — может встать крупно; снят — своя сцена показа закрывается сразу, а не по
+   * снимку ядра. Пауза 400 мс — как у чужого показа (R81): переопубликация того же показа (качество,
+   * кодек) — не конец.
+   */
+  private settleOwnScreen = () => {
+    const live = this.media.state.get().screen;
+    if (live) {
+      clearTimeout(this.ownScreenGone);
+      this.ownScreenGone = undefined;
+      this.settlePresentation();
+      return;
+    }
+    if (this.viewing.get()?.participantId !== this.admission.participantId || this.ownScreenGone) return;
+    this.ownScreenGone = setTimeout(() => {
+      this.ownScreenGone = undefined;
+      if (
+        this.viewing.get()?.participantId === this.admission.participantId &&
+        !this.media.state.get().screen
+      )
+        this.stopViewing();
+    }, 400);
+  };
   /** Что сейчас занимает сцену: интеграция комнаты или свой открытый каталог кинозала. */
   stageOccupant(): StageOccupant | null {
     const catalog = this.cinema.get();
@@ -615,7 +683,10 @@ export class Meeting {
     this.stageBefore = after;
   }
   screenPlaying(screenId: string) {
-    if (this.played.has(screenId) || this.viewing.get()?.screenId !== screenId) return;
+    const viewing = this.viewing.get();
+    if (this.played.has(screenId) || viewing?.screenId !== screenId) return;
+    // Свой показ ядру не «играет»: «первый зритель» — это другой человек (R183).
+    if (viewing.participantId === this.admission.participantId) return;
     this.played.add(screenId);
     this.viewChange = this.viewChange
       .catch(() => {})
@@ -696,6 +767,7 @@ export class Meeting {
     this.report();
     this.disposed = true;
     clearInterval(this.syncTimer);
+    clearTimeout(this.ownScreenGone);
     window.removeEventListener('online', this.refreshOnReturn);
     window.removeEventListener('pagehide', this.report);
     document.removeEventListener('visibilitychange', this.refreshOnReturn);

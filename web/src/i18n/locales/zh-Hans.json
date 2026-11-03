@@ -606,7 +606,6 @@
       "waitingTitle": "主持人很快会让你进入",
       "waitingSettle": "请稍候片刻。",
       "waitingMedia": "你的声音和摄像头暂未传输。",
-      "returnToConversation": "回到对话",
       "unlockAudio": "开启会议声音",
       "dismissError": "隐藏通知",
       "collapseControls": "收起控制栏",
@@ -2282,7 +2281,14 @@
       "remove": "移出会议",
       "actions": "操作：{{name}}"
     },
-    "deafened": "会议声音已关闭"
+    "deafened": "会议声音已关闭",
+    "presentation": {
+      "own": "你的屏幕",
+      "pin": "固定 {{name}} 的演示",
+      "pinOwn": "固定你的演示",
+      "unpin": "取消固定演示",
+      "chip": "{{name}} 正在演示"
+    }
   },
   "dock": {
     "media": "麦克风和摄像头",

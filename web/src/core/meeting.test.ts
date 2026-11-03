@@ -552,6 +552,94 @@ describe('выход из интеграции к участникам (R121)', 
 });
 
 /*
+  Показ экрана как в Google Meet (R183): новый показ сам встаёт крупно у каждого, включая показывающего, —
+  один раз на показ и не поверх интеграции.
+*/
+describe('показ крупно сам, как в Meet (R183)', () => {
+  const ann = (started = true) => ({
+    ...person('ann', 'CONNECTED'),
+    screen: true,
+    screenId: 's1',
+    screenStarted: started,
+  });
+  async function room(participants: Person[], extra: Partial<Snapshot> = {}) {
+    snapshot = { ...snapshot, sequence: 2, participants, ...extra };
+    sent.mockClear();
+    (meeting.control as unknown as { command: typeof sent }).command = sent;
+    meeting.start();
+    await meeting.refresh();
+    await vi.advanceTimersByTimeAsync(0);
+  }
+  const next = async (participants: Person[], extra: Partial<Snapshot> = {}) => {
+    snapshot = { ...snapshot, sequence: snapshot.sequence + 1, participants, ...extra };
+    await meeting.refresh();
+    await vi.advanceTimersByTimeAsync(0);
+  };
+
+  it('чужой показ открывается у зрителя, когда его открыли зрителям, — с подпиской и view.open', async () => {
+    await room([person('guest', 'CONNECTED'), ann(false)]);
+    expect(meeting.viewing.get()).toBeNull();
+    await next([person('guest', 'CONNECTED'), ann(true)]);
+    expect(meeting.viewing.get()).toEqual({ screenId: 's1', participantId: 'ann' });
+    expect(meeting.media.watchScreen).toHaveBeenLastCalledWith('ann');
+    expect(commandsSent()).toContain('view.open');
+  });
+
+  it('вошедший во встречу, где уже показывают, видит показ сразу', async () => {
+    await room([person('guest', 'CONNECTED'), ann()]);
+    expect(meeting.viewing.get()?.screenId).toBe('s1');
+  });
+
+  it('открепил — показ сам не возвращается, пока не начнётся новый', async () => {
+    await room([person('guest', 'CONNECTED'), ann()]);
+    meeting.returnToConversation();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(commandsSent()).toContain('view.close');
+    await next([person('guest', 'CONNECTED'), ann()]);
+    expect(meeting.viewing.get()).toBeNull();
+    await next([person('guest', 'CONNECTED'), { ...ann(), screenId: 's2' }]);
+    expect(meeting.viewing.get()?.screenId).toBe('s2');
+  });
+
+  it('стол на сцене показ не отбирает; ушёл к участникам — показ открывается', async () => {
+    await room([person('guest', 'CONNECTED'), ann()], {
+      poker: { seats: [] } as unknown as Snapshot['poker'],
+    });
+    expect(meeting.viewing.get()).toBeNull();
+    meeting.leaveStage();
+    expect(meeting.viewing.get()?.screenId).toBe('s1');
+  });
+
+  it('свой показ — крупно своей дорожкой: без подписки на себя и без view.open', async () => {
+    const own = { ...person('guest', 'CONNECTED'), screen: true, screenId: 'mine', screenStarted: false };
+    await room([own]);
+    expect(meeting.viewing.get()).toBeNull();
+    meeting.media.state.set({ ...meeting.media.state.get(), screen: true });
+    expect(meeting.viewing.get()).toEqual({ screenId: 'mine', participantId: 'guest' });
+    expect(meeting.media.watchScreen).toHaveBeenLastCalledWith(null);
+    meeting.screenPlaying('mine');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(commandsSent()).not.toContain('view.open');
+    expect(commandsSent()).not.toContain('view.playing');
+  });
+
+  it('свой показ снят — своя сцена закрывается через 400 мс; переопубликация её не закрывает', async () => {
+    const own = { ...person('guest', 'CONNECTED'), screen: true, screenId: 'mine', screenStarted: true };
+    await room([own]);
+    meeting.media.state.set({ ...meeting.media.state.get(), screen: true });
+    meeting.media.state.set({ ...meeting.media.state.get(), screen: false });
+    await vi.advanceTimersByTimeAsync(200);
+    meeting.media.state.set({ ...meeting.media.state.get(), screen: true });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(meeting.viewing.get()?.screenId).toBe('mine');
+    meeting.media.state.set({ ...meeting.media.state.get(), screen: false });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(meeting.viewing.get()).toBeNull();
+    expect(commandsSent()).not.toContain('view.close');
+  });
+});
+
+/*
   Вход — всегда со звуком встречи (R161). Тот же участник после перезагрузки страницы или переноса из
   соседней вкладки у ядра может быть ещё «в наушниках»: ядру говорят, что уже нет, — иначе остальные
   видели бы наушники у человека, который всех слышит.

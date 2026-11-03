@@ -26,9 +26,11 @@
   display: none;
 }
 /* Чужой экран открыт во всю сцену без полей — слой у самого края кадра. */
-.stage-wrap:has(.watch-stage) > .stage-overlay {
-  top: var(--space-3);
-  inset-inline-end: var(--space-3);
+/* Показ крупно с лентой справа (R183) — слой на показе, у его правого верхнего угла, а не на ленте. */
+@media (min-width: 768px) and (min-aspect-ratio: 5 / 4) {
+  .stage-wrap:has(> .watch-stage > .presentation-strip) > .stage-overlay {
+    inset-inline-end: calc(var(--space-3) + var(--presentation-aside) + var(--space-3) + var(--space-2));
+  }
 }
 
 /*
@@ -122,6 +124,22 @@
   --chip-ink: var(--brand-board-ink);
 }
 
+/* Чужой показ при интеграции на сцене (R183): знак — акцент, рядом LIVE, как на плитке показа. */
+.stage-chip[data-kind='screen'] {
+  --chip-brand: var(--accent-fill);
+  --chip-ink: var(--on-accent);
+}
+.stage-chip__live {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: var(--radius-1);
+  background: var(--live);
+  color: var(--on-live);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+}
+
 /* Эквалайзер — три полоски цвета музыки: единственное, что здесь движется само, потому что это звук. */
 .stage-chip__eq {
   display: inline-flex;
@@ -163,7 +181,7 @@
 /* Телефон: строка над сценой в потоке, прокручивается вбок; чипы — в одну строку. */
 @media (max-width: 767px) {
   .stage-overlay,
-  .stage-wrap:has(.watch-stage) > .stage-overlay,
+  .stage-wrap:has(> .watch-stage > .presentation-strip) > .stage-overlay,
   .stage-wrap:has(.stage:is(.poker-stage, .room-game-stage):not([data-away])) > .stage-overlay {
     position: static;
     flex: none;

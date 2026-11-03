@@ -167,8 +167,7 @@
 .stage-wrap:has(> .stage-notch) > .stage-overlay {
   top: calc(var(--control-lg) + var(--space-2) + var(--space-2));
 }
-/* Поля сцены нет — чужой экран открыт во всю сцену, или встреча во весь экран: чёлке гасить нечего. */
-.stage-wrap:has(.watch-stage) > .stage-notch,
+/* Поля сцены нет — встреча во весь экран: чёлке гасить нечего. */
 .meeting-fullscreen .stage-notch {
   margin-top: 0;
 }
