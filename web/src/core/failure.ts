@@ -66,6 +66,17 @@ export const KINDS = [
   'aborted',
   'bug',
   'other',
+  // Камера и фон (R189, И7): что сторож заметил и чем кончилось — без текста, только вид.
+  'camera-ended',
+  'camera-muted',
+  'camera-silenced',
+  'camera-missing',
+  'camera-stalled',
+  'camera-healed',
+  'camera-heal-failed',
+  'camera-denied',
+  'background-stalled',
+  'background-dropped',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 

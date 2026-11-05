@@ -64,6 +64,23 @@ class ClientErrorsTest {
                                         Set.of("ROOM_FULL", "CINEMA_GEO", "other")))));
   }
 
+  /**
+   * Самолечение камеры (R189, И7): виды {@code camera-*} и {@code background-*} считаются как есть.
+   */
+  @Test
+  void countsCameraHealingKinds() {
+    errors.record(
+        new ClientErrors.ErrorSummary(
+            List.of(
+                new ClientErrors.ErrorCount("camera", "camera-ended", 1),
+                new ClientErrors.ErrorCount("camera", "camera-healed", 1),
+                new ClientErrors.ErrorCount("camera", "background-dropped", 2))));
+    assertThat(count("camera", "camera-ended")).isEqualTo(1);
+    assertThat(count("camera", "camera-healed")).isEqualTo(1);
+    assertThat(count("camera", "background-dropped")).isEqualTo(2);
+    assertThat(count("camera", "other")).isEqualTo(0);
+  }
+
   /** Реестр, который сборка кладёт в jar, — тот же {@code contracts/errors.json}. */
   @Test
   void readsTheRegistryFromTheBuild() {

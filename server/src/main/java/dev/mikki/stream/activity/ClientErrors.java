@@ -63,7 +63,10 @@ public class ClientErrors {
           "telegram",
           "activity");
 
-  /** Виды ошибок без кода реестра ({@code core/failure.ts}: {@code KINDS}). */
+  /**
+   * Виды ошибок без кода реестра ({@code core/failure.ts}: {@code KINDS}). Виды {@code camera-*} и
+   * {@code background-*} — самолечение камеры (R189, И7): человек их не видит, счётчик — видит.
+   */
   public static final Set<String> KINDS =
       Set.of(
           "offline",
@@ -77,7 +80,17 @@ public class ClientErrors {
           "call",
           "aborted",
           "bug",
-          "other");
+          "other",
+          "camera-ended",
+          "camera-muted",
+          "camera-silenced",
+          "camera-missing",
+          "camera-stalled",
+          "camera-healed",
+          "camera-heal-failed",
+          "camera-denied",
+          "background-stalled",
+          "background-dropped");
 
   /** Разных пар «место — код» в одной сводке — столько же держит клиент. */
   public static final int MAX_ENTRIES = 60;
