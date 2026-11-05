@@ -67,7 +67,7 @@ function fakeMeeting({
       tracks: new Store(tracks),
       speaking: new Store<string[]>([]),
       screenPreviews: new Store({}),
-      videoPaused: new Store<Record<string, true>>({}),
+      videoPaused: new Store<Record<string, string>>({}),
       volumes: new Store({}),
       preferences: new Store({ layout: 'grid' }),
       levels: { watch: () => () => {}, tier: () => 0 },
@@ -76,7 +76,7 @@ function fakeMeeting({
     },
     screenPlaying: vi.fn(),
     command: vi.fn(() => Promise.resolve()),
-  } as unknown as Meeting & { media: { videoPaused: Store<Record<string, true>> } };
+  } as unknown as Meeting & { media: { videoPaused: Store<Record<string, string>> } };
 }
 
 const tileOf = (name: string) =>
@@ -87,14 +87,14 @@ const tileOf = (name: string) =>
 afterEach(cleanup);
 
 describe('пауза камеры на плитке', () => {
-  it('надпись и приглушённый кадр — пока пауза есть, и сразу гаснут с ней', () => {
+  it('надпись поверх кадра — пока пауза есть, и сразу гаснет с ней', () => {
     const meeting = fakeMeeting();
     render(<Stage meeting={meeting} />);
     expect(screen.queryByText(PAUSED)).toBeNull();
-    act(() => meeting.media.videoPaused.set({ TR_cam: true }));
+    act(() => meeting.media.videoPaused.set({ TR_cam: 'sfu' }));
     expect(within(tileOf('Аня')).getByText(PAUSED)).toBeVisible();
-    expect(tileOf('Аня').getAttribute('data-paused')).toBe('true');
-    // Последний кадр остаётся под надписью — он приглушается, а не пропадает.
+    expect(tileOf('Аня').getAttribute('data-paused')).toBe('sfu');
+    // Последний кадр остаётся под надписью как был: приглушённый он читался как «камера гаснет» (R189).
     expect(tileOf('Аня').querySelector('video.camera-video')).not.toBeNull();
     expect(tileOf('Я').getAttribute('data-paused')).toBeNull();
     act(() => meeting.media.videoPaused.set({}));
@@ -104,7 +104,7 @@ describe('пауза камеры на плитке', () => {
 
   it('камера выключена — паузы не видно: приглушать нечего, на плитке аватар', () => {
     const meeting = fakeMeeting({ tracks: [video('TR_cam', 'ann', Track.Source.Camera, true)] });
-    meeting.media.videoPaused.set({ TR_cam: true });
+    meeting.media.videoPaused.set({ TR_cam: 'sfu' });
     render(<Stage meeting={meeting} />);
     expect(screen.queryByText(PAUSED)).toBeNull();
     expect(tileOf('Аня').getAttribute('data-paused')).toBeNull();
@@ -114,7 +114,7 @@ describe('пауза камеры на плитке', () => {
     const meeting = fakeMeeting({
       people: [person('me', 'Я'), person('ann', 'Аня', { status: 'RECOVERING' })],
     });
-    meeting.media.videoPaused.set({ TR_cam: true });
+    meeting.media.videoPaused.set({ TR_cam: 'sfu' });
     render(<Stage meeting={meeting} />);
     expect(within(tileOf('Аня')).getByText('Восстанавливаем связь…')).toBeVisible();
     expect(screen.queryByText(PAUSED)).toBeNull();
@@ -128,7 +128,7 @@ describe('пауза камеры на плитке', () => {
         person('ann', 'Аня', { screen: true, screenId: 'S1', screenStarted: false }),
       ],
     });
-    meeting.media.videoPaused.set({ TR_cam: true });
+    meeting.media.videoPaused.set({ TR_cam: 'sfu' });
     render(<Stage meeting={meeting} />);
     const show = document.querySelector<HTMLElement>('.presentation-tile')!;
     expect(within(show).getByText('Готовится показ…')).toBeVisible();
@@ -148,9 +148,9 @@ describe('пауза показа', () => {
       viewing,
     });
     render(<Stage meeting={meeting} />);
-    act(() => meeting.media.videoPaused.set({ TR_scr: true }));
+    act(() => meeting.media.videoPaused.set({ TR_scr: 'sfu' }));
     expect(screen.getByRole('status')).toHaveTextContent(PAUSED);
-    expect(document.querySelector('.watch-stage')!.getAttribute('data-paused')).toBe('true');
+    expect(document.querySelector('.watch-stage')!.getAttribute('data-paused')).toBe('sfu');
     act(() => meeting.media.videoPaused.set({}));
     expect(screen.queryByText(PAUSED)).toBeNull();
     expect(document.querySelector('.watch-stage')!.getAttribute('data-paused')).toBeNull();
@@ -158,7 +158,7 @@ describe('пауза показа', () => {
 
   it('кадра ещё нет — «Подключаемся к стриму…», паузы нет', () => {
     const meeting = fakeMeeting({ people: [person('me', 'Я'), sharing], tracks: [], viewing });
-    meeting.media.videoPaused.set({ TR_scr: true });
+    meeting.media.videoPaused.set({ TR_scr: 'sfu' });
     render(<Stage meeting={meeting} />);
     expect(screen.getByRole('status')).toHaveTextContent('Подключаемся к стриму…');
     expect(screen.queryByText(PAUSED)).toBeNull();
@@ -170,7 +170,7 @@ describe('пауза показа', () => {
       tracks: [video('TR_scr', 'ann', Track.Source.ScreenShare)],
       viewing,
     });
-    meeting.media.videoPaused.set({ TR_scr: true });
+    meeting.media.videoPaused.set({ TR_scr: 'sfu' });
     render(<Stage meeting={meeting} />);
     expect(screen.queryByText(PAUSED)).toBeNull();
   });

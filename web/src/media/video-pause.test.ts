@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { IN_FLIGHT_MS, PAUSE_NOTICE_MS, VideoPauses } from './video-pause';
+import { IN_FLIGHT_MS, PAUSE_NOTICE_MS, STALL_NOTICE_MS, VideoPauses } from './video-pause';
 
 /*
   Пауза видео от SFU (R117): надпись — только после паузы не короче PAUSE_NOTICE_MS, гаснет сразу —
@@ -22,6 +22,7 @@ describe('надпись паузы', () => {
     expect(shown(pauses)).toEqual([]);
     vi.advanceTimersByTime(1);
     expect(shown(pauses)).toEqual(['cam']);
+    expect(pauses.shown.get()).toEqual({ cam: 'sfu' });
     expect(pauses.total.get()).toBe(1);
     pauses.resume('cam');
     // Без задержки: живой кадр под надписью — та же неправда, что молча застывший.
@@ -184,5 +185,80 @@ describe('своя связь с SFU', () => {
     vi.advanceTimersByTime(PAUSE_NOTICE_MS);
     expect(shown(pauses)).toEqual([]);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+/*
+  Кадров нет, а SFU молчит (R189): причину не знаем, и «слабая связь» была бы неправдой — там, где камера
+  стоит у отправителя, канал у зрителя ни при чём. Другая надпись, другой счётчик, и сторож не выключается.
+*/
+describe('кадров нет, причина неизвестна', () => {
+  it('своя надпись и не сразу: сначала сторож пробует починить молча', () => {
+    const pauses = new VideoPauses();
+    pauses.stall('cam');
+    vi.advanceTimersByTime(STALL_NOTICE_MS - 1);
+    expect(pauses.shown.get()).toEqual({});
+    vi.advanceTimersByTime(1);
+    expect(pauses.shown.get()).toEqual({ cam: 'silent' });
+  });
+
+  it('в счётчик пауз SFU не идёт: диагностика говорит там про канал', () => {
+    const pauses = new VideoPauses();
+    pauses.stall('cam');
+    vi.advanceTimersByTime(STALL_NOTICE_MS);
+    expect(pauses.total.get()).toBe(0);
+    expect(pauses.stalls.get()).toBe(1);
+  });
+
+  it('не держит дорожку: сторож продолжает смотреть и лечить', () => {
+    const pauses = new VideoPauses();
+    pauses.stall('cam');
+    vi.advanceTimersByTime(STALL_NOTICE_MS);
+    expect(pauses.holds('cam')).toBe(false);
+    pauses.pause('cam');
+    expect(pauses.holds('cam')).toBe(true);
+  });
+
+  it('новые кадры снимают её совсем: `Active` за такой паузой не придёт', () => {
+    const pauses = new VideoPauses();
+    pauses.stall('cam');
+    vi.advanceTimersByTime(STALL_NOTICE_MS);
+    pauses.frames('cam', 10);
+    pauses.frames('cam', 11);
+    expect(pauses.shown.get()).toEqual({});
+    pauses.stall('cam');
+    vi.advanceTimersByTime(STALL_NOTICE_MS);
+    expect(pauses.shown.get()).toEqual({ cam: 'silent' });
+  });
+
+  it('SFU всё же сказал «пауза» — причина теперь известна: надпись и счётчик его', () => {
+    const pauses = new VideoPauses();
+    pauses.stall('cam');
+    vi.advanceTimersByTime(STALL_NOTICE_MS);
+    pauses.pause('cam');
+    expect(pauses.shown.get()).toEqual({ cam: 'sfu' });
+    expect(pauses.total.get()).toBe(1);
+    pauses.resume('cam');
+    expect(pauses.shown.get()).toEqual({});
+  });
+
+  it('пауза SFU не становится «неизвестной»: повторная тишина ничего не меняет', () => {
+    const pauses = new VideoPauses();
+    pauses.pause('cam');
+    vi.advanceTimersByTime(PAUSE_NOTICE_MS);
+    pauses.stall('cam');
+    expect(pauses.shown.get()).toEqual({ cam: 'sfu' });
+    expect(pauses.holds('cam')).toBe(true);
+  });
+
+  it('связь потеряна — молчит, вернулась — не воскресает: SDK такой паузы не знает', () => {
+    const pauses = new VideoPauses();
+    pauses.stall('cam');
+    vi.advanceTimersByTime(STALL_NOTICE_MS);
+    pauses.suspend();
+    expect(pauses.shown.get()).toEqual({});
+    pauses.restore(new Set());
+    vi.advanceTimersByTime(STALL_NOTICE_MS);
+    expect(pauses.shown.get()).toEqual({});
   });
 });

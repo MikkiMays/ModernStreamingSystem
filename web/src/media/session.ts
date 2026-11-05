@@ -89,6 +89,8 @@ import { readUpstream, upstreamDelta, type UpstreamReading } from './encoder-hea
 import { LiveHealth } from './live-health';
 import { VideoPauses } from './video-pause';
 import { VideoSilence } from './video-silence';
+import { CameraWatch, type CameraAction } from './camera-watch';
+import { videoPool } from './video-pool';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import { PathRetry, starvedUplink } from './path-retry';
 import { LocalNetworks } from './local-networks';
@@ -319,6 +321,10 @@ export function inboundBytes(reports: readonly RTCStatsReport[], kind?: 'audio' 
 }
 /** Музыку переподписывать по раздутому буферу — не чаще раза в минуту (R118): каждая — провал звука. */
 export const MEDIA_RESET_GAP_MS = 60000;
+/** Сколько плитка держит снимок камеры на переподписке, если новая дорожка так и не пришла. */
+export const HOLD_CAMERA_MS = 6000;
+/** Пауза между «отписаться» и «подписаться» у дорожки, которая так и не пришла: SFU должен успеть первое. */
+const SUBSCRIPTION_TOGGLE_MS = 250;
 
 export class MediaSession {
   readonly preferences = new Store(readPreferences());
@@ -397,13 +403,20 @@ export class MediaSession {
   };
   private pauses = new VideoPauses();
   /**
-   * Чьё видео SFU сейчас приостановил нам из-за слабого канала (R117, `video-pause.ts`): trackSid →
-   * true, уже после задержки против мигания и без надписей, пока сами переподключаемся. Читают
-   * плитки и показ; камера и экран — одинаково.
+   * Чьё видео сейчас стоит и почему (R117, R189, `video-pause.ts`): trackSid → `sfu` (приостановил SFU из-за
+   * нашего слабого канала) или `silent` (кадров нет, а SFU молчит), уже после задержки против мигания и без
+   * надписей, пока сами переподключаемся. Читают плитки и показ.
    */
   readonly videoPaused = this.pauses.shown;
-  /** Сколько пауз видео за встречу дошло до надписи — для «Диагностики». */
+  /** Сколько пауз видео от SFU за встречу дошло до надписи — для «Диагностики». */
   readonly videoPauseCount = this.pauses.total;
+  /** Сколько раз кадры вставали без слова SFU и дошло до надписи — для «Диагностики». */
+  readonly videoStallCount = this.pauses.stalls;
+  /**
+   * Браузер не дал играть видео без жеста (режим энергосбережения на iPhone): кадры приходят, а на экране
+   * нет ничего. Нужна кнопка: лечить это само нечем.
+   */
+  readonly videoBlocked = new Store(false);
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
   /** На какой платформе идёт встреча — для правил фона (E12, `media/background.ts`). */
@@ -644,12 +657,20 @@ export class MediaSession {
   private liveHealth = new Map<string, LiveHealth>();
   /** Камеры, у которых кадры из сети могли остановиться без слова SFU (R119, `video-silence.ts`). */
   private videoSilence = new Map<string, VideoSilence>();
-  /** Приходили ли байты звука за последний опрос буфера — свидетель того, что путь жив. */
-  private audioFlowing = false;
+  /** Сторож чужих камер (R189, `camera-watch.ts`): trackSid → его наблюдения. */
+  private cameraWatch = new Map<string, CameraWatch>();
+  /** Сколько раз сторож чинил камеры и чем — для «Диагностики». */
+  private cameraHeals: Partial<Record<CameraAction, number>> = {};
+  /** Кто по данным ядра переподключается: их камеры стоят не от наших дел, чинить нечего. */
+  private recoveringPeople = new Set<string>();
+  /**
+   * Камеры на переподписке: дорожка на время уходит, а плитка держит снимок последнего кадра (И5). Запись
+   * живёт, пока не придёт новая дорожка, но не дольше {@link HOLD_CAMERA_MS}.
+   */
+  private heldCameras = new Map<string, { track: Track; timer: ReturnType<typeof setTimeout> }>();
   private lastLiveReset = new Map<string, number>();
   /** Сумма принятых байт по всем дорожкам на прошлом опросе: растёт — медиа идёт. */
   private lastInboundBytes = 0;
-  private lastAudioBytes = 0;
   /** Когда в последний раз шли байты медиа: свидетель живого пути при опоздавшем сигнале (R151). */
   private lastFlowAt = 0;
   private signalGrace?: ReturnType<typeof setTimeout>;
@@ -797,9 +818,20 @@ export class MediaSession {
       .on(RoomEvent.TrackUnmuted, this.refreshTracks)
       .on(RoomEvent.TrackStreamStateChanged, (publication, state) => {
         if (this.disposed || publication.kind !== Track.Kind.Video) return;
+        console.debug('[cord] stream state', publication.source, publication.trackSid, state);
         if (state === Track.StreamState.Paused)
           this.pauses.pause(publication.trackSid, this.playout.targetFor(publication.trackSid));
         else this.pauses.resume(publication.trackSid);
+      })
+      .on(RoomEvent.TrackSubscriptionFailed, (trackSid, _participant, reason) => {
+        if (this.disposed) return;
+        console.warn('[cord] track subscription failed', trackSid, reason);
+        const found = this.findPublication(trackSid);
+        if (found?.publication.source === Track.Source.Camera)
+          this.watchOfCamera(trackSid).subscriptionFailed();
+      })
+      .on(RoomEvent.VideoPlaybackStatusChanged, () => {
+        if (!this.disposed) this.videoBlocked.set(!this.room.canPlaybackVideo);
       });
     window.addEventListener('online', this.network);
     // Сменилась сеть (Wi-Fi ↔ сотовая) — Chrome на Android говорит об этом сам, а `online` при этом
@@ -857,6 +889,10 @@ export class MediaSession {
     this.serviceParticipants = next;
     this.syncDownmix();
     void this.tunePlayout();
+  }
+  /** Кто по данным ядра сейчас переподключается: сторож камер таких не трогает. */
+  setRecoveringPeople(ids: Iterable<string>) {
+    this.recoveringPeople = new Set(ids);
   }
   /**
    * Речь — моно на приёме, музыка и звук показа — как есть (R113). Зовётся при подписке и когда
@@ -937,9 +973,6 @@ export class MediaSession {
       const flowing = inbound > this.lastInboundBytes;
       this.lastInboundBytes = inbound;
       if (flowing) this.lastFlowAt = Date.now();
-      const audio = inboundBytes(this.playout.reports, 'audio');
-      this.audioFlowing = audio > this.lastAudioBytes;
-      this.lastAudioBytes = audio;
       if (this.playout.link.ice === 'disconnected') this.nudge('ice-disconnected', flowing);
       const sending = this.outbound.get();
       const retry = this.pathRetry.observe(
@@ -993,15 +1026,52 @@ export class MediaSession {
     setReceiveHold(ms);
   }
   private async checkLive() {
-    if (this.disposed || this.liveSampling || this.state.get().status !== 'connected' || document.hidden)
+    if (this.disposed || this.liveSampling) return;
+    if (this.state.get().status !== 'connected' || document.hidden) {
+      // Не смотрели — и счётчики за это время не значат ничего: и сторож, и тишина начнут сначала.
+      for (const watch of this.cameraWatch.values()) watch.skip();
+      this.videoSilence.clear();
       return;
+    }
     this.liveSampling = true;
     const cycle = this.connectionCycle;
     const active = new Set<string>();
+    const cameras = new Set<string>();
     try {
       const jobs: Promise<void>[] = [];
       for (const participant of this.room.remoteParticipants.values())
         for (const publication of participant.videoTrackPublications.values()) {
+          const watch =
+            publication.source === Track.Source.Camera ? this.watchOfCamera(publication.trackSid) : null;
+          if (watch) {
+            cameras.add(publication.trackSid);
+            // Смотреть не на что: заглушена, плитки не видно, участник сам переподключается.
+            if (
+              publication.isMuted ||
+              !publication.isEnabled ||
+              this.recoveringPeople.has(participant.identity)
+            ) {
+              watch.skip();
+              continue;
+            }
+            if (!publication.track) {
+              if (publication.isDesired)
+                jobs.push(
+                  this.healCamera(
+                    watch.observe({
+                      now: Date.now(),
+                      subscription: undefined,
+                      hasTrack: false,
+                      sfuPaused: false,
+                    }),
+                    participant.identity,
+                    publication,
+                    watch,
+                  ),
+                );
+              continue;
+            }
+          }
           if (
             !publication.isSubscribed ||
             !publication.isEnabled ||
@@ -1012,31 +1082,37 @@ export class MediaSession {
           active.add(publication.trackSid);
           jobs.push(
             (async () => {
-              const report = await publication.track!.getRTCStatsReport();
+              const track = publication.track!;
+              const report = await track.getRTCStatsReport();
               if (this.disposed || cycle !== this.connectionCycle) return;
+              const now = Date.now();
               // Видео приостановил SFU (R117): кадров нет по его решению, а не от зависания. Переподписка
               // ничего не починит — пауза снимется сама, — поэтому сторож зависаний молчит, а после паузы
               // начинает с чистого листа. Счётчик принятых кадров — запасной знак, что картинка пошла.
               let received = 0;
+              let decoded = 0;
               report?.forEach((stat) => {
-                if (stat.type === 'inbound-rtp' && (stat.kind ?? stat.mediaType) === 'video')
+                if (stat.type === 'inbound-rtp' && (stat.kind ?? stat.mediaType) === 'video') {
                   received += Number(stat.framesReceived ?? 0);
+                  decoded += Number(stat.framesDecoded ?? 0);
+                }
               });
               if (this.pauses.holds(publication.trackSid)) {
                 this.liveHealth.delete(publication.trackSid);
                 this.videoSilence.delete(publication.trackSid);
                 this.pauses.frames(publication.trackSid, received);
+                watch?.observe({ now, subscription: track, hasTrack: true, sfuPaused: true });
                 return;
               }
-              // SFU перестал слать камеру, не сказав «пауза» (R119): кадров нет, а звук идёт.
-              if (publication.source === Track.Source.Camera) {
+              // Кадры пошли — тишина без слова SFU кончилась.
+              this.pauses.frames(publication.trackSid, received);
+              // SFU перестал слать камеру, не сказав «пауза» (R119). Причину такая тишина не называет
+              // (R189), и чинить её можно: сторож зависаний дальше смотрит за дорожкой, как и за любой.
+              if (watch) {
                 const silence = this.videoSilence.get(publication.trackSid) ?? new VideoSilence();
                 this.videoSilence.set(publication.trackSid, silence);
-                if (silence.observe(received, this.audioFlowing, Date.now())) {
-                  this.pauses.pause(publication.trackSid, this.playout.targetFor(publication.trackSid));
-                  this.liveHealth.delete(publication.trackSid);
-                  return;
-                }
+                if (silence.observe(received, now))
+                  this.pauses.stall(publication.trackSid, this.playout.targetFor(publication.trackSid));
               }
               const health = this.liveHealth.get(publication.trackSid) ?? new LiveHealth();
               this.liveHealth.set(publication.trackSid, health);
@@ -1046,18 +1122,91 @@ export class MediaSession {
                 if (stat.type === 'inbound-rtp' && (stat.kind ?? stat.mediaType) === 'video')
                   reset ||= health.observe(stat, requested);
               });
-              if (reset) await this.resetLivePair(participant.identity, publication.source, true);
+              if (watch) {
+                const element = videoPool.sample(publication.trackSid);
+                await this.healCamera(
+                  watch.observe({
+                    now,
+                    subscription: track,
+                    hasTrack: true,
+                    sfuPaused: false,
+                    ...(report ? { framesReceived: received, framesDecoded: decoded } : {}),
+                    // Браузер не даёт играть без жеста: лестница тут бессильна, нужна кнопка (`videoBlocked`).
+                    ...(element && !this.videoBlocked.get()
+                      ? { rendered: element.rendered, elementPaused: element.paused }
+                      : {}),
+                    ...(element ? { movedAt: element.movedAt } : {}),
+                    stalled: reset,
+                  }),
+                  participant.identity,
+                  publication,
+                  watch,
+                  // Раздутый буфер и стоящий декодер лечатся не чаще прежнего: кадры при этом идут.
+                  reset ? undefined : 0,
+                );
+              } else if (reset) await this.resetLivePair(participant.identity, publication.source, true);
             })().catch(() => {}),
           );
         }
       await Promise.all(jobs);
       for (const key of this.liveHealth.keys()) if (!active.has(key)) this.liveHealth.delete(key);
       for (const key of this.videoSilence.keys()) if (!active.has(key)) this.videoSilence.delete(key);
+      for (const key of this.cameraWatch.keys()) if (!cameras.has(key)) this.cameraWatch.delete(key);
       for (const key of this.lastLiveReset.keys())
         if (!this.room.remoteParticipants.has(key.split(':')[0]!)) this.lastLiveReset.delete(key);
     } finally {
       this.liveSampling = false;
     }
+  }
+  private watchOfCamera(trackSid: string) {
+    let watch = this.cameraWatch.get(trackSid);
+    if (!watch) {
+      watch = new CameraWatch(Date.now());
+      this.cameraWatch.set(trackSid, watch);
+    }
+    return watch;
+  }
+  /** Исполнить решение сторожа камеры: подписка — здесь, элемент — у пула страницы. */
+  private async healCamera(
+    action: CameraAction,
+    identity: string,
+    publication: RemoteTrackPublication,
+    watch: CameraWatch,
+    resubscribeGapMs?: number,
+  ) {
+    if (action === 'none') return;
+    this.cameraHeals[action] = (this.cameraHeals[action] ?? 0) + 1;
+    console.info('[cord] camera self-heal', action, identity);
+    try {
+      if (action === 'subscribe') await this.toggleSubscription(identity, publication);
+      else if (action === 'play') {
+        if (!(await videoPool.play(publication.trackSid))) this.videoBlocked.set(true);
+      } else if (action === 'reattach') videoPool.reattach(publication.trackSid);
+      else if (action === 'replace') videoPool.replace(publication.trackSid);
+      // Отступ уже у сторожа: 30 с общего срока здесь отняли бы у него первые попытки (`resubscribeGapMs` = 0).
+      else await this.resetLivePair(identity, Track.Source.Camera, true, resubscribeGapMs);
+    } finally {
+      watch.settled();
+    }
+  }
+  /** Подписка «желанная», а дорожки нет: снять желание и поставить заново — SFU начнёт подписку с начала. */
+  private async toggleSubscription(identity: string, publication: RemoteTrackPublication) {
+    publication.setSubscribed(false);
+    await new Promise((resolve) => setTimeout(resolve, SUBSCRIPTION_TOGGLE_MS));
+    if (this.disposed) return;
+    if (
+      this.room.remoteParticipants.get(identity)?.trackPublications.get(publication.trackSid) === publication
+    )
+      publication.setSubscribed(true);
+  }
+  /** Сколько раз за встречу сторож чинил чужие камеры — для «Диагностики». */
+  cameraHealReport(): Readonly<Partial<Record<CameraAction, number>>> {
+    return this.cameraHeals;
+  }
+  /** Нажатие «Включить видео»: звать из обработчика нажатия — браузер разрешает только жестом. */
+  async unlockVideo() {
+    await this.room.startVideo().catch(() => {});
+    this.videoBlocked.set(!this.room.canPlaybackVideo);
   }
   /** Итог звонка: числа и слова из перечислений, без имён и адресов; `null` — звонка не было. */
   callReport(): CallReport | null {
@@ -1438,6 +1587,7 @@ export class MediaSession {
     if (!publications.length) return;
     this.resetting.add(key);
     this.lastLiveReset.set(key, Date.now());
+    if (source === Track.Source.Camera) for (const publication of publications) this.holdCamera(publication);
     // Служебная переподписка — в журнал, не на сцену (R27): плашка «Обновляем прямой эфир…»
     // мигала поверх разговора и ничего не просила сделать.
     console.debug('[cord] live resubscribe', identity, screen ? 'screen' : source);
@@ -1456,6 +1606,18 @@ export class MediaSession {
         }
       this.resetting.delete(key);
     }
+  }
+  /** Снять последний кадр и держать плитку, пока переподписка не вернёт дорожку (И5). */
+  private holdCamera(publication: RemoteTrackPublication) {
+    const { trackSid, track } = publication;
+    if (!track) return;
+    videoPool.freeze(trackSid);
+    clearTimeout(this.heldCameras.get(trackSid)?.timer);
+    const timer = setTimeout(() => {
+      this.heldCameras.delete(trackSid);
+      this.refreshTracks();
+    }, HOLD_CAMERA_MS);
+    this.heldCameras.set(trackSid, { track, timer });
   }
   private unsubscribeForRefresh(publication: RemoteTrackPublication) {
     return new Promise<void>((resolve) => {
@@ -1993,8 +2155,14 @@ export class MediaSession {
   private collectTracks() {
     if (this.disposed) return;
     const tiles: MediaTile[] = [];
+    const before = this.tracks.get();
     const collect = (participant: Participant) => {
-      for (const publication of participant.trackPublications.values())
+      for (const publication of participant.trackPublications.values()) {
+        const held = this.heldCameras.get(publication.trackSid);
+        if (held && publication.track && publication.track !== held.track) {
+          clearTimeout(held.timer);
+          this.heldCameras.delete(publication.trackSid);
+        }
         if (publication.track)
           tiles.push({
             id: publication.trackSid,
@@ -2005,6 +2173,12 @@ export class MediaSession {
             local: participant.isLocal,
             muted: publication.isMuted,
           });
+        else if (held) {
+          // Переподписка: дорожки пока нет, а плитка держит снимок последнего кадра и ту же `<video>`.
+          const previous = before.find((tile) => tile.id === publication.trackSid);
+          if (previous) tiles.push({ ...previous, muted: publication.isMuted });
+        }
+      }
     };
     collect(this.room.localParticipant);
     for (const publication of this.room.localParticipant.trackPublications.values()) {
@@ -3163,6 +3337,9 @@ export class MediaSession {
     this.recovery.stop();
     this.liveHealth.clear();
     this.videoSilence.clear();
+    this.cameraWatch.clear();
+    for (const { timer } of this.heldCameras.values()) clearTimeout(timer);
+    this.heldCameras.clear();
     this.lastLiveReset.clear();
     clearInterval(this.liveTimer);
     clearInterval(this.micTimer);

@@ -190,13 +190,39 @@
   height: 100%;
   min-height: 90px;
 }
+/* Под видео — аватар (R189, И5): плитка не бывает пустой, пока кадра нет; на раскладку он не влияет. */
+.person-placeholder[data-under] {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+/*
+  Видео принадлежит дорожке (`media/video-pool.ts`): `.video-slot` — пустой узел плитки, `.video-surface`
+  едет с видео из плитки в плитку. Кадр есть — поверхность непрозрачна тем же полем, что и плитка, иначе аватар
+  выглянул бы по краям вертикального кадра. Кадра ещё нет — поверхность пуста, виден аватар.
+*/
+.video-slot,
+.video-surface {
+  position: absolute;
+  inset: 0;
+}
+.video-surface[data-cover] {
+  background: radial-gradient(120% 90% at 50% 0%, var(--stage-tile-2), var(--stage-tile));
+}
 /* Кадр отправителя целиком: телефон шлёт портрет, и обрезка до ландшафта отрезала бы голову. */
-.camera-video {
+.camera-video,
+.video-freeze {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+.camera-video {
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+.video-surface:not([data-frame]) > .camera-video {
+  opacity: 0;
 }
 
 /*

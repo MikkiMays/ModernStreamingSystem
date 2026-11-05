@@ -21,10 +21,17 @@ import { Store } from '../core/store';
  *    показанные: показанные идут и после паузы, пока доигрывает буфер.
  * 3. **Пока связь с SFU потеряна, надписей нет**: застывшее у всех объясняет плашка восстановления,
  *    а отсчёт паузы начинается заново после возврата — с тем, что SDK к тому времени знает.
+ * 4. **Причину не выдумываем (R189).** `sfu` — SFU сказал сам, и это канал зрителя. `silent` — кадров нет, а
+ *    SFU молчит (`video-silence.ts`): камера могла встать у отправителя, и «слабая связь» была бы неправдой.
+ *    Такая тишина не держит сторож зависаний ({@link VideoPauses.holds}) — чинить её как раз можно — и
+ *    показывается позже ({@link STALL_NOTICE_MS}): сначала сторож пробует молча.
  *
  * Здесь нет ни LiveKit, ни React: сессия передаёт события SDK и счётчики статистики, плитки и
  * показ читают {@link VideoPauses.shown}.
  */
+
+/** Почему кадров нет: SFU сказал сам (`sfu`) или причина неизвестна (`silent`). */
+export type PauseCause = 'sfu' | 'silent';
 
 /** Сколько пауза должна длиться, чтобы о ней сказать. Короче — не мигаем. */
 export const PAUSE_NOTICE_MS = 700;
@@ -33,8 +40,14 @@ export const PAUSE_NOTICE_MS = 700;
  * отправил до решения о паузе, ещё в пути.
  */
 export const IN_FLIGHT_MS = 300;
+/**
+ * Сколько тишина без слова SFU ждёт надписи: сторож уже переподписывается, и за это время картинка чаще
+ * всего возвращается сама — надпись на такой мелочи только мигала бы.
+ */
+export const STALL_NOTICE_MS = 3000;
 
 interface Pause {
+  cause: PauseCause;
   /** `pending` — ждём {@link PAUSE_NOTICE_MS}; `shown` — надпись видна; `flowing` — кадры пошли без `Active`. */
   phase: 'pending' | 'shown' | 'flowing';
   /** С какого момента считать паузу: начало или возврат связи. */
@@ -49,21 +62,37 @@ interface Pause {
 }
 
 export class VideoPauses {
-  /** trackSid → true: у этих дорожек сейчас видна надпись «Видео приостановлено». */
-  readonly shown = new Store<Readonly<Record<string, true>>>({});
-  /** Сколько пауз за встречу дошло до надписи — для «Диагностики». */
+  /** trackSid → причина: у этих дорожек сейчас видна надпись. */
+  readonly shown = new Store<Readonly<Record<string, PauseCause>>>({});
+  /** Сколько пауз от SFU за встречу дошло до надписи — для «Диагностики». */
   readonly total = new Store(0);
+  /** Сколько раз за встречу кадры вставали без слова SFU и дошло до надписи. */
+  readonly stalls = new Store(0);
   private pauses = new Map<string, Pause>();
   private suspended = false;
 
   /** SFU приостановил дорожку. `bufferedMs` — запас приёма, который мы попросили для неё. */
   pause(id: string, bufferedMs = 0, now = Date.now()) {
     const current = this.pauses.get(id);
+    if (current?.cause === 'silent' && current.phase !== 'flowing') {
+      // Тишина оказалась паузой от SFU: причина теперь известна, отсчёт уже идёт.
+      current.cause = 'sfu';
+      current.counted = false;
+      if (current.phase === 'shown') {
+        this.count(current);
+        this.publish();
+      }
+      return;
+    }
     if (current && current.phase !== 'flowing') return;
-    if (current) clearTimeout(current.timer);
-    const pause: Pause = { phase: 'pending', since: now, bufferedMs, counted: false };
-    this.pauses.set(id, pause);
-    if (!this.suspended) this.arm(id, pause);
+    this.start(id, 'sfu', bufferedMs, now, current);
+  }
+
+  /** Кадров нет, а SFU молчит (`video-silence.ts`). Его пауза главнее и не перезаписывается. */
+  stall(id: string, bufferedMs = 0, now = Date.now()) {
+    const current = this.pauses.get(id);
+    if (current && current.phase !== 'flowing') return;
+    this.start(id, 'silent', bufferedMs, now, current);
   }
 
   /** SFU снова шлёт дорожку — надпись гаснет сразу, без задержки. */
@@ -83,6 +112,11 @@ export class VideoPauses {
       return;
     }
     if (received === pause.baseline) return;
+    // `Active` за такой паузой не придёт: снимаем совсем, а следующая тишина — уже новая.
+    if (pause.cause === 'silent') {
+      this.drop(id);
+      return;
+    }
     clearTimeout(pause.timer);
     const wasShown = pause.phase === 'shown';
     pause.phase = 'flowing';
@@ -91,11 +125,12 @@ export class VideoPauses {
 
   /**
    * Держит ли SFU дорожку на паузе: кадров нет по его решению. Тогда это не зависание, и
-   * переподписка (`live-health.ts`) ничего не починит — пауза снимется сама.
+   * переподписка (`live-health.ts`) ничего не починит — пауза снимется сама. Тишина без его слова
+   * (`silent`) не держит: её как раз и лечат переподпиской.
    */
   holds(id: string) {
     const pause = this.pauses.get(id);
-    return !!pause && pause.phase !== 'flowing';
+    return !!pause && pause.cause === 'sfu' && pause.phase !== 'flowing';
   }
 
   /** Оставить только дорожки, которые ещё подписаны: отписка — конец паузы. */
@@ -139,20 +174,30 @@ export class VideoPauses {
     this.publish();
   }
 
+  private start(id: string, cause: PauseCause, bufferedMs: number, now: number, previous?: Pause) {
+    if (previous) clearTimeout(previous.timer);
+    const pause: Pause = { cause, phase: 'pending', since: now, bufferedMs, counted: false };
+    this.pauses.set(id, pause);
+    if (!this.suspended) this.arm(id, pause);
+  }
+
   private arm(id: string, pause: Pause) {
     clearTimeout(pause.timer);
     pause.timer = setTimeout(
       () => {
         if (this.pauses.get(id) !== pause || pause.phase !== 'pending' || this.suspended) return;
         pause.phase = 'shown';
-        if (!pause.counted) {
-          pause.counted = true;
-          this.total.update((count) => count + 1);
-        }
+        this.count(pause);
         this.publish();
       },
-      Math.max(PAUSE_NOTICE_MS, pause.bufferedMs),
+      Math.max(pause.cause === 'sfu' ? PAUSE_NOTICE_MS : STALL_NOTICE_MS, pause.bufferedMs),
     );
+  }
+
+  private count(pause: Pause) {
+    if (pause.counted) return;
+    pause.counted = true;
+    (pause.cause === 'sfu' ? this.total : this.stalls).update((count) => count + 1);
   }
 
   private drop(id: string) {
@@ -165,12 +210,12 @@ export class VideoPauses {
 
   /** Новое значение — только когда набор надписей и правда изменился: плитки не перерисовываются зря. */
   private publish() {
-    const next: Record<string, true> = {};
-    for (const [id, pause] of this.pauses) if (pause.phase === 'shown') next[id] = true;
+    const next: Record<string, PauseCause> = {};
+    for (const [id, pause] of this.pauses) if (pause.phase === 'shown') next[id] = pause.cause;
     const current = this.shown.get();
     const same =
       Object.keys(current).length === Object.keys(next).length &&
-      Object.keys(next).every((id) => current[id]);
+      Object.keys(next).every((id) => current[id] === next[id]);
     if (!same) this.shown.set(next);
   }
 }
