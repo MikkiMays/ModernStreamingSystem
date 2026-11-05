@@ -138,7 +138,11 @@ const onLive = (page: Page, action: 'ended' | 'mute' | 'unmute') =>
     if (what === 'ended') {
       track.stop();
       track.dispatchEvent(new Event('ended'));
-    } else track.dispatchEvent(new Event(what));
+    } else {
+      // Как система: `muted` у дорожки меняется вместе с событием, а не только событие.
+      Object.defineProperty(track, 'muted', { configurable: true, get: () => what === 'mute' });
+      track.dispatchEvent(new Event(what));
+    }
   }, action);
 
 const refuse = (page: Page, name: string | null) =>
@@ -147,13 +151,17 @@ const refuse = (page: Page, name: string | null) =>
     name,
   );
 
-/** Кадры у зрителя идут: счётчик декодированных растёт за несколько секунд. */
+/** Кадры у зрителя идут: счётчик декодированных растёт (после подписки SFU даёт первый кадр не сразу). */
 async function expectViewerFlowing(viewer: Page) {
   const before = await viewerFrames(viewer);
   expect(before.video).toBe(true);
-  await viewer.waitForTimeout(4000);
-  const after = await viewerFrames(viewer);
-  expect(after.decoded).toBeGreaterThan(before.decoded);
+  await viewer.waitForTimeout(2000);
+  await expect
+    .poll(async () => (await viewerFrames(viewer)).decoded, {
+      timeout: 30000,
+      message: 'кадры у зрителя идут',
+    })
+    .toBeGreaterThan(before.decoded);
 }
 
 test('камера возвращается сама после `ended`, отказов устройства и `mute`; без разрешения — выключается (R189)', async ({
