@@ -634,7 +634,11 @@ export class MediaSession {
       this.refreshTracks();
     },
     note: (kind, detail) => this.noteCamera(kind, detail),
-    healing: (active) => this.cameraNote.update((note) => ({ ...note, healing: active })),
+    healing: (active) => {
+      this.cameraNote.update((note) => ({ ...note, healing: active }));
+      // Кнопка читает `state.camera` (И6): пересчитать сейчас, а не ждать события SDK.
+      this.refreshTracks();
+    },
   });
   private liveSampling = false;
   private liveHealth = new Map<string, LiveHealth>();
@@ -1242,7 +1246,7 @@ export class MediaSession {
     // нажатия на камеру это была самая дорогая строка (R163). Ставим, только если подсказка другая.
     if (track instanceof LocalVideoTrack && track.mediaStreamTrack.contentHint !== cameraHint)
       track.mediaStreamTrack.contentHint = cameraHint;
-    if (track instanceof LocalVideoTrack) shieldCameraUpstream(track);
+    if (track instanceof LocalVideoTrack) this.shieldCamera(track);
     void this.enforceCameraRate();
     // Фон в видео (R153) — после каждой публикации камеры: включение, смена камеры, смена кодека.
     void this.applyBackground();
@@ -2007,7 +2011,7 @@ export class MediaSession {
       if (publication.track && [Track.Source.Camera, Track.Source.Microphone].includes(publication.source))
         this.deviceTracks.set(publication.source, publication.track);
       if (publication.source === Track.Source.Camera && publication.track instanceof LocalVideoTrack)
-        shieldCameraUpstream(publication.track);
+        this.shieldCamera(publication.track);
     }
     for (const [source, track] of this.deviceTracks)
       if (!liveCapture(track)) this.deviceTracks.delete(source);
@@ -2456,6 +2460,20 @@ export class MediaSession {
   private devicesChanged = () => {
     if (!this.disposed) void this.cameraGuard.poke();
   };
+  /**
+   * Камера под присмотром сторожа, а не LiveKit (R189, И1): `pauseUpstream` снят (`shieldCameraUpstream`),
+   * а обработчик `ended` участника — отцеплен. LiveKit на `ended` один раз перезахватывает точно тем же
+   * устройством (`{exact}`), а при отказе глушит публикацию: у зрителей гаснет плитка, у самого — кнопка.
+   * Сторож лечит то же `ended` сам, устройством-пожеланием и с отступом, не трогая публикацию.
+   * `publishTrack` цепляет обработчик заново при каждой публикации — поэтому зовётся после каждой.
+   */
+  private shieldCamera(track: LocalVideoTrack) {
+    shieldCameraUpstream(track);
+    const participant = this.room.localParticipant as unknown as {
+      handleTrackEnded?: (t: LocalTrack) => void;
+    };
+    if (participant.handleTrackEnded) track.off(TrackEvent.Ended, participant.handleTrackEnded);
+  }
   /** Событие камеры — в журнал камеры, журнал браузера и счётчик ядра (И7); человеку — ничего. */
   private noteCamera(kind: CameraKind | 'background-stalled' | 'background-dropped', detail?: string) {
     this.cameraLog.note(kind, detail);

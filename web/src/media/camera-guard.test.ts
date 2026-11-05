@@ -81,7 +81,7 @@ describe('сторож камеры (R189, И4)', () => {
     expect(h.guard.active).toBe(false);
   });
 
-  it('захват кончился: первую попытку оставляем LiveKit, свою — после льготы', async () => {
+  it('захват кончился: перезахват после короткой льготы', async () => {
     const h = harness({ raw: { readyState: 'ended', muted: false } });
     await h.guard.check();
     expect(h.heal).not.toHaveBeenCalled();
