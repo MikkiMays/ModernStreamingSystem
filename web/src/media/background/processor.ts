@@ -23,7 +23,7 @@ export class CordBackgroundProcessor implements TrackProcessor<Track.Kind.Video,
   constructor(
     private choice: BackgroundChoice,
     private readonly support: BackgroundSupport,
-    private readonly effect = BackgroundEffect.shared(),
+    readonly effect = BackgroundEffect.shared(),
   ) {}
 
   async init(opts: VideoProcessorOptions) {

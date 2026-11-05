@@ -4,6 +4,32 @@ import type { BackgroundEffect } from './effect';
 import { CordBackgroundProcessor } from './processor';
 
 /**
+ * После снятия обработчика убедиться, что отправители шлют живой захват (R189, И5). `stopProcessor`
+ * LiveKit останавливает генератор, а потом `applyConstraints` и `replaceTrack`: если `applyConstraints`
+ * бросил, основной отправитель остался на остановленном генераторе; запасной отправитель (backup-кодек)
+ * LiveKit при снятии не трогает вовсе — его клон генератора тоже мёртв. Чиним на месте: `replaceTrack`
+ * живым захватом и новый клон запасному. `dead` — сам захват мёртв: это лечит сторож камеры.
+ */
+export async function ensureRawOnSenders(track: LocalVideoTrack): Promise<'ok' | 'fixed' | 'dead'> {
+  const raw = track.mediaStreamTrack;
+  if (raw.readyState !== 'live') return 'dead';
+  let fixed = false;
+  const sender = track.sender;
+  if (sender && sender.track !== raw) {
+    await sender.replaceTrack(raw);
+    fixed = true;
+  }
+  for (const backup of track.simulcastCodecs.values()) {
+    if (!backup.sender) continue;
+    if (backup.mediaStreamTrack.readyState === 'live' && backup.sender.track?.readyState === 'live') continue;
+    backup.mediaStreamTrack = raw.clone();
+    await backup.sender.replaceTrack(backup.mediaStreamTrack);
+    fixed = true;
+  }
+  return fixed ? 'fixed' : 'ok';
+}
+
+/**
  * Фон у дорожки камеры встречи (R153 → R186): ставит обработчик при первом эффекте и переключает его
  * на лету — без переопубликации и без мигания у зрителей. «Без фона» снимает обработчик целиком:
  * лишний проход кадров через конвейер стоит процессора, а движок с моделью остаётся живым у страницы
@@ -31,6 +57,11 @@ export class CameraBackground {
   /** Стоит ли обработчик на дорожке сейчас. */
   get active(): boolean {
     return this.processor !== null;
+  }
+
+  /** Движок, который держит нынешний обработчик, — подписаться на его происшествия (R189, И5). */
+  get engine(): BackgroundEffect | null {
+    return this.processor?.effect ?? null;
   }
 
   /** Применить выбор к дорожке (или к новой дорожке после смены камеры/кодека). */

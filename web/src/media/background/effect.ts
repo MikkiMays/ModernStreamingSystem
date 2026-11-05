@@ -110,7 +110,64 @@ async function engineChoice(choice: BackgroundChoice): Promise<EngineChoice> {
 /** Идущая обработка одного источника. `output` — только у пути через холст (свой захват с холста). */
 interface Running {
   output: MediaStreamTrack | null;
+  /** Кадров ушло в выход — сторожу живости (R189, И5). */
+  frames: () => number;
   stop: () => Promise<void>;
+}
+
+/** Закрыть кадр, если это кадр (в тестах — заглушки без `close`). */
+const closeFrame = (frame: VideoFrame) => {
+  (frame as { close?: () => void }).close?.();
+};
+
+/**
+ * Кадры из воркера — в сток страницы владением через `MessagePort` (R189, И5). Напор — сбросом: пока
+ * прошлый кадр пишется в генератор, следующий закрывается, а не ждёт в очереди; в эфире это один
+ * пропущенный кадр, а не растущая задержка.
+ */
+function receiveFrames(sink: WritableStream<VideoFrame>): {
+  port: MessagePort;
+  frames: () => number;
+  dropped: () => number;
+  stop: () => void;
+} {
+  const channel = new MessageChannel();
+  const writer = sink.getWriter();
+  let busy = false;
+  let alive = true;
+  let frames = 0;
+  let dropped = 0;
+  channel.port1.onmessage = (event: MessageEvent<VideoFrame>) => {
+    const frame = event.data;
+    if (!alive || busy) {
+      if (alive) dropped++;
+      closeFrame(frame);
+      return;
+    }
+    busy = true;
+    frames++;
+    writer
+      .write(frame)
+      .catch(() => closeFrame(frame))
+      .finally(() => {
+        busy = false;
+      });
+  };
+  return {
+    port: channel.port2,
+    frames: () => frames,
+    dropped: () => dropped,
+    stop: () => {
+      alive = false;
+      channel.port1.onmessage = null;
+      channel.port1.close();
+      try {
+        writer.releaseLock();
+      } catch {
+        /* писатель уже отпущен */
+      }
+    },
+  };
 }
 
 /** Путь кадров: воркер, главный поток или холст. Один живой на страницу. */
@@ -198,25 +255,24 @@ class WorkerPath implements Path {
     const api = this.env.streams();
     if (!api || !sink) throw new Error('insertable streams');
     const processor = new api.Processor({ track: source });
-    // Мост: воркер пишет в него, страница переливает в свой сток — генератор остаётся у страницы.
-    const bridge = new TransformStream<VideoFrame, VideoFrame>();
-    const abort = new AbortController();
+    // Воркер получает поток источника владением, а обработанные кадры возвращает владением через порт
+    // (И5); генератор остаётся у страницы.
+    const receiver = receiveFrames(sink);
     this.post(
       {
         type: 'source',
         readable: processor.readable,
-        writable: bridge.writable,
+        port: receiver.port,
         frameRate: source.getSettings().frameRate,
       },
-      [processor.readable, bridge.writable],
+      [processor.readable, receiver.port],
     );
-    const done = bridge.readable.pipeTo(sink, { ...KEEP_SINK, signal: abort.signal }).catch(() => {});
     return {
       output: null,
+      frames: receiver.frames,
       stop: async () => {
         this.post({ type: 'detach' });
-        abort.abort();
-        await done;
+        receiver.stop();
       },
     };
   }
@@ -254,6 +310,8 @@ abstract class LocalPath implements Path {
       typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(2, 2) : document.createElement('canvas');
     this.engine = new Engine(canvas, assets());
     this.engine.onLevel = (state) => console.info(`[cord] background level (${this.kind})`, state);
+    // Модель — заранее, как в воркере (R189): пока она грузится, кадры уходят размытыми целиком.
+    void this.engine.warm(1280, 720).catch(() => {});
     this.statsTimer = setInterval(() => this.engine && this.onStats(this.engine.stats), 1000);
   }
   abstract run(source: MediaStreamTrack, sink: WritableStream<VideoFrame> | null): Promise<Running>;
@@ -283,10 +341,12 @@ class MainPath extends LocalPath {
     const processor = new api.Processor({ track: source });
     const abort = new AbortController();
     engine.resetSource(source.getSettings().frameRate);
+    let frames = 0;
     const done = processor.readable
       .pipeThrough(
         new TransformStream<VideoFrame, VideoFrame>({
           transform(frame, controller) {
+            frames++;
             controller.enqueue(engine.process(frame));
           },
         }),
@@ -296,6 +356,7 @@ class MainPath extends LocalPath {
       .catch(() => {});
     return {
       output: null,
+      frames: () => frames,
       stop: async () => {
         abort.abort();
         await done;
@@ -343,6 +404,7 @@ class CanvasPath extends LocalPath {
       }
     };
     const hasFrame = () => video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0;
+    let drawn = 0;
     const tick = () => {
       armed = false;
       if (!alive) return;
@@ -355,6 +417,7 @@ class CanvasPath extends LocalPath {
           processed = engine.process(frame);
           context.drawImage(processed, 0, 0, canvas.width, canvas.height);
           drawnAt = performance.now();
+          drawn++;
         }
       } catch (error) {
         console.warn('[cord] background canvas frame failed', error);
@@ -393,6 +456,7 @@ class CanvasPath extends LocalPath {
     void video.play().then(schedule, schedule);
     return {
       output,
+      frames: () => drawn,
       stop: async () => {
         alive = false;
         clearTimeout(timer);
@@ -437,7 +501,28 @@ interface Attachment {
   /** Частота источника, о которой знает движок; меняется на лету (`enforceCameraRate`, A9). */
   frameRate: number | undefined;
   rateTimer: ReturnType<typeof setInterval>;
+  /** Сторож живости (R189, И5): кадров на прошлом такте, с каких пор тихо, подряд застываний. */
+  liveTimer: ReturnType<typeof setInterval>;
+  lastFrames: number;
+  quietSince: number | null;
+  flowingSince: number | null;
+  stalls: number;
 }
+
+/** Что случилось с конвейером держателя — сессии (журнал, снятие фона). */
+export interface EffectEvent {
+  kind: 'stalled' | 'dropped';
+  owner: Owner;
+  transport: Transport;
+  at: number;
+}
+
+/** Выход молчит при живом источнике дольше этого — застывание. */
+export const STALL_MS = 3_000;
+/** Столько застываний подряд — конвейер снимается: живая камера важнее фона (И5). */
+export const STALLS_TO_DROP = 3;
+/** Столько кадры шли без застываний — счёт застываний обнуляется. */
+const FLOWING_MS = 15_000;
 
 /** Как часто сверять частоту источника с тем, что знает сторож бюджета. */
 const RATE_POLL_MS = 2000;
@@ -452,7 +537,11 @@ export class BackgroundEffect {
 
   /** Статистика движка — для журнала и диагностики; `null` — движок ещё не поднят. */
   readonly stats = new Store<BackgroundStats | null>(null);
+  /** Последнее происшествие конвейера (R189, И5): каждое — новый объект, подписчики видят каждое. */
+  readonly events = new Store<EffectEvent | null>(null);
   private path: Promise<Path> | null = null;
+  /** Каким путём идут кадры сейчас; `null` — путь ещё не открыт. */
+  private transport: Transport | null = null;
   private attached: Attachment | null = null;
   private choice: BackgroundChoice = { kind: 'none' };
   private release: ReturnType<typeof setTimeout> | undefined;
@@ -551,6 +640,7 @@ export class BackgroundEffect {
       if (this.attached) await this.stopAttachment(this.attached);
       const path = await this.path?.catch(() => null);
       this.path = null;
+      this.transport = null;
       await path?.stop();
       this.stats.set(null);
     });
@@ -585,13 +675,69 @@ export class BackgroundEffect {
           void this.path?.then((p) => p.frameRate(rate)).catch(() => {});
         }
       }, RATE_POLL_MS),
+      liveTimer: setInterval(() => this.checkLiveness(attachment), 1000),
+      lastFrames: 0,
+      quietSince: null,
+      flowingSince: null,
+      stalls: 0,
     };
     return attachment;
+  }
+
+  /**
+   * Сторож живости (R189, И5): источник жив и не заглушён, а в выход кадры не идут {@link STALL_MS} —
+   * конвейер застыл (воркер завис, поток оборвался, движок молчит). Первый раз — тот же путь заново;
+   * второй — с воркера на главный поток; третий — держателю: снять фон, живая камера важнее.
+   */
+  private checkLiveness(attachment: Attachment) {
+    const running = attachment.running;
+    if (!running || this.attached !== attachment) return;
+    const now = Date.now();
+    const frames = running.frames();
+    const source = attachment.source;
+    if (source.readyState !== 'live' || source.muted) {
+      attachment.lastFrames = frames;
+      attachment.quietSince = null;
+      return;
+    }
+    if (frames !== attachment.lastFrames) {
+      attachment.lastFrames = frames;
+      attachment.quietSince = null;
+      attachment.flowingSince ??= now;
+      if (now - attachment.flowingSince >= FLOWING_MS) attachment.stalls = 0;
+      return;
+    }
+    attachment.flowingSince = null;
+    attachment.quietSince ??= now;
+    if (now - attachment.quietSince < STALL_MS) return;
+    attachment.quietSince = null;
+    attachment.stalls++;
+    const transport = this.transport ?? 'main';
+    if (attachment.stalls >= STALLS_TO_DROP) {
+      console.warn('[cord] background pipeline stalled repeatedly, dropping the effect');
+      this.events.set({ kind: 'dropped', owner: attachment.owner, transport, at: now });
+      return;
+    }
+    console.warn('[cord] background pipeline stalled, rebuilding', { stalls: attachment.stalls, transport });
+    this.events.set({ kind: 'stalled', owner: attachment.owner, transport, at: now });
+    if (attachment.stalls >= 2 && transport === 'worker') {
+      this.workerFailed('stalled');
+      return;
+    }
+    void this.enqueue(async () => {
+      if (this.attached !== attachment || !attachment.running) return;
+      await attachment.running.stop();
+      attachment.running = null;
+      const path = await this.ensurePath();
+      attachment.running = await path.run(attachment.source, attachment.sink);
+      attachment.lastFrames = attachment.running.frames();
+    });
   }
 
   private async stopAttachment(attachment: Attachment) {
     if (this.attached === attachment) this.attached = null;
     clearInterval(attachment.rateTimer);
+    clearInterval(attachment.liveTimer);
     await attachment.running?.stop();
     attachment.running = null;
     attachment.output.stop();
@@ -614,9 +760,14 @@ export class BackgroundEffect {
     if (!this.path) {
       const opening = this.openPath();
       this.path = opening;
-      opening.catch(() => {
-        if (this.path === opening) this.path = null;
-      });
+      opening.then(
+        (path) => {
+          if (this.path === opening) this.transport = path.kind;
+        },
+        () => {
+          if (this.path === opening) this.path = null;
+        },
+      );
     }
     return this.path;
   }
@@ -654,6 +805,7 @@ export class BackgroundEffect {
     void this.enqueue(async () => {
       const previous = await this.path?.catch(() => null);
       this.path = null;
+      this.transport = null;
       const attachment = this.attached;
       await attachment?.running?.stop();
       if (attachment) attachment.running = null;
@@ -663,6 +815,7 @@ export class BackgroundEffect {
       if (!attachment) return;
       const path = await this.ensurePath();
       attachment.running = await path.run(attachment.source, attachment.sink);
+      attachment.lastFrames = attachment.running.frames();
       await this.apply(path, choice);
     });
   }

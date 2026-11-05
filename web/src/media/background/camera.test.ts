@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CameraBackground } from './camera';
+import type { LocalVideoTrack } from 'livekit-client';
+import { CameraBackground, ensureRawOnSenders } from './camera';
 import { CordBackgroundProcessor } from './processor';
 
 /*
@@ -83,5 +84,43 @@ describe('фон у дорожки камеры встречи (R186)', () => {
     expect(processor.processedTrack).toBeUndefined();
     expect(processor.source).toBe(raw);
     await expect(processor.restart({ track: raw } as never)).resolves.toBeUndefined();
+  });
+});
+
+describe('отправители после снятия фона (R189, И5)', () => {
+  function senders(rawState: 'live' | 'ended', primaryTrack: unknown, backupState: 'live' | 'ended') {
+    const raw = { readyState: rawState, clone: vi.fn(() => ({ readyState: 'live' })) };
+    const sender = { track: primaryTrack, replaceTrack: vi.fn(async () => {}) };
+    const backupSender = {
+      track: { readyState: backupState },
+      replaceTrack: vi.fn(async () => {}),
+    };
+    const backup = { mediaStreamTrack: { readyState: backupState }, sender: backupSender };
+    const track = {
+      mediaStreamTrack: raw,
+      sender,
+      simulcastCodecs: new Map([['h264', backup]]),
+    } as unknown as LocalVideoTrack;
+    return { track, raw, sender, backup, backupSender };
+  }
+
+  it('основной на остановленном генераторе, запасной на мёртвом клоне — оба переводятся на живой захват', async () => {
+    const { track, raw, sender, backup, backupSender } = senders('live', { readyState: 'ended' }, 'ended');
+    expect(await ensureRawOnSenders(track)).toBe('fixed');
+    expect(sender.replaceTrack).toHaveBeenCalledWith(raw);
+    expect(raw.clone).toHaveBeenCalledOnce();
+    expect(backupSender.replaceTrack).toHaveBeenCalledWith(backup.mediaStreamTrack);
+    expect(backup.mediaStreamTrack.readyState).toBe('live');
+  });
+
+  it('всё и так живое — ничего не трогаем; мёртвый захват — дело сторожа камеры', async () => {
+    const fine = senders('live', null, 'live');
+    (fine.sender as { track: unknown }).track = fine.raw;
+    expect(await ensureRawOnSenders(fine.track)).toBe('ok');
+    expect(fine.sender.replaceTrack).not.toHaveBeenCalled();
+    expect(fine.backupSender.replaceTrack).not.toHaveBeenCalled();
+    const dead = senders('ended', { readyState: 'ended' }, 'ended');
+    expect(await ensureRawOnSenders(dead.track)).toBe('dead');
+    expect(dead.sender.replaceTrack).not.toHaveBeenCalled();
   });
 });

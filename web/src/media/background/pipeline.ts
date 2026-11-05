@@ -1,5 +1,5 @@
 import { BLUR, COMPOSITE, DOWNSAMPLE, REFINE, VERTEX } from './shaders';
-import { blurDivisor, maskSize } from './budget';
+import { BLUR_SIGMA, blurDivisor, maskSize } from './budget';
 
 /**
  * Конвейер сведения кадра с фоном на WebGL2 (R186, Р-89).
@@ -29,6 +29,12 @@ const EDGE_LOW = 0.3;
 const EDGE_HIGH = 0.7;
 /** Доля мягкого фона в цвете края человека: картинка — заметнее, размытие — чуть. */
 const WRAP = { image: 0.5, blur: 0.3 } as const;
+/**
+ * Пока маски нет (модель грузится или не загрузилась), кадр размыт целиком — в обоих режимах (R189, И5).
+ * Картинка с пустой маской закрыла бы человека целиком, а у тёмной картинки это «чёрная камера»;
+ * сырой кадр показал бы комнату. Размытый целиком кадр — живой, и видно, что камера работает.
+ */
+const NO_MASK_LOOK: BackgroundLook = { mode: 'blur', sigma: BLUR_SIGMA.strong };
 
 interface Target {
   texture: WebGLTexture;
@@ -186,21 +192,22 @@ export class Pipeline {
     return this.hasPrev;
   }
 
-  /** Свести загруженный кадр с фоном на холст. */
+  /** Свести загруженный кадр с фоном на холст; без маски — размыть целиком (`NO_MASK_LOOK`). */
   render() {
     const { gl } = this;
     if (!this.masks || !this.blurs) return;
     const mask = this.masks[this.maskRead]!.texture;
+    const look = this.hasPrev ? this.look : NO_MASK_LOOK;
     let bg: WebGLTexture;
     let soft: WebGLTexture;
     let fit: [number, number] = [1, 1];
-    if (this.look.mode === 'image' && this.image) {
+    if (look.mode === 'image' && this.image) {
       if (this.imageSoftDirty) this.softenImage();
       bg = this.image;
       soft = this.imageSoft!.texture;
       fit = this.coverFit();
     } else {
-      bg = this.blurBackground(mask);
+      bg = this.blurBackground(mask, look.sigma);
       soft = bg;
     }
     this.begin(this.composite, null);
@@ -209,8 +216,13 @@ export class Pipeline {
     this.bind(2, bg, this.composite.u('u_bg'));
     this.bind(3, soft, this.composite.u('u_bgSoft'));
     gl.uniform2f(this.composite.u('u_bgFit'), fit[0], fit[1]);
-    gl.uniform1f(this.composite.u('u_wrap'), this.look.mode === 'image' ? WRAP.image : WRAP.blur);
+    gl.uniform1f(this.composite.u('u_wrap'), look.mode === 'image' ? WRAP.image : WRAP.blur);
     this.draw(true);
+  }
+
+  /** Как выглядит кадр сейчас: без маски — размытие целиком, что бы ни выбрали. */
+  get effectiveLook(): BackgroundLook {
+    return this.hasPrev ? this.look : NO_MASK_LOOK;
   }
 
   dispose() {
@@ -232,7 +244,7 @@ export class Pipeline {
   }
 
   /** Размытый фон: кадр, уменьшенный шагами вдвое, затем два взвешенных прохода. */
-  private blurBackground(mask: WebGLTexture): WebGLTexture {
+  private blurBackground(mask: WebGLTexture, sigma: number): WebGLTexture {
     let source = this.frame;
     for (const half of this.halves) {
       this.begin(this.down, half);
@@ -241,7 +253,7 @@ export class Pipeline {
       source = half.texture;
     }
     const [a, b] = this.blurs!;
-    const { weights, taps } = gaussian(this.look.sigma);
+    const { weights, taps } = gaussian(sigma);
     this.blurPass(source, mask, a, [1 / a.width, 0], weights, taps, 0, 1);
     this.blurPass(a.texture, mask, b, [0, 1 / a.height], weights, taps, 1, 1);
     return b.texture;

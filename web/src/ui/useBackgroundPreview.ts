@@ -35,6 +35,9 @@ export function useBackgroundPreview(
       const output = await engine.attach(track, choice, support, 'preview');
       // Движок занят обработчиком встречи — вернулась сырая дорожка: показывать её как есть.
       if (alive) setProcessed(output === track ? null : { source: track, output });
+      // Выход остановили (встреча забрала движок, фон сняли) — назад к сырой дорожке, не чёрный кадр (R189).
+      if (output !== track)
+        output.addEventListener('ended', () => alive && setProcessed(null), { once: true });
     })().catch((error) => console.warn('[cord] background preview failed', error));
     return () => {
       alive = false;

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EffectEnv, WorkerLike } from './effect';
+import { STALL_MS, STALLS_TO_DROP, type EffectEnv, type EffectEvent, type WorkerLike } from './effect';
 
 /*
   Движок фона на странице (R186, ревью A1–A4): выходная дорожка принадлежит странице и переживает
@@ -77,12 +77,20 @@ function fakeTrack(label: string) {
 }
 type FakeTrack = ReturnType<typeof fakeTrack>;
 
-/** Генератор страницы: всё, что в него записали, — в `frames`. */
+/** Генератор страницы: всё, что в него записали, — в `frames`; `slow` — запись ждёт, пока не отпустят. */
 class FakeGenerator {
+  static slow = false;
+  static release: (() => void)[] = [];
   readyState: 'live' | 'ended' = 'live';
   kind = 'video';
   frames: Frame[] = [];
-  writable = new WritableStream<Frame>({ write: (frame) => void this.frames.push(frame) });
+  writable = new WritableStream<Frame>({
+    write: (frame) => {
+      this.frames.push(frame);
+      if (FakeGenerator.slow) return new Promise<void>((resolve) => FakeGenerator.release.push(resolve));
+      return undefined;
+    },
+  });
   stop() {
     this.readyState = 'ended';
   }
@@ -107,13 +115,19 @@ class FakeWorker implements WorkerLike {
   messages: unknown[] = [];
   private abort: AbortController | null = null;
   postMessage(message: unknown) {
-    const m = message as { type: string; readable?: ReadableStream<Frame>; writable?: WritableStream<Frame> };
+    const m = message as { type: string; readable?: ReadableStream<Frame>; port?: MessagePort };
     this.messages.push(m);
     if (m.type === 'init') queueMicrotask(() => this.reply({ type: 'ready' }));
-    if (m.type === 'source' && m.readable && m.writable) {
+    if (m.type === 'source' && m.readable && m.port) {
       this.abort?.abort();
       this.abort = new AbortController();
-      m.readable.pipeTo(m.writable, { signal: this.abort.signal }).catch(() => {});
+      const port = m.port;
+      // Как настоящий воркер: обработанный кадр — на страницу через порт (владением — в браузере).
+      m.readable
+        .pipeTo(new WritableStream<Frame>({ write: (frame) => port.postMessage(frame) }), {
+          signal: this.abort.signal,
+        })
+        .catch(() => {});
     }
     if (m.type === 'detach') this.abort?.abort();
   }
@@ -127,11 +141,15 @@ class FakeWorker implements WorkerLike {
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
-const frame = (id: number): Frame => ({ id, close: () => {} });
+/** Кадр-заглушка: `close` невидим для структурного клонирования — порт его пропускает. */
+const frame = (id: number): Frame =>
+  Object.defineProperty({ id } as Frame, 'close', { value: () => {}, enumerable: false });
 
 let worker: FakeWorker;
 let env: EffectEnv;
 beforeEach(() => {
+  FakeGenerator.slow = false;
+  FakeGenerator.release = [];
   engineLog.constructed = 0;
   engineLog.failConstruct = false;
   engineLog.choices = [];
@@ -297,5 +315,85 @@ describe('движок фона на странице (R186, ревью A1–A4)
     await vi.advanceTimersByTimeAsync(2100);
     const rates = worker.messages.filter((m) => (m as { type: string }).type === 'rate');
     expect(rates).toEqual([{ type: 'rate', frameRate: 60 }]);
+  });
+
+  it('напор — сбросом (R189, И5): пока генератор пишет прошлый кадр, следующий закрывается, а не копится', async () => {
+    const engine = await effect();
+    const source = fakeTrack('cam');
+    FakeGenerator.slow = true;
+    const output = (await engine.attach(
+      source as never,
+      { kind: 'blur', strength: 'light' },
+      'full',
+      'processor',
+    )) as unknown as FakeGenerator;
+    source.push(frame(1));
+    await tick();
+    source.push(frame(2));
+    source.push(frame(3));
+    await tick();
+    // Первый пишется, второй и третий сброшены (в браузере — закрыты) — очереди нет.
+    expect(output.frames.map((f) => f.id)).toEqual([1]);
+    FakeGenerator.release.forEach((release) => release());
+    await tick();
+    source.push(frame(4));
+    await tick();
+    expect(output.frames.map((f) => f.id)).toEqual([1, 4]);
+  });
+
+  it('сторож живости (И5): выход молчит при живом источнике — пересборка, затем главный поток, затем «снять»', async () => {
+    // Порт доставляет кадры настоящим циклом событий: подделываем только таймеры и часы.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const drain = async () => {
+      for (let i = 0; i < 4; i++) await new Promise<void>((resolve) => setImmediate(resolve));
+    };
+    const engine = await effect();
+    const events: EffectEvent[] = [];
+    engine.events.subscribe(() => {
+      const event = engine.events.get();
+      if (event) events.push(event);
+    });
+    const source = fakeTrack('cam');
+    const attached = engine.attach(source as never, { kind: 'blur', strength: 'light' }, 'full', 'processor');
+    await vi.advanceTimersByTimeAsync(10);
+    const output = (await attached) as unknown as FakeGenerator;
+    const sources = () => worker.messages.filter((m) => (m as { type: string }).type === 'source').length;
+    expect(sources()).toBe(1);
+    source.push(frame(1));
+    await drain();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(output.frames).toHaveLength(1);
+    // Кадры идут — тишины нет.
+    for (let i = 2; i < 6; i++) {
+      source.push(frame(i));
+      await drain();
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    expect(events).toEqual([]);
+    // Источник жив, а кадров нет: первое застывание — тот же путь заново (новый `source` воркеру).
+    await vi.advanceTimersByTimeAsync(STALL_MS + 1000);
+    await drain();
+    expect(events.map((e) => e.kind)).toEqual(['stalled']);
+    expect(sources()).toBe(2);
+    expect(output.readyState).toBe('live');
+    // Второе — переезд на главный поток.
+    await vi.advanceTimersByTimeAsync(STALL_MS + 1000);
+    await drain();
+    expect(events.map((e) => e.kind)).toEqual(['stalled', 'stalled']);
+    expect(engineLog.constructed).toBe(1);
+    // Третье — держателю: снять фон; выход при этом не трогаем — это решает держатель.
+    await vi.advanceTimersByTimeAsync(STALL_MS + 1000);
+    await drain();
+    expect(events.map((e) => e.kind)).toEqual(['stalled', 'stalled', 'dropped']);
+    expect(events.length).toBe(STALLS_TO_DROP);
+    expect(output.readyState).toBe('live');
+    // Заглушённый или кончившийся источник — не застывание.
+    const quiet = fakeTrack('cam-2');
+    (quiet as { muted?: boolean }).muted = true;
+    const second = engine.attach(quiet as never, { kind: 'blur', strength: 'light' }, 'full', 'processor');
+    await vi.advanceTimersByTimeAsync(10);
+    await second;
+    await vi.advanceTimersByTimeAsync(STALL_MS * 3);
+    expect(events).toHaveLength(STALLS_TO_DROP);
   });
 });

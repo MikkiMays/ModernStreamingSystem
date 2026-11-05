@@ -49,15 +49,24 @@ async function handle(message: ToWorker) {
       abort = new AbortController();
       engine.resetSource(message.frameRate);
       const current = engine;
+      const port = message.port;
       const transform = new TransformStream<VideoFrame, VideoFrame>({
         transform(frame, controller) {
           controller.enqueue(current.process(frame));
         },
       });
+      // Кадр уходит на страницу владением: после `postMessage` он здесь закрыт (И5). Напор — на
+      // странице: занятый генератор закрывает лишний кадр, а не копит очередь.
+      const sink = new WritableStream<VideoFrame>({
+        write(frame) {
+          port.postMessage(frame, [frame]);
+        },
+      });
       message.readable
         .pipeThrough(transform, { signal: abort.signal })
-        .pipeTo(message.writable, { signal: abort.signal })
-        .catch(() => {});
+        .pipeTo(sink, { signal: abort.signal })
+        .catch(() => {})
+        .finally(() => port.close());
       return;
     }
     case 'detach':
