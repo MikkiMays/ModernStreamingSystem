@@ -319,6 +319,9 @@ export class Meeting {
     this.media.setServiceParticipants(
       snapshot.participants.filter((person) => person.service).map((person) => person.id),
     );
+    this.media.setRecoveringPeople(
+      snapshot.participants.filter((person) => person.status === 'RECOVERING').map((person) => person.id),
+    );
     // Зрители своей камеры и показа — люди на связи, кроме себя; у кого `decodes` нет, тот ещё не
     // сообщил (его прикроет запасной кодек).
     this.media.setViewerDecodes(

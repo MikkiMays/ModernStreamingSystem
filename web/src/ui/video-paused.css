@@ -1,25 +1,18 @@
 /*
-  Пауза чужого видео от SFU (R117, `Stage.tsx`). Последний кадр приглушается, сверху плитки —
-  спокойная плашка на месте «Восстанавливаем связь…» (та старше, вдвоём они не бывают), на показе —
-  посередине кадра. Появляется плавно, гаснет сразу: на возврат картинки перехода нет — живой кадр
-  под вуалью был бы той же неправдой, что и молча застывший.
+  Почему чужое видео стоит (R117, R189, `Stage.tsx`). Кадр остаётся каким был, без вуали: приглушённый он читался
+  как «камера гаснет». В углу плитки — спокойная плашка, на показе — посередине кадра. Появляется плавно, гаснет
+  сразу.
 */
-.person-tile[data-paused='true'] .camera-video,
-.watch-stage[data-paused='true'] .screen-video {
-  opacity: 0.45;
-  transition: opacity var(--motion-slow) var(--ease-standard);
-}
 .video-paused {
   position: absolute;
   z-index: 3;
-  top: var(--space-3);
-  left: 50%;
-  transform: translateX(-50%);
+  top: var(--space-2);
+  left: var(--space-2);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  /* Между «…» справа и тем же местом слева — как у «Восстанавливаем связь…». */
-  max-width: calc(100% - 2 * (var(--control-sm) + var(--space-3)));
+  /* Справа в том же ряду — «…». */
+  max-width: calc(100% - var(--control-sm) - var(--space-6));
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-2);
   background: color-mix(in srgb, var(--stage-bg) 75%, transparent);
@@ -28,6 +21,10 @@
   white-space: nowrap;
   pointer-events: none;
   animation: video-paused-in var(--motion-slow) var(--ease-standard);
+}
+/* Закреплённая: угол занят «Открепить» — плашка под ней. */
+.person-tile[data-pinned='true'] .video-paused {
+  top: calc(var(--space-2) + var(--control-sm) + var(--space-1));
 }
 .video-paused > svg {
   flex: none;
@@ -39,8 +36,9 @@
   text-overflow: ellipsis;
 }
 /* На показе смотрят только на кадр — плашка посередине и крупнее. */
-.watch-stage .video-paused {
+.screen-viewport .video-paused {
   top: 50%;
+  left: 50%;
   transform: translate(-50%, -50%);
   max-width: calc(100% - var(--space-8));
   padding: var(--space-2) var(--space-4);
@@ -49,6 +47,7 @@
 /* В ленте под столом или плеером плитка с визитку: остаётся значок, слова — подсказкой. */
 .people-strip .video-paused {
   top: var(--space-1);
+  left: var(--space-1);
   padding: var(--space-1);
 }
 .people-strip .video-paused > span {

@@ -11,6 +11,7 @@ import {
 } from 'react';
 import {
   HeadphoneOff,
+  ImageOff,
   Maximize2,
   MicOff,
   Minimize2,
@@ -25,6 +26,8 @@ import {
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
+import type { PauseCause } from '../media/video-pause';
+import { videoPool } from '../media/video-pool';
 import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
@@ -68,15 +71,11 @@ export function mirrored(tile: Pick<MediaTile, 'local' | 'source' | 'track'>) {
   return tile.track.mediaStreamTrack?.getSettings().facingMode !== 'environment';
 }
 
-function VideoTrack({
-  tile,
-  screen = false,
-  onPlaying,
-}: {
-  tile: MediaTile;
-  screen?: boolean;
-  onPlaying?: () => void;
-}) {
+/**
+ * Экран в кадре. Камера живёт иначе (`CameraVideo`): показ крупно один, переносить его некуда, а своя
+ * плитка показа и он сам видны по очереди.
+ */
+function ScreenVideo({ tile, onPlaying }: { tile: MediaTile; onPlaying?: () => void }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -84,8 +83,38 @@ function VideoTrack({
     if (!element) return;
     tile.track.attach(element);
     element.muted = true;
+    return () => {
+      tile.track.detach(element);
+    };
+  }, [tile.track]);
+  return (
+    <video
+      ref={ref}
+      onPlaying={onPlaying}
+      autoPlay
+      playsInline
+      muted
+      className="screen-video"
+      aria-label={t(($) => $.stage.screenOf, { name: tile.name })}
+    />
+  );
+}
+/**
+ * Камера в плитке (R189, И5). Сам `<video>` принадлежит дорожке (`media/video-pool.ts`), а не плитке: при
+ * переносе между сеткой, крупным местом и лентой он едет с кадром и потоком, и плитка не стоит пустой. Эффект
+ * — `useLayoutEffect`: cleanup старой плитки идёт, пока её узлы ещё в документе, установка в новую — до
+ * отрисовки.
+ */
+function CameraVideo({ tile }: { tile: MediaTile }) {
+  const { t } = useTranslation();
+  const slot = useRef<HTMLDivElement>(null);
+  const label = t(($) => $.stage.cameraOf, { name: tile.name });
+  useLayoutEffect(() => {
+    const host = slot.current;
+    if (!host) return;
+    const view = videoPool.mount(tile.id, tile.track, host);
     const mirror = () => {
-      element.style.transform = mirrored(tile) ? 'scaleX(-1)' : 'none';
+      view.video.style.transform = mirrored(tile) ? 'scaleX(-1)' : 'none';
     };
     mirror();
     /*
@@ -97,62 +126,53 @@ function VideoTrack({
       пропорции источника — тогда вписывать уже нечего.
 
       Размер известен только после метаданных и меняется на смену камеры, поэтому не
-      считается один раз.
+      считается один раз. Перенесённый `<video>` размер уже знает: новая плитка сразу той же формы.
 
-      Плитку находим сейчас, пока `<video>` в ней: уборка этого эффекта идёт уже после того,
-      как React вынул видео из документа, и `closest` оттуда не находит ничего — портрет
-      оставался на аватаре выключившего камеру.
+      События медиа не всплывают, поэтому слушаем на перехвате: элемент может смениться (`replace`).
     */
-    const owner = screen ? null : element.closest<HTMLElement>('.person-tile');
+    const owner = host.closest<HTMLElement>('.person-tile');
     const fit = () => {
-      if (!owner || !element.videoWidth || !element.videoHeight) return;
-      owner.style.setProperty('--tile-aspect', `${element.videoWidth} / ${element.videoHeight}`);
+      const { videoWidth, videoHeight } = view.video;
+      if (!owner || !videoWidth || !videoHeight) return;
+      owner.style.setProperty('--tile-aspect', `${videoWidth} / ${videoHeight}`);
     };
     fit();
-    element.addEventListener('loadedmetadata', fit);
-    element.addEventListener('resize', fit);
+    host.addEventListener('loadedmetadata', fit, true);
+    host.addEventListener('resize', fit, true);
     // Переворот камеры пересобирает дорожку, а не создаёт новую плитку, поэтому решение о
     // зеркале нужно принимать заново здесь: `Restarted` — единственное место, где об этом
     // вообще становится известно.
     tile.track.on(TrackEvent.Restarted, mirror);
     return () => {
-      element.removeEventListener('loadedmetadata', fit);
-      element.removeEventListener('resize', fit);
+      host.removeEventListener('loadedmetadata', fit, true);
+      host.removeEventListener('resize', fit, true);
       tile.track.off(TrackEvent.Restarted, mirror);
-      tile.track.detach(element);
+      view.unmount();
       // Дорожка ушла — пропорции вместе с ней: иначе аватар унаследует форму чужого кадра.
       owner?.style.removeProperty('--tile-aspect');
     };
-  }, [tile.track, tile.local, screen]);
-  return (
-    <video
-      ref={ref}
-      onPlaying={onPlaying}
-      autoPlay
-      playsInline
-      muted
-      className={screen ? 'screen-video' : 'camera-video'}
-      aria-label={
-        screen
-          ? t(($) => $.stage.screenOf, { name: tile.name })
-          : t(($) => $.stage.cameraOf, { name: tile.name })
-      }
-    />
-  );
+  }, [tile.id, tile.track, tile.local]);
+  useLayoutEffect(() => {
+    slot.current?.querySelector('video')?.setAttribute('aria-label', label);
+  }, [label, tile.id, tile.track, tile.local]);
+  return <div ref={slot} className="video-slot" />;
 }
 /**
- * «Видео приостановлено: слабая связь» (R117) — SFU перестал слать нам эту картинку, чтобы сберечь
- * речь и музыку. Тон спокойный, не тревога: делать человеку нечего, видео вернётся само. Задержку
- * против мигания уже выдержала сессия (`media/video-pause.ts`), здесь только слова.
+ * Почему картинка стоит — значком в углу, сам кадр остаётся как был (R117, R189). Тон спокойный: делать
+ * человеку нечего. «Слабая связь» — только когда так сказал SFU (`sfu`: он перестал слать нам картинку, чтобы
+ * сберечь речь и музыку). Кадров нет, а SFU молчит (`silent`) — причина неизвестна, камера могла встать и у
+ * отправителя, поэтому и слова другие. Задержку против мигания уже выдержала сессия
+ * (`media/video-pause.ts`), здесь только слова.
  */
-function VideoPausedNote({ announce = false }: { announce?: boolean }) {
+function VideoPausedNote({ cause, announce = false }: { cause: PauseCause; announce?: boolean }) {
   const { t } = useTranslation();
-  const text = t(($) => $.stage.videoPaused);
+  const text = cause === 'sfu' ? t(($) => $.stage.videoPaused) : t(($) => $.stage.videoStalled);
+  const Icon = cause === 'sfu' ? WifiLow : ImageOff;
   return (
     // Объявляет только показ: плиток на паузе бывает несколько разом, и читать надпись каждой —
     // шум. На плитке её видно, а полностью — подсказкой, когда подпись обрезана.
     <span className="video-paused" role={announce ? 'status' : undefined} title={text}>
-      <WifiLow size={16} aria-hidden="true" />
+      <Icon size={16} aria-hidden="true" />
       <span>{text}</span>
     </span>
   );
@@ -348,32 +368,34 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
       1. камера выключена или ещё не пришла — паузы нет: приглушать нечего, на плитке аватар;
       2. участник переподключается — «Восстанавливаем связь…»: кадр стоит из-за него, а не из-за
          нашего канала, и «слабая связь» на его плитке указала бы не туда;
-      3. иначе — «Видео приостановлено: слабая связь».
+      3. иначе — надпись по причине: «слабая связь», только если так сказал SFU, иначе «картинка не обновляется».
       Показ экрана живёт своей плиткой (R183), а не поверх плитки человека. Своё переподключение и зависание кадра решает сессия: надписи гаснут, пока нет
       связи, а сторож зависаний не трогает дорожку на паузе.
     */
     const recovering = person.status === 'RECOVERING';
-    const paused = !!camera && !recovering && !!pausedVideo[camera.id];
+    const pause = camera && !recovering ? pausedVideo[camera.id] : undefined;
     return (
       <ParticipantMenu
         meeting={meeting}
         person={person}
         key={person.id}
         className="person-tile"
-        data-paused={paused ? 'true' : undefined}
+        data-paused={pause}
         data-pinned={pinned === person.id ? 'true' : undefined}
         // Крупно над лентой — закреплённый или говорящий. Смена говорящего переносит две плитки
         // между крупным местом и лентой; выбор залипает (`ui/focus.ts`), так что это редкость.
         data-focused={spotlight === person.id ? 'true' : undefined}
         style={cell(index, placed)}
       >
-        {camera ? (
-          <VideoTrack tile={camera} />
-        ) : (
-          <div className="person-placeholder">
-            <Avatar name={person.name} src={person.avatar} large />
-          </div>
-        )}
+        {/* Аватар есть всегда: под видео он ждёт первого кадра (R189, И5), и пустой плитки не бывает. */}
+        <div
+          className="person-placeholder"
+          data-under={camera ? 'true' : undefined}
+          aria-hidden={camera ? true : undefined}
+        >
+          <Avatar name={person.name} src={person.avatar} large />
+        </div>
+        {camera && <CameraVideo tile={camera} />}
         {/* Обводка вместо надписи: кто говорит, узнаётся боковым зрением. Заглушённый микрофон
             рядом остаётся отдельным знаком — на цвет полагаться нельзя. */}
         <VoiceRing meeting={meeting} id={person.id} />
@@ -404,7 +426,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
           </button>
         )}
         {recovering && <div className="tile-recovery">{t(($) => $.stage.recovering)}</div>}
-        {paused && <VideoPausedNote />}
+        {pause && <VideoPausedNote cause={pause} />}
       </ParticipantMenu>
     );
   };
@@ -427,7 +449,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
         style={cell(index, placed)}
       >
         {show.own && ownScreen ? (
-          <VideoTrack tile={ownScreen} screen />
+          <ScreenVideo tile={ownScreen} />
         ) : (
           <div
             className="screen-preview"
@@ -493,7 +515,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
     // Пауза показа (R117) — только поверх кадра, который уже есть («Подключаемся к стриму…» старше),
     // и не у переподключающегося показывающего: тогда кадр стоит из-за него, а не из-за нашего канала.
     const sharer = participants.find((p) => p.id === viewing.participantId);
-    const paused = !own && !!screen && sharer?.status !== 'RECOVERING' && !!pausedVideo[screen.id];
+    const pause = !own && screen && sharer?.status !== 'RECOVERING' ? pausedVideo[screen.id] : undefined;
     const show = shows.find((item) => item.screenId === viewing.screenId);
     const name = show ? showName(show) : t(($) => $.stage.screenOf, { name: sharer?.name ?? '' });
     const others = shows.filter((item) => item.screenId !== viewing.screenId);
@@ -501,7 +523,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
     return (
       <div
         className="stage watch-stage presentation-stage media-stage"
-        data-paused={paused ? 'true' : undefined}
+        data-paused={pause}
         data-own={own ? 'true' : undefined}
         data-strip={fullscreen?.full && stripInFull ? 'shown' : undefined}
       >
@@ -543,9 +565,8 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
                 className="screen-transform"
                 style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
               >
-                <VideoTrack
+                <ScreenVideo
                   tile={screen}
-                  screen
                   onPlaying={own ? undefined : () => meeting.screenPlaying(viewing.screenId)}
                 />
               </div>
@@ -554,7 +575,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
                 {t(($) => $.stage.streamConnecting)}
               </div>
             )}
-            {paused && <VideoPausedNote announce />}
+            {pause && <VideoPausedNote cause={pause} announce />}
           </div>
           {/* «Открепить» — как у закреплённой камеры (R83): показ уходит плиткой в сетку, нажатие по ней
               возвращает его крупно. */}

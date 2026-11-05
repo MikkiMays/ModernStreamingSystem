@@ -6,6 +6,7 @@ import {
   Headphones,
   PhoneOff,
   Users,
+  Video,
   Wifi,
   WifiOff,
   X,
@@ -210,6 +211,8 @@ export function MeetingView({
   const audioNeedsGesture = useCallback(() => setAudioBlocked(true), []);
   /** Свой `AudioContext` уснул (фон, обычный звонок, перезагрузка без касания) — нужна та же кнопка. */
   const audioAsleep = useStore(meeting.media.audio.blocked);
+  /** Браузер не играет видео без жеста — кадры идут, а на плитках аватары. */
+  const videoBlocked = useStore(meeting.media.videoBlocked);
   const leaveMeeting = () => {
     void meeting.leave();
     onHome();
@@ -451,13 +454,28 @@ export function MeetingView({
                 size="lg"
                 className="audio-unlock"
                 icon={<Headphones />}
-                onClick={() => void meeting.media.unlockAudio().then(() => setAudioBlocked(false))}
+                onClick={() =>
+                  void Promise.all([meeting.media.unlockAudio(), meeting.media.unlockVideo()]).then(() =>
+                    setAudioBlocked(false),
+                  )
+                }
               >
                 {t(($) => $.meeting.view.unlockAudio)}
               </Button>
             )}
+            {videoBlocked && !(audioBlocked || audioAsleep) && !ended && (
+              <Button
+                variant="primary"
+                size="lg"
+                className="audio-unlock"
+                icon={<Video />}
+                onClick={() => void meeting.media.unlockVideo()}
+              >
+                {t(($) => $.meeting.view.unlockVideo)}
+              </Button>
+            )}
             {/* Кнопка «Включить звук» стоит на том же месте и важнее подсказки. */}
-            {!(audioBlocked || audioAsleep) && <BackgroundNote meeting={meeting} />}
+            {!(audioBlocked || audioAsleep || videoBlocked) && <BackgroundNote meeting={meeting} />}
             {media.error && !ended && (
               <div className="media-error media-stage" role="alert">
                 <span>{media.error}</span>

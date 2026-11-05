@@ -129,6 +129,7 @@ export default function Diagnostics({
   // Задержка доски (R159): от штриха соседа до этого экрана, пока доска на сцене.
   const board = useStore(meeting.boardLatency);
   const pauses = useStore(meeting.media.videoPauseCount);
+  const stalls = useStore(meeting.media.videoStallCount);
   useEffect(() => {
     let disposed = false;
     let busy = false;
@@ -189,6 +190,10 @@ export default function Diagnostics({
       ...(media.blocked ? [`media blocked: ${media.blocked.tls ? 'turn-tls offered' : 'no turn-tls'}`] : []),
       ...targets.map((target) => `playout: ${target.kind} ${target.targetMs} ms`),
       ...(pauses ? [`video paused by sfu: ${pauses}`] : []),
+      ...(stalls ? [`video stalled, cause unknown: ${stalls}`] : []),
+      ...Object.entries(meeting.media.cameraHealReport()).map(
+        ([action, count]) => `camera self-heal: ${action} ${count}`,
+      ),
       ...(['camera', 'screen'] as const).flatMap((source) => {
         const info = codecs[source];
         return info ? [codecLine(source, info)] : [];
@@ -298,7 +303,7 @@ export default function Diagnostics({
           {pauses > 0 && (
             <p
               className="diagnostics-card__note"
-              data-tone={Object.keys(pausedNow).length ? 'warning' : undefined}
+              data-tone={Object.values(pausedNow).includes('sfu') ? 'warning' : undefined}
               role="status"
             >
               {t(($) => $.diagnostics.videoPaused, { count: pauses })}

@@ -9,7 +9,13 @@ import {
   createLocalAudioTrack,
   type RoomOptions,
 } from 'livekit-client';
-import { HANDED_MICROPHONE_MS, MediaSession, MIC_UNMUTE_GRACE_MS, SCREEN_GONE_GRACE_MS } from './session';
+import {
+  HANDED_MICROPHONE_MS,
+  HOLD_CAMERA_MS,
+  MediaSession,
+  MIC_UNMUTE_GRACE_MS,
+  SCREEN_GONE_GRACE_MS,
+} from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter, ScreenAudioEvent, ScreenAudioSource } from './capture';
 import { fakeCameraTrack } from './fake-track';
@@ -1480,6 +1486,8 @@ describe('пауза видео от SFU', () => {
         ]),
     );
     const track = { kind: Track.Kind.Video, streamState: Track.StreamState.Active, getRTCStatsReport: stats };
+    // Отписка в SDK кончается событием: без него переподписка ждала бы свои 2 с настоящего таймера.
+    let unsubscribed: (() => void) | undefined;
     const camera = {
       trackSid: 'TR_cam',
       source: Track.Source.Camera,
@@ -1489,7 +1497,11 @@ describe('пауза видео от SFU', () => {
       isEnabled: true,
       isMuted: false,
       isDesired: true,
-      setSubscribed: vi.fn(),
+      once: vi.fn((_event: string, done: () => void) => (unsubscribed = done)),
+      off: vi.fn(),
+      setSubscribed: vi.fn((subscribed: boolean) => {
+        if (!subscribed) unsubscribed?.();
+      }),
     };
     const mic = { ...camera, trackSid: 'TR_mic', source: Track.Source.Microphone, kind: Track.Kind.Audio };
     const peer = {
@@ -1515,6 +1527,7 @@ describe('пауза видео от SFU', () => {
       setState,
       checkLive,
       health,
+      peer,
       grow: () => (received += 5),
     };
   }
@@ -1528,7 +1541,7 @@ describe('пауза видео от SFU', () => {
       vi.advanceTimersByTime(699);
       expect(f.media.videoPaused.get()).toEqual({});
       vi.advanceTimersByTime(1);
-      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: 'sfu' });
       expect(f.media.videoPauseCount.get()).toBe(1);
       f.setState(f.camera, Track.StreamState.Active);
       expect(f.media.videoPaused.get()).toEqual({});
@@ -1551,7 +1564,7 @@ describe('пауза видео от SFU', () => {
       vi.advanceTimersByTime(699);
       expect(f.media.videoPaused.get()).toEqual({});
       vi.advanceTimersByTime(1);
-      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: 'sfu' });
       // Та же пауза, а не новая.
       expect(f.media.videoPauseCount.get()).toBe(1);
     } finally {
@@ -1587,7 +1600,7 @@ describe('пауза видео от SFU', () => {
       // На паузе — ни наблюдения, ни истории: после паузы сторож начнёт с чистого листа.
       expect(f.health().has('TR_cam')).toBe(false);
       await f.checkLive();
-      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: 'sfu' });
       f.grow();
       await f.checkLive();
       expect(f.media.videoPaused.get()).toEqual({});
@@ -1600,37 +1613,147 @@ describe('пауза видео от SFU', () => {
     }
   });
 
-  it('SFU замолчал без слова «пауза»: кадров нет 4 с при живом звуке — та же надпись, новые кадры гасят (R119)', async () => {
+  it('SFU замолчал без слова «пауза»: своя надпись, не «слабая связь», и сторож чинит, со звуком или без (R189)', async () => {
     vi.useFakeTimers();
     const f = peerWithCamera();
-    const flowing = (on: boolean) => ((f.media as unknown as { audioFlowing: boolean }).audioFlowing = on);
-    // Опрос буфера здесь не идёт (в комнате нет звука): свидетель звука задаётся руками.
-    (f.media as unknown as { tunePlayout(): Promise<void> }).tunePlayout = async () => {};
     try {
-      flowing(true);
       await f.checkLive();
-      await vi.advanceTimersByTimeAsync(2000);
-      await f.checkLive();
-      await vi.advanceTimersByTimeAsync(2000);
-      await f.checkLive();
+      // Кадры стоят 4 с — сторож пробует переподписать раньше, чем что-то скажет.
+      for (let i = 0; i < 2; i++) {
+        await vi.advanceTimersByTimeAsync(2000);
+        await f.checkLive();
+      }
+      expect(f.camera.setSubscribed).toHaveBeenCalledWith(false);
       expect(f.media.videoPaused.get()).toEqual({});
-      await vi.advanceTimersByTimeAsync(700);
-      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
-      expect(f.media.videoPauseCount.get()).toBe(1);
-      // Сторож зависаний на выведенной паузе молчит, как и на паузе от SFU.
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: 'silent' });
+      // Паузой от SFU это не считается: её счётчик и слова — про канал зрителя.
+      expect(f.media.videoPauseCount.get()).toBe(0);
+      expect(f.media.videoStallCount.get()).toBe(1);
+      // Сторож зависаний дальше смотрит за дорожкой: тишина его больше не выключает.
+      expect(f.health().has('TR_cam')).toBe(true);
+      f.grow();
       await f.checkLive();
-      expect(f.health().has('TR_cam')).toBe(false);
-      expect(f.camera.setSubscribed).not.toHaveBeenCalled();
       f.grow();
       await f.checkLive();
       expect(f.media.videoPaused.get()).toEqual({});
-      // Без звука тишина камеры — не пауза: молчит весь путь.
-      flowing(false);
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('SFU сказал «пауза» — ни одной переподписки, сколько бы она ни длилась', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
       await f.checkLive();
-      await vi.advanceTimersByTimeAsync(6000);
+      f.setState(f.camera, Track.StreamState.Paused);
+      for (let i = 0; i < 40; i++) {
+        await vi.advanceTimersByTimeAsync(2000);
+        await f.checkLive();
+      }
+      expect(f.camera.setSubscribed).not.toHaveBeenCalled();
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: 'sfu' });
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('переподписка держит плитку: пока новой дорожки нет — прежняя, новая — той же плиткой', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
+      f.room.emit(RoomEvent.TrackSubscribed);
+      await Promise.resolve();
+      const before = f.media.tracks.get().find((tile) => tile.id === 'TR_cam')!;
+      (f.media as unknown as { holdCamera(p: unknown): void }).holdCamera(f.camera);
+      const old = f.camera.track;
+      (f.camera as { track?: unknown }).track = undefined;
+      f.room.emit(RoomEvent.TrackUnsubscribed);
+      await Promise.resolve();
+      expect(f.media.tracks.get().find((tile) => tile.id === 'TR_cam')?.track).toBe(before.track);
+      // Подписка так и не вернулась — через срок плитка отдаёт место аватару.
+      await vi.advanceTimersByTimeAsync(HOLD_CAMERA_MS);
+      expect(f.media.tracks.get().find((tile) => tile.id === 'TR_cam')).toBeUndefined();
+      // Вернулась — обычная плитка с новой дорожкой, и держать больше нечего.
+      (f.media as unknown as { holdCamera(p: unknown): void }).holdCamera({ ...f.camera, track: old });
+      const fresh = { ...old };
+      (f.camera as { track?: unknown }).track = fresh;
+      f.room.emit(RoomEvent.TrackSubscribed);
+      await Promise.resolve();
+      expect(f.media.tracks.get().find((tile) => tile.id === 'TR_cam')?.track).toBe(fresh);
+      (f.camera as { track?: unknown }).track = undefined;
+      f.room.emit(RoomEvent.TrackUnsubscribed);
+      await Promise.resolve();
+      expect(f.media.tracks.get().find((tile) => tile.id === 'TR_cam')).toBeUndefined();
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('желанная без дорожки — подписка переключается заново; SDK сказал «не удалась» — не ждём', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
+      (f.camera as { track?: unknown }).track = undefined;
+      (f.camera as { isSubscribed: boolean }).isSubscribed = false;
       await f.checkLive();
-      await vi.advanceTimersByTimeAsync(700);
-      expect(f.media.videoPaused.get()).toEqual({});
+      await vi.advanceTimersByTimeAsync(3000);
+      await f.checkLive();
+      expect(f.camera.setSubscribed).not.toHaveBeenCalled();
+      f.room.emit(RoomEvent.TrackSubscriptionFailed, 'TR_cam', f.peer, 'nope');
+      const check = f.checkLive();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.camera.setSubscribed).toHaveBeenLastCalledWith(false);
+      await vi.advanceTimersByTimeAsync(1000);
+      await check;
+      expect(f.camera.setSubscribed).toHaveBeenLastCalledWith(true);
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('участник переподключается, камера заглушена, плитки не видно, вкладка скрыта — сторож молчит', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    const run = async (rounds = 20) => {
+      for (let i = 0; i < rounds; i++) {
+        await vi.advanceTimersByTimeAsync(2000);
+        await f.checkLive();
+      }
+    };
+    try {
+      f.media.setRecoveringPeople(['peer']);
+      await run();
+      f.media.setRecoveringPeople([]);
+      f.camera.isMuted = true;
+      await run();
+      f.camera.isMuted = false;
+      f.camera.isEnabled = false;
+      await run();
+      f.camera.isEnabled = true;
+      const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+      await run();
+      hidden.mockRestore();
+      expect(f.camera.setSubscribed).not.toHaveBeenCalled();
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('браузер не играет видео без жеста — кнопка; жест снимает её', async () => {
+    const f = peerWithCamera();
+    const room = f.room as unknown as { canPlaybackVideo: boolean; startVideo: () => Promise<void> };
+    try {
+      room.canPlaybackVideo = false;
+      room.startVideo = vi.fn(async () => {
+        room.canPlaybackVideo = true;
+      });
+      f.room.emit(RoomEvent.VideoPlaybackStatusChanged, false);
+      expect(f.media.videoBlocked.get()).toBe(true);
+      await f.media.unlockVideo();
+      expect(room.startVideo).toHaveBeenCalledTimes(1);
+      expect(f.media.videoBlocked.get()).toBe(false);
     } finally {
       f.media.dispose();
     }
@@ -1644,7 +1767,7 @@ describe('пауза видео от SFU', () => {
       await Promise.resolve();
       f.setState(f.camera, Track.StreamState.Paused);
       vi.advanceTimersByTime(700);
-      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: 'sfu' });
       (f.camera as { track?: unknown }).track = undefined;
       f.room.emit(RoomEvent.TrackUnsubscribed);
       await Promise.resolve();

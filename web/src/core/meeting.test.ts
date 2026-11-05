@@ -20,6 +20,7 @@ vi.mock('../media/session', async () => {
       });
       holdMicrophone = vi.fn(async () => {});
       setServiceParticipants = vi.fn();
+      setRecoveringPeople = vi.fn();
       setViewerDecodes = vi.fn();
       rememberPeople = vi.fn();
       watchScreen = vi.fn();

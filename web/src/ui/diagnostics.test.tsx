@@ -70,6 +70,8 @@ function fakeMeeting(tracks: unknown[] = []) {
       tracks: new Store(tracks),
       videoPaused: new Store({}),
       videoPauseCount: new Store(0),
+      videoStallCount: new Store(0),
+      cameraHealReport: () => ({}),
       playoutTargets: () => [{ kind: 'media', targetMs: 600 }],
       returnToLive: vi.fn(),
       codecInfo: (source: string) =>
@@ -194,13 +196,13 @@ describe('«Диагностика»', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const meeting = fakeMeeting();
     const { media } = meeting as unknown as {
-      media: { videoPaused: Store<Record<string, true>>; videoPauseCount: Store<number> };
+      media: { videoPaused: Store<Record<string, string>>; videoPauseCount: Store<number> };
     };
     render(<Diagnostics meeting={meeting} onClose={vi.fn()} onHelp={vi.fn()} onReport={vi.fn()} />);
     expect(screen.queryByText(/Видео у вас приостанавливалось/)).toBeNull();
     act(() => {
       media.videoPauseCount.set(2);
-      media.videoPaused.set({ TR_cam: true });
+      media.videoPaused.set({ TR_cam: 'sfu' });
     });
     const note = screen.getByText(
       'Видео у вас приостанавливалось 2 раза: канал не тянул картинку, и сервер сберёг речь и музыку. Картинка возвращается сама, когда связь выправляется.',
