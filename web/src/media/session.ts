@@ -1057,7 +1057,7 @@ export class MediaSession {
             if (!publication.track) {
               if (publication.isDesired)
                 jobs.push(
-                  this.healCamera(
+                  this.healRemoteCamera(
                     watch.observe({
                       now: Date.now(),
                       subscription: undefined,
@@ -1124,7 +1124,7 @@ export class MediaSession {
               });
               if (watch) {
                 const element = videoPool.sample(publication.trackSid);
-                await this.healCamera(
+                await this.healRemoteCamera(
                   watch.observe({
                     now,
                     subscription: track,
@@ -1167,7 +1167,7 @@ export class MediaSession {
     return watch;
   }
   /** Исполнить решение сторожа камеры: подписка — здесь, элемент — у пула страницы. */
-  private async healCamera(
+  private async healRemoteCamera(
     action: CameraAction,
     identity: string,
     publication: RemoteTrackPublication,
