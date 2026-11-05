@@ -46,6 +46,7 @@ function fakeMeeting() {
       playoutTargets: () => [],
       videoPaused: new Store({}),
       videoPauseCount: new Store(0),
+      videoStallCount: new Store(0),
       returnToLive: vi.fn(),
       callReport: () => null,
     },
