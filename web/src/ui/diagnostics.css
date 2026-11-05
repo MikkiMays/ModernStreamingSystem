@@ -48,6 +48,19 @@
 .diagnostics-card__note[data-tone='warning'] {
   color: var(--text);
 }
+/* Журнал камеры (R189): время, вид, подробность — строками, как в обращении. */
+.diagnostics-camera-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  font-variant-numeric: tabular-nums;
+}
+.diagnostics-camera-log code {
+  color: var(--text);
+}
 .diagnostics-card__actions {
   display: flex;
   flex-wrap: wrap;

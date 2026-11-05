@@ -1380,11 +1380,6 @@
       "cancelled": "Screen share canceled",
       "noPermission": "Couldn't start sharing your screen. Try again."
     },
-    "encoder": {
-      "screen": "Your computer can't keep up with sending the screen — switching the share to a lighter mode.",
-      "camera": "Your computer can't keep up with sending the camera — switching it to a lighter mode.",
-      "cpuHint": "Your computer can't keep up with processing the video. We don't lower the quality: close heavy apps or pick a lower quality in settings."
-    },
     "link": {
       "paths": {
         "direct-udp": "Direct to media server · UDP",
@@ -2283,6 +2278,8 @@
     "watch": "Watch stream",
     "recovering": "Reconnecting…",
     "videoPaused": "Video paused: weak connection",
+    "cameraHealing": "Reconnecting the camera…",
+    "backgroundOff": "Background off",
     "gameLoading": "Opening the game…",
     "unpin": "Unpin",
     "unpinOf": "Unpin: {{name}}",
@@ -3081,6 +3078,7 @@
     "rtt": "RTT to the media server",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "cameraLog": "Camera log",
     "profile": "Codec profile",
     "layers": "Layers",
     "singleLayer": "Single layer",

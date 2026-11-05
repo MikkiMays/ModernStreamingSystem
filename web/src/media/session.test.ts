@@ -1675,9 +1675,9 @@ describe('качество камеры во встрече', () => {
 
       await media.setCameraProfile({ resolution: 1080, fps: 60 });
 
-      expect(capture.applyConstraints).toHaveBeenCalledWith(
-        expect.objectContaining({ frameRate: { min: 60, ideal: 60 } }),
-      );
+      // Камера и так отдаёт 1440p60 — лестницу `min` не трогаем (R189): каждый `applyConstraints`
+      // с `min` перенастраивает источник и на полсекунды оставляет его без кадров.
+      expect(capture.applyConstraints).not.toHaveBeenCalled();
       expect(sender.setParameters).toHaveBeenCalled();
       expect(restartTrack).not.toHaveBeenCalled();
       expect(local.unpublishTrack).not.toHaveBeenCalled();
@@ -1686,6 +1686,29 @@ describe('качество камеры во встрече', () => {
     } finally {
       media.dispose();
       localStorage.clear();
+    }
+  });
+});
+
+describe('частота камеры требованием (R189)', () => {
+  it('камера отдаёт меньше выбранного — просим `min`; отдаёт выбранное — не трогаем', async () => {
+    const { media, room } = fixture();
+    try {
+      const { track, media: capture, settings } = fakeCameraTrack({ width: 1280, height: 720 });
+      Object.assign(settings, { frameRate: 24 });
+      const local = (room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+      (local.trackPublications as Map<Track.Source, unknown>).set(Track.Source.Camera, { track });
+      (media as unknown as { wanted: { camera: boolean } }).wanted.camera = true;
+      await (media as unknown as { enforceCameraRate: () => Promise<void> }).enforceCameraRate();
+      expect(capture.applyConstraints).toHaveBeenCalledWith(
+        expect.objectContaining({ frameRate: { min: 30, ideal: 30 } }),
+      );
+      Object.assign(settings, { frameRate: 30 });
+      (capture.applyConstraints as ReturnType<typeof vi.fn>).mockClear();
+      await (media as unknown as { enforceCameraRate: () => Promise<void> }).enforceCameraRate();
+      expect(capture.applyConstraints).not.toHaveBeenCalled();
+    } finally {
+      media.dispose();
     }
   });
 });

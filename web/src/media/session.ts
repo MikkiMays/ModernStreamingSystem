@@ -15,6 +15,7 @@ import {
   createLocalAudioTrack,
   RemoteAudioTrack,
   ConnectionState,
+  type VideoCaptureOptions,
 } from 'livekit-client';
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from '../core/store';
@@ -27,6 +28,7 @@ import {
   screenOptions,
   type ScreenMode,
   cameraCapture,
+  cameraRateSatisfied,
   touchFirst,
   cameraOptions,
   forcedCameraConstraints,
@@ -44,6 +46,9 @@ import {
 } from './codec-planner';
 import { gpuHint, policyPlatform, probeEncoders, sendableCodecs, watchCpuPressure } from './codec-probe';
 import { rememberLayout, retune } from './retune';
+import { CameraGuard, type CameraKind, type HealRequest } from './camera-guard';
+import { CameraLog } from './camera-log';
+import { pageCodecMemory } from './codec-memory';
 import { allowedScreen, settleMs } from './capabilities';
 import { readScreenSample, ScreenReadiness } from './screen-ready';
 import { reconnectAction, type ReconnectTrigger } from './reconnect-plan';
@@ -56,7 +61,8 @@ import {
 import { setMeetingDeafened, signal } from '../core/sounds';
 import { MicSentinel } from './mic-sentinel';
 import { allowed, backgroundSupport, NO_BACKGROUND, type BackgroundSupport } from './background-effect';
-import { CameraBackground } from './background/camera';
+import { CameraBackground, ensureRawOnSenders } from './background/camera';
+import type { BackgroundEffect } from './background/effect';
 import { captureVideoTrack } from './background/processor';
 import { recallVolume, rememberVolume } from '../core/volumes';
 import { SpeechDownmix } from './downmix';
@@ -108,7 +114,7 @@ import {
 import { choosePipSource, PictureInPicture } from './pip';
 import { readZoom, type Zoom } from './cameras';
 import { t } from '../i18n';
-import { failureText, FriendlyError, type Place } from '../core/failure';
+import { failureText, FriendlyError, noteFailure, type Place } from '../core/failure';
 
 export interface MediaTile {
   id: string;
@@ -184,6 +190,9 @@ export interface OutboundVideo {
 
 /** Сколько ждать опоздавший сигнал, пока медиа идёт, прежде чем считать связь потерянной (R151). */
 export const SIGNAL_GRACE_MS = 8_000;
+/** Фон снят за застывания конвейера (R189, И5): через сколько пробовать снова и сколько раз за встречу. */
+export const BACKGROUND_RETRY_MS = 60_000;
+export const BACKGROUND_RETRIES = 3;
 /**
  * Сколько ждать, пока система сама снимет заглушку с удержанного микрофона телефона, прежде чем
  * захватывать его заново при включении (R147, R160): по возвращении на экран она снимает её сама.
@@ -211,6 +220,41 @@ function connection(): EventTarget | undefined {
  * переподключения, и разбудить его после фона или обычного звонка можем мы сами (`AudioWaker`).
  * `latencyHint` — как у SDK.
  */
+/**
+ * Не дать LiveKit снять камеру с отправителя из-за заминки захвата (R189, И1).
+ *
+ * `LocalTrack` слушает `mute` у захвата и через 5 с зовёт `pauseUpstream` (`LocalTrack.ts:448-455`):
+ * `sender.replaceTrack(null)` у основного и запасного отправителей (`LocalVideoTrack.ts:138-143`) и
+ * «заглушена» серверу — у всех зрителей плитка гаснет, а у самого кнопка горит. Chromium шлёт `mute`,
+ * когда кадров нет 25 интервалов (0,8 с при 30 кадрах): USB, драйвер, перенастройка источника. Сторож
+ * камеры лечит это перезахватом, а пока лечит — зритель держит последний кадр, не аватар.
+ *
+ * Перекрывается у экземпляра, а не у прототипа: это только камера, и перезапуск дорожки (`restart`,
+ * `unmute`, смена устройства) экземпляр не меняет — перекрытие его переживает. `resumeUpstream`
+ * после этого ничего не делает сам: отправка не останавливалась.
+ */
+const SHIELDED = Symbol('cord:upstream-shield');
+function shieldCameraUpstream(track: LocalVideoTrack) {
+  const marked = track as LocalVideoTrack & { [SHIELDED]?: true };
+  if (marked[SHIELDED]) return;
+  marked[SHIELDED] = true;
+  Object.defineProperty(track, 'pauseUpstream', {
+    configurable: true,
+    writable: true,
+    value: async () => {
+      console.info('[cord] camera capture stalled; keeping the sender attached (R189)');
+    },
+  });
+}
+/** Разрешение на камеру отозвано — лечить нечего (И4); браузер без `permissions.query` — считаем, что есть. */
+async function cameraPermissionDenied(): Promise<boolean> {
+  try {
+    const status = await navigator.permissions?.query({ name: 'camera' as PermissionName });
+    return status?.state === 'denied';
+  } catch {
+    return false;
+  }
+}
 /**
  * Жив ли захват своей дорожки устройства. У микрофона с обработчиком `mediaStreamTrack` — выход
  * шумодава, он «жив», даже когда сам микрофон кончился (`captureTrack`).
@@ -490,7 +534,7 @@ export class MediaSession {
    * каждого свой, окно 30 с между переопубликациями. Переподключение планировщик не пересоздаёт — иначе
    * обнулялась бы память отступов и кодек прыгал после каждого resume.
    */
-  private readonly codecs = new CodecPlanner();
+  private readonly codecs = new CodecPlanner(undefined, pageCodecMemory());
   /** Решение для камеры перед первой публикацией — одно на сессию, пока уровень тот же. */
   private cameraPlanned?: Promise<CodecDecision>;
   /** Что о машине нужно политике (платформа, видеокарта, ядра) — спрашивается один раз. */
@@ -549,6 +593,48 @@ export class MediaSession {
     wanted: () => !this.disposed && this.state.get().microphone,
     visible: () => typeof document === 'undefined' || !document.hidden,
     restarted: (reason) => console.info('[cord] microphone re-acquired', { reason }),
+  });
+  /**
+   * Своя камера на время лечения и без фона (R189, И6): своя плитка показывает «Камера переподключается…»
+   * и «Фон отключён»; кнопка остаётся «включена». Зрителям ничего не говорится.
+   */
+  readonly cameraNote = new Store<{ healing: boolean; backgroundOff: boolean }>({
+    healing: false,
+    backgroundOff: false,
+  });
+  /** Журнал камеры (И7): в «Диагностику» и обращение. */
+  readonly cameraLog = new CameraLog();
+  /** Последний замер отдачи камеры — сторожу: кодируются ли кадры при живом подписчике. */
+  private cameraStats: { frames: number | null; watched: boolean; at: number } | null = null;
+  private cameraTimer?: ReturnType<typeof setInterval>;
+  /** Сторож камеры (R189, И4) — то же, что `micSentinel` для микрофона, но лечит и публикацию. */
+  private readonly cameraGuard = new CameraGuard({
+    look: () => {
+      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      if (!(track instanceof LocalVideoTrack))
+        return { raw: null, silenced: false, framesEncoded: null, watched: false };
+      const stats =
+        this.cameraStats && performance.now() - this.cameraStats.at < 10_000 ? this.cameraStats : null;
+      return {
+        raw: captureVideoTrack(track),
+        silenced: track.isMuted,
+        framesEncoded: stats?.frames ?? null,
+        watched: stats?.watched ?? false,
+      };
+    },
+    wanted: () => !this.disposed && this.wanted.camera,
+    busy: () => this.deviceBusy.has('camera') || this.toggling.has('camera') || this.cameraProfilePending,
+    connected: () => this.room.state === ConnectionState.Connected && this.state.get().status === 'connected',
+    visible: () => typeof document === 'undefined' || !document.hidden,
+    heal: (request) => this.healCamera(request),
+    denied: (error) => {
+      this.wanted.camera = false;
+      void this.room.localParticipant.setCameraEnabled(false).catch(() => {});
+      this.report(error, 'camera');
+      this.refreshTracks();
+    },
+    note: (kind, detail) => this.noteCamera(kind, detail),
+    healing: (active) => this.cameraNote.update((note) => ({ ...note, healing: active })),
   });
   private liveSampling = false;
   private liveHealth = new Map<string, LiveHealth>();
@@ -727,6 +813,9 @@ export class MediaSession {
     window.addEventListener('cord:preferences', this.settingsChanged);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
     this.micTimer = setInterval(() => void this.micSentinel.check(), 1000);
+    this.cameraTimer = setInterval(() => void this.cameraGuard.check(), 1000);
+    // Камера вернулась в список устройств (USB, сон) — пробовать сразу, не дожидаясь отступа (И4).
+    navigator.mediaDevices?.addEventListener?.('devicechange', this.devicesChanged);
     // Шумодав «Усиленное» — загрузить сейчас, а не по первому нажатию на микрофон (R160).
     warmAudioProcessor(this.preferences.get().audio);
     // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
@@ -1077,8 +1166,13 @@ export class MediaSession {
   /** Сменить кодек источника, как решил планировщик: та же дорожка, тот же уровень, другая публикация. */
   private applyCodecAction(action: PlannerAction) {
     if (action.kind === 'hint') {
-      // Р-19: ниже некуда — ничего не понижаем, только говорим.
-      this.report(new FriendlyError(t(($) => $.media.encoder.cpuHint)), 'camera');
+      // О нагрузке человеку не говорим (R189, И6): ниже некуда, и сделать он может только то, что и
+      // так знает. След — в журнале браузера и в журнале камеры.
+      console.info('[cord] encoder overloaded on the lowest rung', {
+        source: action.source,
+        reason: action.reason,
+      });
+      if (action.source === 'camera') this.cameraLog.note('encoder-hint', action.reason);
       return;
     }
     if (action.kind !== 'switch') return;
@@ -1089,15 +1183,13 @@ export class MediaSession {
       hw: action.decision.hw,
       reason: action.reason,
     });
+    // Камера посреди потока кодек не меняет (И2): планировщик такого не решает; если решил — это ошибка
+    // планировщика, и лучше остаться на том же кодеке, чем погасить плитку у зрителей.
     if (action.source === 'camera') {
-      void this.switchCameraCodec();
-      if (action.reason === 'cpu' || action.reason === 'encode-time')
-        this.report(new FriendlyError(t(($) => $.media.encoder.camera)), 'camera');
-    } else {
-      void this.setProfile(this.profile);
-      if (action.reason === 'cpu' || action.reason === 'encode-time')
-        this.report(new FriendlyError(t(($) => $.media.encoder.screen)), 'screen');
+      console.warn('[cord] camera codec switch requested mid-stream, ignored', action);
+      return;
     }
+    void this.setProfile(this.profile);
   }
   /** Что камера умеет на самом деле — чтобы не просить у неё невозможного молча. */
   private cameraCapabilities() {
@@ -1150,6 +1242,7 @@ export class MediaSession {
     // нажатия на камеру это была самая дорогая строка (R163). Ставим, только если подсказка другая.
     if (track instanceof LocalVideoTrack && track.mediaStreamTrack.contentHint !== cameraHint)
       track.mediaStreamTrack.contentHint = cameraHint;
+    if (track instanceof LocalVideoTrack) shieldCameraUpstream(track);
     void this.enforceCameraRate();
     // Фон в видео (R153) — после каждой публикации камеры: включение, смена камеры, смена кодека.
     void this.applyBackground();
@@ -1157,6 +1250,13 @@ export class MediaSession {
   private readonly background = new CameraBackground();
   /** Движок фона страницы: поднят — остановить при выходе из встречи вместе с дорожками. */
   private backgroundEngineUsed = false;
+  /** Подписка на происшествия конвейера фона (R189, И5) — у того движка, что держит обработчик. */
+  private backgroundWatch: (() => void) | null = null;
+  private watchedEngine: BackgroundEffect | null = null;
+  /** Конвейер снят за застывания: камера идёт без фона до повторной попытки или нового выбора. */
+  private backgroundDropped = false;
+  private backgroundRetries = 0;
+  private backgroundRetryTimer?: ReturnType<typeof setTimeout>;
   /** Что умеет устройство — спрашивается, только когда фон выбран: обработка грузится лениво. */
   private backgroundSupported: Promise<BackgroundSupport> | null = null;
   /** Поставить выбранный фон на камеру; где нельзя (iPhone, слабый телефон) — камера как есть. */
@@ -1168,7 +1268,8 @@ export class MediaSession {
     this.backgroundSupported ??= backgroundSupport();
     const support = await this.backgroundSupported;
     if (this.disposed) return;
-    const wanted = allowed(choice, support) ? choice : NO_BACKGROUND;
+    // Конвейер сняли за застывания (И5) — камера без фона, пока не придёт повторная попытка или выбор.
+    const wanted = allowed(choice, support) && !this.backgroundDropped ? choice : NO_BACKGROUND;
     if (wanted.kind !== 'none') this.backgroundEngineUsed = true;
     const removing = wanted.kind === 'none' && this.background.active;
     // LiveKit после `stopProcessor` заново ставит захвату свои первоначальные ограничения — без нижней
@@ -1177,13 +1278,54 @@ export class MediaSession {
     await this.background
       .apply(track, wanted, support)
       .catch((error) => console.warn('[cord] background effect failed', error));
-    if (removing && !this.disposed) {
+    if (this.disposed) return;
+    this.watchBackground();
+    if (removing) {
+      // `stopProcessor` мог оставить отправителей на остановленном генераторе (И5): проверить и починить.
+      const senders = await ensureRawOnSenders(track).catch(() => 'dead' as const);
+      if (senders !== 'ok') this.cameraLog.note('background-removed', senders);
       await this.enforceCameraRate();
       if (zoom !== undefined) await this.applyCameraZoom(zoom);
     }
     // Обработанная дорожка у LiveKit сменилась (`mediaStreamTrack`): превью «Видео» и плитка читают её
     // из списка дорожек — пересобрать его, иначе превью показывало бы сырую камеру до другого события.
     this.refreshTracks();
+  }
+  /** Смотреть за конвейером того движка, что держит обработчик сейчас (R189, И5). */
+  private watchBackground() {
+    const engine = this.background.engine;
+    if (engine === this.watchedEngine) return;
+    this.backgroundWatch?.();
+    this.backgroundWatch = null;
+    this.watchedEngine = engine;
+    if (!engine) return;
+    this.backgroundWatch = engine.events.subscribe(() => {
+      const event = engine.events.get();
+      if (!event || event.owner !== 'processor' || this.disposed) return;
+      if (event.kind === 'stalled') this.noteCamera('background-stalled', event.transport);
+      else void this.dropBackground();
+    });
+  }
+  /**
+   * Конвейер застыл трижды — снять фон: живая камера важнее (И5). Своя плитка говорит «Фон отключён»;
+   * через {@link BACKGROUND_RETRY_MS} — попытка снова, не больше {@link BACKGROUND_RETRIES} за встречу.
+   * Новый выбор фона человеком снимает запрет сразу (`settingsChanged`).
+   */
+  private async dropBackground() {
+    if (this.backgroundDropped) return;
+    this.backgroundDropped = true;
+    this.noteCamera('background-dropped');
+    this.cameraNote.update((note) => ({ ...note, backgroundOff: true }));
+    await this.applyBackground();
+    clearTimeout(this.backgroundRetryTimer);
+    if (this.backgroundRetries >= BACKGROUND_RETRIES || this.disposed) return;
+    this.backgroundRetryTimer = setTimeout(() => {
+      if (this.disposed) return;
+      this.backgroundRetries++;
+      this.backgroundDropped = false;
+      this.cameraNote.update((note) => ({ ...note, backgroundOff: false }));
+      void this.applyBackground();
+    }, BACKGROUND_RETRY_MS);
   }
   /**
    * Потребовать у камеры выбранную частоту, а не попросить.
@@ -1196,12 +1338,16 @@ export class MediaSession {
     if (!(track instanceof LocalVideoTrack)) return;
     // Ограничения — камере, а не обработанной дорожке: генератор кадров их молча принимает и ничего не меняет.
     const media = captureVideoTrack(track);
+    const capabilities = this.cameraCapabilities();
+    // Камера уже отдаёт выбранное — не трогаем (R189): каждый `applyConstraints` с `min` — перенастройка
+    // источника и полсекунды без кадров, а звалось это после каждой публикации и перезахвата.
+    if (cameraRateSatisfied(media.getSettings?.(), this.cameraProfile, capabilities)) return;
     // `applyConstraints` заменяет набор целиком: зум (`applyCameraZoom`) едет вместе с кадром,
     // иначе смена частоты сбросила бы его.
     const zoom = (media.getConstraints?.().advanced ?? []).filter((set) => 'zoom' in set);
     // Просьбы идут от самой строгой к самой мягкой; первая исполненная и остаётся. Отказ
     // ничего не ломает: дорожка такая же, какой была, а недобор виден в плашке.
-    for (const wanted of forcedCameraConstraints(this.cameraProfile, this.cameraCapabilities())) {
+    for (const wanted of forcedCameraConstraints(this.cameraProfile, capabilities)) {
       try {
         await media.applyConstraints(zoom.length ? { ...wanted, advanced: zoom } : wanted);
         return;
@@ -1524,6 +1670,8 @@ export class MediaSession {
     if (this.state.get().status === 'connected') void this.audio.wake();
     // Микрофон, который система заглушила или отобрала, пока Cord был в фоне (R147).
     void this.micSentinel.check();
+    // Камера после сна или фона — тоже сразу (R189, И4).
+    void this.cameraGuard.poke();
     this.wake.refresh();
     // SDK по возвращении перезапускает заглушённый телефоном микрофон; рассказ о перерыве — когда
     // новая дорожка уже живая.
@@ -1858,6 +2006,8 @@ export class MediaSession {
     for (const publication of this.room.localParticipant.trackPublications.values()) {
       if (publication.track && [Track.Source.Camera, Track.Source.Microphone].includes(publication.source))
         this.deviceTracks.set(publication.source, publication.track);
+      if (publication.source === Track.Source.Camera && publication.track instanceof LocalVideoTrack)
+        shieldCameraUpstream(publication.track);
     }
     for (const [source, track] of this.deviceTracks)
       if (!liveCapture(track)) this.deviceTracks.delete(source);
@@ -1880,7 +2030,8 @@ export class MediaSession {
     this.captured.set(mic?.readyState === 'live');
     this.patch({
       microphone: local.isMicrophoneEnabled,
-      camera: local.isCameraEnabled,
+      // Пока сторож лечит камеру, кнопка остаётся «включена» (И6): человек её не выключал.
+      camera: local.isCameraEnabled || (this.wanted.camera && this.cameraNote.get().healing),
       screen: local.isScreenShareEnabled,
     });
   }
@@ -2084,10 +2235,16 @@ export class MediaSession {
           await this.publishMicrophone(deviceId, false);
         }
       } else {
+        // Нажатие — слово человека: эпизод лечения закрыт, запрет после отказа в разрешении снят.
+        this.cameraGuard.reset();
         // Кодек выбирается до публикации: поменять его потом — это переговоры и перерыв в
-        // картинке, а ответ платформы от момента вопроса не зависит.
+        // картинке, а ответ платформы от момента вопроса не зависит. Выключение забывает решение
+        // (И2): следующее включение — естественный старт, где действует память машины.
         if (!this.state.get().camera) {
           await this.ensureCameraCodec();
+        } else {
+          this.cameraPlanned = undefined;
+          this.codecs.stop('camera');
         }
         // Первое включение на телефоне — фронтальная камера, а не та, что запомнилась (владелец,
         // 27.10.2026): после «перевернуть» в прошлой встрече следующая начиналась с задней. Дальше
@@ -2186,9 +2343,14 @@ export class MediaSession {
     if (this.disposed) return;
     const before = this.preferences.get().background;
     this.preferences.set(readPreferences());
-    // Фон поменяли (меню камеры, настройки) — на лету, без переопубликации (R153).
-    if (JSON.stringify(before) !== JSON.stringify(this.preferences.get().background))
+    // Фон поменяли (меню камеры, настройки) — на лету, без переопубликации (R153). Выбор человека
+    // снимает запрет после застываний (И5): он сам решил попробовать.
+    if (JSON.stringify(before) !== JSON.stringify(this.preferences.get().background)) {
+      clearTimeout(this.backgroundRetryTimer);
+      this.backgroundDropped = false;
+      this.cameraNote.update((note) => (note.backgroundOff ? { ...note, backgroundOff: false } : note));
       void this.applyBackground();
+    }
   };
   saveSettings(patch: Partial<Preferences>) {
     const next = savePreferences(patch);
@@ -2269,6 +2431,8 @@ export class MediaSession {
       (kind === 'videoinput' && activeCamera instanceof LocalVideoTrack
         ? captureVideoTrack(activeCamera).getSettings().deviceId
         : undefined);
+    // Пока камера перезахватывается с другим устройством, сторож не вмешивается (И4).
+    if (kind === 'videoinput') this.deviceBusy.add('camera');
     try {
       await this.room.switchActiveDevice(kind, id);
       if (kind === 'videoinput') {
@@ -2285,7 +2449,55 @@ export class MediaSession {
       if (kind === 'videoinput' && previous)
         await this.room.switchActiveDevice(kind, previous).catch(() => {});
       this.report(error, kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker');
+    } finally {
+      if (kind === 'videoinput') this.deviceBusy.delete('camera');
     }
+  }
+  private devicesChanged = () => {
+    if (!this.disposed) void this.cameraGuard.poke();
+  };
+  /** Событие камеры — в журнал камеры, журнал браузера и счётчик ядра (И7); человеку — ничего. */
+  private noteCamera(kind: CameraKind | 'background-stalled' | 'background-dropped', detail?: string) {
+    this.cameraLog.note(kind, detail);
+    noteFailure('camera', kind, detail);
+  }
+  /**
+   * Вылечить камеру в той же публикации (R189, И4). `missing` — публикации нет: публикуем заново, как
+   * `restoreTracks`. Иначе — перезахват `restartTrack` (у зрителя — `replaceTrack`, короткая пауза);
+   * заглушённую LiveKit после своей неудачи публикацию возвращает `unmute`, который сам
+   * перезахватывает по `track.constraints`, — подставляем туда устройство пожеланием, не требованием.
+   * С третьей неудачи — любая камера той же стороны. Разрешения нет — сторож останавливается.
+   */
+  private async healCamera(request: HealRequest) {
+    const participant = this.room.localParticipant;
+    const track = participant.getTrackPublication(Track.Source.Camera)?.track;
+    if (await cameraPermissionDenied()) throw new DOMException('camera permission denied', 'NotAllowedError');
+    if (!(track instanceof LocalVideoTrack)) {
+      await this.ensureCameraCodec();
+      await participant.setCameraEnabled(true, this.cameraCaptureNow(), this.cameraOptionsNow());
+      this.forgetZoom();
+    } else {
+      const settings = captureVideoTrack(track).getSettings();
+      const own = this.preferences.get().devices.camera || settings.deviceId || undefined;
+      const capture = this.cameraRestartNow();
+      const facing = settings.facingMode as VideoCaptureOptions['facingMode'];
+      const device: Pick<VideoCaptureOptions, 'deviceId' | 'facingMode'> = request.anyDevice
+        ? { deviceId: undefined, facingMode: facing }
+        : { deviceId: own, facingMode: undefined };
+      if (track.isMuted) {
+        const remembered = track.constraints as Record<string, unknown>;
+        for (const key of Object.keys(remembered)) delete remembered[key];
+        Object.assign(remembered, { ...capture.resolution, ...device });
+        await track.unmute();
+      } else {
+        await track.restartTrack({ ...capture, ...device });
+      }
+      await this.reapplyCameraLevel();
+    }
+    if (this.disposed) return;
+    this.videoChangedAt.camera = performance.now();
+    this.applyCameraHint();
+    this.refreshTracks();
   }
   /**
    * Запомнить камеру, которая снимает сейчас: её покажет выбор камеры в настройках, её возьмут смена
@@ -2770,38 +2982,6 @@ export class MediaSession {
     return this.cameraChange;
   }
   /**
-   * Сменить кодек камеры на лету: переопубликовать дорожку без перезахвата.
-   *
-   * `setCameraProfile` для смены кодека не годится — он сначала пробует подстроить слои на месте
-   * (`retuneCamera`), а на месте кодек не меняется. Здесь дорожка та же (`unpublishTrack(..., false)`
-   * её не останавливает), меняются только параметры публикации: у зрителя плитка на миг моргает и
-   * продолжает тем же кодеком. Очередь общая с `setCameraProfile` (`cameraChange`), чтобы смена
-   * кодека и смена уровня не наложились.
-   */
-  private switchCameraCodec() {
-    this.cameraChange = this.cameraChange.then(async () => {
-      if (this.disposed || !this.wanted.camera) return;
-      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-      if (!(track instanceof LocalVideoTrack)) return;
-      this.deviceBusy.add('camera');
-      try {
-        await this.room.localParticipant.unpublishTrack(track, false);
-        if (this.disposed) return;
-        await this.room.localParticipant.publishTrack(track, {
-          ...this.cameraOptionsNow(),
-          source: Track.Source.Camera,
-        });
-        this.applyCameraHint();
-        this.refreshTracks();
-      } catch (error) {
-        this.report(error, 'camera');
-      } finally {
-        this.deviceBusy.delete('camera');
-      }
-    });
-    return this.cameraChange;
-  }
-  /**
    * Ступень удержания для показа — тем же способом, что у камеры: на месте.
    *
    * Отличие от `setProfile` одно, и оно главное. `setProfile` зовут, когда человек выбрал
@@ -2897,6 +3077,13 @@ export class MediaSession {
         const reading = readUpstream(report);
         const delta = upstreamDelta(this.upstreamReadings.get(source), reading);
         this.upstreamReadings.set(source, reading);
+        // Сторожу камеры: кодируются ли кадры и смотрит ли кто-то (спящий слой dynacast — не смотрит).
+        if (source === 'camera')
+          this.cameraStats = {
+            frames: reading.top?.frames ?? null,
+            watched: reading.layers > 0 && !reading.dormant,
+            at: performance.now(),
+          };
         const targetFps = source === 'screen' ? screenFps(this.profile) : this.cameraProfile.fps;
         if (index === 0 && reading.width)
           this.outbound.set({
@@ -2961,6 +3148,10 @@ export class MediaSession {
     this.lastLiveReset.clear();
     clearInterval(this.liveTimer);
     clearInterval(this.micTimer);
+    clearInterval(this.cameraTimer);
+    clearTimeout(this.backgroundRetryTimer);
+    this.backgroundWatch?.();
+    navigator.mediaDevices?.removeEventListener?.('devicechange', this.devicesChanged);
     clearTimeout(this.signalGrace);
     clearInterval(this.playoutTimer);
     clearInterval(this.deadlineTimer);

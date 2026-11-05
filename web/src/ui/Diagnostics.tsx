@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { publicApi } from '../api/client';
 import { callReportText, diagnosticsText } from '../core/support';
+import { Store } from '../core/store';
+import { locale } from '../i18n';
+import type { CameraEvent } from '../media/camera-log';
 import { StatsSampler, type Sample } from '../media/diagnostics';
 import type { CodecInfo, PublishSource } from '../media/codec-planner';
 import { gradeName, pathName } from '../media/link-quality';
@@ -12,6 +15,8 @@ import { useStore } from './primitives';
 import { Button, Dialog } from './kit';
 import { DeviceCheck } from './DeviceCheck';
 import './diagnostics.css';
+
+const NO_CAMERA_EVENTS = new Store<readonly CameraEvent[]>([]);
 
 /** Причины, которыми браузер объясняет ограничение передачи; незнакомую показываем как есть. */
 const LIMITS = ['none', 'cpu', 'bandwidth', 'unknown'] as const;
@@ -129,6 +134,8 @@ export default function Diagnostics({
   // Задержка доски (R159): от штриха соседа до этого экрана, пока доска на сцене.
   const board = useStore(meeting.boardLatency);
   const pauses = useStore(meeting.media.videoPauseCount);
+  // Журнал камеры (R189, И7): что сторож заметил и чем кончилось — без текста и имён.
+  const cameraEvents = useStore(meeting.media.cameraLog?.events ?? NO_CAMERA_EVENTS);
   useEffect(() => {
     let disposed = false;
     let busy = false;
@@ -195,6 +202,7 @@ export default function Diagnostics({
       }),
       ...(board ? [`board latency: p50 ${board.p50} ms, p95 ${board.p95} ms (${board.count})`] : []),
       ...samples.map(sampleLine),
+      ...(meeting.media.cameraLog?.lines() ?? []),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
@@ -445,6 +453,24 @@ export default function Diagnostics({
             )}
           </div>
         </section>
+        {cameraEvents.length > 0 && (
+          <section className="diagnostics-card" aria-labelledby={`${id}-camera`}>
+            <h3 className="diagnostics-card__title" id={`${id}-camera`}>
+              {t(($) => $.diagnostics.cameraLog)}
+            </h3>
+            <ul className="diagnostics-camera-log">
+              {cameraEvents.map((event, i) => (
+                <li key={`${event.at}-${i}`}>
+                  <time dateTime={new Date(event.at).toISOString()}>
+                    {new Date(event.at).toLocaleTimeString(locale(t), { hour12: false })}
+                  </time>{' '}
+                  <code>{event.kind}</code>
+                  {event.detail ? ` ${event.detail}` : ''}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <section className="diagnostics-card" aria-labelledby={`${id}-stuck`}>
           <h3 className="diagnostics-card__title" id={`${id}-stuck`}>
             {t(($) => $.diagnostics.stuck.title)}

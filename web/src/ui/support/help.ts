@@ -49,3 +49,13 @@ export function provideCallReport(source: () => CallReport | null) {
     if (callReportSource.get() === source) callReportSource.set(null);
   };
 }
+
+/** Журнал камеры встречи (R189, И7) — строками для обращения; вне встречи — `null`. */
+export const cameraLogSource = new Store<(() => readonly string[]) | null>(null);
+
+export function provideCameraLog(source: () => readonly string[]) {
+  cameraLogSource.set(source);
+  return () => {
+    if (cameraLogSource.get() === source) cameraLogSource.set(null);
+  };
+}

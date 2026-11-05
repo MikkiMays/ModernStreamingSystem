@@ -1394,11 +1394,6 @@
       "cancelled": "Condivisione annullata",
       "noPermission": "Impossibile avviare la condivisione dello schermo. Riprova."
     },
-    "encoder": {
-      "screen": "Il computer non riesce a trasmettere lo schermo: passiamo a una modalità più leggera.",
-      "camera": "Il computer non riesce a trasmettere la videocamera: passiamo a una modalità più leggera.",
-      "cpuHint": "Il computer non riesce a elaborare il video in tempo. Non abbassiamo la qualità: chiudi i programmi pesanti o scegli una qualità più bassa nelle impostazioni."
-    },
     "link": {
       "paths": {
         "direct-udp": "Diretto al server multimediale · UDP",
@@ -2310,6 +2305,8 @@
     "watch": "Guarda lo stream",
     "recovering": "Ripristino della connessione…",
     "videoPaused": "Video in pausa: connessione debole",
+    "cameraHealing": "Riconnessione della videocamera…",
+    "backgroundOff": "Sfondo disattivato",
     "gameLoading": "Apriamo il gioco…",
     "unpin": "Sblocca",
     "unpinOf": "Sblocca: {{name}}",
@@ -3114,6 +3111,7 @@
     "rtt": "RTT verso il server multimediale",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "cameraLog": "Registro della videocamera",
     "profile": "Profilo del codec",
     "layers": "Livelli",
     "singleLayer": "Un solo livello",

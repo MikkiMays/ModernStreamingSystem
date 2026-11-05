@@ -34,6 +34,7 @@ import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, useStore } from './primitives';
 import { IconButton } from './kit';
 import { LensSwitch } from './CameraMenu';
+import { OwnCameraChip } from './OwnCameraChip';
 import { useVoiceTier } from './useVoice';
 import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
@@ -390,6 +391,8 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
           </span>
         </div>
         {mine && camera && <LensSwitch meeting={meeting} tile={camera} />}
+        {/* Своя камера лечится или идёт без фона (R189, И6) — метка только у себя. */}
+        {mine && <OwnCameraChip meeting={meeting} />}
         {/* Закреплённая — с кнопкой «Открепить» на самой плитке: меню «…» не единственный путь назад. */}
         {pinned === person.id && (
           <button

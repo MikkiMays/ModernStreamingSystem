@@ -15,7 +15,7 @@ import {
 import { useStore } from '../primitives';
 import { Button, Field, Input, Switch, Textarea } from '../kit';
 import { ToggleChips } from './Chips';
-import { callReportSource } from './help';
+import { callReportSource, cameraLogSource } from './help';
 import { Attachment, Sent, type Receipt } from './parts';
 import { failureText } from '../../core/failure';
 
@@ -32,10 +32,16 @@ export function ReportForm() {
   const { t } = useTranslation();
   const id = useId();
   const source = useStore(callReportSource);
-  // Снимок на момент открытия формы, как у обычного обращения.
+  const cameraLog = useStore(cameraLogSource);
+  // Снимок на момент открытия формы, как у обычного обращения. Журнал камеры (R189, И7) — следом.
   const attachment = useMemo(
-    () => (source ? `${diagnosticsText()}\n${callReportText(source())}` : diagnosticsText()),
-    [source],
+    () =>
+      [
+        diagnosticsText(),
+        ...(source ? [callReportText(source())] : []),
+        ...(cameraLog ? cameraLog() : []),
+      ].join('\n'),
+    [source, cameraLog],
   );
   const [issues, setIssues] = useState<Issue[]>([]);
   const [message, setMessage] = useState('');

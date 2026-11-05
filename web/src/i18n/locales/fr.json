@@ -1394,11 +1394,6 @@
       "cancelled": "Partage d'écran annulé",
       "noPermission": "Impossible de lancer le partage d'écran. Réessayez."
     },
-    "encoder": {
-      "screen": "Votre ordinateur n'arrive pas à transmettre l'écran — passage à un mode plus léger.",
-      "camera": "Votre ordinateur n'arrive pas à transmettre la caméra — passage à un mode plus léger.",
-      "cpuHint": "Votre ordinateur n’arrive pas à traiter la vidéo à temps. Nous ne baissons pas la qualité : fermez les programmes lourds ou choisissez une qualité inférieure dans les réglages."
-    },
     "link": {
       "paths": {
         "direct-udp": "Direct vers le serveur média · UDP",
@@ -2310,6 +2305,8 @@
     "watch": "Regarder le stream",
     "recovering": "Rétablissement de la connexion…",
     "videoPaused": "Vidéo en pause : connexion faible",
+    "cameraHealing": "Reconnexion de la caméra…",
+    "backgroundOff": "Arrière-plan désactivé",
     "gameLoading": "Ouverture du jeu…",
     "unpin": "Désépingler",
     "unpinOf": "Désépingler : {{name}}",
@@ -3114,6 +3111,7 @@
     "rtt": "RTT vers le serveur média",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "cameraLog": "Journal de la caméra",
     "profile": "Profil du codec",
     "layers": "Couches",
     "singleLayer": "Une seule couche",

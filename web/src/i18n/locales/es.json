@@ -1394,11 +1394,6 @@
       "cancelled": "Se canceló la pantalla compartida",
       "noPermission": "No se pudo empezar a compartir la pantalla. Inténtalo de nuevo."
     },
-    "encoder": {
-      "screen": "Tu equipo no da abasto para enviar la pantalla: cambiamos a un modo más ligero.",
-      "camera": "Tu equipo no da abasto para enviar la cámara: la cambiamos a un modo más ligero.",
-      "cpuHint": "Tu equipo no da abasto para procesar el vídeo. No bajamos la calidad: cierra programas pesados o elige una calidad menor en los ajustes."
-    },
     "link": {
       "paths": {
         "direct-udp": "Directo al servidor de medios · UDP",
@@ -2310,6 +2305,8 @@
     "watch": "Ver transmisión",
     "recovering": "Restableciendo la conexión…",
     "videoPaused": "Vídeo en pausa: conexión débil",
+    "cameraHealing": "Reconectando la cámara…",
+    "backgroundOff": "Fondo desactivado",
     "gameLoading": "Abriendo el juego…",
     "unpin": "Desfijar",
     "unpinOf": "Desfijar: {{name}}",
@@ -3114,6 +3111,7 @@
     "rtt": "RTT al servidor de medios",
     "ms": "{{value}} ms",
     "codec": "Códec",
+    "cameraLog": "Registro de la cámara",
     "profile": "Perfil del códec",
     "layers": "Capas",
     "singleLayer": "Una capa",

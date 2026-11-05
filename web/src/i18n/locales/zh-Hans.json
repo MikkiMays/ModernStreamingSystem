@@ -1366,11 +1366,6 @@
       "cancelled": "屏幕共享已取消",
       "noPermission": "无法开始共享屏幕。请重试。"
     },
-    "encoder": {
-      "screen": "电脑来不及传输屏幕——正在切换到更轻量的模式。",
-      "camera": "电脑来不及传输摄像头画面——正在切换到更轻量的模式。",
-      "cpuHint": "电脑来不及处理视频。我们不会降低画质：请关闭占用资源较多的程序，或在设置中选择较低的画质。"
-    },
     "link": {
       "paths": {
         "direct-udp": "直连媒体服务器 · UDP",
@@ -2256,6 +2251,8 @@
     "watch": "观看直播",
     "recovering": "正在恢复连接…",
     "videoPaused": "视频已暂停：网络较弱",
+    "cameraHealing": "正在重新连接摄像头…",
+    "backgroundOff": "背景已关闭",
     "gameLoading": "正在打开游戏…",
     "unpin": "取消固定",
     "unpinOf": "取消固定：{{name}}",
@@ -3048,6 +3045,7 @@
     "rtt": "到媒体服务器的 RTT",
     "ms": "{{value}} 毫秒",
     "codec": "编解码器",
+    "cameraLog": "摄像头日志",
     "profile": "编解码器配置",
     "layers": "分层",
     "singleLayer": "单层",

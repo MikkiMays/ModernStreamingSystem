@@ -45,7 +45,7 @@ import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
 import { HelpButton } from './support/HelpButton';
-import { closeHelp, openHelp, provideCallReport } from './support/help';
+import { closeHelp, openHelp, provideCallReport, provideCameraLog } from './support/help';
 import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
 import { useDesktopOverlay } from './useDesktopOverlay';
@@ -197,6 +197,8 @@ export function MeetingView({
   useEffect(() => closeHelp, []);
   // Итог этого звонка — для «Сообщить о проблеме», откуда бы поддержку ни открыли, пока встреча на экране.
   useEffect(() => provideCallReport(() => meeting.media.callReport()), [meeting]);
+  // Журнал камеры (R189, И7) — туда же: что сторож заметил и чем кончилось, без текста и имён.
+  useEffect(() => provideCameraLog(() => meeting.media.cameraLog.lines()), [meeting]);
   useEffect(() => {
     if (section) show('settings');
   }, [section, show]);

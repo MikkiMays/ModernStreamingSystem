@@ -1394,11 +1394,6 @@
       "cancelled": "Compartilhamento de tela cancelado",
       "noPermission": "Não foi possível começar a compartilhar a tela. Tente de novo."
     },
-    "encoder": {
-      "screen": "O computador não está dando conta de enviar a tela — mudando para um modo mais leve.",
-      "camera": "O computador não está dando conta de enviar a câmera — mudando para um modo mais leve.",
-      "cpuHint": "O computador não está dando conta de processar o vídeo. Não reduzimos a qualidade: feche programas pesados ou escolha uma qualidade menor nas configurações."
-    },
     "link": {
       "paths": {
         "direct-udp": "Direto ao servidor de mídia · UDP",
@@ -2310,6 +2305,8 @@
     "watch": "Assistir à transmissão",
     "recovering": "Restabelecendo a conexão…",
     "videoPaused": "Vídeo pausado: conexão fraca",
+    "cameraHealing": "Reconectando a câmera…",
+    "backgroundOff": "Fundo desativado",
     "gameLoading": "Abrindo o jogo…",
     "unpin": "Desafixar",
     "unpinOf": "Desafixar: {{name}}",
@@ -3114,6 +3111,7 @@
     "rtt": "RTT até o servidor de mídia",
     "ms": "{{value}} ms",
     "codec": "Codec",
+    "cameraLog": "Registro da câmera",
     "profile": "Perfil do codec",
     "layers": "Camadas",
     "singleLayer": "Camada única",
