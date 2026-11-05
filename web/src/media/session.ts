@@ -359,9 +359,9 @@ export class MediaSession {
   };
   private pauses = new VideoPauses();
   /**
-   * Чьё видео SFU сейчас приостановил нам из-за слабого канала (R117, `video-pause.ts`): trackSid →
-   * true, уже после задержки против мигания и без надписей, пока сами переподключаемся. Читают
-   * плитки и показ; камера и экран — одинаково.
+   * Чьё видео сейчас стоит и почему (R117, R189, `video-pause.ts`): trackSid → `sfu` (приостановил SFU из-за
+   * нашего слабого канала) или `silent` (кадров нет, а SFU молчит), уже после задержки против мигания и без
+   * надписей, пока сами переподключаемся. Читают плитки и показ.
    */
   readonly videoPaused = this.pauses.shown;
   /** Сколько пауз видео от SFU за встречу дошло до надписи — для «Диагностики». */
@@ -1048,6 +1048,8 @@ export class MediaSession {
                   participant.identity,
                   publication,
                   watch,
+                  // Раздутый буфер и стоящий декодер лечатся не чаще прежнего: кадры при этом идут.
+                  reset ? undefined : 0,
                 );
               } else if (reset) await this.resetLivePair(participant.identity, publication.source, true);
             })().catch(() => {}),
@@ -1077,6 +1079,7 @@ export class MediaSession {
     identity: string,
     publication: RemoteTrackPublication,
     watch: CameraWatch,
+    resubscribeGapMs?: number,
   ) {
     if (action === 'none') return;
     this.cameraHeals[action] = (this.cameraHeals[action] ?? 0) + 1;
@@ -1087,8 +1090,8 @@ export class MediaSession {
         if (!(await videoPool.play(publication.trackSid))) this.videoBlocked.set(true);
       } else if (action === 'reattach') videoPool.reattach(publication.trackSid);
       else if (action === 'replace') videoPool.replace(publication.trackSid);
-      // Отступ уже у сторожа: 30 с общего срока здесь отняли бы у него первые попытки.
-      else await this.resetLivePair(identity, Track.Source.Camera, true, 0);
+      // Отступ уже у сторожа: 30 с общего срока здесь отняли бы у него первые попытки (`resubscribeGapMs` = 0).
+      else await this.resetLivePair(identity, Track.Source.Camera, true, resubscribeGapMs);
     } finally {
       watch.settled();
     }

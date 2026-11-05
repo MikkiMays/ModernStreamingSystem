@@ -30,6 +30,11 @@
 export const RELEASE_MS = 1000;
 /** Потолок ширины снимка: он виден доли секунды, на него незачем тратить память. */
 const FREEZE_WIDTH = 640;
+/**
+ * Сколько снимок не уходит от кадров, пришедших вслед за ним: они ещё прежней дорожки, её вот-вот снимут. Дорожку
+ * так и не сняли (переподписка не состоялась) — после этого срока живой кадр снимок убирает.
+ */
+export const FREEZE_HOLD_MS = 2500;
 
 /** Что пул просит у дорожки: `attach` и `detach` LiveKit. */
 export interface PoolTrack {
@@ -59,6 +64,11 @@ interface Entry {
   surface: HTMLDivElement;
   video: HTMLVideoElement;
   canvas: HTMLCanvasElement | null;
+  frozenAt: number;
+  /** Сколько раз у элемента сменился поток: снимок уходит только от кадра нового потока. */
+  stream: number;
+  frozenStream: number;
+  className: string;
   /** Плитки этой дорожки; видео — у последней. Обычно одна. */
   hosts: HTMLElement[];
   release?: ReturnType<typeof setTimeout>;
@@ -86,6 +96,8 @@ export class VideoPool {
     clearTimeout(entry.release);
     entry.release = undefined;
     entry.hosts.push(host);
+    entry.video.className = className;
+    entry.className = className;
     this.place(host, entry.surface);
     if (!known) track.attach(entry.video);
     else {
@@ -136,6 +148,7 @@ export class VideoPool {
     const entry = this.entries.get(id);
     if (!entry) return;
     this.freeze(id);
+    entry.stream++;
     entry.track.detach(entry.video);
     entry.track.attach(entry.video);
     entry.movedAt = ++this.moves;
@@ -149,11 +162,12 @@ export class VideoPool {
     const old = entry.video;
     entry.track.detach(old);
     old.remove();
-    const video = this.createVideo(entry, old.className);
+    const video = this.createVideo(entry);
     const label = old.getAttribute('aria-label');
     if (label !== null) video.setAttribute('aria-label', label);
     video.style.transform = old.style.transform;
     entry.video = video;
+    entry.stream++;
     entry.armed = false;
     entry.frame = false;
     entry.surface.prepend(video);
@@ -187,10 +201,14 @@ export class VideoPool {
     canvas.style.transform = video.style.transform;
     entry.surface.append(canvas);
     entry.canvas = canvas;
+    entry.frozenAt = Date.now();
+    entry.frozenStream = entry.stream;
     this.syncSurface(entry);
+    // Дорожку могут и не снять: кто-то должен увидеть следующий кадр и убрать снимок.
+    this.armFrame(entry);
   }
 
-  /** Встреча кончилась, или тест: отвязать всё сейчас. */
+  /** Отвязать всё сейчас. Встрече это не нужно — снятые плитки отвязывают своё сами, — это для тестов. */
   clear() {
     for (const entry of [...this.entries.values()]) this.destroy(entry);
     this.park?.remove();
@@ -206,22 +224,26 @@ export class VideoPool {
       surface,
       video: null as unknown as HTMLVideoElement,
       canvas: null,
+      frozenAt: 0,
+      stream: 0,
+      frozenStream: 0,
+      className,
       hosts: [],
       frame: false,
       presented: 0,
       armed: false,
       movedAt: ++this.moves,
     };
-    entry.video = this.createVideo(entry, className);
+    entry.video = this.createVideo(entry);
     surface.append(entry.video);
     this.armFirstFrame(entry);
     this.entries.set(id, entry);
     return entry;
   }
 
-  private createVideo(entry: Entry, className: string) {
+  private createVideo(entry: Entry) {
     const video = document.createElement('video');
-    video.className = className;
+    video.className = entry.className;
     video.autoplay = true;
     video.muted = true;
     video.playsInline = true;
@@ -234,6 +256,7 @@ export class VideoPool {
     video.addEventListener('loadeddata', onFrame);
     video.addEventListener('emptied', () => {
       if (entry.video !== video) return;
+      entry.stream++;
       entry.frame = false;
       this.syncSurface(entry);
       this.armFirstFrame(entry);
@@ -244,6 +267,7 @@ export class VideoPool {
   private swap(entry: Entry, track: PoolTrack) {
     entry.track.detach(entry.video);
     entry.track = track;
+    entry.stream++;
     entry.frame = false;
     this.syncSurface(entry);
     track.attach(entry.video);
@@ -264,6 +288,9 @@ export class VideoPool {
       return;
     }
     this.place(this.parking(), entry.surface);
+    // В отстойнике элемент — ничей: поиск по классу и подписи его находить не должен.
+    entry.video.className = '';
+    entry.video.removeAttribute('aria-label');
     entry.release = setTimeout(() => this.destroy(entry), RELEASE_MS);
   }
 
@@ -317,6 +344,7 @@ export class VideoPool {
     entry.armed = false;
     entry.presented = Math.max(entry.presented + 1, metadata?.presentedFrames ?? 0);
     this.markFrame(entry);
+    if (entry.canvas) this.armFrame(entry);
   }
 
   /** Ждать первый кадр и по rVFC тоже: `loadeddata` в Safari приходит не всегда, когда кадр уже виден. */
@@ -334,8 +362,11 @@ export class VideoPool {
 
   private markFrame(entry: Entry) {
     entry.frame = true;
-    entry.canvas?.remove();
-    entry.canvas = null;
+    const stale = entry.stream !== entry.frozenStream || Date.now() - entry.frozenAt >= FREEZE_HOLD_MS;
+    if (entry.canvas && stale) {
+      entry.canvas.remove();
+      entry.canvas = null;
+    }
     this.syncSurface(entry);
   }
 

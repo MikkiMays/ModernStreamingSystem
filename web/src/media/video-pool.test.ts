@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RELEASE_MS, VideoPool, type PoolTrack } from './video-pool';
+import { FREEZE_HOLD_MS, RELEASE_MS, VideoPool, type PoolTrack } from './video-pool';
 
 /*
   Один `<video>` на дорожку (R189, И5). React сносит старую плитку и строит новую в одной фиксации: cleanup
@@ -185,6 +185,17 @@ describe('перенос плитки', () => {
     expect(track.detach).not.toHaveBeenCalled();
   });
 
+  it('в отстойнике элемент ничей: поиск по классу и подписи его не находит, новая плитка всё возвращает', () => {
+    const track = fakeTrack();
+    const view = pool.mount('TR', track, host());
+    view.video.setAttribute('aria-label', 'Камера: Аня');
+    view.unmount();
+    expect(document.querySelector('.camera-video')).toBeNull();
+    expect(document.querySelector('[aria-label]')).toBeNull();
+    pool.mount('TR', track, host());
+    expect(document.querySelector('.camera-video')).toBe(view.video);
+  });
+
   it('отметка переноса меняется при переезде и не меняется, пока плитка та же', () => {
     const track = fakeTrack();
     const slot = host();
@@ -281,6 +292,21 @@ describe('первый кадр и последний кадр', () => {
     view.video.dispatchEvent(new Event('emptied'));
     expect(surface.querySelector('canvas')).toBe(canvas);
     expect(surface.hasAttribute('data-cover')).toBe(true);
+    view.video.dispatchEvent(new Event('loadeddata'));
+    expect(surface.querySelector('canvas')).toBeNull();
+  });
+
+  it('кадры прежней дорожки снимок не убирают: её вот-вот снимут, а потом было бы пусто', () => {
+    stubCanvas();
+    const view = pool.mount('TR', fakeTrack(), host());
+    const surface = view.video.parentElement!;
+    sized(view.video);
+    view.video.dispatchEvent(new Event('loadeddata'));
+    pool.freeze('TR');
+    view.video.dispatchEvent(new Event('loadeddata'));
+    expect(surface.querySelector('canvas')).not.toBeNull();
+    // Дорожку так и не сняли: живой кадр важнее снимка.
+    vi.advanceTimersByTime(FREEZE_HOLD_MS);
     view.video.dispatchEvent(new Event('loadeddata'));
     expect(surface.querySelector('canvas')).toBeNull();
   });
