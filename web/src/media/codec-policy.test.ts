@@ -104,12 +104,16 @@ describe('лестница камеры ПК', () => {
     expect(nvidiaOnly(null)).toBe(false);
   });
 
-  it('VP9 программно — только до 720p30 и при запасе ядер; выше — H.264, без понижения кадра', () => {
-    expect(decideCodec(input({ cores: 4 }))).toMatchObject({
+  it('VP9 программно — только до 720p30 и от восьми ядер; выше или слабее — H.264, без понижения кадра', () => {
+    expect(decideCodec(input({ cores: 8, platform: 'desktop' }))).toMatchObject({
       codec: 'vp9',
       hw: false,
       scalabilityMode: 'L1T3',
     });
+    // Четыре ядра (R189): слабый ПК стартует легко — программный H.264, а не VP9 со слоями.
+    const four = decideCodec(input({ cores: 4 }));
+    expect(four.codec).toBe('h264');
+    expect(four.skipped).toContainEqual({ codec: 'vp9', hw: false, why: 'cpu' });
     const big = decideCodec(input({ level: level1080x30 }));
     expect(big).toMatchObject({ codec: 'h264', hw: false });
     expect(big.skipped).toContainEqual({ codec: 'vp9', hw: false, why: 'level' });
@@ -121,7 +125,8 @@ describe('лестница камеры ПК', () => {
 
   it('K-SVC — только когда кодирует и так процессор и ядер восемь и больше, и только в клиенте Windows', () => {
     expect(decideCodec(input({ cores: 8 })).scalabilityMode).toBe('L3T3_KEY');
-    expect(decideCodec(input({ cores: 6 })).scalabilityMode).toBe('L1T3');
+    // Шесть ядер: программный VP9 камере уже не по бюджету (R189) — H.264 без слоёв.
+    expect(decideCodec(input({ cores: 6 }))).toMatchObject({ codec: 'h264', hw: false });
     expect(decideCodec(input({ cores: 16, platform: 'desktop' })).scalabilityMode).toBe('L1T3');
   });
 
@@ -226,7 +231,8 @@ describe('зрители', () => {
   it('у программной копии — только камера до 720p30 и восемь ядер; телефон второй кодировщик не держит', () => {
     const nvidia = { probe: rtx30, gpu: gpu('nvidia') };
     expect(decideCodec(input({ ...nvidia, viewers: [firefox] })).backupActive).toBe(true);
-    expect(decideCodec(input({ ...nvidia, viewers: [firefox], cores: 4 })).codec).toBe('vp9');
+    // Четыре ядра: ни второго кодировщика, ни программного VP9 (R189) — H.264, который декодируют все.
+    expect(decideCodec(input({ ...nvidia, viewers: [firefox], cores: 4 })).codec).toBe('h264');
     const phone = decideCodec(
       input({ platform: 'mobile', probe: probe(['vp9', 'L1T3', 'hw']), viewers: [['h264', 'vp8']] }),
     );

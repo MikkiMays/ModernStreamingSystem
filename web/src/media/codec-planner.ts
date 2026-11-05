@@ -8,10 +8,22 @@ import {
   type PolicyInput,
 } from './codec-policy';
 import { EncoderHealth, type EncoderSample } from './encoder-health';
+import { memoryScope, NO_MEMORY, type CodecMemory } from './codec-memory';
 
 /**
  * Кодек каждого источника на всю встречу (R152): решение политики (`codec-policy.ts`), сторож
  * (`encoder-health.ts`), что декодируют зрители и сколько раз можно переопубликоваться.
+ *
+ * КАМЕРА — КОДЕК РЕШАЕТСЯ ПРИ СТАРТЕ (R189, И2). Посреди потока камера кодек не меняет ни из-за
+ * нагрузки, ни из-за зрителя: переопубликация — это исчезнувшая плитка у каждого и чёрный кадр до
+ * ключевого, а владелец назвал частые смены кодека злом. Сторож по-прежнему смотрит, но его вывод —
+ * запись в память машины (`codec-memory.ts`), и действует она при следующем естественном старте:
+ * включили камеру, вошли, полностью переподключились. Зрителю, который кодек не декодирует, — запасной
+ * рядом (backup, политика SIMULCAST), а не смена у всех.
+ *
+ * ПОКАЗ — не больше одного отступа за показ, без возврата и молча: показ и так переопубликовывается
+ * при смене режима, а второй отступ подряд означал бы, что машина не тянет и ступень ниже — тогда
+ * пусть кодировщик роняет кадры на месте, чем плитка гаснет ещё раз.
  *
  * ПОЧЕМУ ЗДЕСЬ, А НЕ В `session.ts`. Сессия публикует и опрашивает, а решать, когда сменить кодек,
  * — это правила со временем: «не чаще раза в 30 с», «подсказка — не чаще раза в 5 минут», «отступ
@@ -59,6 +71,8 @@ interface SourceState {
   hintAt: number;
   fallbacks: number;
   switches: number;
+  /** Отступов сторожа у этой публикации (показ: одна на показ, `stop` обнуляет). */
+  fallsThisRun: number;
 }
 
 const NONE: PlannerAction = { kind: 'none' };
@@ -77,7 +91,10 @@ export class CodecPlanner {
   private cpuTight = false;
   private log: CodecSwitch[] = [];
 
-  constructor(private readonly now: () => number = () => performance.now()) {}
+  constructor(
+    private readonly now: () => number = () => performance.now(),
+    private readonly memory: CodecMemory = NO_MEMORY,
+  ) {}
 
   private static fresh(): SourceState {
     return {
@@ -87,6 +104,7 @@ export class CodecPlanner {
       hintAt: -Infinity,
       fallbacks: 0,
       switches: 0,
+      fallsThisRun: 0,
     };
   }
 
@@ -106,6 +124,9 @@ export class CodecPlanner {
   plan(source: PublishSource, base: PlanInput, initial: boolean): CodecDecision {
     const state = this.states[source];
     state.base = base;
+    // Память машины — поверх того, что отвергли в этой встрече: применяется только здесь, при старте.
+    for (const [rung, reason] of this.memory.failed(base.source, memoryScope(base.gpu), base.level))
+      if (!state.failed.has(rung)) state.failed.set(rung, reason);
     const next = this.decide(state);
     const before = state.decision;
     if (!initial && before && !sameShape(before, next)) {
@@ -144,12 +165,10 @@ export class CodecPlanner {
     if (key === this.viewersKey) return [];
     this.viewersKey = key;
     this.viewers = viewers;
-    const actions: PlannerAction[] = [];
-    for (const source of ['camera', 'screen'] as const) {
-      const action = this.review(source, 'viewers');
-      if (action.kind === 'switch') actions.push(action);
-    }
-    return actions;
+    // Камера посреди потока не меняется (И2): зрителя без декодера прикроет запасной кодек, а состав
+    // зрителей учтётся при следующем старте. Показ — как раньше: без смены он бы не увидел ничего.
+    const action = this.review('screen', 'viewers');
+    return action.kind === 'switch' ? [action] : [];
   }
 
   /** Процессору тесно (Compute Pressure): учитывается в следующих решениях, само ничего не меняет. */
@@ -167,6 +186,7 @@ export class CodecPlanner {
     const state = this.states[source];
     state.decision = undefined;
     state.pending = undefined;
+    state.fallsThisRun = 0;
     state.health.restart();
   }
 
@@ -177,18 +197,26 @@ export class CodecPlanner {
     if (!decision || !state.base) return NONE;
     // Смена уже решена и ждёт окна: тот же кодировщик ещё раз в отступ не считаем.
     if (state.pending) return this.review(source, state.pending);
-    const restorable = [...state.failed.values()].some((r) => r === 'cpu' || r === 'encode-time');
     const lowest = !decision.hw && (decision.codec === 'h264' || decision.codec === 'vp8');
-    const result = state.health.observe(sample, { expectHw: decision.hw, lowest, restorable });
+    // Возвращаться некуда ни камере, ни показу (И2): отступ помнит машина, а не эта публикация.
+    const result = state.health.observe(sample, { expectHw: decision.hw, lowest, restorable: false });
     switch (result.verdict) {
-      case 'fallback':
-        state.failed.set(rungKey(decision.codec, decision.hw), result.reason);
+      case 'fallback': {
+        const rung = rungKey(decision.codec, decision.hw);
+        state.failed.set(rung, result.reason);
         state.fallbacks++;
+        state.fallsThisRun++;
+        this.memory.remember(
+          state.base.source,
+          memoryScope(state.base.gpu),
+          state.base.level,
+          rung,
+          result.reason,
+        );
+        // Камера — только память: подействует при следующем включении. Показ — один раз за показ.
+        if (source === 'camera' || state.fallsThisRun > 1) return NONE;
         return this.review(source, result.reason);
-      case 'restore':
-        for (const [key, reason] of state.failed)
-          if (reason === 'cpu' || reason === 'encode-time') state.failed.delete(key);
-        return this.review(source, 'restore');
+      }
       case 'hint':
         if (this.now() - state.hintAt < CodecPlanner.HINT_GAP_MS) return NONE;
         state.hintAt = this.now();

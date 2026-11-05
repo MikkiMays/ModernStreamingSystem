@@ -8,6 +8,8 @@ import {
   defaultScreenMode,
   fitSource,
   forcedCameraConstraints,
+  cameraRateSatisfied,
+  type ScreenProfile,
   modeOf,
   policyLevel,
   policySourceOf,
@@ -195,7 +197,8 @@ describe('screen profiles', () => {
     expect(screen.degradationPreference).toBe('maintain-resolution');
     const camera = cameraOptions({ resolution: 720, fps: 30 });
     expect(camera.videoEncoding).toEqual({ maxBitrate: 3000000, maxFramerate: 30 });
-    expect(camera.degradationPreference).toBe('maintain-resolution');
+    // Камере — `balanced` (R189, И3): перегрузку кодировщик решает на месте, а не переопубликацией.
+    expect(camera.degradationPreference).toBe('balanced');
     expect(camera.simulcast).toBe(false);
   });
 
@@ -241,6 +244,24 @@ describe('screen profiles', () => {
       height: { min: 720, ideal: 720 },
       frameRate: { min: 30, ideal: 30 },
     });
+  });
+});
+
+describe('cameraRateSatisfied (R189)', () => {
+  it('камера уже отдаёт выбранный кадр и частоту — лестницу `min` не трогаем; недобор — трогаем', () => {
+    const profile: ScreenProfile = { resolution: 720, fps: 30 };
+    expect(cameraRateSatisfied({ width: 1280, height: 720, frameRate: 30 }, profile)).toBe(true);
+    expect(cameraRateSatisfied({ width: 720, height: 1280, frameRate: 29.97 }, profile)).toBe(true);
+    expect(cameraRateSatisfied({ width: 1280, height: 720, frameRate: 24 }, profile)).toBe(false);
+    expect(cameraRateSatisfied({ width: 640, height: 480, frameRate: 30 }, profile)).toBe(false);
+    expect(cameraRateSatisfied(undefined, profile)).toBe(false);
+    // Камера умеет меньше, чем просят: её потолок и есть «выбранное».
+    expect(
+      cameraRateSatisfied({ width: 1280, height: 720, frameRate: 30 }, { resolution: 1080, fps: 60 }, {
+        height: { max: 720 },
+        frameRate: { max: 30 },
+      } as MediaTrackCapabilities),
+    ).toBe(true);
   });
 });
 

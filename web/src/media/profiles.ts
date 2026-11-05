@@ -279,6 +279,23 @@ export function forcedCameraConstraints(
   ];
 }
 /**
+ * Отдаёт ли камера уже то, что у неё просят (R189): тогда `forcedCameraConstraints` не нужны. Каждый
+ * `applyConstraints` с `min` — это перенастройка, а то и перезапуск источника в Chromium: кадры на
+ * полсекунды встают, и при 30 кадрах этого хватает, чтобы захват назвался `muted`. Раньше лестница
+ * шла на каждую подсказку кодировщику — после каждой публикации и перезахвата.
+ */
+export function cameraRateSatisfied(
+  settings: Pick<MediaTrackSettings, 'width' | 'height' | 'frameRate'> | undefined,
+  profile: ScreenProfile,
+  capabilities?: MediaTrackCapabilities,
+): boolean {
+  if (!settings?.width || !settings.height) return false;
+  const { resolution } = cameraCapture(profile, capabilities);
+  const short = Math.min(settings.width, settings.height);
+  const rate = settings.frameRate ?? 0;
+  return short >= resolution.height && rate >= resolution.frameRate - 1;
+}
+/**
  * Что камера отдаёт в сеть: ровно выбранный уровень, как показ экрана (`screenOptions`).
  *
  * ЗАЧЕМ БЕЗ СЛОЁВ. Камера публиковалась simulcast: выбранный уровень и под ним подпорка 360p на
@@ -287,9 +304,10 @@ export function forcedCameraConstraints(
  * слой засыпал, телефон показывал «640p · 15 fps» при выставленных 720p30, зритель видел мыло.
  * Выставленное должно идти таким, как выставили, а не «стремиться» к нему, — значит, слой один.
  *
- * `maintain-resolution` — как у экрана: при нехватке канала или процессора кодировщик сбрасывает
- * кадры, а кадр не уменьшает; недобор виден в плашке с причиной (`outbound-note.ts`). Зрителю со
- * слабым каналом VP9/AV1 отдают меньше кадров того же размера (временные слои `L1T3`).
+ * `balanced` (R189, И3; раньше `maintain-resolution`, как у экрана): при нехватке процессора или
+ * канала кодировщик подстраивает и кадр, и частоту на месте — лучше живая камера чуть мельче, чем
+ * застывшая или переопубликованная. Недобор виден в плашке с причиной (`outbound-note.ts`). Зрителю
+ * со слабым каналом VP9/AV1 отдают меньше кадров того же размера (временные слои `L1T3`).
  *
  * Битрейт берётся из той же таблицы, что и у экрана: одно и то же число в двух местах рано или
  * поздно расходится.
@@ -308,7 +326,12 @@ export function cameraOptions(profile: ScreenProfile, shape: PublishShape = BASE
     videoCodec: shape.codec,
     ...backupOptions(shape),
     videoEncoding: { maxBitrate: cameraBitrate(profile), maxFramerate: profile.fps },
-    degradationPreference: 'maintain-resolution',
+    // Нагрузка — только на месте (R189, И3): при настоящей перегрузке libwebrtc сам снижает кадр и
+    // частоту и сам возвращает (`video/g3doc/adaptation.md`), без переговоров и без смены кодека. Это
+    // отменяет X10/Р-32 для камеры только под перегрузкой: уровень — выбранный, слоёв не прибавляется.
+    // LiveKit ставит это отправителю через `setDegradationPreference` при публикации; показ остаётся
+    // на `maintain-resolution` (`screenOptions`).
+    degradationPreference: 'balanced',
     simulcast: shape.simulcast,
     ...(shape.scalabilityMode ? { scalabilityMode: shape.scalabilityMode } : {}),
   };
