@@ -425,6 +425,7 @@
       "ceiling": "Dieser Server erlaubt bis zu {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Kamera bis {{resolution}}p",
       "sharpFps": "Im Modus „Scharf“ läuft die Freigabe mit bis zu {{fps}} fps: Schärfe vor Bildrate. Für die Bildrate „Flüssig“ wählen",
+      "fpsLimit": "60 fps sind derzeit nicht verfügbar: Video läuft mit bis zu {{fps}}",
       "group": {
         "screen": "Bildschirmfreigabe",
         "camera": "Kameravideo"

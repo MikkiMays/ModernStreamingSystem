@@ -190,16 +190,18 @@ describe('окно настроек (T26)', () => {
         .getAllByRole('radio')
         .map((radio) => radio.getAttribute('aria-label')),
     ).toEqual(['15 fps', '30 fps', '60 fps']);
-    fireEvent.click(within(fps).getByRole('radio', { name: '60 fps' }));
-    expect(readPreferences().camera).toEqual({ resolution: 480, fps: 60 });
+    // 60 кадров виден, но недоступен нигде (R192).
+    expect(within(fps).getByRole('radio', { name: '60 fps' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(within(fps).getByRole('radio', { name: '15 fps' }));
+    expect(readPreferences().camera).toEqual({ resolution: 480, fps: 15 });
     // Превью меняет кадр на лету тем же захватом, а в углу — что камера отдаёт сейчас.
     await vi.waitFor(() =>
       expect(device.track.applyConstraints).toHaveBeenLastCalledWith(
-        expect.objectContaining({ width: { ideal: 854 }, height: { ideal: 480 }, frameRate: { ideal: 60 } }),
+        expect.objectContaining({ width: { ideal: 854 }, height: { ideal: 480 }, frameRate: { ideal: 15 } }),
       ),
     );
     expect(device.getUserMedia).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText('480p · 60 fps', {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByText('480p · 15 fps', {}, { timeout: 2000 })).toBeInTheDocument();
     // Показ в браузере (R185) — только 720p и 1080p: ни режима, ни частоты, 1440p нет; под ним — что
     // выбранное значит (X10) и где остальное. Строки потолка больше нет.
     const shown = screen.getByRole('radiogroup', { name: 'Экран: качество' });
@@ -255,12 +257,13 @@ describe('окно настроек (T26)', () => {
       expect(within(fps).getByRole('radio', { name: '60 fps' })).toHaveAttribute('aria-disabled', 'true');
       fireEvent.click(within(mode).getByRole('radio', { name: 'Плавность' }));
       expect(readPreferences().screen).toMatchObject({ mode: 'smooth' });
-      fireEvent.click(
+      // В «Плавности» 60 кадров всё равно недоступны (R192), идут 30.
+      expect(
         within(screen.getByRole('radiogroup', { name: 'Экран: частота кадров' })).getByRole('radio', {
           name: '60 fps',
         }),
-      );
-      expect(readPreferences().screen).toMatchObject({ mode: 'smooth', fps: 60 });
+      ).toHaveAttribute('aria-disabled', 'true');
+      expect(readPreferences().screen).toMatchObject({ mode: 'smooth', fps: 30 });
       expect(screen.getByText('Ниже этого качества Cord не передаёт')).toBeInTheDocument();
     } finally {
       delete (window as { cordDesktop?: unknown }).cordDesktop;

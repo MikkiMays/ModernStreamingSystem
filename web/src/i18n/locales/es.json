@@ -425,6 +425,7 @@
       "ceiling": "Este servidor permite hasta {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Cámara: hasta {{resolution}}p",
       "sharpFps": "En el modo «Nitidez» la presentación va hasta {{fps}} fps: la nitidez importa más que la tasa. Si necesitas la tasa, elige «Fluidez»",
+      "fpsLimit": "60 fps no están disponibles ahora: el vídeo llega hasta {{fps}}",
       "group": {
         "screen": "Compartir pantalla",
         "camera": "Vídeo de la cámara"

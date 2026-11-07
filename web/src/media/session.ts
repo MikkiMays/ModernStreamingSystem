@@ -45,6 +45,7 @@ import {
   type PublishSource,
 } from './codec-planner';
 import { gpuHint, policyPlatform, probeEncoders, sendableCodecs, watchCpuPressure } from './codec-probe';
+import { CameraLoad, cameraLoadLadder } from './camera-load';
 import { rememberLayout, retune } from './retune';
 import { CameraGuard, type CameraKind, type HealRequest } from './camera-guard';
 import { CameraLog } from './camera-log';
@@ -85,7 +86,7 @@ import {
   type ScreenAudioEvent,
   type ScreenAudioSource,
 } from './capture';
-import { readUpstream, upstreamDelta, type UpstreamReading } from './encoder-health';
+import { EncoderHealth, readUpstream, upstreamDelta, type UpstreamReading } from './encoder-health';
 import { LiveHealth } from './live-health';
 import { VideoPauses } from './video-pause';
 import { VideoSilence } from './video-silence';
@@ -1512,7 +1513,7 @@ export class MediaSession {
   /** Подстроить слои работающей камеры под выбранный уровень, не трогая захват. */
   private async retuneCamera(track: LocalVideoTrack, level: ScreenProfile): Promise<boolean> {
     if (!rememberLayout(track)) return false;
-    if (!(await retune(track, level))) return false;
+    if (!(await retune(track, level, this.codecs.current('camera')?.codec))) return false;
     track.mediaStreamTrack.contentHint = cameraHint;
     this.videoChangedAt.camera = performance.now();
     return true;
@@ -1525,7 +1526,26 @@ export class MediaSession {
   private async reapplyCameraLevel() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (!(track instanceof LocalVideoTrack)) return;
+    // Новый захват — новая история нагрузки: снова выбранное, а не ступень прежней камеры.
+    this.cameraLoad.reset();
     await this.retuneCamera(track, this.cameraProfile).catch(() => false);
+  }
+  /** Ступень нагрузки камеры (R192): процессор не успевает — кадр ниже на месте, успокоился — обратно. */
+  private readonly cameraLoad = new CameraLoad();
+  private observeCameraLoad(track: LocalVideoTrack, limitation: string, encodeMs: number | null) {
+    const ladder = cameraLoadLadder(this.cameraProfile);
+    const fps = ladder[Math.min(this.cameraLoad.step, ladder.length - 1)]!.fps;
+    const slow = encodeMs !== null && encodeMs > (EncoderHealth.ENCODE_SHARE * 1000) / fps;
+    const signal =
+      limitation === 'cpu' || slow
+        ? 'over'
+        : limitation === 'unknown' || limitation === 'bandwidth'
+          ? 'other'
+          : 'calm';
+    const step = this.cameraLoad.observe(signal, ladder.length - 1);
+    if (step === null || this.deviceBusy.has('camera')) return;
+    this.cameraLog.note('camera-load', `${ladder[step]!.resolution}p${ladder[step]!.fps}`);
+    void this.retuneCamera(track, { ...this.cameraProfile, ...ladder[step]! }).catch(() => false);
   }
   async returnToLive() {
     if (this.disposed || this.state.get().status !== 'connected') return;
@@ -3110,6 +3130,7 @@ export class MediaSession {
   }
   setCameraProfile(profile: ScreenProfile) {
     this.cameraProfile = profile;
+    this.cameraLoad.reset();
     this.cameraProfilePending = true;
     this.videoChangedAt.camera = performance.now();
     this.preferences.set(savePreferences({ camera: profile }));
@@ -3305,6 +3326,8 @@ export class MediaSession {
             otherSeconds: delta.limited.other,
           });
         }
+        if (source === 'camera' && !reading.dormant)
+          this.observeCameraLoad(track as LocalVideoTrack, reading.limitation, delta.encodeMs);
         // Сторож (`codec-planner.ts`): `cpu` или время кадра три раза подряд, или «аппаратный» стал
         // программным — ступень ниже по лестнице; на программном H.264 — подсказка. Хороший канал
         // не повод менять кодек (R91/X10), жалобы `bandwidth` ничего не понижают.

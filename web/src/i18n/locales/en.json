@@ -425,6 +425,7 @@
       "ceiling": "This server allows up to {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Camera goes up to {{resolution}}p",
       "sharpFps": "In Sharp mode the share runs at up to {{fps}} fps: sharpness over frame rate. Pick Smooth if you need the frame rate",
+      "fpsLimit": "60 fps isn't available right now: video goes up to {{fps}}",
       "group": {
         "screen": "Screen share",
         "camera": "Camera video"

@@ -29,7 +29,8 @@ describe('правила качества с сервера', () => {
     expect(rememberQuality({ maxParticipants: 10 })).toEqual(builtinRules);
     // Показ начинается с 1080p (Р-84): экран 1080p не ужимается до 720 — текст мылил сам масштаб.
     expect(builtinRules.default).toEqual({ resolution: 1080, fps: 30 });
-    expect(qualityLevels()).toEqual({ resolutions: [720, 1080], frameRates: [15, 30, 60] });
+    expect(builtinRules.ceiling).toEqual({ resolution: 1080, fps: 30 });
+    expect(qualityLevels()).toEqual({ resolutions: [720, 1080], frameRates: [15, 30] });
   });
 
   it('не верит правилам, которых кодировщик не знает, и умолчанию выше потолка', () => {
@@ -65,7 +66,7 @@ describe('миграция сохранённого уровня', () => {
   it('1440p опускается к потолку, частота выше потолка — тоже', () => {
     expect(nearestLevel({ resolution: 1440, fps: 60, automatic: false })).toEqual({
       resolution: 1080,
-      fps: 60,
+      fps: 30,
     });
     expect(
       nearestLevel(

@@ -6,6 +6,7 @@ import {
   CAMERA_MAX,
   CAMERA_RESOLUTIONS,
   CHOICE_FRAME_RATES,
+  FPS_LIMIT,
   qualityRules,
   screenChoices,
   type Level,
@@ -64,9 +65,11 @@ export function QualityRows({
   // причина — в подсказке пункта, как у потолка сервера. Выбор ждёт «Плавности».
   const sharp = !camera && modeOf(value) === 'sharp';
   const paced = (fps: FrameRate) =>
-    sharp
-      ? { disabled: true, title: t(($) => $.settings.media.sharpFps, { fps: SHARP_MAX_FPS }) }
-      : above(fps > ceiling.fps);
+    fps > FPS_LIMIT
+      ? { disabled: true, title: t(($) => $.settings.media.fpsLimit, { fps: FPS_LIMIT }) }
+      : sharp
+        ? { disabled: true, title: t(($) => $.settings.media.sharpFps, { fps: SHARP_MAX_FPS }) }
+        : above(fps > ceiling.fps);
   return (
     <>
       <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'}>

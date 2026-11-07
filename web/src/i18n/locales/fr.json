@@ -425,6 +425,7 @@
       "ceiling": "Ce serveur autorise jusqu'à {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Caméra : jusqu’à {{resolution}}p",
       "sharpFps": "En mode « Netteté », le partage va jusqu’à {{fps}} fps : la netteté prime sur la fréquence. Pour la fréquence, choisissez « Fluidité »",
+      "fpsLimit": "60 i/s ne sont pas disponibles pour le moment : la vidéo monte jusqu’à {{fps}}",
       "group": {
         "screen": "Partage d'écran",
         "camera": "Vidéo de la caméra"

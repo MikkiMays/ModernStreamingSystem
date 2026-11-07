@@ -354,7 +354,7 @@ describe('окна оболочки поверх других программ (
     expect(sent(api, 'mini.ack').at(-1)).toEqual({ seq: 5, result: 'ignored', reason: 'failed' });
   });
 
-  it('«Показать игру» (R104): окно игры — «Плавность», 60 fps и звук игры, без окна выбора', async () => {
+  it('«Показать игру» (R104): окно игры — «Плавность», 30 fps и звук игры, без окна выбора', async () => {
     const api = fakeDesktop(['overlay', 'overlay.widget', 'golive', 'capture', 'capture.app-audio']);
     const { meeting } = fakeMeeting();
     renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
@@ -362,7 +362,7 @@ describe('окна оболочки поверх других программ (
     await act(async () => {});
     expect(api.invoke).toHaveBeenCalledWith('capture.select', { id: 'window:1234:0', audio: 'app' });
     expect(meeting.media.share).toHaveBeenCalledWith(
-      { resolution: 1080, fps: 60, mode: 'smooth', audio: 'system' },
+      { resolution: 1080, fps: 30, mode: 'smooth', audio: 'system' },
       expect.anything(),
     );
     api.emit('golive', { id: 'screen:1:0' });

@@ -5,11 +5,11 @@ import { retune } from './retune';
 describe('ступень лестницы на работающей дорожке', () => {
   it('меняет слои у того же отправителя, а не публикует дорожку заново', async () => {
     const { track, sender, lock, layers } = fakeCameraTrack();
-    expect(await retune(track, { resolution: 1080, fps: 60 })).toBe(true);
+    expect(await retune(track, { resolution: 1080, fps: 30 })).toBe(true);
     expect(sender.setParameters).toHaveBeenCalledOnce();
     expect(lock.lock).toHaveBeenCalledOnce();
     const [q, h, f] = layers();
-    expect(f).toMatchObject({ scaleResolutionDownBy: 1440 / 1080, maxBitrate: 10000000, maxFramerate: 60 });
+    expect(f).toMatchObject({ scaleResolutionDownBy: 1440 / 1080, maxBitrate: 4500000, maxFramerate: 30 });
     // Подпорки мельче новой ступени — остаются собой.
     expect(h).toMatchObject({ scaleResolutionDownBy: 2, maxBitrate: 2000000, maxFramerate: 30 });
     expect(q).toMatchObject({ scaleResolutionDownBy: 4, maxBitrate: 500000, maxFramerate: 15 });
@@ -20,9 +20,9 @@ describe('ступень лестницы на работающей дорожк
     await retune(track, { resolution: 720, fps: 30 });
     // На 720p подпорка того же размера была бы второй копией верхнего слоя — она ужимается вдвое.
     expect(layers().map((layer) => layer.scaleResolutionDownBy)).toEqual([8, 4, 2]);
-    await retune(track, { resolution: 1440, fps: 60 });
+    await retune(track, { resolution: 1440, fps: 30 });
     expect(layers().map((layer) => layer.scaleResolutionDownBy)).toEqual([4, 2, 1]);
-    expect(layers().map((layer) => layer.maxBitrate)).toEqual([500000, 2000000, 16000000]);
+    expect(layers().map((layer) => layer.maxBitrate)).toEqual([500000, 2000000, 8000000]);
   });
 
   it('пересчитывает подпорки, когда захват вырос', async () => {

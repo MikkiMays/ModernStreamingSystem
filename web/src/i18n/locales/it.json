@@ -425,6 +425,7 @@
       "ceiling": "Questo server consente fino a {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "Fotocamera: fino a {{resolution}}p",
       "sharpFps": "In modalità «Nitidezza» la condivisione va fino a {{fps}} fps: la nitidezza conta più della frequenza. Per la frequenza scegli «Fluidità»",
+      "fpsLimit": "60 fps non sono disponibili al momento: il video arriva fino a {{fps}}",
       "group": {
         "screen": "Condivisione schermo",
         "camera": "Video della videocamera"

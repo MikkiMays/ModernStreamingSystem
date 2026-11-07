@@ -5,7 +5,7 @@ import type { BackupCodecPolicy, TrackPublishOptions } from 'livekit-client';
  * главной: этот модуль читают настройки, а их — все экраны. Совпадение с SDK сверяет `profiles.test.ts`.
  */
 export const SIMULCAST_BACKUP = 1 as BackupCodecPolicy;
-import { BASELINE, type PolicyLevel, type PolicySource, type PublishShape } from './codec-policy';
+import { BASELINE, type Codec, type PolicyLevel, type PolicySource, type PublishShape } from './codec-policy';
 
 /** 480 — только у камеры (`CAMERA_RESOLUTIONS`); показ начинается с 720. */
 export type Resolution = 480 | 720 | 1080 | 1440;
@@ -90,9 +90,29 @@ export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps' | 
   if (modeOf(level) === 'sharp') return sharpBitrates[level.resolution] * 1000000;
   return bitrates[level.resolution][level.fps] * 1000000;
 }
-/** Полоса камеры под уровень: та же таблица, что у «плавности» показа, — режима у камеры нет. */
-export const cameraBitrate = (level: Pick<ScreenProfile, 'resolution' | 'fps'>) =>
-  bitrates[level.resolution][level.fps] * 1000000;
+/**
+ * Полоса камеры, Мбит/с, для H.264 (R193). Это предел, и кодировщик его выбирает: на обычной картинке 720p30 при 3 Мбит/с шло
+ * 2,7. Камера — лицо в кадре, а не игра, и своя таблица, а не «плавность» показа: у LiveKit 720p30 — 1,7 Мбит/с, у нас с
+ * запасом на качество. Выше 30 кадров камера не идёт (`FPS_LIMIT`).
+ */
+const cameraBitrates: Record<Resolution, Record<15 | 30, number>> = {
+  480: { 15: 0.75, 30: 1.2 },
+  720: { 15: 1.5, 30: 2.5 },
+  1080: { 15: 3, 30: 4.5 },
+  1440: { 15: 5, 30: 8 },
+};
+/**
+ * Та же картинка у кодеков новее требует меньше. Доли осторожные — реальное время, а не студийное кодирование: качество
+ * важнее экономии (владелец, 07.11.2026). VP8 и H.264 — без скидки.
+ */
+const codecShare: Partial<Record<Codec, number>> = { vp9: 0.8, h265: 0.8, av1: 0.7 };
+/** Полоса камеры под уровень и кодек, бит/с. */
+export const cameraBitrate = (level: Pick<ScreenProfile, 'resolution' | 'fps'>, codec?: Codec) =>
+  Math.round(
+    cameraBitrates[level.resolution][level.fps === 15 ? 15 : 30] *
+      (codec ? (codecShare[codec] ?? 1) : 1) *
+      1000000,
+  );
 /**
  * Что просить у `getDisplayMedia` (или у оболочки) под выбранный уровень.
  *
@@ -304,13 +324,10 @@ export function cameraRateSatisfied(
  * слой засыпал, телефон показывал «640p · 15 fps» при выставленных 720p30, зритель видел мыло.
  * Выставленное должно идти таким, как выставили, а не «стремиться» к нему, — значит, слой один.
  *
- * `balanced` (R189, И3; раньше `maintain-resolution`, как у экрана): при нехватке процессора или
- * канала кодировщик подстраивает и кадр, и частоту на месте — лучше живая камера чуть мельче, чем
- * застывшая или переопубликованная. Недобор виден в плашке с причиной (`outbound-note.ts`). Зрителю
- * со слабым каналом VP9/AV1 отдают меньше кадров того же размера (временные слои `L1T3`).
- *
- * Битрейт берётся из той же таблицы, что и у экрана: одно и то же число в двух местах рано или
- * поздно расходится.
+ * `maintain-resolution` — как у экрана: выбранный кадр идёт с первого кадра, при нехватке канала кодировщик сбрасывает кадры,
+ * а не размер. `balanced` (R189) на старте, пока полоса разгоняется, уводил в 480×270@10 на полминуты (R192). Настоящую
+ * перегрузку процессора снимает `camera-load.ts` — на месте, ступенью ниже. Зрителям со слабым каналом VP9/AV1 отдают меньше
+ * кадров того же размера (временные слои `L1T3`).
  *
  * СЛОИ (Р-36 → Р-47). Р-32 убрал подпорки, потому что сервер выбирал слой по высоте плитки и
  * ронял портрет телефона в 360p. Тот баг — про ИЗДАТЕЛЯ-телефон: десктоп держат горизонтально, у него
@@ -325,13 +342,8 @@ export function cameraOptions(profile: ScreenProfile, shape: PublishShape = BASE
   return {
     videoCodec: shape.codec,
     ...backupOptions(shape),
-    videoEncoding: { maxBitrate: cameraBitrate(profile), maxFramerate: profile.fps },
-    // Нагрузка — только на месте (R189, И3): при настоящей перегрузке libwebrtc сам снижает кадр и
-    // частоту и сам возвращает (`video/g3doc/adaptation.md`), без переговоров и без смены кодека. Это
-    // отменяет X10/Р-32 для камеры только под перегрузкой: уровень — выбранный, слоёв не прибавляется.
-    // LiveKit ставит это отправителю через `setDegradationPreference` при публикации; показ остаётся
-    // на `maintain-resolution` (`screenOptions`).
-    degradationPreference: 'balanced',
+    videoEncoding: { maxBitrate: cameraBitrate(profile, shape.codec), maxFramerate: profile.fps },
+    degradationPreference: 'maintain-resolution',
     simulcast: shape.simulcast,
     ...(shape.scalabilityMode ? { scalabilityMode: shape.scalabilityMode } : {}),
   };
@@ -373,11 +385,12 @@ export function layerTunes(
   sourceShort: number,
   level: Pick<ScreenProfile, 'resolution' | 'fps'>,
   helpers: LayerShape[],
+  codec?: Codec,
 ): LayerTune[] {
   const scale = (height: number) => Math.max(1, sourceShort / Math.max(2, height));
   const top = Math.min(sourceShort, level.resolution);
   const tunes: LayerTune[] = [
-    { scaleResolutionDownBy: scale(top), maxBitrate: cameraBitrate(level), maxFramerate: level.fps },
+    { scaleResolutionDownBy: scale(top), maxBitrate: cameraBitrate(level, codec), maxFramerate: level.fps },
   ];
   let above = top;
   for (let index = helpers.length - 1; index >= 0; index--) {

@@ -1,4 +1,5 @@
 import type { LocalVideoTrack } from 'livekit-client';
+import type { Codec } from './codec-policy';
 import { layerTunes, type LayerShape, type ScreenProfile } from './profiles';
 
 /**
@@ -68,10 +69,11 @@ export function rememberLayout(track: LocalVideoTrack): boolean {
 export async function retune(
   track: LocalVideoTrack,
   level: Pick<ScreenProfile, 'resolution' | 'fps'>,
+  codec?: Codec,
 ): Promise<boolean> {
   if (!rememberLayout(track)) return false;
   const sender = track.sender!;
-  const tunes = layerTunes(shortSide(track), level, layouts.get(sender)!.helpers);
+  const tunes = layerTunes(shortSide(track), level, layouts.get(sender)!.helpers, codec);
   // Тот же замок, под которым LiveKit гасит и зажигает слои (dynacast): `setParameters` верен
   // только против последнего `getParameters`, и два писателя вперемешку теряют правки друг друга.
   const lock = (track as unknown as Internals).senderLock;

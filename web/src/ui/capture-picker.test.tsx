@@ -134,22 +134,23 @@ describe('окно показа', () => {
       { name: '60 fps' },
     );
     expect(sixty).toHaveAttribute('data-disabled');
-    expect(sixty).toHaveAttribute('title', expect.stringContaining('до 15 fps'));
+    // 60 кадров недоступны везде (R192); 30 в «Чёткости» — со своей причиной.
+    expect(sixty).toHaveAttribute('title', expect.stringContaining('недоступны'));
+    expect(
+      within(screen.getByRole('radiogroup', { name: 'Экран: частота кадров' })).getByRole('radio', {
+        name: '30 fps',
+      }),
+    ).toHaveAttribute('title', expect.stringContaining('до 15 fps'));
     expect(summary()).toBe('Чёткость · 720p · до 15 fps');
     // В «Плавности» частота снова выбирается и идёт как выбрана (переключение закрывает шестерёнку).
     fireEvent.click(within(mode).getByRole('radio', { name: 'Плавность' }));
     fireEvent.click(screen.getByRole('button', { name: 'Настройки показа' }));
-    fireEvent.click(
-      within(await screen.findByRole('radiogroup', { name: 'Экран: частота кадров' })).getByRole('radio', {
-        name: '60 fps',
-      }),
-    );
-    expect(summary()).toBe('Плавность · 720p · 60 fps');
+    expect(summary()).toBe('Плавность · 720p · 30 fps');
     fireEvent.doubleClick(within(sourcesGroup()).getAllByRole('button')[0]!);
     expect(onChoose).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'screen:0:0',
-        profile: expect.objectContaining({ mode: 'smooth', resolution: 720, fps: 60 }),
+        profile: expect.objectContaining({ mode: 'smooth', resolution: 720, fps: 30 }),
       }),
     );
   });

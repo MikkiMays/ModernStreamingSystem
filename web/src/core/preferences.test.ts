@@ -13,7 +13,7 @@ it('persists independent camera and screen profiles and discards invalid cached 
   // У камеры своё умолчание — 480p30 (`CAMERA_DEFAULT`): «Авто» больше нет.
   expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
   savePreferences({ screen: { resolution: 1080, fps: 60 } });
-  expect(readPreferences().screen.fps).toBe(60);
+  expect(readPreferences().screen.fps).toBe(30);
   expect(readPreferences().camera.resolution).toBe(480);
   localStorage.setItem(
     'cord:preferences:v1',
@@ -34,7 +34,7 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
   };
   localStorage.setItem('cord:preferences:v1', JSON.stringify(saved));
   expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
-  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30 });
   expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!)).toEqual(saved);
   // Сервер, который разрешает 1440p, возвращает выбор человека сам — в клиенте для Windows (в браузере
   // показ не выше 1080p, R185).
@@ -47,7 +47,7 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
       settleMs: 4000,
     }),
   );
-  expect(readPreferences().screen).toMatchObject({ resolution: 1440, fps: 60 });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1440, fps: 30 });
 });
 
 /**
@@ -64,7 +64,7 @@ it('камера: умолчание 480p30 независимо от серве
     }),
   );
   expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
-  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30 });
   localStorage.setItem(
     'cord:preferences:v1',
     JSON.stringify({ camera: { resolution: 1440, fps: 60, automatic: true } }),
@@ -74,7 +74,7 @@ it('камера: умолчание 480p30 независимо от серве
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 1080, fps: 15 } }));
   expect(readPreferences().camera).toEqual({ resolution: 720, fps: 15 });
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 480, fps: 60 } }));
-  expect(readPreferences().camera).toEqual({ resolution: 480, fps: 60 });
+  expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 777, fps: 7 } }));
   expect(readPreferences().camera).toEqual({ resolution: 480, fps: 30 });
 });
@@ -242,7 +242,7 @@ it('показ помнит режим и превью (R95/R80/Р-84): запи
   savePreferences({ screen: { resolution: 720, fps: 60 } });
   expect(readPreferences().screen).toMatchObject({
     resolution: 720,
-    fps: 60,
+    fps: 30,
     mode: 'smooth',
     preview: false,
   });
@@ -272,7 +272,7 @@ it('режим показа, записанный до 1.1.4, — не выбо�
   // Выбор с 1.1.4 помнится — и переживает правку уровня и чтение записи, пришедшей от оболочки.
   savePreferences({ screen: { resolution: 1080, fps: 30, mode: 'smooth' } });
   savePreferences({ screen: { resolution: 720, fps: 60 } });
-  expect(readPreferences().screen).toMatchObject({ resolution: 720, fps: 60, mode: 'smooth' });
+  expect(readPreferences().screen).toMatchObject({ resolution: 720, fps: 30, mode: 'smooth' });
   const stored = JSON.parse(localStorage.getItem('cord:preferences:v1')!);
   localStorage.setItem('cord:preferences:v1', JSON.stringify(stored));
   expect(modeOf(readPreferences().screen)).toBe('smooth');
@@ -294,7 +294,7 @@ it('в браузере показ — 720p или 1080p в «Чёткости»
     JSON.stringify({ screen: { resolution: 1080, fps: 60, mode: 'smooth', modeChosen: true } }),
   );
   asDesktop();
-  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60, mode: 'smooth' });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30, mode: 'smooth' });
 });
 
 it('показ помнит звук окна показа (R60): старая запись и незнакомое — без звука, правка уровня его не стирает', () => {

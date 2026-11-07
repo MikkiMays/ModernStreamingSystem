@@ -146,12 +146,15 @@ describe('screen profiles', () => {
    * подпоркой 360p на 15 кадров при выставленных 720p30.
    */
   it('камера отдаёт один слой — выбранный, временные слои только у VP9/AV1', () => {
-    const camera = cameraOptions({ resolution: 1080, fps: 60 }, h264);
+    const camera = cameraOptions({ resolution: 1080, fps: 30 }, h264);
     expect(camera.simulcast).toBe(false);
     expect(camera.videoSimulcastLayers).toBeUndefined();
     expect(camera.scalabilityMode).toBeUndefined();
-    expect(camera.videoEncoding).toEqual({ maxBitrate: 10000000, maxFramerate: 60 });
+    expect(camera.videoEncoding).toEqual({ maxBitrate: 4500000, maxFramerate: 30 });
     const svc = cameraOptions({ resolution: 720, fps: 30 }, vp9);
+    // Полоса — под кодек (R193): то же качество новому кодеку обходится дешевле.
+    expect(svc.videoEncoding?.maxBitrate).toBe(2000000);
+    expect(cameraOptions({ resolution: 720, fps: 30 }, h264).videoEncoding?.maxBitrate).toBe(2500000);
     expect(svc.scalabilityMode).toBe('L1T3');
     expect(svc.backupCodec).toEqual({ codec: 'h264' });
     expect(svc.backupCodecPolicy).toBe(BackupCodecPolicy.SIMULCAST);
@@ -184,7 +187,7 @@ describe('screen profiles', () => {
       bitrate: 10000000,
     });
     // У камеры режима показа нет: «чёткость», оставшаяся в записи, полосу камеры не меняет.
-    expect(policyLevel('camera', { resolution: 720, fps: 30, mode: 'sharp' }).bitrate).toBe(3000000);
+    expect(policyLevel('camera', { resolution: 720, fps: 30, mode: 'sharp' }).bitrate).toBe(2500000);
     expect(policySourceOf('screen', { mode: 'sharp' })).toBe('screen-sharp');
     expect(policySourceOf('screen', {})).toBe('screen-sharp');
     expect(policySourceOf('camera', { mode: 'sharp' })).toBe('camera');
@@ -196,9 +199,9 @@ describe('screen profiles', () => {
     expect(screen.screenShareEncoding).toMatchObject({ maxBitrate: 3000000, maxFramerate: 30 });
     expect(screen.degradationPreference).toBe('maintain-resolution');
     const camera = cameraOptions({ resolution: 720, fps: 30 });
-    expect(camera.videoEncoding).toEqual({ maxBitrate: 3000000, maxFramerate: 30 });
-    // Камере — `balanced` (R189, И3): перегрузку кодировщик решает на месте, а не переопубликацией.
-    expect(camera.degradationPreference).toBe('balanced');
+    expect(camera.videoEncoding).toEqual({ maxBitrate: 2500000, maxFramerate: 30 });
+    // Выбранный кадр с первого кадра (R192); перегрузку снимает `camera-load.ts`, канал кадр не трогает.
+    expect(camera.degradationPreference).toBe('maintain-resolution');
     expect(camera.simulcast).toBe(false);
   });
 

@@ -425,6 +425,7 @@
       "ceiling": "此服务器最高支持 {{resolution}}p · {{fps}} fps",
       "cameraCeiling": "摄像头最高 {{resolution}}p",
       "sharpFps": "“清晰”模式下共享最高 {{fps}} fps：清晰度优先于帧率。需要帧率请选择“流畅”",
+      "fpsLimit": "目前不可使用 60 fps：视频最高 {{fps}}",
       "group": {
         "screen": "屏幕共享",
         "camera": "摄像头视频"

@@ -37,6 +37,12 @@ export const FRAME_RATES: FrameRate[] = [15, 30, 60];
  */
 export const CHOICE_FRAME_RATES: FrameRate[] = [30, 60];
 /**
+ * Выше 30 кадров не идёт ничего и нигде (R192, владелец: «убрать 60 фпс из доступного выбора, сделать неактивным везде»).
+ * Пункт виден, но недоступен; сохранённое 60 читается как 30 — запись не трогается. 60 кадров держали цену полосы (720p60 —
+ * 5 Мбит/с) и тогда, когда камера всё равно отдавала 30: «720p30 на 5 Мбит/с» из R193.
+ */
+export const FPS_LIMIT: FrameRate = 30;
+/**
  * Шкала камеры (27.10.2026, владелец): 480 / 720 / 1080 и 15 / 30 / 60. С мобильного интернета 720p
  * на 30 кадров не пролезают, и 480p или 15 кадров — честный выбор, а не «стремление». 1080p виден,
  * но недоступен: выше `CAMERA_MAX` камера не отдаёт; 1440 у камеры нет.
@@ -58,7 +64,7 @@ export const CAMERA_DEFAULT: Level = { resolution: 480, fps: 30 };
  */
 export const builtinRules: QualityRules = {
   default: { resolution: 1080, fps: 30 },
-  ceiling: { resolution: 1080, fps: 60 },
+  ceiling: { resolution: 1080, fps: 30 },
   settleMs: 4000,
 };
 
@@ -88,7 +94,8 @@ export function screenChoices(app: boolean = isDesktop()): ScreenChoices {
  * выбранный раньше в браузере (1.1.4), здесь не действует; у клиента для Windows своё хранилище, и его выбор
  * это не трогает.
  */
-export function allowedScreen(profile: ScreenProfile, app: boolean = isDesktop()): ScreenProfile {
+export function allowedScreen(input: ScreenProfile, app: boolean = isDesktop()): ScreenProfile {
+  const profile = { ...input, fps: Math.min(input.fps, FPS_LIMIT) as FrameRate };
   if (app) return profile;
   const { mode: _mode, modeChosen: _chosen, ...rest } = profile;
   return { ...rest, resolution: Math.min(rest.resolution, Math.max(...WEB_RESOLUTIONS)) as Resolution };
@@ -171,12 +178,13 @@ export function nearestLevel(
   saved: (Partial<ScreenProfile> & { automatic?: unknown }) | null | undefined,
   rules = qualityRules(),
 ): ScreenProfile {
-  if (!saved || saved.automatic === true) return { ...rules.default };
+  if (!saved || saved.automatic === true)
+    return { ...rules.default, fps: Math.min(rules.default.fps, FPS_LIMIT) as FrameRate };
   const resolution = isResolution(saved.resolution)
     ? Math.min(saved.resolution, rules.ceiling.resolution)
     : rules.default.resolution;
   const fps = isFrameRate(saved.fps) ? Math.min(saved.fps, rules.ceiling.fps) : rules.default.fps;
-  return { resolution: resolution as Resolution, fps: fps as FrameRate };
+  return { resolution: resolution as Resolution, fps: Math.min(fps, FPS_LIMIT) as FrameRate };
 }
 
 /**
@@ -197,7 +205,7 @@ export function cameraLevel(
   const fps = known && isFrameRate(saved.fps) ? saved.fps : fallback.fps;
   return {
     resolution: Math.min(resolution, CAMERA_MAX, rules.ceiling.resolution) as Resolution,
-    fps: Math.min(fps, rules.ceiling.fps) as FrameRate,
+    fps: Math.min(fps, rules.ceiling.fps, FPS_LIMIT) as FrameRate,
   };
 }
 

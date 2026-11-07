@@ -245,11 +245,11 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
           meeting.media.state.get().screen
         )
           return;
-        // Игра — «Плавность» и частота 60 (DESIGN.md → Оверлей); разрешение — как выбрано в окне показа.
+        // Игра — «Плавность», частота 30 (R192, выше не идёт нигде; DESIGN.md → Оверлей); разрешение — как выбрано в окне показа.
         const profile = {
           ...meeting.media.preferences.get().screen,
           mode: 'smooth' as const,
-          fps: 60 as const,
+          fps: 30 as const,
         };
         const audio: CaptureAudio = hasFeature('capture.app-audio') ? 'app' : 'none';
         void selectCaptureSource(id, audio).then(() =>

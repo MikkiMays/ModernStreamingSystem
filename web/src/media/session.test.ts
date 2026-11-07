@@ -1796,7 +1796,7 @@ describe('качество камеры во встрече', () => {
       local.unpublishTrack = vi.fn(async () => {});
       (media as unknown as { wanted: { camera: boolean } }).wanted.camera = true;
 
-      await media.setCameraProfile({ resolution: 1080, fps: 60 });
+      await media.setCameraProfile({ resolution: 1080, fps: 30 });
 
       // Камера и так отдаёт 1440p60 — лестницу `min` не трогаем (R189): каждый `applyConstraints`
       // с `min` перенастраивает источник и на полсекунды оставляет его без кадров.
@@ -1805,7 +1805,7 @@ describe('качество камеры во встрече', () => {
       expect(restartTrack).not.toHaveBeenCalled();
       expect(local.unpublishTrack).not.toHaveBeenCalled();
       expect(local.publishTrack).not.toHaveBeenCalled();
-      expect(publication.options.videoEncoding).toEqual({ maxBitrate: 10000000, maxFramerate: 60 });
+      expect(publication.options.videoEncoding).toEqual({ maxBitrate: 4500000, maxFramerate: 30 });
     } finally {
       media.dispose();
       localStorage.clear();

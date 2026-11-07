@@ -82,7 +82,8 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(host.getByRole('radiogroup', { name: 'Режим показа' })).toHaveCount(0);
     await expect(host.getByRole('radiogroup', { name: 'Экран: частота кадров' })).toHaveCount(0);
     await level(host, 'Камера: качество', '720p').click();
-    await level(host, 'Камера: частота кадров', '60 fps').click();
+    await expect(level(host, 'Камера: частота кадров', '60 fps')).toBeDisabled();
+    await level(host, 'Камера: частота кадров', '15 fps').click();
     await level(host, 'Экран: качество', '720p').click();
     await host.emulateMedia({ reducedMotion: 'reduce' });
     expect(
