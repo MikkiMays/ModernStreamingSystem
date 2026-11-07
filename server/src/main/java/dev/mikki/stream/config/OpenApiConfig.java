@@ -34,7 +34,8 @@ public class OpenApiConfig {
                           "files.changed",
                           "screen.started",
                           "screen.first_viewer",
-                          "meeting.warning")));
+                          "meeting.warning",
+                          "maintenance.warning")));
       for (String name :
           List.of(
               "Admission",
@@ -52,6 +53,7 @@ public class OpenApiConfig {
               "Watch",
               "RoomYou",
               "Capabilities",
+              "MaintenanceNotice",
               "QualityRules",
               "Level",
               "TableView",
@@ -102,12 +104,30 @@ public class OpenApiConfig {
           .get("Snapshot")
           .getRequired()
           .removeAll(
-              List.of("chess", "gartic", "you", "startedAt", "endsAt", "cinemaTraffic", "board"));
+              List.of(
+                  "chess",
+                  "gartic",
+                  "you",
+                  "startedAt",
+                  "endsAt",
+                  "cinemaTraffic",
+                  "board",
+                  "endReason"));
       // «Вы ещё здесь?» спрашивают не всегда (A2, E10-B).
       schemas.get("RoomYou").getRequired().remove("presenceBy");
       // Обслуживание (W1b) — поле новое: веб новее ядра (пока выкатка идёт) не должен его
       // требовать.
       schemas.get("Capabilities").getRequired().remove("maintenance");
+      // Окно технических работ (R194): окна чаще всего нет — и поля нет.
+      schemas.get("Capabilities").getRequired().remove("maintenanceWindow");
+      schemas.get("MaintenanceNotice").getRequired().remove("endsAt");
+      schemas
+          .get("MaintenanceNotice")
+          .getProperties()
+          .put(
+              "phase",
+              new io.swagger.v3.oas.models.media.StringSchema()
+                  ._enum(List.of("scheduled", "grace", "active")));
       schemas.get("TableView").getRequired().remove("visualEvents");
       schemas
           .get("DurakView")

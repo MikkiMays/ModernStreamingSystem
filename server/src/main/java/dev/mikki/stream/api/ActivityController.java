@@ -214,7 +214,7 @@ public class ActivityController {
   public MaintenanceState maintenance(
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token) {
     admin.require(token);
-    return new MaintenanceState(maintenance.on(), maintenance.since());
+    return new MaintenanceState(maintenance.draining(), maintenance.since());
   }
 
   /**
@@ -233,7 +233,7 @@ public class ActivityController {
               .actor("admin", null, null)
               .from(fingerprint(http), null)
               .detail("on", request.on()));
-    return new MaintenanceState(maintenance.on(), maintenance.since());
+    return new MaintenanceState(maintenance.draining(), maintenance.since());
   }
 
   @PostMapping("/blocks")

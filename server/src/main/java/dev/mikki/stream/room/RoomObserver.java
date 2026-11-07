@@ -17,8 +17,17 @@ public interface RoomObserver {
   /** После каждого события комнаты ({@code room.changed}, {@code message.created}, …). */
   default void changed(RoomState room, String event, long now) {}
 
-  /** Встреча завершилась: {@code reason} — {@code host}, {@code empty}, {@code unused}, … */
+  /**
+   * Встреча завершилась: {@code reason} — {@code host}, {@code empty}, {@code unused}, {@code
+   * maintenance}, …
+   */
   default void closed(RoomState room, String reason, long now) {}
+
+  /**
+   * Окно технических работ само сменило состояние ({@link MaintenanceWindows}): {@code started} или
+   * {@code expired}. Зовётся один раз на весь сервер, сколько бы узлов ни заметили переход.
+   */
+  default void maintenance(MaintenanceWindows.Window window, String transition, long now) {}
 
   /**
    * Ведущий что-то сделал с участником: {@code participant.removed}, {@code participant.approved}.

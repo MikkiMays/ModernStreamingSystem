@@ -581,6 +581,25 @@
       "retryAfter"
     ]
   },
+  "MAINTENANCE_WINDOW": {
+    "status": 503,
+    "ru": "Идут технические работы. Cord скоро снова заработает",
+    "params": [
+      "retryAfter"
+    ]
+  },
+  "MAINTENANCE_WINDOW_EXISTS": {
+    "status": 409,
+    "ru": "Окно технических работ уже есть. Сначала закройте его"
+  },
+  "MAINTENANCE_WINDOW_INVALID": {
+    "status": 400,
+    "ru": "Проверьте сроки окна: ISO-8601 со смещением, начало в будущем, конец позже начала и не дальше предела окна"
+  },
+  "MAINTENANCE_WINDOW_NONE": {
+    "status": 409,
+    "ru": "Окна технических работ сейчас нет"
+  },
   "MEDIA_UNAVAILABLE": {
     "status": 503,
     "ru": "Звонок временно недоступен. Попробуйте через минуту"

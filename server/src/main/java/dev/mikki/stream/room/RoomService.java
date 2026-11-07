@@ -47,6 +47,9 @@ public class RoomService {
   /** Чаще этого кадры превью не рассылаются. */
   public static final long PREVIEW_INTERVAL_MS = 2000;
 
+  /** Причина конца встречи, которую видят участники: её завершили технические работы (R194). */
+  public static final String MAINTENANCE = "maintenance";
+
   public RoomService(
       RoomRepository rooms,
       StreamProperties config,
@@ -91,6 +94,7 @@ public class RoomService {
 
   @Transactional
   public Admission create(Create request, Entrant entrant) {
+    maintenance.requireOpenDoors();
     // Предел в час — до общего замка: пачка запросов скрипта получает отказ, не вставая в очередь
     // перед людьми (A1). Здесь только сверка, шаг счётчика — после удачи: отказ не съедает предел.
     var origin = origin(entrant);
@@ -214,6 +218,7 @@ public class RoomService {
 
   @Transactional
   public Admission joinCode(JoinCode request, Entrant entrant) {
+    maintenance.requireOpenDoors();
     var address = entrant.address();
     if (address != null
         && limits.exhausted("code-miss:" + address, config.abuse().perIp().codeMisses()))
@@ -324,6 +329,7 @@ public class RoomService {
 
   @Transactional
   public Admission rejoin(String roomId, String credential, Rejoin request, Entrant entrant) {
+    maintenance.requireOpenDoors();
     rooms.lockGlobal();
     var room = lock(roomId);
     var previous = authenticate(room, credential, true);
@@ -337,6 +343,7 @@ public class RoomService {
 
   @Transactional
   public Admission joinSaved(String roomId, String memberId, Rejoin request, Entrant entrant) {
+    maintenance.requireOpenDoors();
     rooms.lockGlobal();
     var room = lock(roomId);
     var member = room.members.get(memberId);
@@ -360,6 +367,7 @@ public class RoomService {
                   "Встречу завершил владелец сервера — открыть её снова пока нельзя",
                   Map.of("until", room.closedByServer));
             room.closedByServer = null;
+            room.closedFor = null;
             freezeHistory(room, room.closedAt);
             room.closedAt = null;
             room.mediaDrained = false;
@@ -527,6 +535,7 @@ public class RoomService {
 
   @Transactional
   public Admission join(String roomId, Join request, Entrant entrant) {
+    maintenance.requireOpenDoors();
     rooms.lockGlobal();
     var room = lock(roomId);
     return receipt(
@@ -567,6 +576,7 @@ public class RoomService {
    */
   @Transactional
   public String serviceInvite(String roomId) {
+    maintenance.requireOpenDoors();
     var room = lock(roomId);
     requireOpen(room);
     var held = room.botInvite == null ? null : room.invites.get(room.botInvite);
@@ -758,7 +768,8 @@ public class RoomService {
             current.startedAt(),
             current.endsAt(),
             current.cinemaTraffic(),
-            current.board());
+            current.board(),
+            current.endReason());
     return new Admission(
         room.id,
         member.id,
@@ -939,7 +950,8 @@ public class RoomService {
         room.startedAt,
         room.endsAt,
         room.cinemaTraffic,
-        boardView(room));
+        boardView(room),
+        room.closedFor);
   }
 
   /**
@@ -1067,7 +1079,9 @@ public class RoomService {
         current.endsAt(),
         current.cinemaTraffic(),
         // Доска — тоже жизнь встречи: из-за двери её не видно.
-        null);
+        null,
+        // А почему встреча кончилась — видно: и у двери человек ждёт напрасно.
+        current.endReason());
   }
 
   @Transactional
@@ -1931,11 +1945,15 @@ public class RoomService {
   /**
    * Завершить встречу. {@code reason} — почему: {@code host} (ведущий), {@code empty} (все ушли),
    * {@code unused} (никто не вышел на связь), {@code ceiling} (потолок длительности), {@code
-   * server} (владелец сервера). Причину видят статистика и журнал, участникам она не показывается.
+   * server} (владелец сервера), {@link #MAINTENANCE} (технические работы). Причину видят статистика
+   * и журнал; участникам — только технические работы: у них своя страница ({@link
+   * RoomState#closedFor}).
    */
   public void close(RoomState room, String reason) {
     if (room.closedAt != null) return;
     room.closedAt = now();
+    room.closedFor = MAINTENANCE.equals(reason) ? MAINTENANCE : null;
+    room.maintenanceWarned = null;
     // Смотреть и играть вместе больше некому: закрытая комната не должна открывать ни плеер,
     // ни стол тому, кто зайдёт в неё за историей переписки.
     room.watch = null;

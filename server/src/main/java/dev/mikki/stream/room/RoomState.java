@@ -79,6 +79,22 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public Long closedByServer;
 
+  /**
+   * Почему встреча кончилась, если это надо знать участникам: {@code maintenance} — её завершили
+   * технические работы (R194), клиент показывает страницу работ, а не «встреча завершена». Прочие
+   * причины видят только статистика и журнал; null — как раньше, и откат образа читает комнату.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String closedFor;
+
+  /**
+   * О каком окне технических работ встречу уже предупредили (событие {@code maintenance.warning}):
+   * номер окна. Метка и есть «уже сказали»; окно отменили — метка снимается и уходит ещё одно
+   * событие.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String maintenanceWarned;
+
   public boolean mediaDrained;
   public boolean approvalRequired;
   public boolean integrationsAllowed = true;

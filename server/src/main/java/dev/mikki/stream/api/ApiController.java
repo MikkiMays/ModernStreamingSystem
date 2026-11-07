@@ -47,7 +47,12 @@ public class ApiController {
       int favoritesMax,
       // Сервер обновляется (дренаж перед выкаткой, W1b): `admissionOpen` при этом тоже false, а
       // главная говорит почему — «попробуйте через 2 минуты», не «недоступно на этом сервере».
-      boolean maintenance) {}
+      boolean maintenance,
+      // Окно технических работ (R194): идёт — клиент показывает страницу работ; заранее — только
+      // данные, пока нигде не показаны. Окна нет — поля нет.
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          MaintenanceWindows.MaintenanceNotice maintenanceWindow) {}
 
   public record QualityRules(
       @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
@@ -143,7 +148,8 @@ public class ApiController {
             quality.settle().toMillis(),
             quality.cameraYieldsToScreen()),
         config.favorites().maxSaved(),
-        maintenance.on());
+        maintenance.on(),
+        maintenance.notice());
   }
 
   /*
