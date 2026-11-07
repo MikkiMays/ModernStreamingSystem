@@ -199,7 +199,8 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await expect(people(third!)).toHaveCount(3);
     await expect(host!.getByText('Вы показываете экран')).toHaveCount(0);
     await expect(host!.locator('[data-media-status="connected"]')).toBeVisible();
-    await third!.getByRole('button', { name: 'Полноэкранный режим', exact: true }).click();
+    // Кнопка пульта: у идущего показа второго гостя своя «Полноэкранный режим» (R187), та же по действию.
+    await dock(third!).getByRole('button', { name: 'Полноэкранный режим', exact: true }).click();
     await expect(third!.locator('.meeting-page')).toHaveClass(/meeting-fullscreen/);
     await third!.mouse.move(800, 180);
     await expect(third!.locator('.call-footer')).toBeHidden({ timeout: 5000 });
