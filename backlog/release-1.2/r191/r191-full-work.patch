@@ -1,0 +1,2023 @@
+diff --git a/server/src/main/java/dev/mikki/stream/activity/ClientErrors.java b/server/src/main/java/dev/mikki/stream/activity/ClientErrors.java
+index 127fa81..254871e 100644
+--- a/server/src/main/java/dev/mikki/stream/activity/ClientErrors.java
++++ b/server/src/main/java/dev/mikki/stream/activity/ClientErrors.java
+@@ -65,7 +65,8 @@ public class ClientErrors {
+ 
+   /**
+    * Виды ошибок без кода реестра ({@code core/failure.ts}: {@code KINDS}). Виды {@code camera-*} и
+-   * {@code background-*} — самолечение камеры (R189, И7): человек их не видит, счётчик — видит.
++   * {@code background-*} — самолечение камеры (R189, И7), {@code mic-slow} — микрофон включился
++   * медленно (R191): человек их не видит, счётчик — видит.
+    */
+   public static final Set<String> KINDS =
+       Set.of(
+@@ -90,7 +91,8 @@ public class ClientErrors {
+           "camera-heal-failed",
+           "camera-denied",
+           "background-stalled",
+-          "background-dropped");
++          "background-dropped",
++          "mic-slow");
+ 
+   /** Разных пар «место — код» в одной сводке — столько же держит клиент. */
+   public static final int MAX_ENTRIES = 60;
+diff --git a/web/e2e/media/mic-press.spec.ts b/web/e2e/media/mic-press.spec.ts
+new file mode 100644
+index 0000000..6d1e368
+--- /dev/null
++++ b/web/e2e/media/mic-press.spec.ts
+@@ -0,0 +1,749 @@
++/**
++ * Живой замер нажатия на микрофон (R191): «выключается быстро, а включается долго».
++ *
++ * Два браузера через настоящий SFU: говорящий с «речью» из файла без пауз (`MIC_WAV`, см. низ файла) и
++ * слушатель. На каждое нажатие снимается весь путь: нажатие → кнопка → `enabled` сырого захвата → сигнал
++ * «включён» → запрос `mute` в сокете → первый пакет у слушателя → значок у слушателя → звук у слушателя.
++ * Всё считается от события `click` часами страницы, браузеры на одной машине — часы общие.
++ *
++ * Включается `CORD_MEDIA_PROBE=1` и `MIC_WAV=…`; нужен стенд с SFU. Переменные:
++ *   MIC_SCENARIOS  — через запятую: basic, idle, devices, slowgum, wake, signal, signalin, soak;
++ *   MIC_CYCLES     — сколько нажатий в `basic` (8);
++ *   MIC_IDLE_MS    — сколько молчать в `idle` (120 с);
++ *   MIC_SOAK_MS    — длина `soak` (10 мин);
++ *   MIC_SUPPRESSION — шумоподавление говорящего: off | browser | rnnoise | voice (rnnoise);
++ *   MIC_LABEL, OUT — как назвать итог и куда положить (`/tmp/mic-press`).
++ *
++ * Предел стенда — 10 новых встреч в час: все сценарии идут в одной встрече.
++ */
++import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
++import { mkdirSync, writeFileSync } from 'node:fs';
++import { join, resolve } from 'node:path';
++
++const WAV = process.env.MIC_WAV ?? '';
++const SCENARIOS = (process.env.MIC_SCENARIOS ?? 'basic').split(',').map((s) => s.trim());
++const CYCLES = Number(process.env.MIC_CYCLES ?? 8);
++const IDLE_MS = Number(process.env.MIC_IDLE_MS ?? 120_000);
++const SOAK_MS = Number(process.env.MIC_SOAK_MS ?? 600_000);
++const SUPPRESSION = process.env.MIC_SUPPRESSION ?? 'rnnoise';
++const OUT = process.env.OUT ?? '/tmp/mic-press';
++const LABEL = process.env.MIC_LABEL ?? 'run';
++/** Громче этого на выходе слушателя — звук идёт; тишина заглушённого — ниже −70 дБ. */
++const HEARD_DB = -50;
++const MIC_OFF_LABEL = 'Микрофон выключен';
++
++test.skip(!process.env.CORD_MEDIA_PROBE, 'живой замер: CORD_MEDIA_PROBE=1, MIC_WAV=…');
++test.setTimeout(30 * 60_000);
++
++/** Перехваты до кода страницы: время каждого шага и управляемые помехи. */
++const probe = () => {
++  const w = window as any;
++  if (!window.RTCPeerConnection || typeof MediaDevices === 'undefined' || !window.isSecureContext) return;
++  const abs = () => performance.timeOrigin + performance.now();
++  const log: Record<string, any[]> = {
++    clicks: [],
++    flips: [],
++    enabled: [],
++    gum: [],
++    wsOut: [],
++    wsIn: [],
++    notes: [],
++    tile: [],
++    packets: [],
++    played: [],
++    stats: [],
++    outbound: [],
++    errors: [],
++  };
++  w.__log = log;
++  w.__cfg = { gumDelay: 0, wsOutMuteDelay: 0, wsInUpdateDelay: 0, devices: null };
++  w.__pcs = [];
++  w.__taps = {};
++
++  const enabled = Object.getOwnPropertyDescriptor(MediaStreamTrack.prototype, 'enabled')!;
++  Object.defineProperty(MediaStreamTrack.prototype, 'enabled', {
++    configurable: true,
++    get(this: MediaStreamTrack) {
++      return enabled.get!.call(this);
++    },
++    set(this: MediaStreamTrack, value: boolean) {
++      if (this.kind === 'audio') log.enabled!.push({ t: abs(), value, id: this.id, label: this.label });
++      enabled.set!.call(this, value);
++    },
++  });
++
++  const gum = MediaDevices.prototype.getUserMedia;
++  MediaDevices.prototype.getUserMedia = async function (constraints?: MediaStreamConstraints) {
++    const audio = !!constraints?.audio;
++    const start = abs();
++    if (audio && w.__cfg.gumDelay) await new Promise((r) => setTimeout(r, w.__cfg.gumDelay));
++    const stream = await gum.call(this, constraints);
++    if (audio) {
++      log.gum!.push({ start, end: abs() });
++      // Что отдаёт сам захват, до шумодава: контроль начала звука.
++      for (const track of stream.getAudioTracks()) void w.__tapTrack?.('raw', track);
++    }
++    return stream;
++  };
++  // Какой список устройств видит страница: как настоящий или как после подключения гарнитуры.
++  const enumerate = MediaDevices.prototype.enumerateDevices;
++  let headset = 0;
++  MediaDevices.prototype.enumerateDevices = async function () {
++    const list = await enumerate.call(this);
++    const mode = w.__cfg.devices as 'added' | 'first' | null;
++    if (!mode) return list;
++    const plain = list.map((d) => ({ kind: d.kind, deviceId: d.deviceId, groupId: d.groupId, label: d.label }));
++    const others = plain.filter((d) => d.kind !== 'audioinput');
++    const mics = plain.filter((d) => d.kind === 'audioinput');
++    // Chrome: «по умолчанию» остаётся первым, в списке новая строка.
++    if (mode === 'added')
++      return [
++        ...mics.slice(0, 1),
++        { kind: 'audioinput', deviceId: 'headset', groupId: 'g-headset', label: 'Гарнитура' },
++        ...mics.slice(1),
++        ...others,
++      ] as MediaDeviceInfo[];
++    // Firefox, Safari, ОС без default: первым стало другое настоящее устройство.
++    headset += 1;
++    const real = mics.filter((d) => d.deviceId !== 'default');
++    const first = real[headset % real.length]!;
++    return [first, ...real.filter((d) => d !== first), ...others] as MediaDeviceInfo[];
++  };
++
++  // Сигнал LiveKit: SignalRequest.mute — поле 5 (тег 0x2A), SignalResponse.update — поле 5 (тег тот же 0x2A, сокет другой).
++  const send = WebSocket.prototype.send;
++  WebSocket.prototype.send = function (this: WebSocket, data: any) {
++    const first = data instanceof ArrayBuffer ? new Uint8Array(data)[0] : undefined;
++    if (first === 0x2a) {
++      log.wsOut!.push({ t: abs() });
++      if (w.__cfg.wsOutMuteDelay) {
++        setTimeout(() => send.call(this, data), w.__cfg.wsOutMuteDelay);
++        return;
++      }
++    }
++    send.call(this, data);
++  };
++  const onmessage = Object.getOwnPropertyDescriptor(WebSocket.prototype, 'onmessage')!;
++  Object.defineProperty(WebSocket.prototype, 'onmessage', {
++    configurable: true,
++    get(this: WebSocket) {
++      return onmessage.get!.call(this);
++    },
++    set(this: WebSocket, handler: ((event: MessageEvent) => void) | null) {
++      if (!handler) return void onmessage.set!.call(this, handler);
++      onmessage.set!.call(this, (event: MessageEvent) => {
++        const first = event.data instanceof ArrayBuffer ? new Uint8Array(event.data)[0] : undefined;
++        if (first === 0x2a) {
++          log.wsIn!.push({ t: abs() });
++          if (w.__cfg.wsInUpdateDelay) {
++            setTimeout(() => handler.call(this, event), w.__cfg.wsInUpdateDelay);
++            return;
++          }
++        }
++        handler.call(this, event);
++      });
++    },
++  });
++
++  const start = OscillatorNode.prototype.start;
++  OscillatorNode.prototype.start = function (when?: number) {
++    log.notes!.push(abs());
++    return start.call(this, when);
++  };
++  document.addEventListener(
++    'click',
++    (event) => {
++      const button = (event.target as Element).closest?.('button');
++      if (/микрофон/.test(button?.getAttribute('aria-label') ?? '')) log.clicks!.push(abs());
++    },
++    true,
++  );
++  const watchDom = () => {
++    let tiles = -1;
++    new MutationObserver((records) => {
++      for (const record of records) {
++        const label = (record.target as Element).getAttribute?.('aria-label');
++        if (label === 'Включить микрофон' || label === 'Выключить микрофон')
++          log.flips!.push({ t: abs(), label });
++      }
++      const now = document.querySelectorAll(`[aria-label="${'Микрофон выключен'}"]`).length;
++      if (now !== tiles) {
++        log.tile!.push({ t: abs(), count: now });
++        tiles = now;
++      }
++    }).observe(document.documentElement, {
++      attributes: true,
++      childList: true,
++      subtree: true,
++      attributeFilter: ['aria-label'],
++    });
++  };
++  if (document.documentElement) watchDom();
++  else document.addEventListener('DOMContentLoaded', watchDom);
++
++  // Огибающая 8 мс: что пришло дорожкой к слушателю и что уходит в отправитель у говорящего.
++  const code = `class Tap extends AudioWorkletProcessor {
++    constructor(){super();this.e=0;this.n=0;this.first=0;this.out=[];}
++    process(inputs){const ch=inputs[0]&&inputs[0][0];
++      if(this.n===0&&this.out.length===0)this.first=currentFrame;
++      for(let i=0;i<128;i++){const v=ch?ch[i]:0;this.e+=v*v;}
++      this.n+=128;
++      if(this.n>=384){this.out.push(this.e/this.n);this.e=0;this.n=0;
++        if(this.out.length>=10){this.port.postMessage({f:this.first,rms:this.out});this.out=[];}}
++      return true;}}
++    registerProcessor('cord-tap',Tap);`;
++  const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
++  const contexts: Record<string, Promise<{ context: AudioContext; node: AudioWorkletNode }>> = {};
++  const tap = (name: string) => {
++    contexts[name] ??= (async () => {
++      const context = new AudioContext({ sampleRate: 48000 });
++      await context.audioWorklet.addModule(url);
++      const node = new AudioWorkletNode(context, 'cord-tap');
++      const sink = (w.__taps[name] = { t: [] as number[], v: [] as number[] });
++      node.port.onmessage = (event) => {
++        const { f, rms } = event.data as { f: number; rms: number[] };
++        const stamp = context.getOutputTimestamp();
++        const ok = !!stamp.performanceTime && !!stamp.contextTime;
++        const base =
++          performance.timeOrigin +
++          (ok ? stamp.performanceTime! : performance.now()) -
++          ((ok ? stamp.contextTime! : context.currentTime) - f / context.sampleRate) * 1000;
++        rms.forEach((value, i) => {
++          sink.t.push(base + i * 8);
++          sink.v.push(value);
++        });
++        // Только свежее: долгий замер не должен копить гигабайты.
++        if (sink.t.length > 60000) {
++          sink.t.splice(0, 20000);
++          sink.v.splice(0, 20000);
++        }
++      };
++      const mute = context.createGain();
++      mute.gain.value = 0;
++      node.connect(mute).connect(context.destination);
++      void context.resume().catch(() => {});
++      return { context, node };
++    })();
++    return contexts[name]!;
++  };
++  const tapTrack = async (name: string, track: MediaStreamTrack) => {
++    const { context, node } = await tap(name);
++    context.createMediaStreamSource(new MediaStream([track])).connect(node);
++    // Дорожка Chrome отдаёт звук в WebAudio, только если её где-то играют: элемент без звука.
++    const element = new Audio();
++    element.muted = true;
++    element.srcObject = new MediaStream([track]);
++    void element.play().catch(() => {});
++    w.__keep = [...(w.__keep ?? []), element];
++  };
++
++  w.__tapTrack = tapTrack;
++  const Native = window.RTCPeerConnection;
++  class Wrapped extends Native {
++    constructor(...a: any[]) {
++      super(...(a as []));
++      w.__pcs.push(this);
++      this.addEventListener('track', (event: RTCTrackEvent) => {
++        if (event.track.kind === 'audio') void tapTrack('recv', event.track);
++      });
++    }
++  }
++  window.RTCPeerConnection = Wrapped as any;
++  const add = Native.prototype.addTransceiver;
++  Native.prototype.addTransceiver = function (this: RTCPeerConnection, what: any, init?: any) {
++    if (typeof what !== 'string' && what.kind === 'audio') void tapTrack('sent', what);
++    return add.call(this, what, init);
++  } as any;
++  const replace = RTCRtpSender.prototype.replaceTrack;
++  RTCRtpSender.prototype.replaceTrack = function (this: RTCRtpSender, track: MediaStreamTrack | null) {
++    if (track?.kind === 'audio') void tapTrack('sent', track);
++    return replace.call(this, track);
++  };
++
++  // Первые пакеты и что играет: `getStats` — у сети, источники приёмника — у вывода.
++  const state = new Map<RTCRtpReceiver, { packets: number; rtp: number }>();
++  setInterval(() => {
++    for (const pc of w.__pcs as RTCPeerConnection[]) {
++      if (pc.connectionState === 'closed') continue;
++      for (const receiver of pc.getReceivers()) {
++        if (receiver.track?.kind !== 'audio') continue;
++        const known = state.get(receiver) ?? { packets: -1, rtp: -1 };
++        state.set(receiver, known);
++        const source = receiver.getSynchronizationSources?.()[0];
++        if (source && source.rtpTimestamp !== known.rtp) {
++          known.rtp = source.rtpTimestamp;
++          if (log.played!.length > 40000) log.played!.splice(0, 20000);
++          log.played!.push({ t: abs(), rtp: source.rtpTimestamp, level: source.audioLevel });
++        }
++      }
++    }
++  }, 10);
++  setInterval(() => {
++    for (const pc of w.__pcs as RTCPeerConnection[]) {
++      if (pc.connectionState === 'closed') continue;
++      for (const receiver of pc.getReceivers()) {
++        if (receiver.track?.kind !== 'audio') continue;
++        const known = state.get(receiver);
++        void receiver.getStats().then((report) => {
++          report.forEach((s: any) => {
++            if (s.type !== 'inbound-rtp' || !known) return;
++            if (s.packetsReceived !== known.packets) {
++              known.packets = s.packetsReceived;
++              if (log.packets!.length > 40000) log.packets!.splice(0, 20000);
++              log.packets!.push({
++                t: abs(),
++                packets: s.packetsReceived,
++                jitter: s.jitter,
++                target: (receiver as any).jitterBufferTarget ?? null,
++                delay: s.jitterBufferDelay,
++                emitted: s.jitterBufferEmittedCount,
++                targetDelay: s.jitterBufferTargetDelay,
++                minDelay: s.jitterBufferMinimumDelay,
++              });
++            }
++          });
++        });
++      }
++    }
++  }, 40);
++  // Что на самом деле ушло в сеть у говорящего: с какого момента пакеты пошли потоком речи.
++  const sentState = new Map<RTCRtpSender, number>();
++  setInterval(() => {
++    for (const pc of w.__pcs as RTCPeerConnection[]) {
++      if (pc.connectionState === 'closed') continue;
++      for (const sender of pc.getSenders()) {
++        if (sender.track?.kind !== 'audio') continue;
++        void sender.getStats().then((report) => {
++          report.forEach((s: any) => {
++            if (s.type !== 'outbound-rtp') return;
++            if (s.packetsSent === sentState.get(sender)) return;
++            sentState.set(sender, s.packetsSent);
++            if (log.outbound!.length > 40000) log.outbound!.splice(0, 20000);
++            log.outbound!.push({ t: abs(), packets: s.packetsSent, bytes: s.bytesSent });
++          });
++        });
++      }
++    }
++  }, 40);
++  // Те же счётчики, что читает `PlayoutBuffer`, с тем же шагом: чем заглушка выглядит для него.
++  setInterval(() => {
++    for (const pc of w.__pcs as RTCPeerConnection[]) {
++      if (pc.connectionState === 'closed') continue;
++      for (const receiver of pc.getReceivers()) {
++        if (receiver.track?.kind !== 'audio') continue;
++        void receiver.getStats().then((report) => {
++          report.forEach((s: any) => {
++            if (s.type !== 'inbound-rtp') return;
++            if (log.stats!.length > 4000) log.stats!.splice(0, 2000);
++            log.stats!.push({
++              t: abs(),
++              packets: s.packetsReceived,
++              lost: s.packetsLost,
++              total: s.totalSamplesReceived,
++              concealed: s.concealedSamples,
++              silent: s.silentConcealedSamples,
++              events: s.concealmentEvents,
++              jitter: s.jitter,
++              removed: s.removedSamplesForAcceleration,
++              inserted: s.insertedSamplesForDeceleration,
++              target: (receiver as any).jitterBufferTarget ?? null,
++              enabled: receiver.track.enabled,
++            });
++          });
++        });
++      }
++    }
++  }, 2000);
++  window.addEventListener('error', (event) => log.errors!.push(String(event.message)));
++};
++
++type Log = Record<string, any[]>;
++const logOf = (page: Page) => page.evaluate(() => (window as any).__log as Log);
++const tapsOf = (page: Page, name: string, from: number) =>
++  page.evaluate(
++    ([n, f]) => {
++      const sink = (window as any).__taps[n as string] as { t: number[]; v: number[] } | undefined;
++      if (!sink) return [];
++      const out: { t: number; db: number }[] = [];
++      for (let i = sink.t.length - 1; i >= 0 && sink.t[i]! >= (f as number); i--)
++        out.push({ t: sink.t[i]!, db: 10 * Math.log10(sink.v[i]! + 1e-12) });
++      return out.reverse();
++    },
++    [name, from] as const,
++  );
++
++/** Первый блок громче порога, за которым идут ещё два таких же: щелчок не считается началом речи. */
++function firstHeard(blocks: { t: number; db: number }[], from: number) {
++  for (let i = 0; i + 2 < blocks.length; i++)
++    if (
++      blocks[i]!.t >= from &&
++      blocks[i]!.db > HEARD_DB &&
++      blocks[i + 1]!.db > HEARD_DB &&
++      blocks[i + 2]!.db > HEARD_DB
++    )
++      return blocks[i]!.t;
++  return null;
++}
++function lastHeard(blocks: { t: number; db: number }[]) {
++  let last: number | null = null;
++  for (const block of blocks) if (block.db > HEARD_DB) last = block.t;
++  return last;
++}
++const median = (values: number[]) => {
++  const sorted = [...values].sort((a, b) => a - b);
++  return sorted.length ? sorted[Math.floor(sorted.length / 2)]! : NaN;
++};
++const round = (value: number | null | undefined) => (value == null ? null : Math.round(value));
++
++interface PressResult {
++  scenario: string;
++  dir: 'on' | 'off';
++  /** Всё — миллисекунды от нажатия. */
++  button: number | null;
++  enabled: number | null;
++  chime: number | null;
++  wsOut: number | null;
++  packet: number | null;
++  tile: number | null;
++  played: number | null;
++  heard: number | null;
++  sentAudio: number | null;
++  rawAudio: number | null;
++  /** Когда у говорящего пошёл поток: второй подряд пакет в пределах 60 мс (DTX шлёт раз в 400 мс). */
++  sentFlow: number | null;
++  /** Пик джиттера за две секунды после нажатия и средний запас буфера за секунду после первого пакета. */
++  jitterMs: number | null;
++  bufferMs: number | null;
++  gum: number;
++  gumMs: number | null;
++  target: number | null;
++  lastHeard?: number | null;
++}
++
++async function press(sender: Page, label: 'Включить микрофон' | 'Выключить микрофон') {
++  await sender.getByRole('button', { name: label, exact: true }).click({ timeout: 60_000 });
++}
++
++async function measure(
++  scenario: string,
++  sender: Page,
++  listener: Page,
++  dir: 'on' | 'off',
++  settleMs = Number(process.env.MIC_SETTLE_MS ?? 1800),
++): Promise<PressResult> {
++  const clicksBefore = (await logOf(sender)).clicks!.length;
++  await press(sender, dir === 'on' ? 'Включить микрофон' : 'Выключить микрофон');
++  await sender.waitForTimeout(settleMs);
++  const [s, l] = await Promise.all([logOf(sender), logOf(listener)]);
++  const t0: number = s.clicks![clicksBefore]!;
++  const after = <T extends { t: number }>(list: T[]) => list.filter((e) => e.t >= t0);
++  const from = (t: number | null | undefined) => (t == null ? null : Math.round(t - t0));
++  const value = dir === 'on';
++  const [sent, heard, raw] = await Promise.all([
++    tapsOf(sender, 'sent', t0 - 200),
++    tapsOf(listener, 'recv', t0 - 200),
++    tapsOf(sender, 'raw', t0 - 200),
++  ]);
++  const gums = (s.gum as { start: number; end: number }[]).filter((g) => g.start >= t0);
++  const out = after(s.outbound as { t: number; packets: number }[]);
++  const flow = out.find((row, i) => {
++    const next = out[i + 1];
++    return !!next && next.packets - row.packets >= 2 && next.t - row.t < 120;
++  });
++  const packets = after(
++    l.packets as { t: number; target: number | null; jitter?: number; delay?: number; emitted?: number }[],
++  );
++  const jitters = packets.map((p) => p.jitter ?? 0);
++  const firstRow = packets[0];
++  const lastRow = packets[packets.length - 1];
++  const emitted = (lastRow?.emitted ?? 0) - (firstRow?.emitted ?? 0);
++  return {
++    scenario,
++    dir,
++    button: from(after(s.flips as { t: number }[])[0]?.t),
++    enabled: from(after(s.enabled as { t: number; value: boolean }[]).find((e) => e.value === value)?.t),
++    chime: from((s.notes as number[]).find((t) => t >= t0)),
++    wsOut: from(after(s.wsOut as { t: number }[])[0]?.t),
++    packet: from(packets[0]?.t),
++    tile: from(after(l.tile as { t: number }[])[0]?.t),
++    played: from(after(l.played as { t: number }[])[0]?.t),
++    heard: from(firstHeard(heard, t0)),
++    sentAudio: from(firstHeard(sent, t0)),
++    rawAudio: from(firstHeard(raw, t0)),
++    sentFlow: from(flow?.t),
++    jitterMs: jitters.length ? round(Math.max(...jitters) * 1000) : null,
++    bufferMs: emitted > 0 ? round((((lastRow!.delay ?? 0) - (firstRow!.delay ?? 0)) / emitted) * 1000) : null,
++    gum: gums.length,
++    gumMs: gums[0] ? round(gums[0].end - gums[0].start) : null,
++    target: packets[0]?.target ?? null,
++    ...(dir === 'off' ? { lastHeard: from(lastHeard(heard)) } : {}),
++  };
++}
++
++/** Событие `devicechange` с нужным списком устройств; потом — время, за которое LiveKit его разберёт. */
++const fireDevices = (page: Page, mode: 'added' | 'first' | null) =>
++  page.evaluate(async (value) => {
++    (window as any).__cfg.devices = value;
++    navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
++    await new Promise((r) => setTimeout(r, 400));
++  }, mode);
++
++const table = (rows: PressResult[]) => {
++  const keys = [
++    'button',
++    'enabled',
++    'chime',
++    'wsOut',
++    'rawAudio',
++    'sentAudio',
++    'sentFlow',
++    'tile',
++    'packet',
++    'played',
++    'heard',
++    'jitterMs',
++    'bufferMs',
++  ] as const;
++  return rows
++    .map(
++      (r) =>
++        `${r.scenario.padEnd(18)} ${r.dir.padEnd(3)} ` +
++        keys.map((k) => `${k}=${r[k] ?? '—'}`).join(' ') +
++        ` gum=${r.gum}${r.gumMs != null ? `(${r.gumMs})` : ''} target=${r.target ?? '—'}` +
++        (r.lastHeard !== undefined ? ` last=${r.lastHeard}` : ''),
++    )
++    .join('\n');
++};
++
++test('нажатие на микрофон: весь путь до слушателя', async ({ baseURL }) => {
++  expect(WAV, 'MIC_WAV — файл речи без пауз').not.toBe('');
++  mkdirSync(OUT, { recursive: true });
++  const standDev = process.env.CORD_STAND_DEV;
++  const standArgs = standDev
++    ? [`--host-resolver-rules=MAP ${new URL(baseURL!).hostname}:443 ${standDev}`, '--ignore-certificate-errors']
++    : [];
++  const launch = () =>
++    chromium.launch({
++      args: [
++        '--use-fake-device-for-media-stream',
++        '--use-fake-ui-for-media-stream',
++        '--autoplay-policy=no-user-gesture-required',
++        `--use-file-for-fake-audio-capture=${WAV}`,
++        ...standArgs,
++      ],
++    });
++  const browsers: Browser[] = [await launch(), await launch()];
++  const options = {
++    viewport: { width: 1280, height: 860 },
++    locale: 'ru-RU',
++    baseURL,
++    storageState: resolve(process.cwd(), '.local/e2e/returning.json'),
++    bypassCSP: true,
++    serviceWorkers: 'block' as const,
++    permissions: ['camera', 'microphone'],
++    ignoreHTTPSErrors: !!standDev,
++  };
++  const senderContext = await browsers[0]!.newContext(options);
++  const listenerContext = await browsers[1]!.newContext(options);
++  await senderContext.addInitScript(probe);
++  await listenerContext.addInitScript(probe);
++  await senderContext.addInitScript((suppression) => {
++    const key = 'cord:preferences:v1';
++    const data = JSON.parse(localStorage.getItem(key) ?? '{}');
++    data.audio = { ...(data.audio ?? {}), suppression, suppressionChosen: true };
++    localStorage.setItem(key, JSON.stringify(data));
++  }, SUPPRESSION);
++  const sender = await senderContext.newPage();
++  const listener = await listenerContext.newPage();
++  const consoleLines: string[] = [];
++  for (const [name, page] of [
++    ['говорящий', sender],
++    ['слушатель', listener],
++  ] as const)
++    page.on('console', (message) => {
++      const text = message.text();
++      if (/\[cord\]|error/i.test(text) && consoleLines.length < 400)
++        consoleLines.push(`${new Date().toISOString().slice(11, 23)} ${name}: ${text.slice(0, 240)}`);
++    });
++  const results: PressResult[] = [];
++  const extra: Record<string, unknown> = {};
++  try {
++    await listener.goto('/');
++    await listener.getByRole('button', { name: /Новая встреча/ }).click({ timeout: 60000 });
++    await listener.getByLabel('Ваше имя').fill('Слушатель');
++    await listener.getByRole('button', { name: 'Начать встречу' }).click();
++    await expect(listener.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 90000 });
++    await listener.getByRole('button', { name: 'Пригласить участников', exact: true }).click();
++    const invitation = await listener.getByRole('textbox', { name: 'Ссылка приглашения' }).inputValue();
++    await listener.getByRole('button', { name: 'Закрыть', exact: true }).click();
++    await sender.goto(invitation);
++    await sender.getByLabel('Ваше имя').fill('Говорящий');
++    await sender.getByRole('button', { name: 'Войти во встречу' }).click();
++    await expect(sender.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 90000 });
++    // Интерфейс в безголовом Chromium ест процессор, и звук спотыкается не от сети (как в `voice-probe`).
++    for (const page of [sender, listener])
++      await page.addStyleTag({ content: '.stage, .call-stage { content-visibility: hidden !important; }' });
++
++    // Первое включение — захват и публикация; дальше тот же микрофон.
++    await press(sender, 'Включить микрофон');
++    await expect(sender.getByRole('button', { name: 'Выключить микрофон', exact: true })).toBeVisible({
++      timeout: 30000,
++    });
++    await expect
++      .poll(async () => (await tapsOf(listener, 'recv', Date.now() - 1500)).some((b) => b.db > HEARD_DB), {
++        timeout: 30000,
++      })
++      .toBe(true);
++    await listener.waitForTimeout(6000);
++
++    const onePair = async (scenario: string, mutedMs: number, before?: () => Promise<void>) => {
++      results.push(await measure(scenario, sender, listener, 'off', 600));
++      await sender.waitForTimeout(mutedMs);
++      await before?.();
++      const row = await measure(scenario, sender, listener, 'on');
++      results.push(row);
++      console.log(table([row]));
++    };
++
++    if (SCENARIOS.includes('basic'))
++      for (let i = 0; i < CYCLES; i++) await onePair('basic-3s', 3000);
++
++    if (SCENARIOS.includes('idle')) {
++      await onePair(`idle-${IDLE_MS / 1000}s`, IDLE_MS);
++      await onePair(`idle-${IDLE_MS / 1000}s`, IDLE_MS);
++    }
++
++    if (SCENARIOS.includes('devices')) {
++      extra.devices = await sender.evaluate(async () =>
++        (await navigator.mediaDevices.enumerateDevices())
++          .filter((d) => d.kind === 'audioinput')
++          .map((d) => ({ id: d.deviceId.slice(0, 8), label: d.label })),
++      );
++      for (let i = 0; i < 2; i++) await onePair('dev-same', 2000, () => fireDevices(sender, null));
++      for (let i = 0; i < 2; i++) await onePair('dev-added', 2000, () => fireDevices(sender, 'added'));
++      for (let i = 0; i < 2; i++) await onePair('dev-first-changed', 2000, () => fireDevices(sender, 'first'));
++      // Снова настоящий список — следующая смена вернёт и настоящее устройство.
++      await fireDevices(sender, null);
++    }
++
++    if (SCENARIOS.includes('slowgum')) {
++      // Гарнитура Bluetooth или занятая машина: захват идёт 1,5 с. После смены первого устройства.
++      await sender.evaluate(() => void ((window as any).__cfg.gumDelay = 1500));
++      for (let i = 0; i < 2; i++)
++        await onePair('slowgum-devchange', 2000, () => fireDevices(sender, 'first'));
++      await sender.evaluate(() => void ((window as any).__cfg.gumDelay = 0));
++      await fireDevices(sender, null);
++    }
++
++    if (SCENARIOS.includes('wake')) {
++      // ОС глушит вход (кнопка на гарнитуре, системный mute): сырой захват `muted`, пока микрофон выключен.
++      const setMuted = (muted: boolean) =>
++        sender.evaluate((value) => {
++          const w = window as any;
++          w.__rawMuted = value;
++          const proto = MediaStreamTrack.prototype;
++          if (!w.__mutedPatched) {
++            const native = Object.getOwnPropertyDescriptor(proto, 'muted')!;
++            Object.defineProperty(proto, 'muted', {
++              configurable: true,
++              get(this: MediaStreamTrack) {
++                return this.kind === 'audio' && this.label && w.__rawMuted ? true : native.get!.call(this);
++              },
++            });
++            w.__mutedPatched = true;
++          }
++        }, muted);
++      for (let i = 0; i < 2; i++) {
++        await onePair('os-muted', 2000, () => setMuted(true));
++        await setMuted(false);
++        await sender.waitForTimeout(3000);
++      }
++    }
++
++    if (SCENARIOS.includes('signal')) {
++      // Сокет сигнала говорящего опаздывает на 1,5 с (R151: TCP на плохом Wi-Fi): медиа в это время идёт.
++      await sender.evaluate(() => void ((window as any).__cfg.wsOutMuteDelay = 1500));
++      for (let i = 0; i < 3; i++) await onePair('signal-out-1500', 3000);
++      await sender.evaluate(() => void ((window as any).__cfg.wsOutMuteDelay = 0));
++      await sender.waitForTimeout(2000);
++    }
++
++    if (SCENARIOS.includes('signalin')) {
++      // Сокет сигнала слушателя опаздывает: пакеты уже идут, а `ParticipantUpdate` ещё нет.
++      await listener.evaluate(() => void ((window as any).__cfg.wsInUpdateDelay = 1500));
++      for (let i = 0; i < 3; i++) await onePair('signal-in-1500', 3000);
++      await listener.evaluate(() => void ((window as any).__cfg.wsInUpdateDelay = 0));
++      await sender.waitForTimeout(2000);
++    }
++
++    if (SCENARIOS.includes('idlescan')) {
++      // Сколько надо молчать, чтобы первый пакет у слушателя задержался, и у кого он задерживается.
++      for (const seconds of (process.env.MIC_IDLE_SCAN ?? '5,30,60,90,120,150').split(',').map(Number)) {
++        console.log(`молчим ${seconds} с`);
++        await onePair(`scan-${seconds}s`, seconds * 1000);
++        // Между замерами — несколько секунд речи: тишина считается заново.
++        await sender.waitForTimeout(5000);
++      }
++    }
++
++    if (SCENARIOS.includes('soak')) {
++      // Долгий разговор: минуту говорим — выключаем на 20 с. Смотрим, растёт ли хоть что-то.
++      const from = Date.now();
++      let round = 0;
++      while (Date.now() - from < SOAK_MS) {
++        round += 1;
++        await onePair(`soak-${String(round).padStart(2, '0')}`, 20_000);
++        await sender.waitForTimeout(40_000);
++      }
++      extra.heap = await sender.evaluate(() => (performance as any).memory?.usedJSHeapSize ?? null);
++    }
++  } finally {
++    const on = results.filter((r) => r.dir === 'on');
++    const off = results.filter((r) => r.dir === 'off');
++    const groups = new Map<string, PressResult[]>();
++    for (const row of on) {
++      const key = row.scenario.replace(/-\d+$/, '');
++      groups.set(key, [...(groups.get(key) ?? []), row]);
++    }
++    const summary = [...groups].map(([name, rows]) => ({
++      name,
++      n: rows.length,
++      enabled: median(rows.map((r) => r.enabled ?? NaN).filter(Number.isFinite)),
++      chime: median(rows.map((r) => r.chime ?? NaN).filter(Number.isFinite)),
++      packet: median(rows.map((r) => r.packet ?? NaN).filter(Number.isFinite)),
++      tile: median(rows.map((r) => r.tile ?? NaN).filter(Number.isFinite)),
++      sentAudio: median(rows.map((r) => r.sentAudio ?? NaN).filter(Number.isFinite)),
++      played: median(rows.map((r) => r.played ?? NaN).filter(Number.isFinite)),
++      heard: median(rows.map((r) => r.heard ?? NaN).filter(Number.isFinite)),
++      target: median(rows.map((r) => r.target ?? NaN).filter(Number.isFinite)),
++      gum: rows.reduce((s, r) => s + r.gum, 0),
++    }));
++    writeFileSync(
++      join(OUT, `${LABEL}.json`),
++      JSON.stringify(
++        {
++          label: LABEL,
++          suppression: SUPPRESSION,
++          summary,
++          results,
++          extra,
++          stats: await logOf(listener)
++            .then((l) => l.stats)
++            .catch(() => []),
++          clicks: await logOf(sender)
++            .then((l) => l.clicks)
++            .catch(() => []),
++          console: consoleLines,
++        },
++        null,
++        1,
++      ),
++    );
++    console.log('---- включение ----\n' + table(on));
++    console.log('---- выключение ----\n' + table(off));
++    console.log('---- медианы (мс от нажатия) ----');
++    for (const row of summary) console.log(JSON.stringify(row));
++    console.log(`последние строки журнала:\n${consoleLines.slice(-12).join('\n')}`);
++    await Promise.all(browsers.map((browser) => browser.close()));
++  }
++});
+diff --git a/web/src/core/failure.ts b/web/src/core/failure.ts
+index 19fd53b..81f948e 100644
+--- a/web/src/core/failure.ts
++++ b/web/src/core/failure.ts
+@@ -77,6 +77,8 @@ export const KINDS = [
+   'camera-denied',
+   'background-stalled',
+   'background-dropped',
++  // Микрофон включился медленно (R191): что задержало — в журнале микрофона, человеку ничего.
++  'mic-slow',
+ ] as const;
+ export type Kind = (typeof KINDS)[number];
+ 
+diff --git a/web/src/i18n/locales/de.json b/web/src/i18n/locales/de.json
+index 1d8c3cb..f6f29fc 100644
+--- a/web/src/i18n/locales/de.json
++++ b/web/src/i18n/locales/de.json
+@@ -3084,6 +3084,7 @@
+     "ms": "{{value}} ms",
+     "codec": "Codec",
+     "cameraLog": "Kameraprotokoll",
++    "micLog": "Mikrofonprotokoll",
+     "profile": "Codec-Profil",
+     "layers": "Ebenen",
+     "singleLayer": "Eine Ebene",
+diff --git a/web/src/i18n/locales/en.json b/web/src/i18n/locales/en.json
+index db71e82..ab73e48 100644
+--- a/web/src/i18n/locales/en.json
++++ b/web/src/i18n/locales/en.json
+@@ -3084,6 +3084,7 @@
+     "ms": "{{value}} ms",
+     "codec": "Codec",
+     "cameraLog": "Camera log",
++    "micLog": "Microphone log",
+     "profile": "Codec profile",
+     "layers": "Layers",
+     "singleLayer": "Single layer",
+diff --git a/web/src/i18n/locales/es.json b/web/src/i18n/locales/es.json
+index e1b49e9..c1185ac 100644
+--- a/web/src/i18n/locales/es.json
++++ b/web/src/i18n/locales/es.json
+@@ -3117,6 +3117,7 @@
+     "ms": "{{value}} ms",
+     "codec": "Códec",
+     "cameraLog": "Registro de la cámara",
++    "micLog": "Registro del micrófono",
+     "profile": "Perfil del códec",
+     "layers": "Capas",
+     "singleLayer": "Una capa",
+diff --git a/web/src/i18n/locales/fr.json b/web/src/i18n/locales/fr.json
+index 058a954..243abf5 100644
+--- a/web/src/i18n/locales/fr.json
++++ b/web/src/i18n/locales/fr.json
+@@ -3117,6 +3117,7 @@
+     "ms": "{{value}} ms",
+     "codec": "Codec",
+     "cameraLog": "Journal de la caméra",
++    "micLog": "Journal du micro",
+     "profile": "Profil du codec",
+     "layers": "Couches",
+     "singleLayer": "Une seule couche",
+diff --git a/web/src/i18n/locales/it.json b/web/src/i18n/locales/it.json
+index 341124e..0789e21 100644
+--- a/web/src/i18n/locales/it.json
++++ b/web/src/i18n/locales/it.json
+@@ -3117,6 +3117,7 @@
+     "ms": "{{value}} ms",
+     "codec": "Codec",
+     "cameraLog": "Registro della videocamera",
++    "micLog": "Registro del microfono",
+     "profile": "Profilo del codec",
+     "layers": "Livelli",
+     "singleLayer": "Un solo livello",
+diff --git a/web/src/i18n/locales/pt-BR.json b/web/src/i18n/locales/pt-BR.json
+index ea48ee7..93eb9e6 100644
+--- a/web/src/i18n/locales/pt-BR.json
++++ b/web/src/i18n/locales/pt-BR.json
+@@ -3117,6 +3117,7 @@
+     "ms": "{{value}} ms",
+     "codec": "Codec",
+     "cameraLog": "Registro da câmera",
++    "micLog": "Registro do microfone",
+     "profile": "Perfil do codec",
+     "layers": "Camadas",
+     "singleLayer": "Camada única",
+diff --git a/web/src/i18n/locales/ru.json b/web/src/i18n/locales/ru.json
+index 1afd4ac..0dcff88 100644
+--- a/web/src/i18n/locales/ru.json
++++ b/web/src/i18n/locales/ru.json
+@@ -3194,6 +3194,7 @@
+     "ms": "{{value}} мс",
+     "codec": "Кодек",
+     "cameraLog": "Журнал камеры",
++    "micLog": "Журнал микрофона",
+     "profile": "Профиль кодека",
+     "layers": "Слои",
+     "singleLayer": "Один слой",
+diff --git a/web/src/i18n/locales/zh-Hans.json b/web/src/i18n/locales/zh-Hans.json
+index fbcbd6d..2c80784 100644
+--- a/web/src/i18n/locales/zh-Hans.json
++++ b/web/src/i18n/locales/zh-Hans.json
+@@ -3051,6 +3051,7 @@
+     "ms": "{{value}} 毫秒",
+     "codec": "编解码器",
+     "cameraLog": "摄像头日志",
++    "micLog": "麦克风日志",
+     "profile": "编解码器配置",
+     "layers": "分层",
+     "singleLayer": "单层",
+diff --git a/web/src/media/camera-log.test.ts b/web/src/media/camera-log.test.ts
+index 92bed2b..97204c7 100644
+--- a/web/src/media/camera-log.test.ts
++++ b/web/src/media/camera-log.test.ts
+@@ -14,4 +14,10 @@ describe('журнал камеры (R189, И7)', () => {
+     expect(events[0]?.kind).toBe('camera-heal-failed');
+     expect(log.lines().at(-1)).toBe('camera 12:00:34 camera-heal-failed NotReadableError');
+   });
++
++  it('журнал микрофона (R191) — то же кольцо со своим первым словом', () => {
++    const log = new CameraLog(() => Date.UTC(2026, 10, 7, 12, 0, 0), 'mic');
++    log.note('mic-slow', 'total=1640 unmute=1600 recapture signal=connected');
++    expect(log.lines()).toEqual(['mic 12:00:00 mic-slow total=1640 unmute=1600 recapture signal=connected']);
++  });
+ });
+diff --git a/web/src/media/camera-log.ts b/web/src/media/camera-log.ts
+index dcb333a..63101b8 100644
+--- a/web/src/media/camera-log.ts
++++ b/web/src/media/camera-log.ts
+@@ -17,7 +17,11 @@ export const CAMERA_LOG_SIZE = 30;
+ export class CameraLog {
+   readonly events = new Store<readonly CameraEvent[]>([]);
+ 
+-  constructor(private readonly now: () => number = () => Date.now()) {}
++  constructor(
++    private readonly now: () => number = () => Date.now(),
++    /** Чей журнал — первое слово строки: `camera` или `mic` (R191). */
++    private readonly label = 'camera',
++  ) {}
+ 
+   note(kind: string, detail?: string): void {
+     this.events.update((events) => {
+@@ -30,7 +34,7 @@ export class CameraLog {
+   lines(): string[] {
+     return this.events.get().map((event) => {
+       const time = new Date(event.at).toISOString().slice(11, 19);
+-      return `camera ${time} ${event.kind}${event.detail ? ` ${event.detail}` : ''}`;
++      return `${this.label} ${time} ${event.kind}${event.detail ? ` ${event.detail}` : ''}`;
+     });
+   }
+ }
+diff --git a/web/src/media/mic-press.test.ts b/web/src/media/mic-press.test.ts
+new file mode 100644
+index 0000000..cd9f7df
+--- /dev/null
++++ b/web/src/media/mic-press.test.ts
+@@ -0,0 +1,68 @@
++import { describe, expect, it } from 'vitest';
++import { FIRST_CAPTURE_SLOW_MS, MIC_SLOW_MS, micSlowDetail, PressTimer } from './mic-press';
++
++describe('сколько заняло нажатие на микрофон (R191)', () => {
++  it('быстрое включение — ничего не пишем, медленное — из чего сложилось, без имён', () => {
++    const press = { waitMs: 0, warmMs: 0, unmuteMs: 3, processorMs: 0, recaptured: false, signal: 'connected', rtt: 40 };
++    expect(micSlowDetail({ ...press, totalMs: MIC_SLOW_MS - 1 })).toBeNull();
++    expect(
++      micSlowDetail({ ...press, totalMs: 1640, unmuteMs: 1600, processorMs: 40, recaptured: true }),
++    ).toBe('total=1640 unmute=1600 proc=40 recapture signal=connected rtt=40');
++  });
++
++  it('первый захват идёт дольше законно: у него свой порог', () => {
++    const press = { waitMs: 0, warmMs: 0, unmuteMs: 0, processorMs: 0, recaptured: false, signal: 'connected', rtt: 0 };
++    expect(micSlowDetail({ ...press, totalMs: FIRST_CAPTURE_SLOW_MS - 1, firstCapture: true })).toBeNull();
++    expect(micSlowDetail({ ...press, totalMs: FIRST_CAPTURE_SLOW_MS, firstCapture: true })).toBe(
++      `total=${FIRST_CAPTURE_SLOW_MS} first-capture signal=connected`,
++    );
++  });
++
++  it('нажатие ждало занятое устройство или смену захвата — это видно отдельно', () => {
++    expect(
++      micSlowDetail({
++        totalMs: 900,
++        waitMs: 500,
++        warmMs: 390,
++        unmuteMs: 10,
++        processorMs: 0,
++        recaptured: false,
++        signal: 'signalReconnecting',
++        rtt: 0,
++      }),
++    ).toBe('total=900 wait=500 warm=390 unmute=10 signal=signalReconnecting');
++  });
++
++  it('сокет сигнала в обрыве: звук до SFU уже идёт, а он его отбрасывает, — даже при быстром нажатии', () => {
++    expect(
++      micSlowDetail({
++        totalMs: 5,
++        waitMs: 0,
++        warmMs: 0,
++        unmuteMs: 5,
++        processorMs: 0,
++        recaptured: false,
++        signal: 'signalReconnecting',
++        rtt: 0,
++      }),
++    ).toBe('total=5 unmute=5 signal=signalReconnecting');
++  });
++
++  it('секундомер считает шаги между отметками и всё время с нажатия', () => {
++    let now = 100;
++    const timer = new PressTimer(() => now);
++    now = 150;
++    expect(timer.lap()).toBe(50);
++    now = 180;
++    expect(timer.lap()).toBe(30);
++    expect(timer.total()).toBe(80);
++  });
++
++  it('секундомер нажатия, которое ждало, идёт с самого нажатия', () => {
++    let now = 500;
++    const timer = new PressTimer(() => now, 100);
++    expect(timer.lap()).toBe(400);
++    now = 510;
++    expect(timer.total()).toBe(410);
++  });
++});
+diff --git a/web/src/media/mic-press.ts b/web/src/media/mic-press.ts
+new file mode 100644
+index 0000000..987f6a0
+--- /dev/null
++++ b/web/src/media/mic-press.ts
+@@ -0,0 +1,80 @@
++/**
++ * Сколько заняло нажатие на микрофон и из чего сложилось (R191).
++ *
++ * «Включается долго» случается редко и у людей, а не на стенде, — и без числа остаётся только гадать:
++ * захват, смена устройства, занятая кнопка или сокет сигнала. Поэтому медленное нажатие само пишет, что
++ * его задержало: в журнал микрофона (`Диагностика`, обращение) и в счётчик `mic-slow`. Человеку — ничего.
++ * Здесь только числа и слова без имён и устройств (П8).
++ */
++
++/** Живой замер 07.11.2026: здоровое включение — 2–30 мс до `enabled` и сигнала в сокет. */
++export const MIC_SLOW_MS = 300;
++/** Первое включение — это законные захват, шумодав и публикация: так долго уже не норма. */
++export const FIRST_CAPTURE_SLOW_MS = 3000;
++/** Оборот сокета сигнала: пока `mute` не дошёл, SFU отбрасывает уже идущий звук. */
++export const MIC_SIGNAL_SLOW_MS = 500;
++
++export interface MicPress {
++  totalMs: number;
++  /** Ждало занятое устройство (`deviceFree`). */
++  waitMs: number;
++  /** Ждало смену захвата на новое устройство (`warmMicrophone`). */
++  warmMs: number;
++  /** `unmute` LiveKit: мгновенно, если не пришлось захватывать заново. */
++  unmuteMs: number;
++  processorMs: number;
++  /** Захват пришлось менять уже по нажатию. */
++  recaptured: boolean;
++  /** Первое включение за встречу: захват и публикация. */
++  firstCapture?: boolean;
++  /** Состояние комнаты в момент нажатия. */
++  signal: string;
++  /** Оборот сокета сигнала по последнему пингу, мс; 0 — неизвестно. */
++  rtt: number;
++}
++
++const OK_SIGNAL = 'connected';
++
++/** Строка журнала, если нажатие было медленным или сокет сигнала не в порядке; иначе `null`. */
++export function micSlowDetail(press: MicPress): string | null {
++  const slow = press.totalMs >= (press.firstCapture ? FIRST_CAPTURE_SLOW_MS : MIC_SLOW_MS);
++  if (!slow && press.signal === OK_SIGNAL) return null;
++  const parts = [`total=${Math.round(press.totalMs)}`];
++  const step = (name: string, ms: number) => {
++    if (ms > 0) parts.push(`${name}=${Math.round(ms)}`);
++  };
++  step('wait', press.waitMs);
++  step('warm', press.warmMs);
++  step('unmute', press.unmuteMs);
++  step('proc', press.processorMs);
++  if (press.recaptured) parts.push('recapture');
++  if (press.firstCapture) parts.push('first-capture');
++  parts.push(`signal=${press.signal}`);
++  if (press.rtt > 0) parts.push(`rtt=${press.rtt}`);
++  return parts.join(' ');
++}
++
++/** Секундомер нажатия: с самого нажатия, даже если оно ждало, пока устройство освободится. */
++export class PressTimer {
++  private readonly startedAt: number;
++  private mark: number;
++  constructor(
++    private readonly now: () => number = () => performance.now(),
++    pressedAt?: number,
++  ) {
++    this.startedAt = pressedAt ?? now();
++    this.mark = this.startedAt;
++  }
++
++  /** Сколько прошло с прошлой отметки. */
++  lap(): number {
++    const at = this.now();
++    const ms = at - this.mark;
++    this.mark = at;
++    return ms;
++  }
++
++  total(): number {
++    return this.now() - this.startedAt;
++  }
++}
+diff --git a/web/src/media/mic-sentinel.test.ts b/web/src/media/mic-sentinel.test.ts
+index 31f4ebc..708a93d 100644
+--- a/web/src/media/mic-sentinel.test.ts
++++ b/web/src/media/mic-sentinel.test.ts
+@@ -44,6 +44,31 @@ describe('сторож микрофона после фона (R147)', () => {
+     expect(restarted).toHaveBeenCalledWith('muted');
+   });
+ 
++  it('нажатие (R191): заглушённому захвату — короткий срок вместо двух секунд, незаглушённому ничего', async () => {
++    const { sentinel, raw, track, tick, restarted } = setup();
++    expect(sentinel.pressed(600)).toBe(false);
++    raw.muted = true;
++    expect(sentinel.pressed(600)).toBe(true);
++    tick(599);
++    await sentinel.check();
++    expect(track.restartTrack).not.toHaveBeenCalled();
++    tick(1);
++    await sentinel.check();
++    expect(track.restartTrack).toHaveBeenCalledTimes(1);
++    expect(restarted).toHaveBeenCalledWith('muted');
++  });
++
++  it('нажатие (R191): система сняла заглушку за короткий срок — перезахвата нет', async () => {
++    const { sentinel, raw, track, tick } = setup();
++    raw.muted = true;
++    sentinel.pressed(600);
++    tick(100);
++    raw.muted = false;
++    tick(500);
++    await sentinel.check();
++    expect(track.restartTrack).not.toHaveBeenCalled();
++  });
++
+   it('в фоне заглушённую не трогаем: система снимет заглушку сама', async () => {
+     const { sentinel, raw, track, tick } = setup({ visible: false });
+     raw.muted = true;
+diff --git a/web/src/media/mic-sentinel.ts b/web/src/media/mic-sentinel.ts
+index 276bda6..ceba071 100644
+--- a/web/src/media/mic-sentinel.ts
++++ b/web/src/media/mic-sentinel.ts
+@@ -35,6 +35,19 @@ export class MicSentinel {
+ 
+   constructor(private readonly deps: SentinelDeps) {}
+ 
++  /**
++   * Человек только что включил микрофон, а захват заглушён системой (R191). Включение его не ждёт: кнопка,
++   * сигнал и SFU узнают сразу. Но заглушённый захват нем, поэтому сторож ждёт не обычные две секунды, а
++   * `graceMs`, — следующий взгляд после этого срока перезахватит, если система сама не сняла заглушку.
++   * Возвращает, заглушён ли захват: смотреть тогда стоит через `graceMs`, а не по такту.
++   */
++  pressed(graceMs: number): boolean {
++    const raw = this.deps.track()?.mediaStreamTrack;
++    if (!raw || raw.readyState !== 'live' || !raw.muted) return false;
++    this.mutedSince = (this.deps.now ?? Date.now)() - (MUTED_FOR_MS - graceMs);
++    return true;
++  }
++
+   /** Один взгляд на дорожку; перезахват — не чаще одного за раз. */
+   async check(): Promise<void> {
+     const track = this.deps.track();
+diff --git a/web/src/media/playout-control.test.ts b/web/src/media/playout-control.test.ts
+index 7869965..eede0a5 100644
+--- a/web/src/media/playout-control.test.ts
++++ b/web/src/media/playout-control.test.ts
+@@ -66,6 +66,29 @@ function track(
+ }
+ 
+ describe('контроллер запаса', () => {
++  it('заглушённая дорожка (R191): хвост заглушки её выключения не поднимает запас, а знание о ней остаётся', async () => {
++    const controller = new PlayoutController();
++    let seconds = 0;
++    let extra: Record<string, unknown> = {};
++    let muted = false;
++    const voice = {
++      ...track('voice', 'conversation', () => statsOf([...path(), inbound(seconds, extra)])),
++      muted: () => muted,
++    };
++    await controller.tick([voice], 0);
++    const start = profileFor('conversation').startMs;
++    expect(voice.receiver.jitterBufferTarget).toBe(start);
++    // Цифры опроса из живого замера: 51 событие по 1–2 мс.
++    muted = true;
++    controller.muteChanged('voice');
++    seconds = 2;
++    extra = { concealedSamples: 44541, silentConcealedSamples: 40320, concealmentEvents: 51 };
++    const [report] = await controller.tick([voice], 2000);
++    expect(report).toMatchObject({ trouble: 'none', targetMs: start });
++    expect(voice.receiver.jitterBufferTarget).toBe(start);
++    expect(controller.targetFor('voice')).toBe(start);
++  });
++
+   it('в одной комнате разговор остаётся быстрым, а музыка получает секундный запас', async () => {
+     const controller = new PlayoutController();
+     let seconds = 0;
+diff --git a/web/src/media/playout-control.ts b/web/src/media/playout-control.ts
+index 1da937e..126ee5f 100644
+--- a/web/src/media/playout-control.ts
++++ b/web/src/media/playout-control.ts
+@@ -30,6 +30,8 @@ export interface PlayoutTrack {
+    */
+   group?: string;
+   receiver?: RTCRtpReceiver;
++  /** Заглушён ли говорящий — читается после статистики (`PlayoutBuffer.observe`, R191). */
++  muted?(): boolean;
+   stats(): Promise<RTCStatsReport | undefined>;
+ }
+ 
+@@ -91,6 +93,11 @@ export class PlayoutController {
+     this.buffers.delete(id);
+   }
+ 
++  /** Говорящий выключил или включил микрофон: ближайший опрос не судит о канале (R191). */
++  muteChanged(id: string) {
++    this.buffers.get(id)?.buffer.muteChanged();
++  }
++
+   private retune() {
+     for (const [, entry] of this.buffers) {
+       entry.buffer.retune(profileFor(entry.buffer.kind, this.linkState));
+@@ -158,7 +165,7 @@ export class PlayoutController {
+         };
+         this.buffers.set(track.id, entry);
+       }
+-      const decision = entry.buffer.observe(sample, now);
++      const decision = entry.buffer.observe(sample, now, track.muted?.() ?? false);
+       if (track.kind !== 'video' && track.group) heard.set(track.group, decision.targetMs);
+       // У картинки нет своего права на задержку: она обязана совпадать с губами. Поэтому,
+       // когда рядом есть звук того же участника, видео просит ровно столько же, сколько он, —
+diff --git a/web/src/media/playout.test.ts b/web/src/media/playout.test.ts
+index ae91265..e5d5980 100644
+--- a/web/src/media/playout.test.ts
++++ b/web/src/media/playout.test.ts
+@@ -515,3 +515,84 @@ describe('передача запаса приёмнику', () => {
+     expect(() => applyPlayoutTarget(ended as unknown as RTCRtpReceiver, 200)).not.toThrow();
+   });
+ });
++
++/*
++  R191, «выключается быстро, а включается долго»: живой замер 07.11.2026 — у слушателя цель запаса росла
++  с 120 до 400 мс за три выключения микрофона говорящего, и голос после включения приходил на 300–450 мс
++  позже. SFU перестаёт слать заглушённую дорожку, NetEq полсекунды гасит звук, и Chrome считает это десятками
++  «событий заглушки» по 1–9 мс. Для `classifyTrouble` это выглядит как опоздавшие пакеты.
++*/
++describe('говорящий выключил микрофон (R191)', () => {
++  /** Настоящие разности счётчиков соседних опросов из замера. */
++  const fadeOut = (at: number, previous: PlayoutSample, events: number, concealed: number, silent: number) => ({
++    ...audio(at),
++    concealedSamples: (previous.concealedSamples ?? 0) + concealed,
++    silentConcealedSamples: (previous.silentConcealedSamples ?? 0) + silent,
++    concealmentEvents: (previous.concealmentEvents ?? 0) + events,
++  });
++
++  it('то, что записано в замере, без признака выглядит как джиттер — поэтому признак и нужен', () => {
++    const buffer = new PlayoutBuffer('conversation', profileFor('conversation'), 0);
++    const start = audio(0);
++    buffer.observe(start, 0);
++    const decision = buffer.observe(fadeOut(2, start, 51, 44541, 40320), 2000);
++    expect(decision.trouble).toBe('jitter');
++  });
++
++  it('хвост заглушки после выключения — не джиттер: цель не растёт, сколько раз ни выключай', () => {
++    const profile = profileFor('conversation');
++    const buffer = new PlayoutBuffer('conversation', profile, 0);
++    let last = audio(0);
++    buffer.observe(last, 0);
++    for (let press = 0; press < 10; press++) {
++      const at = 2 + press * 6;
++      // Опрос, попавший на выключение: говорящий уже заглушён.
++      const tail = fadeOut(at, last, 42, 55947, 54720);
++      const off = buffer.observe(tail, at * 1000, true);
++      expect(off.trouble).toBe('none');
++      expect(off.targetMs).toBeLessThanOrEqual(profile.startMs);
++      // Весь опрос в тишине.
++      const quiet = fadeOut(at + 2, tail, 0, 96000, 96000);
++      expect(buffer.observe(quiet, (at + 2) * 1000, true).targetMs).toBeLessThanOrEqual(profile.startMs);
++      // Опрос, попавший на включение: сам он уже не заглушён, но половина интервала — ещё та тишина.
++      buffer.muteChanged();
++      const back = fadeOut(at + 4, quiet, 9, 3700, 0);
++      const on = buffer.observe(back, (at + 4) * 1000, false);
++      expect(on.trouble).toBe('none');
++      expect(on.targetMs).toBeLessThanOrEqual(profile.startMs);
++      last = back;
++    }
++  });
++
++  it('выключили и включили между двумя опросами — опрос всё равно не считается', () => {
++    const profile = profileFor('conversation');
++    const buffer = new PlayoutBuffer('conversation', profile, 0);
++    const start = audio(0);
++    buffer.observe(start, 0);
++    buffer.muteChanged();
++    buffer.muteChanged();
++    const decision = buffer.observe(fadeOut(2, start, 51, 3700, 2000), 2000, false);
++    expect(decision).toMatchObject({ trouble: 'none', targetMs: profile.startMs });
++  });
++
++  it('скачок джиттера на первом пакете после тишины не поднимает запас', () => {
++    const profile = profileFor('conversation');
++    const buffer = new PlayoutBuffer('conversation', profile, 0);
++    buffer.observe(audio(0), 0);
++    buffer.muteChanged();
++    // RFC 3550: разрыв в потоке даёт разовый скачок сглаженного джиттера.
++    const decision = buffer.observe(audio(2, { jitter: 0.2 }), 2000, false);
++    expect(decision.targetMs).toBe(profile.startMs);
++  });
++
++  it('настоящий джиттер у незаглушённого говорящего поднимает запас, как и раньше', () => {
++    const profile = profileFor('conversation');
++    const buffer = new PlayoutBuffer('conversation', profile, 0);
++    buffer.observe(audio(0), 0);
++    buffer.muteChanged();
++    buffer.observe(audio(2), 2000, false);
++    const decision = buffer.observe(audio(4, jittery(5)), 4000, false);
++    expect(decision.trouble).toBe('jitter');
++    expect(decision.targetMs).toBe(profile.startMs + profile.riseMs);
++  });
++});
+diff --git a/web/src/media/playout.ts b/web/src/media/playout.ts
+index f8d35c3..964d3fd 100644
+--- a/web/src/media/playout.ts
++++ b/web/src/media/playout.ts
+@@ -230,6 +230,8 @@ export class PlayoutBuffer {
+   private bloatedPolls = 0;
+   private calmSince: number;
+   private profile: PlayoutProfile;
++  /** С прошлого опроса говорящий выключал или включал микрофон ({@link muteChanged}). */
++  private muteTouched = false;
+   constructor(
+     readonly kind: PlayoutClass,
+     profile: PlayoutProfile,
+@@ -250,7 +252,27 @@ export class PlayoutBuffer {
+     this.targetMs = clamp(this.targetMs, profile.floorMs, profile.ceilingMs);
+   }
+ 
+-  observe(current: PlayoutSample, now = Date.now()): PlayoutDecision {
++  /**
++   * Говорящий выключил или включил микрофон (R191): этот интервал статистики — не о канале, даже если
++   * к следующему опросу микрофон уже снова включён.
++   */
++  muteChanged() {
++    this.muteTouched = true;
++  }
++
++  /**
++   * @param muted говорящий сейчас заглушён. SFU перестаёт слать его дорожку, и NetEq полсекунды гасит
++   *   звук: Chrome считает это десятками «событий заглушки» по 1–9 мс, и для {@link classifyTrouble} это
++   *   неотличимо от опоздавших пакетов. Живой замер 07.11.2026 (R191): цель разговора уезжала со 120 до
++   *   потолка 400 мс за три выключения микрофона, а голос после включения приходил на 300–450 мс позже
++   *   (спуск — 20 мс за 8 с, то есть две минуты). Отсюда и «выключается быстро, а включается долго»:
++   *   выключение слышно сразу, потому что звук гасит сам говорящий, а включение идёт через этот запас.
++   *   Такой интервал о канале не говорит ничего: цель не двигается, скачок джиттера на первом пакете
++   *   после тишины не считается, спокойный спуск идёт как шёл.
++   */
++  observe(current: PlayoutSample, now = Date.now(), muted = false): PlayoutDecision {
++    const silenced = muted || this.muteTouched;
++    this.muteTouched = false;
+     const previous = this.previous;
+     this.previous = current;
+     const dt = previous ? current.timestamp - previous.timestamp : 0;
+@@ -275,7 +297,7 @@ export class PlayoutBuffer {
+     const accelerationRatio = usable && samples > 0 ? removed / samples : 0;
+     const freezes = delta('freezeCount');
+     const trouble: TroubleKind =
+-      this.kind === 'video'
++      this.kind === 'video' || silenced
+         ? 'none'
+         : classifyTrouble({
+             concealedSamples: concealed,
+@@ -283,7 +305,7 @@ export class PlayoutBuffer {
+             lost: delta('packetsLost'),
+           });
+ 
+-    const jitterMs = (finite(current.jitter) ?? 0) * 1000;
++    const jitterMs = silenced ? 0 : (finite(current.jitter) ?? 0) * 1000;
+     this.peakJitterMs = Math.max(jitterMs, this.peakJitterMs * 0.8);
+ 
+     const profile = this.profile;
+diff --git a/web/src/media/session.test.ts b/web/src/media/session.test.ts
+index 8600c43..82b2c9b 100644
+--- a/web/src/media/session.test.ts
++++ b/web/src/media/session.test.ts
+@@ -521,28 +521,211 @@ describe('микрофон: один захват на встречу (R160)', (
+     }
+   });
+ 
+-  it('телефон (R147): заглушённый системой захват ждёт, пока система снимет заглушку сама', async () => {
++  it('заглушённый системой захват (R147, R191): включение не ждёт, система снимает заглушку сама', async () => {
+     vi.useFakeTimers();
+-    const { media, track, raw } = micSession({ suppression: 'browser' });
++    const { media, track, raw, local } = micSession({ suppression: 'browser' });
+     try {
+       await media.toggle('microphone');
+       await media.toggle('microphone');
+       raw.muted = true;
+-      const on = media.toggle('microphone');
++      // Ни одного таймера: раньше здесь стояло ожидание 600 мс и перезахват, а человек думал, что не нажалось.
++      await media.toggle('microphone');
++      expect(local.setMicrophoneEnabled).toHaveBeenLastCalledWith(true);
++      expect(media.state.get().microphone).toBe(true);
+       await vi.advanceTimersByTimeAsync(100);
+       raw.muted = false;
+       raw.dispatchEvent(new Event('unmute'));
+-      await on;
++      await vi.advanceTimersByTimeAsync(MIC_UNMUTE_GRACE_MS);
+       expect(track.restartTrack).not.toHaveBeenCalled();
+-      expect(media.state.get().microphone).toBe(true);
++    } finally {
++      media.dispose();
++    }
++  });
+ 
++  it('заглушённый системой захват (R147, R191): не снялась за срок — перезахват в фоне, один', async () => {
++    vi.useFakeTimers();
++    const { media, track, raw } = micSession({ suppression: 'browser' });
++    try {
++      await media.toggle('microphone');
+       await media.toggle('microphone');
+       raw.muted = true;
+-      const again = media.toggle('microphone');
++      await media.toggle('microphone');
++      expect(track.restartTrack).not.toHaveBeenCalled();
+       await vi.advanceTimersByTimeAsync(MIC_UNMUTE_GRACE_MS);
+-      await again;
+-      // Не сняла — тогда перезахват, один.
+       expect(track.restartTrack).toHaveBeenCalledOnce();
++      expect(media.state.get().microphone).toBe(true);
++    } finally {
++      media.dispose();
++    }
++  });
++
++  it('заглушённый захват: выключили раньше срока — перезахвата нет', async () => {
++    vi.useFakeTimers();
++    const { media, track, raw } = micSession({ suppression: 'browser' });
++    try {
++      await media.toggle('microphone');
++      await media.toggle('microphone');
++      raw.muted = true;
++      await media.toggle('microphone');
++      await media.toggle('microphone');
++      await vi.advanceTimersByTimeAsync(MIC_UNMUTE_GRACE_MS * 2);
++      expect(track.restartTrack).not.toHaveBeenCalled();
++    } finally {
++      media.dispose();
++    }
++  });
++
++  /*
++    Нажатие не теряется (R191). `toggle` молча выходил, пока устройство занято не им самим: телефон держит
++    микрофон при входе (`holdMicrophone`), переподключение его публикует (`restoreTracks`). Человек нажимал
++    ещё раз — и это выглядело как «включается долго».
++  */
++  it('нажатие, пока устройство занято не самим нажатием, применяется, когда оно освободится', async () => {
++    const { media, local } = micSession({ suppression: 'browser' });
++    const inner = media as unknown as {
++      deviceBusy: Set<string>;
++      deviceFree(kind: 'microphone' | 'camera'): void;
++    };
++    try {
++      await media.toggle('microphone');
++      await media.toggle('microphone');
++      expect(media.state.get().microphone).toBe(false);
++      inner.deviceBusy.add('microphone');
++      await media.toggle('microphone');
++      // Кнопка отзывается сразу, само устройство ждёт.
++      expect(media.micHeading.get()).toBe(true);
++      expect(local.setMicrophoneEnabled).toHaveBeenLastCalledWith(false);
++      inner.deviceFree('microphone');
++      await vi.waitFor(() => expect(media.state.get().microphone).toBe(true));
++      expect(local.setMicrophoneEnabled).toHaveBeenLastCalledWith(true);
++      expect(media.micHeading.get()).toBeUndefined();
++    } finally {
++      media.dispose();
++    }
++  });
++
++  it('два нажатия, пока устройство занято, — последнее решает: состояние не меняется', async () => {
++    const { media, local } = micSession({ suppression: 'browser' });
++    const inner = media as unknown as {
++      deviceBusy: Set<string>;
++      deviceFree(kind: 'microphone' | 'camera'): void;
++    };
++    try {
++      await media.toggle('microphone');
++      await media.toggle('microphone');
++      vi.mocked(local.setMicrophoneEnabled as () => Promise<void>).mockClear();
++      inner.deviceBusy.add('microphone');
++      await media.toggle('microphone');
++      expect(media.micHeading.get()).toBe(true);
++      await media.toggle('microphone');
++      expect(media.micHeading.get()).toBe(false);
++      inner.deviceFree('microphone');
++      await new Promise((resolve) => setTimeout(resolve, 0));
++      expect(local.setMicrophoneEnabled).not.toHaveBeenCalled();
++      expect(media.state.get().microphone).toBe(false);
++      expect(media.micHeading.get()).toBeUndefined();
++    } finally {
++      media.dispose();
++    }
++  });
++
++  /*
++    Смена устройства при выключенном микрофоне (R191). `setDeviceId` у заглушённой дорожки только запоминает
++    смену (`pendingDeviceChange`), и новый захват со всем обработчиком шёл уже по нажатию, под замком
++    `unmute`: на гарнитуре Bluetooth это секунды. Теперь захват меняется сразу, пока никто не ждёт.
++  */
++  it('устройство сменилось при выключенном микрофоне — захват меняется сразу, включение его не ждёт', async () => {
++    const { media, room, track } = micSession({ suppression: 'browser' });
++    const pending = track as unknown as { pendingDeviceChange: boolean };
++    vi.stubGlobal('navigator', {
++      ...navigator,
++      mediaDevices: navigator.mediaDevices,
++      permissions: { query: async () => ({ state: 'granted' }) },
++    });
++    try {
++      await media.toggle('microphone');
++      await media.toggle('microphone');
++      pending.pendingDeviceChange = true;
++      vi.mocked(track.restartTrack).mockImplementation(async () => {
++        pending.pendingDeviceChange = false;
++      });
++      room.emit(RoomEvent.ActiveDeviceChanged, 'audioinput', 'headset');
++      await vi.waitFor(() => expect(track.restartTrack).toHaveBeenCalledOnce());
++      expect(pending.pendingDeviceChange).toBe(false);
++      await media.toggle('microphone');
++      expect(media.state.get().microphone).toBe(true);
++      expect(track.restartTrack).toHaveBeenCalledOnce();
++    } finally {
++      media.dispose();
++    }
++  });
++
++  it('нажали, пока захват уже меняется, — включение дожидается его, а не захватывает второй раз', async () => {
++    const { media, room, track, local } = micSession({ suppression: 'browser' });
++    const pending = track as unknown as { pendingDeviceChange: boolean };
++    vi.stubGlobal('navigator', {
++      ...navigator,
++      mediaDevices: navigator.mediaDevices,
++      permissions: { query: async () => ({ state: 'granted' }) },
++    });
++    let release!: () => void;
++    try {
++      await media.toggle('microphone');
++      await media.toggle('microphone');
++      vi.mocked(local.setMicrophoneEnabled as () => Promise<void>).mockClear();
++      pending.pendingDeviceChange = true;
++      vi.mocked(track.restartTrack).mockImplementation(async () => {
++        await new Promise<void>((resolve) => (release = resolve));
++        pending.pendingDeviceChange = false;
++      });
++      room.emit(RoomEvent.ActiveDeviceChanged, 'audioinput', 'headset');
++      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
++      const on = media.toggle('microphone');
++      await new Promise((resolve) => setTimeout(resolve, 0));
++      expect(local.setMicrophoneEnabled).not.toHaveBeenCalled();
++      release();
++      await on;
++      expect(local.setMicrophoneEnabled).toHaveBeenLastCalledWith(true);
++      expect(track.restartTrack).toHaveBeenCalledOnce();
++    } finally {
++      media.dispose();
++    }
++  });
++
++  it('устройство сменилось при включённом микрофоне или без смены захвата — лишнего перезахвата нет', async () => {
++    const { media, room, track } = micSession({ suppression: 'browser' });
++    const pending = track as unknown as { pendingDeviceChange: boolean };
++    try {
++      await media.toggle('microphone');
++      pending.pendingDeviceChange = true;
++      room.emit(RoomEvent.ActiveDeviceChanged, 'audioinput', 'headset');
++      await new Promise((resolve) => setTimeout(resolve, 0));
++      expect(track.restartTrack).not.toHaveBeenCalled();
++      await media.toggle('microphone');
++      pending.pendingDeviceChange = false;
++      room.emit(RoomEvent.ActiveDeviceChanged, 'audioinput', 'headset');
++      await new Promise((resolve) => setTimeout(resolve, 0));
++      expect(track.restartTrack).not.toHaveBeenCalled();
++    } finally {
++      media.dispose();
++    }
++  });
++
++  it('браузер не дал разрешения насовсем (Firefox спросит снова) — без нажатия захват не меняем', async () => {
++    const { media, room, track } = micSession({ suppression: 'browser' });
++    const pending = track as unknown as { pendingDeviceChange: boolean };
++    vi.stubGlobal('navigator', {
++      ...navigator,
++      mediaDevices: navigator.mediaDevices,
++      permissions: { query: async () => ({ state: 'prompt' }) },
++    });
++    try {
++      await media.toggle('microphone');
++      await media.toggle('microphone');
++      pending.pendingDeviceChange = true;
++      room.emit(RoomEvent.ActiveDeviceChanged, 'audioinput', 'headset');
++      await new Promise((resolve) => setTimeout(resolve, 0));
++      expect(track.restartTrack).not.toHaveBeenCalled();
+     } finally {
+       media.dispose();
+     }
+diff --git a/web/src/media/session.ts b/web/src/media/session.ts
+index 5dbcba3..ec4e43d 100644
+--- a/web/src/media/session.ts
++++ b/web/src/media/session.ts
+@@ -61,6 +61,7 @@ import {
+ } from '../core/preferences';
+ import { setMeetingDeafened, signal } from '../core/sounds';
+ import { MicSentinel } from './mic-sentinel';
++import { MIC_SIGNAL_SLOW_MS, micSlowDetail, PressTimer, type MicPress } from './mic-press';
+ import { allowed, backgroundSupport, NO_BACKGROUND, type BackgroundSupport } from './background-effect';
+ import { CameraBackground, ensureRawOnSenders } from './background/camera';
+ import type { BackgroundEffect } from './background/effect';
+@@ -575,6 +576,10 @@ export class MediaSession {
+   private toggling = new Set<'microphone' | 'camera'>();
+   /** Нажатие, пришедшее посреди переключения: куда свести устройство, когда оно кончится (R163). */
+   private queuedToggle: Partial<Record<'microphone' | 'camera', boolean>> = {};
++  /** Захват заглушённого микрофона меняется на новое устройство (`warmMicrophone`, R191). */
++  private micWarming?: Promise<void>;
++  /** Срок, когда сторож смотрит на заглушённый системой захват сразу после нажатия (R191). */
++  private micPressTimer?: ReturnType<typeof setTimeout>;
+   private micSetting?: Promise<void>;
+   /** Микрофон с предвхода, который ещё не опубликован (`adoptMicrophone`). */
+   private handedMicrophone?: MediaStreamTrack;
+@@ -606,8 +611,17 @@ export class MediaSession {
+     },
+     wanted: () => !this.disposed && this.state.get().microphone,
+     visible: () => typeof document === 'undefined' || !document.hidden,
+-    restarted: (reason) => console.info('[cord] microphone re-acquired', { reason }),
++    restarted: (reason) => {
++      console.info('[cord] microphone re-acquired', { reason });
++      this.micLog.note('mic-reacquired', reason);
++    },
+   });
++  /** Журнал микрофона (R191): что задержало включение. В «Диагностику» и обращение, человеку ничего. */
++  readonly micLog = new CameraLog(undefined, 'mic');
++  /** Когда нажали, если нажатие дожидается занятого устройства: задержка считается с него. */
++  private pressedAt: Partial<Record<'microphone' | 'camera', number>> = {};
++  /** Срок, когда смотрим, чем кончился пинг после включения (`watchSignalAfterPress`). */
++  private micSignalTimer?: ReturnType<typeof setTimeout>;
+   /**
+    * Своя камера на время лечения и без фона (R189, И6): своя плитка показывает «Камера переподключается…»
+    * и «Фон отключён»; кнопка остаётся «включена». Зрителям ничего не говорится.
+@@ -763,6 +777,9 @@ export class MediaSession {
+       })
+       .on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+         if (participant.isLocal) this.patch({ quality });
++      })
++      .on(RoomEvent.ActiveDeviceChanged, (kind) => {
++        if (kind === 'audioinput') void this.warmMicrophone();
+       });
+     this.room
+       .on(RoomEvent.TrackPublished, this.syncSubscriptions)
+@@ -814,9 +831,13 @@ export class MediaSession {
+           if (this.wanted.microphone) signal('mic-off');
+           this.wanted.microphone = false;
+         }
++        if (!participant.isLocal) this.playout.muteChanged(publication.trackSid);
++        this.refreshTracks();
++      })
++      .on(RoomEvent.TrackUnmuted, (publication, participant) => {
++        if (!participant.isLocal) this.playout.muteChanged(publication.trackSid);
+         this.refreshTracks();
+       })
+-      .on(RoomEvent.TrackUnmuted, this.refreshTracks)
+       .on(RoomEvent.TrackStreamStateChanged, (publication, state) => {
+         if (this.disposed || publication.kind !== Track.Kind.Video) return;
+         console.debug('[cord] stream state', publication.source, publication.trackSid, state);
+@@ -932,6 +953,7 @@ export class MediaSession {
+           kind: this.playoutKind(participant.identity, publication.source, track.kind),
+           group: this.playoutGroup(participant.identity, publication.source),
+           receiver: track.receiver,
++          muted: () => publication.isMuted,
+           stats: () => track.getRTCStatsReport(),
+         });
+       }
+@@ -1960,7 +1982,7 @@ export class MediaSession {
+     } catch (error) {
+       console.warn('[cord] microphone was not held for the background', error);
+     } finally {
+-      this.deviceBusy.delete('microphone');
++      this.deviceFree('microphone');
+       this.refreshTracks();
+     }
+   }
+@@ -2297,7 +2319,7 @@ export class MediaSession {
+           }
+         } finally {
+           heading.set(undefined);
+-          this.deviceBusy.delete(kind);
++          this.deviceFree(kind);
+         }
+       }
+       // Выключенный, но захваченный микрофон (W5 или выключенный кнопкой) после полного
+@@ -2412,16 +2434,20 @@ export class MediaSession {
+   async toggle(kind: 'microphone' | 'camera', deviceId?: string, announce = true) {
+     if (this.disposed) return;
+     const heading = kind === 'microphone' ? this.micHeading : this.cameraHeading;
+-    if (this.toggling.has(kind)) {
++    if (this.toggling.has(kind) || this.deviceBusy.has(kind)) {
+       // Нажатие посреди переключения (R163, владелец: «кнопки будто с задержкой нажимаются»): раньше
+       // оно молча терялось, и кнопка не отзывалась. Теперь оно меняет, куда придём: кнопка показывает
+       // это сразу, а устройство сводится к последнему нажатию, когда идущее переключение кончится.
++      // То же, пока устройство занято не нажатием (R191): телефон держит микрофон при входе,
++      // переподключение его публикует, камеру меняют, — `deviceFree` применит нажатие после.
+       const target = !(heading.get() ?? this.state.get()[kind]);
+       heading.set(target);
+       this.queuedToggle[kind] = target;
++      this.pressedAt[kind] ??= performance.now();
+       return;
+     }
+-    if (this.deviceBusy.has(kind)) return;
++    const pressedAt = this.pressedAt[kind];
++    delete this.pressedAt[kind];
+     this.deviceBusy.add(kind);
+     this.toggling.add(kind);
+     heading.set(!this.state.get()[kind]);
+@@ -2441,18 +2467,52 @@ export class MediaSession {
+         }
+         const held = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+         if (!on) {
++          clearTimeout(this.micPressTimer);
++          clearTimeout(this.micSignalTimer);
+           await this.room.localParticipant.setMicrophoneEnabled(false);
+         } else if (held instanceof LocalAudioTrack) {
+           // Дорожка уже есть (включали раньше или телефон держит её выключенной, W5): включить —
+           // это `unmute` той же дорожки, без захвата заново (R160). LiveKit сам перезахватит только
+-          // кончившуюся дорожку или сменённое устройство.
+-          await this.wakeHeldMicrophone(held);
++          // кончившуюся дорожку или сменённое устройство; второе `warmMicrophone` уже сделал заранее.
++          const timer = new PressTimer(undefined, pressedAt);
++          const signal = this.room.state as string;
++          const waitMs = timer.lap();
++          await this.micWarming;
++          const warmMs = timer.lap();
++          const raw = captureTrack(held);
+           await this.room.localParticipant.setMicrophoneEnabled(true);
++          const unmuteMs = timer.lap();
++          const recaptured = captureTrack(held) !== raw;
++          this.watchPressedMicrophone();
+           // Обработчик уже стоит и не пересобирается (`applyAudioProcessor`); здесь — только если
+           // настройки звука поменяли, пока микрофон был выключен.
+           await this.applyAudioProcessor();
++          this.notePress({
++            totalMs: timer.total(),
++            waitMs,
++            warmMs,
++            unmuteMs,
++            processorMs: timer.lap(),
++            recaptured,
++            signal,
++            rtt: this.signalClient()?.rtt ?? 0,
++          });
++          this.watchSignalAfterPress();
+         } else {
++          const timer = new PressTimer(undefined, pressedAt);
++          const signal = this.room.state as string;
+           await this.publishMicrophone(deviceId, false);
++          this.notePress({
++            totalMs: timer.total(),
++            waitMs: 0,
++            warmMs: 0,
++            unmuteMs: 0,
++            processorMs: 0,
++            recaptured: false,
++            firstCapture: true,
++            signal,
++            rtt: 0,
++          });
+         }
+       } else {
+         // Нажатие — слово человека: эпизод лечения закрыт, запрет после отказа в разрешении снят.
+@@ -2512,43 +2572,117 @@ export class MediaSession {
+     } finally {
+       this.toggling.delete(kind);
+       this.deviceBusy.delete(kind);
+-      const queued = this.queuedToggle[kind];
+-      delete this.queuedToggle[kind];
+-      const now =
+-        kind === 'microphone'
+-          ? this.room.localParticipant.isMicrophoneEnabled
+-          : this.room.localParticipant.isCameraEnabled;
+-      // Сорвалось (нет доступа, нет устройства) — ошибку уже показали, отложенное нажатие не повторяет
+-      // её. Иначе — следующим шагом, после `refreshTracks`: `toggle` читает, откуда идти, из `state`.
+-      if (queued !== undefined && queued !== now && !failed && !this.disposed)
+-        queueMicrotask(() => {
+-          if (this.disposed || this.toggling.has(kind)) heading.set(undefined);
+-          else void this.toggle(kind, undefined, announce);
+-        });
+-      else heading.set(undefined);
++      this.applyQueuedToggle(kind, announce, failed);
+     }
+   }
++  /** Устройство больше не занято: применить нажатие, которое его дожидалось (R191). */
++  private deviceFree(kind: 'microphone' | 'camera') {
++    this.deviceBusy.delete(kind);
++    if (this.queuedToggle[kind] !== undefined) this.applyQueuedToggle(kind);
++  }
++  private applyQueuedToggle(kind: 'microphone' | 'camera', announce = true, failed = false) {
++    const heading = kind === 'microphone' ? this.micHeading : this.cameraHeading;
++    const queued = this.queuedToggle[kind];
++    delete this.queuedToggle[kind];
++    const now =
++      kind === 'microphone'
++        ? this.room.localParticipant.isMicrophoneEnabled
++        : this.room.localParticipant.isCameraEnabled;
++    // Сорвалось (нет доступа, нет устройства) — ошибку уже показали, отложенное нажатие не повторяет
++    // её. Иначе — следующим шагом и по свежему `state`: `toggle` читает из него, откуда идти, а занятое
++    // только что устройство могло его ещё не обновить.
++    if (queued === undefined || queued === now || failed || this.disposed) {
++      delete this.pressedAt[kind];
++      heading.set(undefined);
++      return;
++    }
++    queueMicrotask(() => {
++      if (this.disposed) {
++        heading.set(undefined);
++      } else if (this.toggling.has(kind) || this.deviceBusy.has(kind)) {
++        // Устройство снова заняли: нажатие дождётся следующего освобождения.
++        this.queuedToggle[kind] = queued;
++      } else {
++        this.collectTracks();
++        void this.toggle(kind, undefined, announce);
++      }
++    });
++  }
++  /** Медленное нажатие — в журнал микрофона и счётчик (R191); человеку ничего. */
++  private notePress(press: MicPress) {
++    const detail = micSlowDetail(press);
++    if (detail) this.noteMic(detail);
++  }
++  private noteMic(detail: string) {
++    this.micLog.note('mic-slow', detail);
++    noteFailure('microphone', 'mic-slow', detail);
++  }
++  private signalClient() {
++    return this.room.engine?.client as { rtt?: number; sendPing?: () => unknown } | undefined;
++  }
+   /**
+-   * Удержанный микрофон телефона (W5) система могла заглушить, пока страница была в фоне (R147):
+-   * LiveKit при включении перезахватывает только кончившуюся дорожку, а заглушённая «живая» осталась
+-   * бы немой. Только это — повод для нового захвата при включении; и то сначала даём системе
+-   * {@link MIC_UNMUTE_GRACE_MS} снять заглушку самой — по возвращении на экран она это делает, и
+-   * лишний `getUserMedia` (а с ним окно разрешения) не нужен.
++   * Звук после включения уходит сразу, но SFU отбрасывает его, пока до него не дошёл запрос `mute` по
++   * сокету сигнала; у выключения такой зависимости нет — звук гасит сам браузер (R191, замер). Сокет — это
++   * TCP: одна потеря на плохом Wi-Fi держит его сотни миллисекунд, пока медиа по UDP идёт как шло. С
++   * клиента этого не видно иначе как оборотом, поэтому после включения — внеочередной пинг, а через
++   * срок смотрим, сколько он шёл: в журнал, если долго.
+    */
+-  private async wakeHeldMicrophone(held: LocalAudioTrack) {
+-    const raw = captureTrack(held);
+-    if (raw.readyState !== 'live' || !raw.muted) return;
+-    await new Promise<void>((resolve) => {
+-      const done = () => {
+-        clearTimeout(timer);
+-        raw.removeEventListener('unmute', done);
+-        resolve();
+-      };
+-      const timer = setTimeout(done, MIC_UNMUTE_GRACE_MS);
+-      raw.addEventListener('unmute', done);
+-    });
+-    if (raw.readyState === 'live' && raw.muted && captureTrack(held) === raw)
+-      await held.restartTrack().catch(() => {});
++  private watchSignalAfterPress() {
++    const client = this.signalClient();
++    if (!client?.sendPing) return;
++    try {
++      void client.sendPing();
++    } catch {
++      return;
++    }
++    clearTimeout(this.micSignalTimer);
++    this.micSignalTimer = setTimeout(() => {
++      const rtt = client.rtt ?? 0;
++      if (!this.disposed && rtt >= MIC_SIGNAL_SLOW_MS) this.noteMic(`signal-rtt=${rtt}`);
++    }, 3000);
++  }
++  /**
++   * Захват уже заглушён системой, когда человек включает микрофон (R147: телефон после фона; ПК: кнопка на
++   * гарнитуре, системный mute). Раньше включение ждало здесь {@link MIC_UNMUTE_GRACE_MS} и ещё перезахват —
++   * «включается долго» на пустом месте. Теперь нажатие применяется сразу, а немой захват лечит сторож в
++   * фоне: через этот срок, если система сама не сняла заглушку (по возвращении на экран она это делает, и
++   * лишний `getUserMedia`, а с ним окно разрешения, не нужен).
++   */
++  private watchPressedMicrophone() {
++    clearTimeout(this.micPressTimer);
++    if (this.micSentinel.pressed(MIC_UNMUTE_GRACE_MS))
++      this.micPressTimer = setTimeout(() => void this.micSentinel.check(), MIC_UNMUTE_GRACE_MS);
++  }
++  /**
++   * Сменилось устройство, пока микрофон выключен (R191). `setDeviceId` у заглушённой дорожки только
++   * запоминает смену (`pendingDeviceChange`), и `unmute` делает новый захват уже по нажатию, под своим
++   * замком и вместе с перезапуском шумодава: на гарнитуре Bluetooth это секунды, а поддельная задержка
++   * захвата в замере переходит в задержку включения один в один. Поэтому захват меняем сразу, пока никто
++   * не ждёт, — дорожка при этом остаётся заглушённой. Заняли устройство, не дали захватить — ничего не
++   * теряем: `pendingDeviceChange` остаётся, и включение попробует по-старому.
++   *
++   * Только если разрешение дано насовсем: Firefox спрашивает про каждое новое устройство, и окно
++   * разрешения от подключённых наушников, без всякого нажатия, — хуже, чем подождать при включении.
++   */
++  private async warmMicrophone() {
++    const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
++    if (this.disposed || this.micWarming || !(track instanceof LocalAudioTrack) || !track.isMuted) return;
++    if (!(track as unknown as { pendingDeviceChange?: boolean }).pendingDeviceChange) return;
++    const warming = (async () => {
++      try {
++        const status = await navigator.permissions?.query({ name: 'microphone' as PermissionName });
++        if (status?.state === 'granted' && !this.disposed && track.isMuted) {
++          await track.restartTrack();
++          this.micLog.note('mic-warmed');
++        }
++      } catch (error) {
++        console.info('[cord] microphone was not re-acquired ahead of the press', error);
++      } finally {
++        this.micWarming = undefined;
++      }
++    })();
++    this.micWarming = warming;
++    await warming;
+   }
+   /**
+    * Настройки поменяли где-то ещё в приложении.
+@@ -2670,7 +2804,7 @@ export class MediaSession {
+         await this.room.switchActiveDevice(kind, previous).catch(() => {});
+       this.report(error, kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker');
+     } finally {
+-      if (kind === 'videoinput') this.deviceBusy.delete('camera');
++      if (kind === 'videoinput') this.deviceFree('camera');
+     }
+   }
+   private devicesChanged = () => {
+@@ -2780,7 +2914,7 @@ export class MediaSession {
+         await track.restartTrack({ ...this.cameraRestartNow(), deviceId: previous }).catch(() => {});
+       this.report(error, 'camera');
+     } finally {
+-      this.deviceBusy.delete('camera');
++      this.deviceFree('camera');
+     }
+   }
+   /**
+@@ -3211,7 +3345,7 @@ export class MediaSession {
+       } catch (error) {
+         this.report(error, 'camera');
+       } finally {
+-        this.deviceBusy.delete('camera');
++        this.deviceFree('camera');
+       }
+     });
+     return this.cameraChange;
+@@ -3393,6 +3527,8 @@ export class MediaSession {
+     this.lastLiveReset.clear();
+     clearInterval(this.liveTimer);
+     clearInterval(this.micTimer);
++    clearTimeout(this.micPressTimer);
++    clearTimeout(this.micSignalTimer);
+     clearInterval(this.cameraTimer);
+     clearTimeout(this.backgroundRetryTimer);
+     this.backgroundWatch?.();
+diff --git a/web/src/ui/Diagnostics.tsx b/web/src/ui/Diagnostics.tsx
+index 2085868..2801744 100644
+--- a/web/src/ui/Diagnostics.tsx
++++ b/web/src/ui/Diagnostics.tsx
+@@ -136,6 +136,8 @@ export default function Diagnostics({
+   const pauses = useStore(meeting.media.videoPauseCount);
+   // Журнал камеры (R189, И7): что сторож заметил и чем кончилось — без текста и имён.
+   const cameraEvents = useStore(meeting.media.cameraLog?.events ?? NO_CAMERA_EVENTS);
++  // Журнал микрофона (R191): что задержало включение.
++  const micEvents = useStore(meeting.media.micLog?.events ?? NO_CAMERA_EVENTS);
+   const stalls = useStore(meeting.media.videoStallCount);
+   useEffect(() => {
+     let disposed = false;
+@@ -208,6 +210,7 @@ export default function Diagnostics({
+       ...(board ? [`board latency: p50 ${board.p50} ms, p95 ${board.p95} ms (${board.count})`] : []),
+       ...samples.map(sampleLine),
+       ...(meeting.media.cameraLog?.lines() ?? []),
++      ...(meeting.media.micLog?.lines() ?? []),
+     ].join('\n');
+     try {
+       await navigator.clipboard.writeText(text);
+@@ -476,6 +479,24 @@ export default function Diagnostics({
+             </ul>
+           </section>
+         )}
++        {micEvents.length > 0 && (
++          <section className="diagnostics-card" aria-labelledby={`${id}-mic`}>
++            <h3 className="diagnostics-card__title" id={`${id}-mic`}>
++              {t(($) => $.diagnostics.micLog)}
++            </h3>
++            <ul className="diagnostics-camera-log">
++              {micEvents.map((event, i) => (
++                <li key={`${event.at}-${i}`}>
++                  <time dateTime={new Date(event.at).toISOString()}>
++                    {new Date(event.at).toLocaleTimeString(locale(t), { hour12: false })}
++                  </time>{' '}
++                  <code>{event.kind}</code>
++                  {event.detail ? ` ${event.detail}` : ''}
++                </li>
++              ))}
++            </ul>
++          </section>
++        )}
+         <section className="diagnostics-card" aria-labelledby={`${id}-stuck`}>
+           <h3 className="diagnostics-card__title" id={`${id}-stuck`}>
+             {t(($) => $.diagnostics.stuck.title)}
+diff --git a/web/src/ui/MeetingView.tsx b/web/src/ui/MeetingView.tsx
+index a2cdee5..9cf4f85 100644
+--- a/web/src/ui/MeetingView.tsx
++++ b/web/src/ui/MeetingView.tsx
+@@ -199,7 +199,10 @@ export function MeetingView({
+   // Итог этого звонка — для «Сообщить о проблеме», откуда бы поддержку ни открыли, пока встреча на экране.
+   useEffect(() => provideCallReport(() => meeting.media.callReport()), [meeting]);
+   // Журнал камеры (R189, И7) — туда же: что сторож заметил и чем кончилось, без текста и имён.
+-  useEffect(() => provideCameraLog(() => meeting.media.cameraLog.lines()), [meeting]);
++  useEffect(
++    () => provideCameraLog(() => [...meeting.media.cameraLog.lines(), ...meeting.media.micLog.lines()]),
++    [meeting],
++  );
+   useEffect(() => {
+     if (section) show('settings');
+   }, [section, show]);
+diff --git a/web/src/ui/support/help.ts b/web/src/ui/support/help.ts
+index 82ff872..35c85c1 100644
+--- a/web/src/ui/support/help.ts
++++ b/web/src/ui/support/help.ts
+@@ -50,7 +50,7 @@ export function provideCallReport(source: () => CallReport | null) {
+   };
+ }
+ 
+-/** Журнал камеры встречи (R189, И7) — строками для обращения; вне встречи — `null`. */
++/** Журналы камеры и микрофона встречи (R189, И7; R191) — строками для обращения; вне встречи — `null`. */
+ export const cameraLogSource = new Store<(() => readonly string[]) | null>(null);
+ 
+ export function provideCameraLog(source: () => readonly string[]) {

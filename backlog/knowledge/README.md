@@ -50,6 +50,7 @@
 - [`cord-screen-hint-livekit`](memory/cord-screen-hint-livekit.md) — Почему «Чёткость» показа на AV1/VP9 не включала screen content coding: livekit-client сбивает `contentHint` внутри `publishTrack`, лечится возвратом после неё
 - [`cord-presentation-autoopen`](memory/cord-presentation-autoopen.md) — Почему автооткрытие показа (R183) помечает показы замеченными до любого `Store.set`: подписчики встречи синхронны и входят повторно
 - [`cord-camera-livekit-traps`](memory/cord-camera-livekit-traps.md) — LiveKit сам и молча выключает камеру: `mute` → `pauseUpstream` через 5 с, отказ устройства при `ended` → `track.mute()`; как это перекрыто и чем проверять
+- [`cord-playout-target-climbs-on-mute`](memory/cord-playout-target-climbs-on-mute.md) — Каждое выключение микрофона поднимает цель буфера воспроизведения у слушателя: со 120 до 400 мс за три выключения; готовая правка лежит, замера в браузере нет
 - [`cord-mini-window-fresh`](memory/cord-mini-window-fresh.md) — Мини-окно клиента Windows пересоздаётся на каждый показ: спрятанное прежнее переносило захват мыши и поверхность, а сторож кадров этого не видит
 - [`cord-video-quality-levers`](memory/cord-video-quality-levers.md) — Где в Cord ломается качество видео: кодек камеры, потолок «Авто», adaptiveStream и один предел LiveKit, который снаружи не убирается
 - [`cord-watch-together`](memory/cord-watch-together.md) — Кинозал Cord: видео тянет сервер и проксирует HLS, а не браузер — почему так и где грабли
