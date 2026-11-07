@@ -29,6 +29,10 @@ stream:
   public-url: ${PUBLIC_URL:http://localhost:5173}
   livekit-url: ${LIVEKIT_URL:ws://localhost:7880}
   livekit-internal-url: ${LIVEKIT_INTERNAL_URL:http://localhost:7880}
+  # Медиаузлы (R195): имя этого узла и реестр узлов (`scripts/node-config.mjs`). Реестра нет —
+  # один узел, как раньше.
+  node-id: ${NODE_ID:main}
+  nodes-file: ${MEDIA_NODES_FILE:/nodes/registry.json}
   tusd-internal-url: ${TUSD_INTERNAL_URL:http://127.0.0.1:1080}
   livekit-key: ${LIVEKIT_API_KEY}
   livekit-secret: ${LIVEKIT_API_SECRET}

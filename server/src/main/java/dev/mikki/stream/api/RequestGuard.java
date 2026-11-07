@@ -38,8 +38,7 @@ public class RequestGuard extends OncePerRequestFilter {
           "/api/v1/support",
           "/api/v1/catalog",
           // Загрузка сервера (R143) — как пинг: говорит только, насколько он занят, ступенью.
-          "/api/v1/load",
-          "/api/v1/catalog/load");
+          "/api/v1/load");
 
   /**
    * Картинка доски (R159): единственное тело больше 16 КиБ, которое ядро принимает само, — до

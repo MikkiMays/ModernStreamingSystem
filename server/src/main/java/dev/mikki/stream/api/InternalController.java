@@ -56,6 +56,7 @@ public class InternalController {
   public void signaling(
       @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestHeader(value = "X-Media-Token", required = false) String mediaToken,
+      @RequestHeader(value = "X-Media-Node", required = false) String mediaNode,
       HttpServletRequest http) {
     limits.check("signaling:" + address.of(http), config.abuse().perIp().signaling());
     String token =
@@ -65,7 +66,7 @@ public class InternalController {
     // Only the token forwarded from the actual signaling request may authorize it.
     // Arbitrary client headers such as X-Original-Uri must never override that token.
     if (token == null) throw Problem.forbidden();
-    media.authorizeSignaling(token);
+    media.authorizeSignaling(token, mediaNode);
   }
 
   @GetMapping("/upload-auth")

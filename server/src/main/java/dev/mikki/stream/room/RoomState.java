@@ -95,6 +95,16 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String maintenanceWarned;
 
+  /**
+   * Узел медиа, на котором живёт встреча (R195, {@code nodes.MediaNodes}): {@code hel}, {@code
+   * fra}. Назначается при создании по замеру пути создателя и держится всю жизнь встречи; меняется
+   * только если узел умер и ядро переселило встречу ({@code MediaService.evacuate}). Токены
+   * участников несут адрес этого узла. {@code null} — узел управления: так записаны все комнаты до
+   * появления узлов, и откат образа читает их без потерь ({@code NON_NULL}).
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String mediaNode;
+
   public boolean mediaDrained;
   public boolean approvalRequired;
   public boolean integrationsAllowed = true;

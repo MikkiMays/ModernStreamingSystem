@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RoomService {
+  private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RoomService.class);
   private final RoomRepository rooms;
   private final StreamProperties config;
   private final Secrets secrets;
@@ -30,6 +31,7 @@ public class RoomService {
   private final RateLimits limits;
   private final List<RoomObserver> observers;
   private final Maintenance maintenance;
+  private final dev.mikki.stream.nodes.MediaNodes nodes;
   private final SecureRandom codeRandom = new SecureRandom();
 
   /**
@@ -59,7 +61,9 @@ public class RoomService {
       ApplicationEventPublisher events,
       RateLimits limits,
       List<RoomObserver> observers,
-      Maintenance maintenance) {
+      Maintenance maintenance,
+      dev.mikki.stream.nodes.MediaNodes nodes) {
+    this.nodes = nodes;
     this.rooms = rooms;
     this.config = config;
     this.secrets = secrets;
@@ -134,6 +138,17 @@ public class RoomService {
           room.integrationsAllowed = !Boolean.FALSE.equals(request.integrationsAllowed());
           room.createdFrom = origin;
           room.createdBy = entrant.profileHash();
+          // Узел медиа — по замеру пути создателя (R195); ядро проверяет его по реестру и живости.
+          var choice = nodes.choose(request.preferredNode());
+          room.mediaNode = choice.node().id();
+          if (request.preferredNode() != null || request.measurements() != null)
+            log.info(
+                "room {} on node {} ({}; asked {}; measured {})",
+                room.id,
+                room.mediaNode,
+                choice.reason(),
+                request.preferredNode(),
+                request.measurements());
           var member = newMember(room, request.name(), true, request.commandId(), entrant);
           var url = invite(room);
           rooms.insert(room, now());
@@ -769,7 +784,8 @@ public class RoomService {
             current.endsAt(),
             current.cinemaTraffic(),
             current.board(),
-            current.endReason());
+            current.endReason(),
+            current.mediaNode());
     return new Admission(
         room.id,
         member.id,
@@ -951,7 +967,8 @@ public class RoomService {
         room.endsAt,
         room.cinemaTraffic,
         boardView(room),
-        room.closedFor);
+        room.closedFor,
+        nodes.resolve(room.mediaNode).id());
   }
 
   /**
@@ -1081,7 +1098,8 @@ public class RoomService {
         // Доска — тоже жизнь встречи: из-за двери её не видно.
         null,
         // А почему встреча кончилась — видно: и у двери человек ждёт напрасно.
-        current.endReason());
+        current.endReason(),
+        current.mediaNode());
   }
 
   @Transactional

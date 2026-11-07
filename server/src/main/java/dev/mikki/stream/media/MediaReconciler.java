@@ -56,7 +56,7 @@ public class MediaReconciler {
       if (room.closedAt != null && room.mediaDrained) continue;
       try {
         long observedAt = rooms.now();
-        var participants = gateway.participants(room.id);
+        var participants = gateway.participants(room);
         var present = new HashMap<String, String>();
         if (participants != null)
           for (var p : participants) present.put(p.getIdentity(), p.getSid());
@@ -77,7 +77,7 @@ public class MediaReconciler {
               || member == null
               || !member.mediaAllowed()
               || screens > 1
-              || (screens > 0 && !member.screen)) gateway.remove(room.id, identity);
+              || (screens > 0 && !member.screen)) gateway.remove(current, identity);
           else if (screens == 1 && !member.screenStarted) {
             // Отправитель сам скажет, когда пошёл кадр целевого качества (T48); этот путь — для
             // клиентов, которые команды не знают, и срабатывает не раньше окна разгона.

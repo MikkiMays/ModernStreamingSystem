@@ -46,7 +46,7 @@ class MediaRoomCloserTest {
     assertThat(queued).hasSize(1);
     verifyNoInteractions(gateway);
     queued.get(0).run();
-    verify(gateway).close("r1");
+    verify(gateway).close(null, "r1");
   }
 
   @Test
@@ -55,15 +55,15 @@ class MediaRoomCloserTest {
     closer().closed(room, "empty", 1L);
     assertThat(queued).hasSize(1);
     queued.get(0).run();
-    verify(gateway).close("r2");
+    verify(gateway).close(null, "r2");
   }
 
   @Test
   void sfuFailureIsLoggedNotThrown() throws Exception {
     room.id = "r3";
-    doThrow(new Problem(503, "MEDIA_UNAVAILABLE", "нет")).when(gateway).close("r3");
+    doThrow(new Problem(503, "MEDIA_UNAVAILABLE", "нет")).when(gateway).close(null, "r3");
     closer().closed(room, "host", 1L);
     queued.get(0).run();
-    verify(gateway).close("r3");
+    verify(gateway).close(null, "r3");
   }
 }
