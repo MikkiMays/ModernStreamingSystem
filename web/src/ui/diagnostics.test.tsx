@@ -63,6 +63,8 @@ afterEach(cleanup);
 
 function fakeMeeting(tracks: unknown[] = []) {
   return {
+    // Узел встречи (R195): строка «Узел встречи» читает его из снимка.
+    snapshot: new Store({ mediaNode: 'main' }),
     media: {
       preferences: new Store({ devices: {}, audio: {} }),
       state: new Store({ status: 'connected', quality: 'good' }),
