@@ -711,7 +711,16 @@ class ActivityTest {
     metrics.refused("ROOM_FULL", 409);
     var allowed =
         Set.of(
-            "state", "kind", "reason", "door", "result", "code", "status", "by", "version", "path",
+            "state",
+            "kind",
+            "reason",
+            "door",
+            "result",
+            "code",
+            "status",
+            "by",
+            "version",
+            "path",
             // Узел медиа (R195): имена из реестра узлов, их единицы.
             "node");
     var cord =
