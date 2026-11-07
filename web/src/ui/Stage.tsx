@@ -355,7 +355,12 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
    * только место в сетке. Разводить это на два похожих куска разметки значило бы чинить
    * подписи, обводку говорящего и меню участника дважды.
    */
-  const tile = (person: (typeof people)[number], index: number, placed: boolean) => {
+  /**
+   * Плитка участника. `thumb` — миниатюра под крупной плиткой или показом (R190): вся она — кнопка «Закрепить», как и у плитки
+   * показа; действия — у крупной плитки и по долгому нажатию. В полосах под столом и плеером миниатюры не закрепляют:
+   * закрепление уводит от интеграции (`Meeting.pinCamera`), а случайное касание не должно выбрасывать из партии.
+   */
+  const tile = (person: (typeof people)[number], index: number, placed: boolean, thumb = false) => {
     const camera = tracks.find(
       (t) => t.participantId === person.id && t.source === Track.Source.Camera && !t.muted,
     );
@@ -397,6 +402,15 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
           <Avatar name={person.name} src={person.avatar} large />
         </div>
         {camera && <CameraVideo tile={camera} />}
+        {thumb && (
+          <button
+            type="button"
+            className="person-tile__pin"
+            aria-label={t(($) => $.stage.pinOf, { name: person.name })}
+            title={t(($) => $.stage.pinOf, { name: person.name })}
+            onClick={() => meeting.pinCamera(person.id)}
+          />
+        )}
         {/* Обводка вместо надписи: кто говорит, узнаётся боковым зрением. Заглушённый микрофон
             рядом остаётся отдельным знаком — на цвет полагаться нельзя. */}
         <VoiceRing meeting={meeting} id={person.id} />
@@ -654,7 +668,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
             data-count={others.length + strip.length}
           >
             {others.map((item, index) => presentationTile(item, index, false))}
-            {strip.map((person, index) => tile(person, others.length + index, false))}
+            {strip.map((person, index) => tile(person, others.length + index, false, true))}
           </div>
         )}
       </div>
@@ -864,7 +878,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
           <div className="spotlight-main">{tile(big, 0, false)}</div>
           <div className="people-strip spotlight-strip media-stage" data-count={shows.length + rest.length}>
             {shows.map((show, index) => presentationTile(show, index, false))}
-            {rest.map((person, index) => tile(person, shows.length + index, false))}
+            {rest.map((person, index) => tile(person, shows.length + index, false, true))}
           </div>
         </div>
       );

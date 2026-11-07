@@ -42,10 +42,12 @@ function fakeMeeting({
   people,
   tracks = [],
   viewing = null,
+  pinned = null,
 }: {
   people: ReturnType<typeof person>[];
   tracks?: MediaTile[];
   viewing?: { participantId: string; screenId: string } | null;
+  pinned?: string | null;
 }) {
   return {
     admission: { roomId: 'room', participantId: 'me', credential: 'token' },
@@ -58,7 +60,7 @@ function fakeMeeting({
     } as unknown as Snapshot),
     viewing: new Store(viewing),
     stageAway: new Store(null),
-    pinnedCamera: new Store(null),
+    pinnedCamera: new Store(pinned),
     cinema: new Store(null),
     cinemaAt: new Store(null),
     media: {
@@ -75,11 +77,14 @@ function fakeMeeting({
     openStream: vi.fn(),
     returnToConversation: vi.fn(),
     screenPlaying: vi.fn(),
+    pinCamera: vi.fn(),
+    unpinCamera: vi.fn(),
     command: vi.fn(() => Promise.resolve()),
   } as unknown as Meeting & {
     openStream: ReturnType<typeof vi.fn>;
     returnToConversation: ReturnType<typeof vi.fn>;
     screenPlaying: ReturnType<typeof vi.fn>;
+    pinCamera: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -140,6 +145,39 @@ describe('показ крупно (R183)', () => {
     expect(captions(strip)).toEqual(['Экран: Боб', 'Я (Вы)', 'Аня', 'Боб']);
     fireEvent.click(within(strip).getByRole('button', { name: 'Закрепить показ: Боб' }));
     expect(meeting.openStream).toHaveBeenCalledWith('bob');
+  });
+});
+
+describe('миниатюры закрепляют нажатием (R190)', () => {
+  it('под закреплённой — каждая миниатюра сама кнопка, включая свою; у крупной плитки её нет', () => {
+    const meeting = fakeMeeting({
+      people: [person('me', 'Я'), person('ann', 'Аня'), person('bob', 'Боб')],
+      pinned: 'ann',
+    });
+    render(<Stage meeting={meeting} />);
+    const strip = document.querySelector<HTMLElement>('.spotlight-strip')!;
+    fireEvent.click(within(strip).getByRole('button', { name: 'Закрепить: Боб' }));
+    expect(meeting.pinCamera).toHaveBeenCalledWith('bob');
+    fireEvent.click(within(strip).getByRole('button', { name: 'Закрепить: Я' }));
+    expect(meeting.pinCamera).toHaveBeenCalledWith('me');
+    const big = document.querySelector<HTMLElement>('.spotlight-main')!;
+    expect(big.querySelector('.person-tile__pin')).toBeNull();
+    // Действия у крупной плитки остаются.
+    expect(within(big).getByRole('button', { name: 'Действия: Аня' })).toBeInTheDocument();
+  });
+
+  it('миниатюра в ленте показа тоже закрепляет; в обычной сетке кнопки нет', () => {
+    const watching = fakeMeeting({
+      people: [person('me', 'Я'), sharing('ann', 'Аня', 'S1')],
+      tracks: [video('TR_scr', 'ann', Track.Source.ScreenShare)],
+      viewing: { participantId: 'ann', screenId: 'S1' },
+    });
+    render(<Stage meeting={watching} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Закрепить: Аня' }));
+    expect(watching.pinCamera).toHaveBeenCalledWith('ann');
+    cleanup();
+    render(<Stage meeting={fakeMeeting({ people: [person('me', 'Я'), person('ann', 'Аня')] })} />);
+    expect(document.querySelector('.person-tile__pin')).toBeNull();
   });
 });
 

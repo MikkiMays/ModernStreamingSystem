@@ -2286,6 +2286,7 @@
     "gameLoading": "Opening the game…",
     "unpin": "Unpin",
     "unpinOf": "Unpin: {{name}}",
+    "pinOf": "Pin {{name}}",
     "exit": {
       "label": "All participants",
       "title": "All participants ({{key}})",

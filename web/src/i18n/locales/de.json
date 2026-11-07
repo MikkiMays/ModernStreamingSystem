@@ -2286,6 +2286,7 @@
     "gameLoading": "Spiel wird geöffnet…",
     "unpin": "Lösen",
     "unpinOf": "Lösen: {{name}}",
+    "pinOf": "{{name}} anpinnen",
     "exit": {
       "label": "Alle Teilnehmer",
       "title": "Alle Teilnehmer ({{key}})",

@@ -2313,6 +2313,7 @@
     "gameLoading": "Apriamo il gioco…",
     "unpin": "Sblocca",
     "unpinOf": "Sblocca: {{name}}",
+    "pinOf": "Fissa {{name}}",
     "exit": {
       "label": "Tutti i partecipanti",
       "title": "Tutti i partecipanti ({{key}})",

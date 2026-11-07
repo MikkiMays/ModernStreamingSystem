@@ -2313,6 +2313,7 @@
     "gameLoading": "Abrindo o jogo…",
     "unpin": "Desafixar",
     "unpinOf": "Desafixar: {{name}}",
+    "pinOf": "Fixar {{name}}",
     "exit": {
       "label": "Todos os participantes",
       "title": "Todos os participantes ({{key}})",

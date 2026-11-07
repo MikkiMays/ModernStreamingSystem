@@ -305,6 +305,30 @@
 .person-tile > .participant-more:hover {
   background: color-mix(in srgb, var(--stage-bg) 82%, transparent);
 }
+/*
+  Миниатюра под крупной плиткой или показом (R190): вся она — кнопка «Закрепить». Над кадром и подписью, но под «…», которая на
+  компьютере остаётся. Прозрачная: кадр миниатюры и так говорит, кого закрепляешь.
+*/
+.person-tile__pin {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.person-tile__pin:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset-inset);
+}
+/* На телефоне «…» закрывала камеру в миниатюре (R190): действия — у крупной плитки и по долгому нажатию. */
+@media (max-width: 700px), (pointer: coarse) {
+  .people-strip .person-tile > .participant-more {
+    display: none;
+  }
+}
 .tile-recovery {
   position: absolute;
   z-index: 3;
