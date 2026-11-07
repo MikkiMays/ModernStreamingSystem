@@ -6,6 +6,7 @@ import { Globe, MicOff, RotateCcw, TriangleAlert, X } from 'lucide-react';
 import { publicApi } from '../api/client';
 import type { Meeting } from '../core/meeting';
 import { alreadyInMeeting } from '../core/identity';
+import { maintenance } from '../core/maintenance';
 import { parseInvite } from '../core/invitation';
 import { readPreferences } from '../core/preferences';
 import { rememberMeeting } from '../core/recent';
@@ -16,6 +17,7 @@ import { t as translate } from '../i18n';
 import { Connect } from '../ui/Connect';
 import { Button, Logo } from '../ui/kit';
 import { BootGate } from '../ui/loader/BootGate';
+import { MaintenancePage, useMaintenance } from '../ui/MaintenancePage';
 import type { Theme } from '../ui/primitives';
 import { probeMicrophone } from './media-probe';
 import type { TelegramShell } from './sdk';
@@ -75,6 +77,8 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
           setStep({ kind: 'connect' });
           return;
         }
+        // Идут работы (R194): ни службы, ни просьбы о микрофоне — страница уже открыта.
+        if (maintenance.get()) return;
         const entry = options.entry ?? (await servicesApi.telegramEnter(shell.initData));
         let microphone = options.microphone;
         if (microphone === undefined) {
@@ -122,6 +126,13 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
   useEffect(() => {
     void run();
   }, [run]);
+  /*
+    Работы кончились (R194): сам во встречу с микрофоном не входит — телефон мог лежать на столе весь
+    час. Встреча, которую они завершили, остаётся своим экраном конца, остальное предлагает войти.
+  */
+  const closed = useMaintenance(() => {
+    if (step.kind !== 'room') setStep({ kind: 'failed', message: t(($) => $.maintenance.over), other: null });
+  });
 
   const leave = () => {
     if (step.kind === 'room') step.meeting.dispose();
@@ -143,6 +154,13 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
     [shell],
   );
 
+  if (closed && step.kind !== 'room')
+    return (
+      <>
+        <MaintenancePage state={closed} />
+        <BootGate />
+      </>
+    );
   if (step.kind === 'entering') return null;
   if (step.kind === 'connect')
     return (
@@ -161,6 +179,7 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
           setTheme={setTheme}
           onBackTarget={backTarget}
         />
+        {closed && <MaintenancePage state={closed} />}
         <BootGate />
       </Suspense>
     );

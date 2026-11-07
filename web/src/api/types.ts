@@ -131,7 +131,13 @@ export type DurakResult = components['schemas']['DurakResult'];
 
 export type RoomEvent = Omit<components['schemas']['Event'], 'version' | 'type'> & {
   version: 1;
-  type: 'room.changed' | 'message.created' | 'files.changed' | 'screen.started' | 'screen.first_viewer';
+  type:
+    | 'room.changed'
+    | 'message.created'
+    | 'files.changed'
+    | 'screen.started'
+    | 'screen.first_viewer'
+    | 'maintenance.warning';
 };
 
 export type GameVisualEvent = Omit<components['schemas']['GameVisualEvent'], 'type'> & {

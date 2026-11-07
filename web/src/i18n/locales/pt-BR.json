@@ -627,6 +627,7 @@
     "end": {
       "session": "Seu acesso à reunião expirou. Abra o convite para entrar de novo.",
       "closed": "A reunião foi encerrada",
+      "maintenance": "A reunião terminou: a manutenção começou",
       "left": "Você saiu da reunião",
       "revoked": "Seu acesso à reunião foi encerrado"
     },
@@ -3222,6 +3223,14 @@
       "listen": "Entrar sem microfone"
     }
   },
+  "maintenance": {
+    "title": "Manutenção em andamento",
+    "body": "As reuniões estão indisponíveis por enquanto. O Cord abrirá sozinho quando terminarmos: não é preciso recarregar.",
+    "endedMeeting": "Sua reunião terminou porque a manutenção começou. O Cord abrirá sozinho quando terminarmos: não é preciso recarregar.",
+    "until": "Previsão de término: {{time}}",
+    "late": "Quase pronto",
+    "over": "A manutenção terminou. Você já pode entrar"
+  },
   "errors": {
     "ADMIN_DISABLED": "A página do dono está desativada neste servidor",
     "ADMIN_PASSWORD_INVALID": "Senha do dono incorreta",
@@ -3348,6 +3357,10 @@
     "INVITE_INVALID": "O convite expirou ou foi revogado",
     "INVITE_LIMIT": "Convites demais",
     "MAINTENANCE": "O servidor está sendo atualizado — tente novamente em dois minutos",
+    "MAINTENANCE_WINDOW": "Manutenção em andamento. O Cord volta em breve",
+    "MAINTENANCE_WINDOW_EXISTS": "Já existe uma janela de manutenção. Feche-a primeiro",
+    "MAINTENANCE_WINDOW_INVALID": "Verifique os horários da janela: ISO-8601 com fuso, início no futuro, fim depois do início e dentro do limite",
+    "MAINTENANCE_WINDOW_NONE": "No momento não há janela de manutenção",
     "MEDIA_UNAVAILABLE": "As chamadas estão indisponíveis no momento. Tente de novo em um minuto",
     "MUSIC_TIMEOUT": "A plataforma não respondeu a tempo — tente de novo",
     "MUSIC_UNREACHABLE": "Esta plataforma está indisponível a partir deste servidor",
@@ -3567,6 +3580,9 @@
         "admin_login": "Login do dono",
         "admin_room_closed": "O dono encerrou uma reunião",
         "admin_shield_cleared": "O dono desligou o “escudo”",
+        "admin_maintenance_window": "O proprietário alterou a janela de manutenção",
+        "maintenance_started": "A manutenção começou",
+        "maintenance_expired": "A janela de manutenção terminou sozinha",
         "block_created": "Bloqueio",
         "block_lifted": "Bloqueio removido",
         "block_auto": "Bloqueio automático por recusas frequentes",

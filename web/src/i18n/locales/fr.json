@@ -627,6 +627,7 @@
     "end": {
       "session": "Votre accès à la réunion a expiré. Ouvrez l'invitation pour revenir.",
       "closed": "La réunion est terminée",
+      "maintenance": "La réunion est terminée : la maintenance a commencé",
       "left": "Vous avez quitté la réunion",
       "revoked": "Votre accès à la réunion a pris fin"
     },
@@ -3222,6 +3223,14 @@
       "listen": "Entrer sans micro"
     }
   },
+  "maintenance": {
+    "title": "Maintenance en cours",
+    "body": "Les réunions sont indisponibles pour le moment. Cord s’ouvrira tout seul une fois le travail terminé : inutile de recharger.",
+    "endedMeeting": "Votre réunion s’est terminée, car la maintenance a commencé. Cord s’ouvrira tout seul une fois le travail terminé : inutile de recharger.",
+    "until": "Fin prévue : {{time}}",
+    "late": "C’est presque terminé",
+    "over": "La maintenance est terminée. Vous pouvez entrer"
+  },
   "errors": {
     "ADMIN_DISABLED": "La page du propriétaire est désactivée sur ce serveur",
     "ADMIN_PASSWORD_INVALID": "Mot de passe du propriétaire incorrect",
@@ -3348,6 +3357,10 @@
     "INVITE_INVALID": "L'invitation a expiré ou a été révoquée",
     "INVITE_LIMIT": "Trop d'invitations",
     "MAINTENANCE": "Le serveur est en cours de mise à jour — réessayez dans deux minutes",
+    "MAINTENANCE_WINDOW": "Maintenance en cours. Cord revient bientôt",
+    "MAINTENANCE_WINDOW_EXISTS": "Une fenêtre de maintenance existe déjà. Fermez-la d’abord",
+    "MAINTENANCE_WINDOW_INVALID": "Vérifiez les heures de la fenêtre : ISO-8601 avec décalage, début dans le futur, fin après le début et dans la limite",
+    "MAINTENANCE_WINDOW_NONE": "Aucune fenêtre de maintenance pour le moment",
     "MEDIA_UNAVAILABLE": "Les appels sont temporairement indisponibles. Réessayez dans une minute",
     "MUSIC_TIMEOUT": "La plateforme n'a pas répondu à temps — réessayez",
     "MUSIC_UNREACHABLE": "Cette plateforme est inaccessible depuis ce serveur",
@@ -3567,6 +3580,9 @@
         "admin_login": "Connexion du propriétaire",
         "admin_room_closed": "Le propriétaire a terminé une réunion",
         "admin_shield_cleared": "Le propriétaire a désactivé le « bouclier »",
+        "admin_maintenance_window": "Le propriétaire a modifié la fenêtre de maintenance",
+        "maintenance_started": "La maintenance a commencé",
+        "maintenance_expired": "La fenêtre de maintenance s’est terminée d’elle-même",
         "block_created": "Blocage",
         "block_lifted": "Blocage levé",
         "block_auto": "Blocage automatique pour refus répétés",

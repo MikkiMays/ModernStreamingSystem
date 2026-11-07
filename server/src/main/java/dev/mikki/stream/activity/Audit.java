@@ -1,6 +1,7 @@
 package dev.mikki.stream.activity;
 
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.room.MaintenanceWindows;
 import dev.mikki.stream.room.RoomObserver;
 import dev.mikki.stream.room.RoomState;
 import dev.mikki.stream.shared.Json;
@@ -245,6 +246,18 @@ public class Audit implements RoomObserver {
 
   public int sweep(long now) {
     return jdbc.sql("DELETE FROM audit_events WHERE expires_at<=?").param(now).update();
+  }
+
+  /** Окно технических работ само началось или истекло: кто — сервер, номер окна и сроки. */
+  @Override
+  public void maintenance(MaintenanceWindows.Window window, String transition, long now) {
+    record(
+        Entry.of("maintenance." + transition)
+            .target(window.id())
+            .detail("kind", window.kind())
+            .detail("startsAt", window.startsAt())
+            .detail("endsAt", window.endsAt())
+            .detail("expiresAt", window.expiresAt()));
   }
 
   @Override

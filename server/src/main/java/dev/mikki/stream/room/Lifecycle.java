@@ -19,6 +19,15 @@ public class Lifecycle {
   private final StreamProperties config;
   private final GameClock games;
   private final ApplicationEventPublisher events;
+  private final MaintenanceWindows windows;
+
+  /**
+   * Сколько завершённая работами встреча лежит в базе, даже если её никто не сохранял: клиент
+   * должен успеть прочитать причину конца ({@code endReason}). Без этого несохранённая встреча
+   * уходила бы в том же проходе, и человек на медленной связи получил бы «комната не найдена»
+   * вместо страницы работ.
+   */
+  private static final long MAINTENANCE_END_READABLE_MS = 60_000;
 
   /**
    * С какого момента этот экземпляр ядра работает.
@@ -34,7 +43,9 @@ public class Lifecycle {
       RoomRepository rooms,
       StreamProperties config,
       GameClock games,
-      ApplicationEventPublisher events) {
+      ApplicationEventPublisher events,
+      MaintenanceWindows windows) {
+    this.windows = windows;
     this.service = service;
     this.rooms = rooms;
     this.config = config;
@@ -295,6 +306,15 @@ public class Lifecycle {
     if (room.poker == null && room.durak == null && room.chess == null && room.gartic == null)
       games.forget(id);
     else games.schedule(id, RoomService.gameDeadline(room));
+    /*
+     Технические работы (R194): окно началось — встреча кончается тем же путём, что «Завершить для
+     всех»: снимок с причиной всем, распуск комнаты SFU после фиксации. Проход идёт раз в секунду и
+     на каждом узле, повтор ничего не меняет, а вошедшего в последний миг заберёт следующий проход.
+    */
+    if (room.closedAt == null && windows.active()) {
+      service.close(room, RoomService.MAINTENANCE);
+      changed = true;
+    } else if (room.closedAt == null && warned(room)) changed = true;
     if (room.closedAt == null) {
       /*
        Пустая комната — та, где нет людей. Бот музыки людей не заменяет (правило E02, A2 модели
@@ -366,6 +386,8 @@ public class Lifecycle {
         rooms.saved(id)
             ? room.lastSeenAt(now) + keep.savedRoom().toMillis()
             : room.closedAt + keep.unsavedRoom().toMillis();
+    if (RoomService.MAINTENANCE.equals(room.closedFor))
+      roomUntil = Math.max(roomUntil, room.closedAt + MAINTENANCE_END_READABLE_MS);
     if (now < room.closedAt + keep.closedHistory().toMillis() && now < roomUntil) return;
     rooms.jdbc().sql("DELETE FROM room_events WHERE room_id=?").param(id).update();
     rooms.jdbc().sql("DELETE FROM messages WHERE room_id=?").param(id).update();
@@ -405,6 +427,21 @@ public class Lifecycle {
     if (room.endsAt != null || now < ends - meeting.warnBefore().toMillis()) return false;
     room.endsAt = ends;
     service.emit(room, "meeting.warning", Contracts.EventPayload.changed());
+    return true;
+  }
+
+  /**
+   * Предупредить встречу об окне технических работ — один раз на окно; окно отменили, тоже событие.
+   * Данные готовы, никто их пока не показывает: клиент перечитывает возможности сервера.
+   *
+   * @return изменилось ли что-то, о чём надо сказать участникам
+   */
+  private boolean warned(RoomState room) {
+    var window = windows.warning();
+    var id = window == null ? null : window.id();
+    if (Objects.equals(room.maintenanceWarned, id)) return false;
+    room.maintenanceWarned = id;
+    service.emit(room, "maintenance.warning", Contracts.EventPayload.changed());
     return true;
   }
 

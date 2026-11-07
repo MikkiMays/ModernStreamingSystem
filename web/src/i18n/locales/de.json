@@ -626,6 +626,7 @@
     "end": {
       "session": "Dein Zugang zum Meeting ist abgelaufen. Öffne die Einladung, um erneut beizutreten.",
       "closed": "Das Meeting ist beendet",
+      "maintenance": "Das Meeting wurde beendet: Die Wartung hat begonnen",
       "left": "Du hast das Meeting verlassen",
       "revoked": "Dein Zugang zum Meeting ist beendet"
     },
@@ -3189,6 +3190,14 @@
       "listen": "Ohne Mikrofon beitreten"
     }
   },
+  "maintenance": {
+    "title": "Wartungsarbeiten laufen",
+    "body": "Meetings sind gerade nicht verfügbar. Cord öffnet sich von selbst, sobald wir fertig sind. Du musst nichts neu laden.",
+    "endedMeeting": "Dein Meeting wurde beendet, weil die Wartung begonnen hat. Cord öffnet sich von selbst, sobald wir fertig sind. Du musst nichts neu laden.",
+    "until": "Voraussichtliches Ende: {{time}}",
+    "late": "Gleich fertig",
+    "over": "Die Wartung ist beendet. Du kannst jetzt beitreten"
+  },
   "errors": {
     "ADMIN_DISABLED": "Die Inhaberseite ist auf diesem Server ausgeschaltet",
     "ADMIN_PASSWORD_INVALID": "Falsches Inhaberpasswort",
@@ -3315,6 +3324,10 @@
     "INVITE_INVALID": "Die Einladung ist abgelaufen oder wurde widerrufen",
     "INVITE_LIMIT": "Zu viele Einladungen",
     "MAINTENANCE": "Der Server wird aktualisiert – versuchen Sie es in zwei Minuten erneut",
+    "MAINTENANCE_WINDOW": "Wartungsarbeiten laufen. Cord ist bald wieder da",
+    "MAINTENANCE_WINDOW_EXISTS": "Es gibt bereits ein Wartungsfenster. Schließe es zuerst",
+    "MAINTENANCE_WINDOW_INVALID": "Prüfe die Zeiten des Fensters: ISO-8601 mit Zeitversatz, Beginn in der Zukunft, Ende nach dem Beginn und innerhalb der Grenze",
+    "MAINTENANCE_WINDOW_NONE": "Gerade gibt es kein Wartungsfenster",
     "MEDIA_UNAVAILABLE": "Anrufe sind vorübergehend nicht verfügbar. Versuch es in einer Minute noch einmal",
     "MUSIC_TIMEOUT": "Die Plattform hat nicht rechtzeitig geantwortet – versuch es noch einmal",
     "MUSIC_UNREACHABLE": "Diese Plattform ist von diesem Server aus nicht erreichbar",
@@ -3530,6 +3543,9 @@
         "admin_login": "Anmeldung des Inhabers",
         "admin_room_closed": "Inhaber hat ein Meeting beendet",
         "admin_shield_cleared": "Inhaber hat den „Schutzschild“ aufgehoben",
+        "admin_maintenance_window": "Inhaber hat das Wartungsfenster geändert",
+        "maintenance_started": "Wartung hat begonnen",
+        "maintenance_expired": "Wartungsfenster von selbst beendet",
         "block_created": "Sperre",
         "block_lifted": "Sperre aufgehoben",
         "block_auto": "Automatische Sperre wegen häufiger Ablehnungen",

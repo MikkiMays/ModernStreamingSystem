@@ -145,6 +145,14 @@ groups:
         labels: { severity: info }
         annotations: { summary: 'Обслуживание включено дольше 30 минут: новые встречи не создаются' }
 
+      # Окно технических работ (R194, `backlog/bin/maintenance.sh`): забытое закроется само, но к тому
+      # времени продукт может стоять часами. Два часа — уже не обычное обновление.
+      - alert: MaintenanceWindowLong
+        expr: max(cord_maintenance_window) == 1
+        for: 2h
+        labels: { severity: warn }
+        annotations: { summary: 'Технические работы идут дольше двух часов: Cord закрыт для всех' }
+
       # Замирания хоста по журналу ядра Linux (`infra/host/soft-lockups.sh`, R10) — чтобы сравнивать
       # до/после смены тарифа; само замирание ловит HostStalled по steal.
       - alert: HostSoftLockups

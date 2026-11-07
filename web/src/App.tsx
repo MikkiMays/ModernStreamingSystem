@@ -25,6 +25,7 @@ import { HelpHost } from './ui/support/HelpHost';
 import { useMeetingBeacon } from './ui/useMeetingBeacon';
 import { findActiveMeeting, requestHandover } from './core/active-meeting';
 import { watchTitlebar } from './core/titlebar';
+import { MaintenancePage, useMaintenance } from './ui/MaintenancePage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -66,6 +67,21 @@ function Workspace() {
   const [visit, setVisit] = useState(0);
   const [section, setSection] = useState<string | undefined>(undefined);
   const connection = useStore(session);
+  /*
+    Работы кончились (R194). Страница уходит сама, а дальше — то же, что было, если оно ещё что-то
+    значит. Кончившаяся встреча — на главную. Вход из избранного или недавних — тоже: там бывает
+    автовход с включённым микрофоном, а человек мог уйти от компьютера час назад. Ссылка и код с
+    предвхода ничего сами не включают и остаются.
+  */
+  const closed = useMaintenance(() => {
+    setError('');
+    if (
+      (page === 'room' && meeting?.ended.get()) ||
+      (page === 'prejoin' && (destination?.kind === 'favorite' || destination?.kind === 'recent'))
+    )
+      home();
+    else void queryClient.invalidateQueries();
+  });
   useEffect(greetHostConnection, []);
   // Кнопки окна клиента Windows поверх страницы (R34): зона `--titlebar-*`, если `env()` её не дал.
   useEffect(() => (isDesktop() ? watchTitlebar() : undefined), []);
@@ -308,6 +324,13 @@ function Workspace() {
     window.addEventListener('popstate', reconcile);
     return () => window.removeEventListener('popstate', reconcile);
   });
+  /*
+    Идут работы (R194): страница вместо всего остального, чтобы за ней ничего не работало, — предвход
+    с камерой уходит вместе с главной. Встреча — исключение: её хозяин `Meeting`, он гасит микрофон и
+    камеру сам, а экран конца встречи и уведомления оболочки живут в `MeetingView`, поэтому страница
+    ложится поверх него.
+  */
+  if (closed && page !== 'room') return <MaintenancePage state={closed} />;
   // Nothing about meetings before the server has answered. A meeting already open is the one
   // exception: a session that lapses mid-conversation must never take the conversation away.
   if (!connection && page !== 'room') return <Connect onConnected={() => setError('')} />;
@@ -381,6 +404,7 @@ function Workspace() {
           </button>
         </div>
       )}
+      {closed && <MaintenancePage state={closed} />}
     </>
   );
 }

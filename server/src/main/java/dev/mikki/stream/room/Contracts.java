@@ -348,7 +348,14 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          BoardView board) {}
+          BoardView board,
+      /**
+       * Почему встреча кончилась, если это надо знать участникам: {@code maintenance} — её
+       * завершили технические работы (R194). Иначе {@code null}, и поля в ответе нет.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          String endReason) {}
 
   /**
    * Открытая доска глазами участника: кто открыл, когда и кому рисовать ({@code all}/{@code host}).

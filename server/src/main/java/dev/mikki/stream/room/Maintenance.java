@@ -23,6 +23,10 @@ import org.springframework.stereotype.Component;
  * и задумано: новое ядро поднялось — сервер снова принимает, и забытый флаг не закроет сервер
  * навсегда. Прежний путь ({@code ADMISSION_OPEN=false} в {@code .env} и перезапуск ядра) остаётся
  * для случая, когда нужно закрыть и вход в идущие встречи ({@code DRAINING}).
+ *
+ * <p>Технические работы (R194, Р-95) — другое обещание и другое хранение: {@link
+ * MaintenanceWindows}, окно в Postgres. Этот класс — одна точка, у которой ядро спрашивает «можно
+ * ли создавать встречи»: {@link #on()} учитывает и рычаг, и окно; сам рычаг — {@link #draining()}.
  */
 @Component
 public class Maintenance {
@@ -31,17 +35,35 @@ public class Maintenance {
 
   private final AtomicBoolean on = new AtomicBoolean();
   private final Clock clock;
+  private final MaintenanceWindows windows;
   private volatile long since;
 
-  public Maintenance(MeterRegistry registry, Clock clock) {
+  public Maintenance(MeterRegistry registry, Clock clock, MaintenanceWindows windows) {
     this.clock = clock;
+    this.windows = windows;
     Gauge.builder("cord.maintenance", on, flag -> flag.get() ? 1 : 0)
         .description("Сервер обновляется: новые встречи не создаются (1) или принимает (0)")
         .register(registry);
   }
 
+  /** Новых встреч нет: включён дренаж, идёт окно работ или отсрочка срочных работ. */
   public boolean on() {
+    return on.get() || windows.closesNewMeetings();
+  }
+
+  /** Сам рычаг дренажа, без окна работ. */
+  public boolean draining() {
     return on.get();
+  }
+
+  /** Что сказать клиентам об окне работ ({@code capabilities}); окна нет — {@code null}. */
+  public MaintenanceWindows.MaintenanceNotice notice() {
+    return windows.notice();
+  }
+
+  /** Дверь во встречу: в окно работ закрыты все — создать, войти, вернуться. */
+  public void requireOpenDoors() {
+    windows.requireOpenDoors();
   }
 
   /** С какого момента включено, мс; {@code 0} — выключено. */
@@ -57,6 +79,7 @@ public class Maintenance {
 
   /** Отказ новой встрече на время обслуживания — с подсказкой, через сколько повторить. */
   public Problem refusal() {
+    if (windows.active()) return windows.refusal();
     return new Problem(
         503,
         "MAINTENANCE",

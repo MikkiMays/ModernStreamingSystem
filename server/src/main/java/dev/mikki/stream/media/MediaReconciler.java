@@ -19,6 +19,7 @@ public class MediaReconciler {
   private final MediaService media;
   private final MediaGateway gateway;
   private final Lifecycle lifecycle;
+  private final MaintenanceWindows windows;
 
   /** Запасной путь открытия показа ждёт окно разгона — почему, в самом классе. */
   private final ScreenGrace grace;
@@ -29,7 +30,9 @@ public class MediaReconciler {
       MediaService media,
       MediaGateway gateway,
       Lifecycle lifecycle,
-      StreamProperties config) {
+      StreamProperties config,
+      MaintenanceWindows windows) {
+    this.windows = windows;
     this.repository = repository;
     this.rooms = rooms;
     this.media = media;
@@ -40,6 +43,8 @@ public class MediaReconciler {
 
   @Scheduled(fixedDelay = 1000)
   public void deadlines() {
+    // Окно технических работ — до комнат: они сверяются с ним в том же проходе.
+    windows.tick();
     for (var id : repository.ids()) lifecycle.sweepRoom(id);
     lifecycle.sweepLedger();
   }

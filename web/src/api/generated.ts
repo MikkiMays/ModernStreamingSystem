@@ -63,6 +63,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/maintenance/window": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status_1"];
+        put?: never;
+        post?: never;
+        delete: operations["finish"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/maintenance/window/extend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["extend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/maintenance/window/now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["emergency"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/maintenance/window/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/meetings": {
         parameters: {
             query?: never;
@@ -910,6 +974,7 @@ export interface components {
             fileMaxBytes: number;
             frameRates: number[];
             maintenance?: boolean;
+            maintenanceWindow?: components["schemas"]["MaintenanceNotice"];
             /** Format: int32 */
             maxParticipants: number;
             /** Format: int32 */
@@ -1253,7 +1318,7 @@ export interface components {
             /** Format: int64 */
             sequence: number;
             /** @enum {string} */
-            type: "room.changed" | "message.created" | "files.changed" | "screen.started" | "screen.first_viewer" | "meeting.warning";
+            type: "room.changed" | "message.created" | "files.changed" | "screen.started" | "screen.first_viewer" | "meeting.warning" | "maintenance.warning";
             /** Format: int32 */
             version: number;
         };
@@ -1494,13 +1559,53 @@ export interface components {
         Login: {
             password?: string;
         };
+        MaintenanceEmergency: {
+            endsAt?: string;
+            /** Format: int32 */
+            graceSeconds?: number;
+            reason?: string;
+        };
+        MaintenanceExtend: {
+            endsAt: string;
+        };
+        MaintenanceNotice: {
+            /** Format: int64 */
+            endsAt?: number;
+            /** Format: int64 */
+            expiresAt: number;
+            /** @enum {string} */
+            phase: "scheduled" | "grace" | "active";
+            /** Format: int64 */
+            startsAt: number;
+        };
         MaintenanceRequest: {
             on?: boolean;
+        };
+        MaintenanceSchedule: {
+            endsAt?: string;
+            reason?: string;
+            startsAt: string;
         };
         MaintenanceState: {
             on?: boolean;
             /** Format: int64 */
             since?: number;
+        };
+        MaintenanceWindowStatus: {
+            closed?: string;
+            now?: string;
+            phase?: string;
+            window?: components["schemas"]["MaintenanceWindowView"];
+        };
+        MaintenanceWindowView: {
+            createdAt?: string;
+            endsAt?: string;
+            expiresAt?: string;
+            id?: string;
+            kind?: string;
+            reason?: string;
+            startedAt?: string;
+            startsAt?: string;
         };
         MediaToken: {
             /** Format: int64 */
@@ -1902,6 +2007,7 @@ export interface components {
             durak: components["schemas"]["DurakView"] | null;
             /** Format: int64 */
             durakGamesAt: number;
+            endReason?: string;
             /** Format: int64 */
             endsAt?: null | number;
             gartic?: components["schemas"]["GarticView"] | null;
@@ -2230,6 +2336,128 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MaintenanceState"];
+                };
+            };
+        };
+    };
+    status_1: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MaintenanceWindowStatus"];
+                };
+            };
+        };
+    };
+    finish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MaintenanceWindowStatus"];
+                };
+            };
+        };
+    };
+    extend: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceExtend"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MaintenanceWindowStatus"];
+                };
+            };
+        };
+    };
+    emergency: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceEmergency"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MaintenanceWindowStatus"];
+                };
+            };
+        };
+    };
+    schedule: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceSchedule"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MaintenanceWindowStatus"];
                 };
             };
         };

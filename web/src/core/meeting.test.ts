@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Meeting } from './meeting';
+import { maintenance, noteCapabilities, watchMaintenance } from './maintenance';
 import type { Admission, Snapshot } from '../api/types';
 vi.mock('../media/session', async () => {
   const { Store } = await import('./store');
@@ -307,6 +308,102 @@ it('resolves a room deletion when the SFU disconnect arrives before its control 
   await vi.advanceTimersByTimeAsync(0);
   expect(meeting.ended.get()).toBe('Встреча завершена');
   expect(meeting.snapshot.get().closedAt).toBeTruthy();
+});
+
+/*
+  Технические работы (R194): встреча кончается для всех с отдельной причиной — клиент показывает
+  страницу работ, а не «встреча завершена». Ни один путь конца не должен её потерять.
+*/
+describe('встречу завершили технические работы', () => {
+  afterEach(() => noteCapabilities({}));
+  const control = () =>
+    meeting.control as unknown as {
+      onSnapshot: (snapshot: Snapshot) => void;
+      onEvent: (event: unknown, live: boolean) => void;
+    };
+
+  it('снимок с причиной: своя строка и страница работ с пометкой, что встречу завершили', async () => {
+    meeting.start();
+    await vi.advanceTimersByTimeAsync(0);
+    control().onSnapshot({ ...snapshot, sequence: 2, closedAt: Date.now(), endReason: 'maintenance' });
+    expect(meeting.ended.get()).toBe('Встреча завершена: начались технические работы');
+    expect(maintenance.get()?.endedMeeting).toBe(true);
+    expect(meeting.media.dispose).toHaveBeenCalled();
+  });
+
+  it('SFU успел раньше сокета: причину приносит снимок, который встреча читает сама', async () => {
+    meeting.start();
+    snapshot = { ...snapshot, sequence: 3, closedAt: Date.now(), endReason: 'maintenance', participants: [] };
+    (meeting.media as unknown as { onEnd: (reason: string) => void }).onEnd('Доступ к встрече завершён');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(meeting.ended.get()).toBe('Встреча завершена: начались технические работы');
+    expect(maintenance.get()?.endedMeeting).toBe(true);
+  });
+
+  it('обычный конец встречи страницу работ не открывает', async () => {
+    meeting.start();
+    await vi.advanceTimersByTimeAsync(0);
+    control().onSnapshot({ ...snapshot, sequence: 2, closedAt: Date.now() });
+    expect(meeting.ended.get()).toBe('Встреча завершена');
+    expect(maintenance.get()).toBeNull();
+  });
+
+  it('комнаты уже нет и причину не прочитать: встреча спрашивает у возможностей сервера', async () => {
+    const ask = vi.fn(() => Promise.resolve());
+    const stop = watchMaintenance(ask);
+    await vi.advanceTimersByTimeAsync(0);
+    const asked = ask.mock.calls.length;
+    meeting.start();
+    fetchMock.mockImplementation(
+      async () => new Response(JSON.stringify({ code: 'ROOM_NOT_FOUND' }), { status: 404 }),
+    );
+    (meeting.media as unknown as { onEnd: (reason: string) => void }).onEnd('Доступ к встрече завершён');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(meeting.ended.get()).toBe('Доступ к встрече завершён');
+    expect(ask.mock.calls.length).toBe(asked + 1);
+    stop();
+  });
+
+  it('свой выход возможности не спрашивает', async () => {
+    const ask = vi.fn(() => Promise.resolve());
+    const stop = watchMaintenance(ask);
+    await vi.advanceTimersByTimeAsync(0);
+    const asked = ask.mock.calls.length;
+    meeting.start();
+    await meeting.leave();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask.mock.calls.length).toBe(asked);
+    stop();
+  });
+
+  it('предупреждение ядра будит опрос и ничего не показывает', async () => {
+    const ask = vi.fn(() => Promise.resolve());
+    const stop = watchMaintenance(ask);
+    await vi.advanceTimersByTimeAsync(0);
+    const asked = ask.mock.calls.length;
+    meeting.start();
+    control().onEvent(
+      { type: 'maintenance.warning', sequence: 2, eventId: 'e', payload: {} },
+      true,
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask.mock.calls.length).toBe(asked + 1);
+    expect(meeting.ended.get()).toBeNull();
+    expect(maintenance.get()).toBeNull();
+    stop();
+  });
+
+  // За страницей работ не должно остаться живого микрофона, даже если снимок запаздывает.
+  it('окно уже идёт, а снимка ещё нет: микрофон и камера гаснут сразу', async () => {
+    meeting.start();
+    await vi.advanceTimersByTimeAsync(0);
+    noteCapabilities({
+      maintenanceWindow: { phase: 'active', startsAt: 1, expiresAt: Date.now() + 60000 },
+    });
+    expect(meeting.ended.get()).toBe('Встреча завершена: начались технические работы');
+    expect(meeting.media.dispose).toHaveBeenCalled();
+    expect(maintenance.get()?.endedMeeting).toBe(true);
+  });
 });
 
 it('кинозал по ссылке: страница меняется раньше площадки, а без страницы и при закрытии её нет', () => {

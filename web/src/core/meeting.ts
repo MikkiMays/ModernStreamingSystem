@@ -8,6 +8,7 @@ import { ControlChannel } from './control';
 import { Store } from './store';
 import { Uploader } from './uploader';
 import { rememberMeeting } from './recent';
+import { maintenance, noteMeetingEnded, wakeMaintenanceWatch } from './maintenance';
 import { NotificationSounds, type Cue } from './sounds';
 import { RoomCues } from './room-cues';
 import { readPreferences } from './preferences';
@@ -170,6 +171,7 @@ export class Meeting {
       if (this.media.state.get().status !== 'connected' || this.control.state.get() !== 'connected')
         void this.refresh();
     }, 2000);
+    this.subscriptions.push(maintenance.subscribe(this.closeForMaintenance));
     window.addEventListener('online', this.refreshOnReturn);
     window.addEventListener('pagehide', this.report);
     document.addEventListener('visibilitychange', this.refreshOnReturn);
@@ -400,6 +402,8 @@ export class Meeting {
       void this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
   }
   private event = (event: RoomEvent, live: boolean) => {
+    // Окно технических работ приближается или отменено (R194): данные — в возможностях сервера.
+    if (event.type === 'maintenance.warning') wakeMaintenanceWatch();
     if (live && !this.ended.get()) {
       if (event.type === 'screen.started') this.cue('screen', event.eventId);
       // Своё сообщение слышно как нажатие «отправить»; звучать оно должно только у других.
@@ -754,15 +758,31 @@ export class Meeting {
   };
   async leave() {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
-    this.end(t(($) => $.meeting.end.left));
+    this.end(
+      t(($) => $.meeting.end.left),
+      true,
+    );
     await this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
     // Closing the application with a meeting open should sound like leaving first and closing
     // second. The host waits for this call to return before it takes the window down.
     await this.sounds.settled();
   }
-  private end(reason: string) {
+  /**
+   * Окно уже идёт, а снимок с концом встречи ещё в пути (R194): страница работ откроется поверх
+   * встречи, и живых микрофона и камеры за ней остаться не должно.
+   */
+  private closeForMaintenance = () => {
+    if (this.disposed || this.ended.get() || !maintenance.get()) return;
+    this.end(t(($) => $.meeting.end.maintenance));
+    noteMeetingEnded();
+  };
+  /** `own` — человек вышел сам; любой другой конец — повод спросить, не технические ли это работы. */
+  private end(reason: string, own = false) {
     if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
-    if (this.snapshot.get().closedAt) reason = t(($) => $.meeting.end.closed);
+    const snapshot = this.snapshot.get();
+    const byMaintenance = snapshot.endReason === 'maintenance';
+    if (byMaintenance) reason = t(($) => $.meeting.end.maintenance);
+    else if (snapshot.closedAt) reason = t(($) => $.meeting.end.closed);
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
     this.cinemaAt.set(null);
     this.cinema.set(null);
@@ -774,6 +794,9 @@ export class Meeting {
     this.ended.set(reason);
     clearInterval(this.syncTimer);
     void this.uploader.pause();
+    // Снимок с причиной мог не успеть: несохранённая комната уходит быстро, и тогда ответят возможности.
+    if (byMaintenance) noteMeetingEnded();
+    else if (!own) wakeMaintenanceWatch();
   }
   /**
    * Итог звонка — владельцу сервера, один раз: при конце встречи, уходе со страницы или закрытии вкладки
