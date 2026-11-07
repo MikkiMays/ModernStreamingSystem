@@ -234,6 +234,9 @@ export const publicApi = {
       name: string;
       approvalRequired: boolean;
       integrationsAllowed?: boolean;
+      /** Узел медиа по замеру пути (R195, `media/node-probe.ts`) и сами замеры — для журнала ядра. */
+      preferredNode?: string;
+      measurements?: { node: string; tcpMs: number | null; udpMs: number | null; udpOpen: boolean }[];
     },
     leave?: string,
   ) => human<Admission>('create', '/rooms', entry(data, leave)),

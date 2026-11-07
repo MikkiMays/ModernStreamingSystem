@@ -335,22 +335,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/catalog/load": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["catalogLoad"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/client-errors": {
         parameters: {
             query?: never;
@@ -980,6 +964,7 @@ export interface components {
             /** Format: int32 */
             maxScreens: number;
             name: string;
+            nodes: components["schemas"]["MediaNodeInfo"][];
             passwordRequired: boolean;
             quality: components["schemas"]["QualityRules"];
             /** Format: int32 */
@@ -992,14 +977,6 @@ export interface components {
         CardPair: {
             attack: string;
             beat: string | null;
-        };
-        CatalogLoad: {
-            /** Format: int64 */
-            at?: number;
-            /** Format: int32 */
-            level?: number;
-            state?: string;
-            url?: string;
         };
         Challenge: {
             algorithm?: string;
@@ -1103,7 +1080,9 @@ export interface components {
             /** Format: uuid */
             commandId: string;
             integrationsAllowed?: boolean;
+            measurements?: components["schemas"]["NodeMeasure"][];
             name: string;
+            preferredNode?: string;
             title: string;
         };
         Day: {
@@ -1607,6 +1586,16 @@ export interface components {
             startedAt?: string;
             startsAt?: string;
         };
+        MediaNodeInfo: {
+            control: boolean;
+            id: string;
+            probeUrl: string;
+            rtcUrl: string;
+            stun: string;
+            title: {
+                [key: string]: string;
+            };
+        };
         MediaToken: {
             /** Format: int64 */
             expiresAt: number;
@@ -1628,6 +1617,14 @@ export interface components {
             number?: string;
             /** @enum {string} */
             status?: "NEW" | "OPEN" | "DONE";
+        };
+        NodeMeasure: {
+            node: string;
+            /** Format: int32 */
+            tcpMs: number;
+            /** Format: int32 */
+            udpMs: number;
+            udpOpen: boolean;
         };
         NoteView: {
             /** Format: int64 */
@@ -2013,6 +2010,7 @@ export interface components {
             gartic?: components["schemas"]["GarticView"] | null;
             id: string;
             integrationsAllowed: boolean;
+            mediaNode: string;
             messages: components["schemas"]["Message"][];
             participants: components["schemas"]["Participant"][];
             poker: components["schemas"]["TableView"] | null;
@@ -2762,26 +2760,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
-                };
-            };
-        };
-    };
-    catalogLoad: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["CatalogLoad"][];
                 };
             };
         };

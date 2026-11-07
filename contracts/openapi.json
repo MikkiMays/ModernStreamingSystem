@@ -319,6 +319,12 @@
           "name": {
             "type": "string"
           },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/MediaNodeInfo"
+            },
+            "type": "array"
+          },
           "passwordRequired": {
             "type": "boolean"
           },
@@ -352,6 +358,7 @@
           "maxParticipants",
           "maxScreens",
           "name",
+          "nodes",
           "passwordRequired",
           "quality",
           "recoverySeconds",
@@ -377,25 +384,6 @@
           "attack",
           "beat"
         ],
-        "type": "object"
-      },
-      "CatalogLoad": {
-        "properties": {
-          "at": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "level": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "state": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string"
-          }
-        },
         "type": "object"
       },
       "Challenge": {
@@ -838,9 +826,21 @@
           "integrationsAllowed": {
             "type": "boolean"
           },
+          "measurements": {
+            "items": {
+              "$ref": "#/components/schemas/NodeMeasure"
+            },
+            "maxItems": 20,
+            "minItems": 0,
+            "type": "array"
+          },
           "name": {
             "maxLength": 40,
             "minLength": 0,
+            "type": "string"
+          },
+          "preferredNode": {
+            "pattern": "[a-z][a-z0-9-]{0,15}",
             "type": "string"
           },
           "title": {
@@ -2624,6 +2624,40 @@
         },
         "type": "object"
       },
+      "MediaNodeInfo": {
+        "properties": {
+          "control": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "probeUrl": {
+            "type": "string"
+          },
+          "rtcUrl": {
+            "type": "string"
+          },
+          "stun": {
+            "type": "string"
+          },
+          "title": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "control",
+          "id",
+          "probeUrl",
+          "rtcUrl",
+          "stun",
+          "title"
+        ],
+        "type": "object"
+      },
       "MediaToken": {
         "properties": {
           "expiresAt": {
@@ -2694,6 +2728,37 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "NodeMeasure": {
+        "properties": {
+          "node": {
+            "minLength": 1,
+            "pattern": "[a-z][a-z0-9-]{0,15}",
+            "type": "string"
+          },
+          "tcpMs": {
+            "format": "int32",
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "udpMs": {
+            "format": "int32",
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "udpOpen": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "node",
+          "tcpMs",
+          "udpMs",
+          "udpOpen"
+        ],
         "type": "object"
       },
       "NoteView": {
@@ -3919,6 +3984,9 @@
           "integrationsAllowed": {
             "type": "boolean"
           },
+          "mediaNode": {
+            "type": "string"
+          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/Message"
@@ -3993,6 +4061,7 @@
           "durakGamesAt",
           "id",
           "integrationsAllowed",
+          "mediaNode",
           "messages",
           "participants",
           "poker",
@@ -5449,29 +5518,6 @@
         },
         "tags": [
           "catalog-controller"
-        ]
-      }
-    },
-    "/api/v1/catalog/load": {
-      "get": {
-        "operationId": "catalogLoad",
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CatalogLoad"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "tags": [
-          "load-controller"
         ]
       }
     },

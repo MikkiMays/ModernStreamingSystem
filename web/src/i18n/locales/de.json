@@ -206,10 +206,10 @@
         "hint": "",
         "keywords": "Adresse trennen wechseln"
       },
-      "server-autoconnect": {
-        "label": "Beim Start verbinden",
-        "hint": "",
-        "keywords": "automatisch verbinden"
+      "server-node": {
+        "label": "Meeting-Knoten",
+        "hint": "Gemessener Pfad von diesem Gerät zu jedem Medienknoten",
+        "keywords": "medienknoten latenz pfad server"
       },
       "server-password": {
         "label": "Gespeichertes Passwort",
@@ -453,10 +453,11 @@
     "server": {
       "connection": "Verbindung",
       "leaveFirst": "Verlasse zuerst das Meeting",
-      "change": "Server wechseln",
       "forget": "Passwort vergessen",
-      "here": "Du bist hier",
-      "shared": "Die Einstellungen gelten für alle Server. Räume, Favoriten und letzte Meetings hat jeder Server für sich."
+      "shared": "Cord ist eine Adresse. Ein Meeting läuft auf dem nächsten Medienknoten, den das System anhand des von Ihrem Gerät gemessenen Pfads wählt — ein Serverwechsel ist nicht nötig.",
+      "nodeMs": "{{node}} · {{ms}} ms",
+      "nodeClosed": "{{node}} · antwortet nicht",
+      "nodeUnknown": "Der Pfad zu den Knoten wurde noch nicht gemessen"
     },
     "sounds": {
       "cues": "Signale",
@@ -2486,10 +2487,8 @@
     "searching": "Server wird gesucht…",
     "password": "Serverpasswort",
     "passwordPlaceholder": "Frag die Person, die dich eingeladen hat",
-    "autoConnect": "Beim Start automatisch verbinden",
     "connecting": "Verbinden…",
     "connect": "Verbinden",
-    "otherServer": "Anderer Server…",
     "connected": "Verbunden!",
     "notConnected": "Nicht verbunden"
   },
@@ -3137,7 +3136,9 @@
       "silent": "Stille — der Absender pausiert oder kommt nicht hinterher",
       "sound": "Kommt an"
     },
-    "concealment": "Tonlücken pro Sekunde"
+    "concealment": "Tonlücken pro Sekunde",
+    "node": "Meeting-Knoten",
+    "nodeMs": "{{node}} · {{ms}} ms"
   },
   "download": {
     "home": "Cord – zur Startseite",

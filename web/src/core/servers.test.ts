@@ -8,16 +8,18 @@ it('starts from sane answers when nothing has been remembered', () => {
     url: currentServerUrl(),
     name: '',
     password: '',
-    autoConnect: true,
   });
 });
 
-it('remembers the password and the automatic connection for this server', () => {
+it('remembers the password for this server; the old «connect automatically» flag is simply not read (R195)', () => {
   rememberServer({ password: 'тайна' });
   expect(thisServer().password).toBe('тайна');
-  expect(thisServer().autoConnect, 'unrelated fields survive a partial change').toBe(true);
-  rememberServer({ autoConnect: false });
-  expect(thisServer()).toMatchObject({ password: 'тайна', autoConnect: false });
+  rememberServer({ name: 'Наш' });
+  expect(thisServer(), 'unrelated fields survive a partial change').toMatchObject({
+    password: 'тайна',
+    name: 'Наш',
+  });
+  expect('autoConnect' in thisServer()).toBe(false);
 });
 
 /**
@@ -32,14 +34,14 @@ it('reads its own entry out of a list left by an earlier version', () => {
       { url: currentServerUrl(), name: 'Наш', password: 'тайна', autoConnect: false },
     ]),
   );
-  expect(thisServer()).toMatchObject({ name: 'Наш', password: 'тайна', autoConnect: false });
+  expect(thisServer()).toMatchObject({ name: 'Наш', password: 'тайна' });
   rememberServer({ password: '' });
   expect(JSON.parse(localStorage.getItem('cord:servers:v1')!).url).toBe(currentServerUrl());
 });
 
 it('ignores a cache it cannot read', () => {
   localStorage.setItem('cord:servers:v1', '{ broken');
-  expect(thisServer().autoConnect).toBe(true);
+  expect(thisServer()).toEqual({ url: currentServerUrl(), name: '', password: '' });
 });
 
 it('names a server the way it was named here, or by its host', () => {

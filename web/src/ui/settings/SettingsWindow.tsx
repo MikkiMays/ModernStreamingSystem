@@ -296,7 +296,7 @@ export function SettingsWindow({
           <ServerSection
             showPing={preferences.showPing}
             changePing={(showPing) => void change({ showPing })}
-            inCall={!!meeting && !meeting.ended.get()}
+            mediaNode={meeting && !meeting.ended.get() ? meeting.snapshot.get().mediaNode : null}
           />
         );
       case 'support':

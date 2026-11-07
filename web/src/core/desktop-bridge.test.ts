@@ -146,7 +146,6 @@ describe('контракт моста v2', () => {
       language: 'de',
       showPing: false,
       notificationSounds: true,
-      autoConnect: true,
     };
     expect(errors(bootstrap, def('bootstrap'))).toEqual([]);
     expect(errors({ ...bootstrap, language: null }, def('bootstrap'))).toEqual([]);
@@ -414,7 +413,6 @@ describe('общие настройки для всех серверов (R146)'
       language: null,
       showPing: false,
       notificationSounds: true,
-      autoConnect: true,
       shared: { name: 'Ника', deafened: true, devices: { microphone: 'USB Mic' } },
       yandexMusicToken: 'y0_AgAAAA',
     };

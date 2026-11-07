@@ -206,10 +206,10 @@
         "hint": "",
         "keywords": "dirección desconectar cambiar"
       },
-      "server-autoconnect": {
-        "label": "Conectar al iniciar",
-        "hint": "",
-        "keywords": "conexión automática"
+      "server-node": {
+        "label": "Nodo de la reunión",
+        "hint": "Ruta medida desde este dispositivo hasta cada nodo multimedia",
+        "keywords": "nodo multimedia latencia ruta servidor"
       },
       "server-password": {
         "label": "Contraseña guardada",
@@ -453,10 +453,11 @@
     "server": {
       "connection": "Conexión",
       "leaveFirst": "Primero sal de la reunión",
-      "change": "Cambiar de servidor",
       "forget": "Olvidar contraseña",
-      "here": "Estás aquí",
-      "shared": "Los ajustes son comunes a todos los servidores. Las salas, los favoritos y las reuniones recientes son propios de cada servidor."
+      "shared": "Cord es una sola dirección. La reunión vive en el nodo multimedia más cercano, que el sistema elige según la ruta medida desde su dispositivo; no hay servidor que cambiar.",
+      "nodeMs": "{{node}} · {{ms}} ms",
+      "nodeClosed": "{{node}} · no responde",
+      "nodeUnknown": "La ruta hasta los nodos aún no se ha medido"
     },
     "sounds": {
       "cues": "Avisos",
@@ -2514,10 +2515,8 @@
     "searching": "Buscando el servidor…",
     "password": "Contraseña del servidor",
     "passwordPlaceholder": "Pídesela a quien te invitó",
-    "autoConnect": "Conectar automáticamente al iniciar",
     "connecting": "Conectando…",
     "connect": "Conectar",
-    "otherServer": "Otro servidor…",
     "connected": "¡Conectado!",
     "notConnected": "Sin conectar"
   },
@@ -3170,7 +3169,9 @@
       "silent": "Silencio: el emisor está en pausa o no da abasto",
       "sound": "Llega"
     },
-    "concealment": "Cortes de audio por segundo"
+    "concealment": "Cortes de audio por segundo",
+    "node": "Nodo de la reunión",
+    "nodeMs": "{{node}} · {{ms}} ms"
   },
   "download": {
     "home": "Cord: ir al inicio",

@@ -91,6 +91,7 @@ beforeEach(() => {
   cues.length = 0;
   snapshot = {
     id: 'room',
+    mediaNode: 'main',
     title: 'Admission',
     code: '123456789',
     sequence: 1,

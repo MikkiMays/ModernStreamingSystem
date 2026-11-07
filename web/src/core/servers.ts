@@ -18,7 +18,6 @@ export interface ServerPreference {
   name: string;
   /** Kept on this device so the server can be reopened without retyping. May be empty. */
   password: string;
-  autoConnect: boolean;
 }
 
 export function currentServerUrl(): string {
@@ -40,7 +39,6 @@ export function thisServer(): ServerPreference {
     url: currentServerUrl(),
     name: typeof stored?.name === 'string' ? stored.name.trim().slice(0, 60) : '',
     password: typeof stored?.password === 'string' ? stored.password.slice(0, 200) : '',
-    autoConnect: stored?.autoConnect !== false,
   };
 }
 

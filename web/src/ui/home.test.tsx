@@ -56,6 +56,7 @@ const capabilities = {
   resolutions: [720, 1080],
   roomMaxBytes: 10000000,
   favoritesMax: 10,
+  nodes: [],
 };
 const clients: QueryClient[] = [];
 
