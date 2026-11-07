@@ -61,3 +61,12 @@ scrape_configs:
     static_configs: [{ targets: ['127.0.0.1:8880'] }]
   - job_name: alertmanager
     static_configs: [{ targets: ['127.0.0.1:9093'] }]
+
+  # Медиаузлы (R195): SFU, машина, шлюз-лайт и куратор каждого узла — через магистраль на локальных портах
+  # узла управления (`infra/generated/scrape-nodes/<узел>.json`, метки `node` и `role`). Пароль метрик SFU —
+  # общий на все узлы; остальные цели пароля не имеют, но и снаружи не видны.
+  - job_name: nodes
+    file_sd_configs: [{ files: ['/etc/vm/nodes/*.json'] }]
+    basic_auth:
+      username: metrics
+      password: '%{LIVEKIT_METRICS_PASSWORD}'

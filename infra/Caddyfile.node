@@ -1,0 +1,60 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+	metrics
+	servers 127.0.0.1:8091 {
+		listener_wrappers {
+			proxy_protocol {
+				timeout 2s
+				allow 127.0.0.1/32
+				fallback_policy reject
+			}
+		}
+	}
+}
+
+# Шлюз-лайт медиаузла (R195): этот узел — не «ещё один сайт Cord», а место, где живут SFU и TURN.
+# Человеку здесь делать нечего — всё, кроме сигналинга и пинга, уезжает на адрес продукта (PUBLIC_URL),
+# чтобы ни у кого не завёлся второй localStorage на имени узла.
+#
+# Сигналинг — тот же контракт, что на узле управления (infra/Caddyfile → `signaling`): каждый внешний
+# `/rtc` проходит forward_auth в ядро. Ядро — на другой машине, поэтому upstream — локальный порт
+# магистрали (CORE_AUTH_UPSTREAM = 127.0.0.1:18080 → backbone → ядро A). `X-Media-Node` называет узел:
+# ядро сверяет его с узлом комнаты, и токен комнаты с другого узла здесь сокет не открывает.
+http://:8091 {
+	bind 127.0.0.1
+	@signaling path /rtc /rtc/*
+	handle @signaling {
+		header >Access-Control-Allow-Origin {$PUBLIC_URL}
+		forward_auth {$CORE_AUTH_UPSTREAM} {
+			uri /internal/signaling-auth
+			header_up X-Internal-Secret {$INTERNAL_SECRET}
+			header_up X-Real-IP {remote_host}
+			header_up X-Media-Token {query.access_token}
+			header_up X-Media-Node {$NODE_ID}
+			header_up -X-Forwarded-Uri
+		}
+		reverse_proxy 127.0.0.1:7880
+	}
+	# Замер пути с устройства (`web/src/media/node-probe.ts`): три запроса, медиана. Отвечает сам узел, без
+	# ядра — измеряется путь именно до него. Открыто любому origin: ни куки, ни секретов, ни кэша.
+	handle /api/v1/ping {
+		header Content-Type application/json
+		header Cache-Control no-store
+		header Access-Control-Allow-Origin *
+		respond `{"serverTime":{time.now.unix_ms},"node":"{$NODE_ID}"}` 200
+	}
+	handle {
+		redir {$PUBLIC_URL}{uri} 302
+	}
+}
+
+# Метрики шлюза — только на 127.0.0.1; снаружи до них не дойти, узел управления скрапит через магистраль.
+http://127.0.0.1:2019 {
+	bind 127.0.0.1
+	handle /metrics {
+		metrics
+	}
+	respond 404
+}
