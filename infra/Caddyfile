@@ -31,6 +31,8 @@
 	header {
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
+		# Браузер больше не пойдёт сюда открытым HTTP, даже по старой ссылке: первый запрос не перехватить (R197, Р-98).
+		Strict-Transport-Security "max-age=31536000"
 		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
 	}
 	# В рамку — никому, кроме одного документа. Mini App Telegram (`/tg`, E09, решение архитектора 17)

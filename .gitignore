@@ -28,3 +28,4 @@ __pycache__/
 # Прокси YouTube: пароль и его хеш — только на узле.
 infra/youtube-proxy/.password
 infra/youtube-proxy/passwd
+infra/youtube-proxy/tunnel.psk
