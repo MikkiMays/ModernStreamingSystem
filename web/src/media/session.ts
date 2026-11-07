@@ -2177,6 +2177,10 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     this.fullRetry = 0;
     this.everConnected = true;
+    // Молчание меряется от этого соединения: иначе сразу после переподключения старая метка потока дала
+    // бы лишний толчок resume (замер на узле B, 08.11.2026).
+    this.lastFlowAt = Date.now();
+    this.silenceNudged = false;
     const cycle = ++this.connectionCycle;
     this.reportConnection(
       'media.restored',
