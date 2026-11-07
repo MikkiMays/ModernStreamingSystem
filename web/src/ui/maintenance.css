@@ -80,6 +80,10 @@
     opacity: 0.35;
   }
 }
+/* Фокус ставит сама страница, чтобы он не остался на кнопке встречи под ней; заголовок — не кнопка. */
+.maintenance__main h1:focus {
+  outline: none;
+}
 .maintenance__main h1 {
   margin: 0;
   overflow-wrap: anywhere;

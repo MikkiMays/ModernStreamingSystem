@@ -91,6 +91,17 @@ describe('закреплённая камера', () => {
     expect(document.querySelectorAll('.people-grid .person-tile')).toHaveLength(3);
   });
 
+  it('фокус не теряется: с миниатюры — на «Открепить», после открепления — на саму плитку', () => {
+    const meeting = fakeMeeting('grid', 'ann');
+    render(<Stage meeting={meeting} />);
+    fireEvent.click(within(tileOf('Миша')).getByRole('button', { name: 'Закрепить: Миша' }));
+    expect(document.activeElement).toBe(
+      within(tileOf('Миша')).getByRole('button', { name: 'Открепить: Миша' }),
+    );
+    fireEvent.click(within(tileOf('Миша')).getByRole('button', { name: 'Открепить: Миша' }));
+    expect(document.activeElement).toBe(tileOf('Миша'));
+  });
+
   it('свою камеру тоже закрепляют', () => {
     render(<Stage meeting={fakeMeeting('grid', 'me')} />);
     expect(tileOf('Я').closest('.spotlight-main')).not.toBeNull();

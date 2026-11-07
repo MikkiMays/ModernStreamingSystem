@@ -260,6 +260,20 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
   const tracks = useStore(meeting.media.tracks);
   const viewing = useStore(meeting.viewing);
   const pinned = useStore(meeting.pinnedCamera);
+  /**
+   * Закрепили или открепили кнопкой на плитке — кнопка под пальцем пропала вместе с плиткой (та переехала и
+   * собрана заново), и фокус ушёл бы на `body`. Он переходит на «Открепить» закреплённой или на саму плитку (ревью 1.2).
+   */
+  const focusNext = useRef<{ id: string; to: 'unpin' | 'tile' } | null>(null);
+  useEffect(() => {
+    const next = focusNext.current;
+    if (!next) return;
+    focusNext.current = null;
+    const tile = document.querySelector<HTMLElement>(`.person-tile[data-person="${CSS.escape(next.id)}"]`);
+    (next.to === 'unpin' ? tile?.querySelector<HTMLElement>('.tile-unpin') : tile)?.focus({
+      preventScroll: true,
+    });
+  }, [pinned]);
   // SFU, а не свой замер: крупный план «Говорящего» должен залипать, а не прыгать на каждом слоге.
   const speaking = useStore(meeting.media.speaking);
   const previews = useStore(meeting.media.screenPreviews);
@@ -387,6 +401,7 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
         key={person.id}
         className="person-tile"
         data-paused={pause}
+        data-person={person.id}
         data-pinned={pinned === person.id ? 'true' : undefined}
         // Крупно над лентой — закреплённый или говорящий. Смена говорящего переносит две плитки
         // между крупным местом и лентой; выбор залипает (`ui/focus.ts`), так что это редкость.
@@ -408,7 +423,10 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
             className="person-tile__pin"
             aria-label={t(($) => $.stage.pinOf, { name: person.name })}
             title={t(($) => $.stage.pinOf, { name: person.name })}
-            onClick={() => meeting.pinCamera(person.id)}
+            onClick={() => {
+              focusNext.current = { id: person.id, to: 'unpin' };
+              meeting.pinCamera(person.id);
+            }}
           />
         )}
         {/* Обводка вместо надписи: кто говорит, узнаётся боковым зрением. Заглушённый микрофон
@@ -436,7 +454,10 @@ export function Stage({ meeting, fullscreen }: { meeting: Meeting; fullscreen?: 
             className="tile-unpin"
             aria-label={t(($) => $.stage.unpinOf, { name: person.name })}
             title={t(($) => $.stage.unpinOf, { name: person.name })}
-            onClick={() => meeting.unpinCamera()}
+            onClick={() => {
+              focusNext.current = { id: person.id, to: 'tile' };
+              meeting.unpinCamera();
+            }}
           >
             <PinOff aria-hidden="true" />
             <span>{t(($) => $.stage.unpin)}</span>
