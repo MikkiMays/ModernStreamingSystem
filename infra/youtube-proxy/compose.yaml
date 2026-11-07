@@ -1,0 +1,12 @@
+# Сеть хоста — намеренно: порт, опубликованный Docker, обходит ufw, а кого пускать, решает брандмауэр.
+services:
+  youtube-proxy:
+    image: ubuntu/squid:6.10-24.10_edge
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+      - ./passwd:/etc/squid/passwd:ro
+    logging:
+      driver: json-file
+      options: { max-size: 5m, max-file: "2" }

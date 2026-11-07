@@ -25,3 +25,6 @@ __pycache__/
 
 # Рабочие копии параллельных агентов (git worktree)
 /.claude/worktrees/
+# Прокси YouTube: пароль и его хеш — только на узле.
+infra/youtube-proxy/.password
+infra/youtube-proxy/passwd
