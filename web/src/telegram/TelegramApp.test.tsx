@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/client';
+import { noteCapabilities, noteRefused } from '../core/maintenance';
 import type { TelegramShell } from './sdk';
 
 const ROOM = '11111111-2222-3333-4444-555555555555';
@@ -135,6 +136,53 @@ describe('Mini App: вход во встречу беседы', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Выйти оттуда и войти сюда' }));
     await screen.findByText('встреча');
     await waitFor(() => expect(api.join).toHaveBeenLastCalledWith(ROOM, expect.anything(), 'other'));
+  });
+
+  describe('технические работы (R194)', () => {
+    afterEach(() => noteCapabilities({}));
+    const window = () => ({
+      phase: 'active' as const,
+      startsAt: 1,
+      expiresAt: Date.now() + 60000,
+    });
+
+    it('окно идёт — страница работ, без просьбы о микрофоне и без входа', async () => {
+      api.openConnection.mockImplementation(async () => {
+        noteCapabilities({ maintenanceWindow: window() });
+        return { ok: true, detail: '' };
+      });
+      render(<TelegramApp shell={shell()} />);
+      await screen.findByRole('heading', { name: 'Идут технические работы' });
+      expect(api.telegramEnter).not.toHaveBeenCalled();
+      expect(api.probe).not.toHaveBeenCalled();
+      expect(api.join).not.toHaveBeenCalled();
+    });
+
+    it('отказ двери посреди входа — та же страница', async () => {
+      api.join.mockImplementation(async () => {
+        noteRefused();
+        throw new ApiError(503, 'MAINTENANCE_WINDOW', 'Идут технические работы');
+      });
+      render(<TelegramApp shell={shell()} />);
+      await screen.findByRole('heading', { name: 'Идут технические работы' });
+    });
+
+    // Встречу с включённым микрофоном нельзя начинать самой: телефон мог лежать на столе весь час.
+    it('окно кончилось — сама не входит, а предлагает войти', async () => {
+      api.openConnection.mockImplementation(async () => {
+        noteCapabilities({ maintenanceWindow: window() });
+        return { ok: true, detail: '' };
+      });
+      render(<TelegramApp shell={shell()} />);
+      await screen.findByRole('heading', { name: 'Идут технические работы' });
+      api.openConnection.mockResolvedValue({ ok: true, detail: '' });
+      act(() => noteCapabilities({}));
+      await screen.findByText('Технические работы закончились. Можно входить');
+      expect(api.join).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: /Повторить/ }));
+      await screen.findByText('встреча');
+      expect(api.join).toHaveBeenCalledOnce();
+    });
   });
 
   it('вне Telegram — объяснение и дорога в Cord', () => {

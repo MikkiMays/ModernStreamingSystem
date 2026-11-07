@@ -1,5 +1,6 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, publicApi, request, RoomApi } from './client';
+import { maintenance, noteCapabilities, noteRefused } from '../core/maintenance';
 import { profileSecret } from '../core/identity';
 import { sha256 } from '../core/proof-solve';
 import { i18next } from '../i18n';
@@ -249,4 +250,46 @@ it('отмена самим приложением — как есть: её н�
   const aborted = new DOMException('The operation was aborted.', 'AbortError');
   failing(aborted);
   await expect(request('/rooms')).rejects.toBe(aborted);
+});
+
+/*
+  Технические работы (R194): отказ двери и возможности сервера открывают страницу работ. Дренаж
+  выкатки — другой код и другое обещание: идущие встречи живут, страницы нет.
+*/
+describe('технические работы', () => {
+  afterEach(() => noteCapabilities({}));
+
+  it('отказ двери `503 MAINTENANCE_WINDOW` открывает страницу работ', async () => {
+    answer(503, { code: 'MAINTENANCE_WINDOW', detail: 'Идут технические работы', retryAfter: 120 });
+    expect((await refusal()).code).toBe('MAINTENANCE_WINDOW');
+    expect(maintenance.get()).not.toBeNull();
+  });
+
+  it('дренаж выкатки `503 MAINTENANCE` и занятое ядро страницу не открывают', async () => {
+    answer(503, { code: 'MAINTENANCE', detail: 'Сервер обновляется', retryAfter: 120 });
+    await refusal();
+    answer(503, { code: 'SERVER_BUSY', detail: 'Сервер занят' });
+    await refusal();
+    expect(maintenance.get()).toBeNull();
+  });
+
+  it('шлюз без ядра (502) — не повод ни открыть страницу, ни закрыть её', async () => {
+    answer(502, undefined);
+    await publicApi.capabilities().catch(() => {});
+    expect(maintenance.get()).toBeNull();
+    noteRefused();
+    answer(502, undefined);
+    await publicApi.capabilities().catch(() => {});
+    expect(maintenance.get()).not.toBeNull();
+  });
+
+  it('возможности сервера сами сообщают об окне и о его конце', async () => {
+    const notice = { phase: 'active', startsAt: 1, endsAt: Date.now() + 1000, expiresAt: Date.now() + 2000 };
+    answer(200, { admissionOpen: false, maintenance: true, maintenanceWindow: notice });
+    await publicApi.capabilities();
+    expect(maintenance.get()?.endsAt).toBe(notice.endsAt);
+    answer(200, { admissionOpen: true, maintenance: false });
+    await publicApi.capabilities();
+    expect(maintenance.get()).toBeNull();
+  });
 });

@@ -625,6 +625,7 @@
     "end": {
       "session": "Your place in the meeting has expired. Open the invite to join again.",
       "closed": "The meeting has ended",
+      "maintenance": "The meeting ended: maintenance started",
       "left": "You left the meeting",
       "revoked": "Your access to the meeting has ended"
     },
@@ -3187,6 +3188,14 @@
       "listen": "Join without a microphone"
     }
   },
+  "maintenance": {
+    "title": "Maintenance in progress",
+    "body": "Meetings are unavailable for now. Cord will open by itself when we’re done, so there’s no need to reload.",
+    "endedMeeting": "Your meeting ended because maintenance started. Cord will open by itself when we’re done, so there’s no need to reload.",
+    "until": "Expected to finish by {{time}}",
+    "late": "Almost done",
+    "over": "Maintenance is over. You can join now"
+  },
   "errors": {
     "ADMIN_DISABLED": "The owner page is turned off on this server",
     "ADMIN_PASSWORD_INVALID": "Wrong owner password",
@@ -3313,6 +3322,10 @@
     "INVITE_INVALID": "The invite has expired or was revoked",
     "INVITE_LIMIT": "Too many invites",
     "MAINTENANCE": "The server is being updated — try again in two minutes",
+    "MAINTENANCE_WINDOW": "Maintenance in progress. Cord will be back soon",
+    "MAINTENANCE_WINDOW_EXISTS": "A maintenance window already exists. Close it first",
+    "MAINTENANCE_WINDOW_INVALID": "Check the window times: ISO-8601 with an offset, a start in the future, an end after the start and within the limit",
+    "MAINTENANCE_WINDOW_NONE": "There is no maintenance window right now",
     "MEDIA_UNAVAILABLE": "Calls are temporarily unavailable. Try again in a minute",
     "MUSIC_TIMEOUT": "The platform didn't respond in time — try again",
     "MUSIC_UNREACHABLE": "This platform can't be reached from this server",
@@ -3528,6 +3541,9 @@
         "admin_login": "Owner sign-in",
         "admin_room_closed": "Owner ended a meeting",
         "admin_shield_cleared": "Owner turned off the shield",
+        "admin_maintenance_window": "Owner changed the maintenance window",
+        "maintenance_started": "Maintenance started",
+        "maintenance_expired": "Maintenance window ended by itself",
         "block_created": "Block",
         "block_lifted": "Block lifted",
         "block_auto": "Auto-block for repeated refusals",

@@ -305,6 +305,9 @@
           "maintenance": {
             "type": "boolean"
           },
+          "maintenanceWindow": {
+            "$ref": "#/components/schemas/MaintenanceNotice"
+          },
           "maxParticipants": {
             "format": "int32",
             "type": "integer"
@@ -1584,7 +1587,8 @@
               "files.changed",
               "screen.started",
               "screen.first_viewer",
-              "meeting.warning"
+              "meeting.warning",
+              "maintenance.warning"
             ],
             "type": "string"
           },
@@ -2467,12 +2471,99 @@
         },
         "type": "object"
       },
+      "MaintenanceEmergency": {
+        "properties": {
+          "endsAt": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          },
+          "graceSeconds": {
+            "format": "int32",
+            "maximum": 3600,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MaintenanceExtend": {
+        "properties": {
+          "endsAt": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endsAt"
+        ],
+        "type": "object"
+      },
+      "MaintenanceNotice": {
+        "properties": {
+          "endsAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "scheduled",
+              "grace",
+              "active"
+            ],
+            "type": "string"
+          },
+          "startsAt": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expiresAt",
+          "phase",
+          "startsAt"
+        ],
+        "type": "object"
+      },
       "MaintenanceRequest": {
         "properties": {
           "on": {
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "MaintenanceSchedule": {
+        "properties": {
+          "endsAt": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "startsAt": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "startsAt"
+        ],
         "type": "object"
       },
       "MaintenanceState": {
@@ -2483,6 +2574,52 @@
           "since": {
             "format": "int64",
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MaintenanceWindowStatus": {
+        "properties": {
+          "closed": {
+            "type": "string"
+          },
+          "now": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "window": {
+            "$ref": "#/components/schemas/MaintenanceWindowView"
+          }
+        },
+        "type": "object"
+      },
+      "MaintenanceWindowView": {
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -3756,6 +3893,9 @@
             "format": "int64",
             "type": "integer"
           },
+          "endReason": {
+            "type": "string"
+          },
           "endsAt": {
             "format": "int64",
             "type": [
@@ -4658,6 +4798,183 @@
         },
         "tags": [
           "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/maintenance/window": {
+      "delete": {
+        "operationId": "finish",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceWindowStatus"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "maintenance-controller"
+        ]
+      },
+      "get": {
+        "operationId": "status_1",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceWindowStatus"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "maintenance-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/maintenance/window/extend": {
+      "post": {
+        "operationId": "extend",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceExtend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceWindowStatus"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "maintenance-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/maintenance/window/now": {
+      "post": {
+        "operationId": "emergency",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceEmergency"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceWindowStatus"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "maintenance-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/maintenance/window/schedule": {
+      "post": {
+        "operationId": "schedule",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceSchedule"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceWindowStatus"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "maintenance-controller"
         ]
       }
     },

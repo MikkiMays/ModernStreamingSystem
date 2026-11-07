@@ -626,6 +626,7 @@
     "end": {
       "session": "Tu acceso a la reunión ha caducado. Abre la invitación para volver a unirte.",
       "closed": "La reunión ha finalizado",
+      "maintenance": "La reunión terminó: empezó el mantenimiento",
       "left": "Has salido de la reunión",
       "revoked": "Tu acceso a la reunión ha terminado"
     },
@@ -3220,6 +3221,14 @@
       "listen": "Entrar sin micrófono"
     }
   },
+  "maintenance": {
+    "title": "Mantenimiento en curso",
+    "body": "Las reuniones no están disponibles por ahora. Cord se abrirá solo cuando terminemos; no hace falta recargar.",
+    "endedMeeting": "Tu reunión terminó porque empezó el mantenimiento. Cord se abrirá solo cuando terminemos; no hace falta recargar.",
+    "until": "Fin previsto: {{time}}",
+    "late": "Ya casi terminamos",
+    "over": "El mantenimiento ha terminado. Ya puedes entrar"
+  },
   "errors": {
     "ADMIN_DISABLED": "La página del propietario está desactivada en este servidor",
     "ADMIN_PASSWORD_INVALID": "Contraseña de propietario incorrecta",
@@ -3346,6 +3355,10 @@
     "INVITE_INVALID": "La invitación caducó o se revocó",
     "INVITE_LIMIT": "Demasiadas invitaciones",
     "MAINTENANCE": "El servidor se está actualizando: inténtalo de nuevo en dos minutos",
+    "MAINTENANCE_WINDOW": "Mantenimiento en curso. Cord volverá pronto",
+    "MAINTENANCE_WINDOW_EXISTS": "Ya hay una ventana de mantenimiento. Ciérrala primero",
+    "MAINTENANCE_WINDOW_INVALID": "Revisa las horas de la ventana: ISO-8601 con desplazamiento, inicio en el futuro, fin posterior al inicio y dentro del límite",
+    "MAINTENANCE_WINDOW_NONE": "Ahora no hay ninguna ventana de mantenimiento",
     "MEDIA_UNAVAILABLE": "Las llamadas no están disponibles por ahora. Inténtalo dentro de un minuto",
     "MUSIC_TIMEOUT": "La plataforma no respondió a tiempo: inténtalo de nuevo",
     "MUSIC_UNREACHABLE": "Esta plataforma no está disponible desde este servidor",
@@ -3565,6 +3578,9 @@
         "admin_login": "Inicio de sesión del propietario",
         "admin_room_closed": "El propietario finalizó una reunión",
         "admin_shield_cleared": "El propietario quitó el «escudo»",
+        "admin_maintenance_window": "El propietario cambió la ventana de mantenimiento",
+        "maintenance_started": "Empezó el mantenimiento",
+        "maintenance_expired": "La ventana de mantenimiento terminó sola",
         "block_created": "Bloqueo",
         "block_lifted": "Bloqueo quitado",
         "block_auto": "Bloqueo automático por rechazos frecuentes",

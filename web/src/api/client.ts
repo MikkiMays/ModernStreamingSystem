@@ -12,6 +12,7 @@ import { entryHeaders } from '../core/identity';
 import { prepareProof, takeProof, type ProofAction } from '../core/proof';
 import { noteError, type SupportReceipt, type SupportTicket } from '../core/support';
 import { FriendlyError, OfflineError, type FailureCount } from '../core/failure';
+import { noteCapabilities, noteRefused } from '../core/maintenance';
 import type { Challenge } from '../core/proof-solve';
 import { errorText, locale, t } from '../i18n';
 import type { CallReport } from '../media/call-quality';
@@ -146,6 +147,8 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
       detail?: unknown;
       until?: unknown;
     };
+    // Дверь закрыта на технические работы (R194): страница работ — сразу, с любого запроса.
+    if (body.code === 'MAINTENANCE_WINDOW') noteRefused();
     // Код отказа — в последние ошибки для обращения в поддержку; адреса и тексты туда не идут.
     noteError(
       `${response.status} ${body.code ?? 'REQUEST_FAILED'} ${init.method ?? 'GET'} ${path.split('?')[0]!.replace(/[0-9a-f-]{36}/g, ':id')}`,
@@ -218,7 +221,12 @@ async function human<T>(action: ProofAction, path: string, init: RequestInit): P
   }
 }
 export const publicApi = {
-  capabilities: () => request<Capabilities>('/capabilities'),
+  /** Возможности заодно сообщают, идут ли технические работы (R194, `core/maintenance.ts`). */
+  capabilities: () =>
+    request<Capabilities>('/capabilities').then((capabilities) => {
+      noteCapabilities(capabilities);
+      return capabilities;
+    }),
   create: (
     data: {
       commandId: string;
