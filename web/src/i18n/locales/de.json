@@ -3084,6 +3084,7 @@
     "ms": "{{value}} ms",
     "codec": "Codec",
     "cameraLog": "Kameraprotokoll",
+    "micLog": "Mikrofonprotokoll",
     "profile": "Codec-Profil",
     "layers": "Ebenen",
     "singleLayer": "Eine Ebene",

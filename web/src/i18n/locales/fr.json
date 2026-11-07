@@ -3117,6 +3117,7 @@
     "ms": "{{value}} ms",
     "codec": "Codec",
     "cameraLog": "Journal de la caméra",
+    "micLog": "Journal du micro",
     "profile": "Profil du codec",
     "layers": "Couches",
     "singleLayer": "Une seule couche",

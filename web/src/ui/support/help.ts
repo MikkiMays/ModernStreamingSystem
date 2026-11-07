@@ -50,7 +50,7 @@ export function provideCallReport(source: () => CallReport | null) {
   };
 }
 
-/** Журнал камеры встречи (R189, И7) — строками для обращения; вне встречи — `null`. */
+/** Журналы камеры и микрофона встречи (R189, И7; R191) — строками для обращения; вне встречи — `null`. */
 export const cameraLogSource = new Store<(() => readonly string[]) | null>(null);
 
 export function provideCameraLog(source: () => readonly string[]) {
