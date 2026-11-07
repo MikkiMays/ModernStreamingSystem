@@ -61,6 +61,7 @@ import {
 } from '../core/preferences';
 import { setMeetingDeafened, signal } from '../core/sounds';
 import { MicSentinel } from './mic-sentinel';
+import { micSlowDetail, PressTimer, type MicPress } from './mic-press';
 import { allowed, backgroundSupport, NO_BACKGROUND, type BackgroundSupport } from './background-effect';
 import { CameraBackground, ensureRawOnSenders } from './background/camera';
 import type { BackgroundEffect } from './background/effect';
@@ -618,6 +619,10 @@ export class MediaSession {
   });
   /** Журнал камеры (И7): в «Диагностику» и обращение. */
   readonly cameraLog = new CameraLog();
+  /** Журнал микрофона (R191): что задержало включение. В «Диагностику» и обращение, человеку ничего. */
+  readonly micLog = new CameraLog(undefined, 'mic');
+  /** Когда нажали, если нажатие дожидается занятого устройства: задержка считается с него. */
+  private pressedAt: Partial<Record<'microphone' | 'camera', number>> = {};
   /** Последний замер отдачи камеры — сторожу: кодируются ли кадры при живом подписчике. */
   private cameraStats: { frames: number | null; watched: boolean; at: number } | null = null;
   private cameraTimer?: ReturnType<typeof setInterval>;
@@ -1960,7 +1965,7 @@ export class MediaSession {
     } catch (error) {
       console.warn('[cord] microphone was not held for the background', error);
     } finally {
-      this.deviceBusy.delete('microphone');
+      this.deviceFree('microphone');
       this.refreshTracks();
     }
   }
@@ -2297,7 +2302,7 @@ export class MediaSession {
           }
         } finally {
           heading.set(undefined);
-          this.deviceBusy.delete(kind);
+          this.deviceFree(kind);
         }
       }
       // Выключенный, но захваченный микрофон (W5 или выключенный кнопкой) после полного
@@ -2412,16 +2417,20 @@ export class MediaSession {
   async toggle(kind: 'microphone' | 'camera', deviceId?: string, announce = true) {
     if (this.disposed) return;
     const heading = kind === 'microphone' ? this.micHeading : this.cameraHeading;
-    if (this.toggling.has(kind)) {
+    if (this.toggling.has(kind) || this.deviceBusy.has(kind)) {
       // Нажатие посреди переключения (R163, владелец: «кнопки будто с задержкой нажимаются»): раньше
       // оно молча терялось, и кнопка не отзывалась. Теперь оно меняет, куда придём: кнопка показывает
       // это сразу, а устройство сводится к последнему нажатию, когда идущее переключение кончится.
+      // То же, пока устройство занято не нажатием (R191): телефон держит микрофон при входе,
+      // переподключение его публикует, камеру меняют, — `deviceFree` применит нажатие после.
       const target = !(heading.get() ?? this.state.get()[kind]);
       heading.set(target);
       this.queuedToggle[kind] = target;
+      this.pressedAt[kind] ??= performance.now();
       return;
     }
-    if (this.deviceBusy.has(kind)) return;
+    const pressedAt = this.pressedAt[kind];
+    delete this.pressedAt[kind];
     this.deviceBusy.add(kind);
     this.toggling.add(kind);
     heading.set(!this.state.get()[kind]);
@@ -2446,13 +2455,44 @@ export class MediaSession {
           // Дорожка уже есть (включали раньше или телефон держит её выключенной, W5): включить —
           // это `unmute` той же дорожки, без захвата заново (R160). LiveKit сам перезахватит только
           // кончившуюся дорожку или сменённое устройство.
+          const timer = new PressTimer(undefined, pressedAt);
+          const signal = this.room.state as string;
+          const waitMs = timer.lap();
+          const raw = captureTrack(held);
           await this.wakeHeldMicrophone(held);
+          const wakeMs = timer.lap();
           await this.room.localParticipant.setMicrophoneEnabled(true);
+          const unmuteMs = timer.lap();
+          const recaptured = captureTrack(held) !== raw;
           // Обработчик уже стоит и не пересобирается (`applyAudioProcessor`); здесь — только если
           // настройки звука поменяли, пока микрофон был выключен.
           await this.applyAudioProcessor();
+          const processorMs = timer.lap();
+          this.notePress({
+            totalMs: timer.total(),
+            waitMs,
+            wakeMs,
+            unmuteMs,
+            processorMs,
+            recaptured,
+            signal,
+            rtt: this.room.engine?.client?.rtt ?? 0,
+          });
         } else {
+          const timer = new PressTimer(undefined, pressedAt);
+          const signal = this.room.state as string;
           await this.publishMicrophone(deviceId, false);
+          this.notePress({
+            totalMs: timer.total(),
+            waitMs: 0,
+            wakeMs: 0,
+            unmuteMs: 0,
+            processorMs: 0,
+            recaptured: false,
+            firstCapture: true,
+            signal,
+            rtt: 0,
+          });
         }
       } else {
         // Нажатие — слово человека: эпизод лечения закрыт, запрет после отказа в разрешении снят.
@@ -2512,21 +2552,48 @@ export class MediaSession {
     } finally {
       this.toggling.delete(kind);
       this.deviceBusy.delete(kind);
-      const queued = this.queuedToggle[kind];
-      delete this.queuedToggle[kind];
-      const now =
-        kind === 'microphone'
-          ? this.room.localParticipant.isMicrophoneEnabled
-          : this.room.localParticipant.isCameraEnabled;
-      // Сорвалось (нет доступа, нет устройства) — ошибку уже показали, отложенное нажатие не повторяет
-      // её. Иначе — следующим шагом, после `refreshTracks`: `toggle` читает, откуда идти, из `state`.
-      if (queued !== undefined && queued !== now && !failed && !this.disposed)
-        queueMicrotask(() => {
-          if (this.disposed || this.toggling.has(kind)) heading.set(undefined);
-          else void this.toggle(kind, undefined, announce);
-        });
-      else heading.set(undefined);
+      this.applyQueuedToggle(kind, announce, failed);
     }
+  }
+  /** Устройство больше не занято: применить нажатие, которое его дожидалось (R191). */
+  private deviceFree(kind: 'microphone' | 'camera') {
+    this.deviceBusy.delete(kind);
+    if (this.queuedToggle[kind] !== undefined) this.applyQueuedToggle(kind);
+  }
+  private applyQueuedToggle(kind: 'microphone' | 'camera', announce = true, failed = false) {
+    const heading = kind === 'microphone' ? this.micHeading : this.cameraHeading;
+    const queued = this.queuedToggle[kind];
+    delete this.queuedToggle[kind];
+    const now =
+      kind === 'microphone'
+        ? this.room.localParticipant.isMicrophoneEnabled
+        : this.room.localParticipant.isCameraEnabled;
+    // Сорвалось (нет доступа, нет устройства) — ошибку уже показали, отложенное нажатие не повторяет
+    // её. Иначе — следующим шагом и по свежему `state`: `toggle` читает из него, откуда идти, а занятое
+    // только что устройство могло его ещё не обновить.
+    if (queued === undefined || queued === now || failed || this.disposed) {
+      delete this.pressedAt[kind];
+      heading.set(undefined);
+      return;
+    }
+    queueMicrotask(() => {
+      if (this.disposed) {
+        heading.set(undefined);
+      } else if (this.toggling.has(kind) || this.deviceBusy.has(kind)) {
+        // Устройство снова заняли: нажатие дождётся следующего освобождения.
+        this.queuedToggle[kind] = queued;
+      } else {
+        this.collectTracks();
+        void this.toggle(kind, undefined, announce);
+      }
+    });
+  }
+  /** Медленное нажатие — в журнал микрофона и счётчик (R191); человеку ничего. */
+  private notePress(press: MicPress) {
+    const detail = micSlowDetail(press);
+    if (!detail) return;
+    this.micLog.note('mic-slow', detail);
+    noteFailure('microphone', 'mic-slow', detail);
   }
   /**
    * Удержанный микрофон телефона (W5) система могла заглушить, пока страница была в фоне (R147):
@@ -2670,7 +2737,7 @@ export class MediaSession {
         await this.room.switchActiveDevice(kind, previous).catch(() => {});
       this.report(error, kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker');
     } finally {
-      if (kind === 'videoinput') this.deviceBusy.delete('camera');
+      if (kind === 'videoinput') this.deviceFree('camera');
     }
   }
   private devicesChanged = () => {
@@ -2780,7 +2847,7 @@ export class MediaSession {
         await track.restartTrack({ ...this.cameraRestartNow(), deviceId: previous }).catch(() => {});
       this.report(error, 'camera');
     } finally {
-      this.deviceBusy.delete('camera');
+      this.deviceFree('camera');
     }
   }
   /**
@@ -3211,7 +3278,7 @@ export class MediaSession {
       } catch (error) {
         this.report(error, 'camera');
       } finally {
-        this.deviceBusy.delete('camera');
+        this.deviceFree('camera');
       }
     });
     return this.cameraChange;

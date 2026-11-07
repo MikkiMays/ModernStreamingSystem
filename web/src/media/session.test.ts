@@ -548,6 +548,119 @@ describe('микрофон: один захват на встречу (R160)', (
     }
   });
 
+  /*
+    Нажатие не теряется (R191). `toggle` молча выходил, пока устройство занято не им самим: телефон держит
+    микрофон при входе (`holdMicrophone`), переподключение его публикует (`restoreTracks`).
+  */
+  function busyMic(media: MediaSession) {
+    return media as unknown as {
+      deviceBusy: Set<string>;
+      deviceFree(kind: 'microphone' | 'camera'): void;
+    };
+  }
+
+  it('нажатие, пока устройство занято не самим нажатием, применяется, когда оно освободится', async () => {
+    const { media, local } = micSession({ suppression: 'browser' });
+    const inner = busyMic(media);
+    try {
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      expect(media.state.get().microphone).toBe(false);
+      inner.deviceBusy.add('microphone');
+      await media.toggle('microphone');
+      // Кнопка отзывается сразу, само устройство ждёт.
+      expect(media.micHeading.get()).toBe(true);
+      expect(local.setMicrophoneEnabled).toHaveBeenLastCalledWith(false);
+      inner.deviceFree('microphone');
+      await vi.waitFor(() => expect(media.state.get().microphone).toBe(true));
+      expect(local.setMicrophoneEnabled).toHaveBeenLastCalledWith(true);
+      expect(media.micHeading.get()).toBeUndefined();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('два нажатия, пока устройство занято, — последнее решает: состояние не меняется', async () => {
+    const { media, local } = micSession({ suppression: 'browser' });
+    const inner = busyMic(media);
+    try {
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      vi.mocked(local.setMicrophoneEnabled as () => Promise<void>).mockClear();
+      inner.deviceBusy.add('microphone');
+      await media.toggle('microphone');
+      expect(media.micHeading.get()).toBe(true);
+      await media.toggle('microphone');
+      expect(media.micHeading.get()).toBe(false);
+      inner.deviceFree('microphone');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(local.setMicrophoneEnabled).not.toHaveBeenCalled();
+      expect(media.state.get().microphone).toBe(false);
+      expect(media.micHeading.get()).toBeUndefined();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('устройство снова заняли до применения — нажатие ждёт следующего освобождения, а не теряется', async () => {
+    const { media } = micSession({ suppression: 'browser' });
+    const inner = busyMic(media);
+    try {
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      inner.deviceBusy.add('microphone');
+      await media.toggle('microphone');
+      inner.deviceFree('microphone');
+      inner.deviceBusy.add('microphone');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(media.state.get().microphone).toBe(false);
+      expect(media.micHeading.get()).toBe(true);
+      inner.deviceFree('microphone');
+      await vi.waitFor(() => expect(media.state.get().microphone).toBe(true));
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('устройство освободилось без нажатий — кнопку никто не трогает', async () => {
+    const { media } = micSession({ suppression: 'browser' });
+    const inner = busyMic(media);
+    try {
+      inner.deviceBusy.add('microphone');
+      media.micHeading.set(true);
+      inner.deviceFree('microphone');
+      expect(media.micHeading.get()).toBe(true);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('медленное включение (R191) пишет в журнал микрофона, из чего сложилось; быстрое — ничего', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { media, raw } = micSession({ suppression: 'browser' });
+    try {
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      await media.toggle('microphone');
+      expect(media.micLog.events.get()).toEqual([]);
+      await media.toggle('microphone');
+      raw.muted = true;
+      const slow = media.toggle('microphone');
+      await vi.advanceTimersByTimeAsync(MIC_UNMUTE_GRACE_MS);
+      await slow;
+      const events = media.micLog.events.get();
+      expect(events).toHaveLength(1);
+      expect(events[0]?.kind).toBe('mic-slow');
+      expect(events[0]?.detail).toContain(`wake=${MIC_UNMUTE_GRACE_MS}`);
+      expect(events[0]?.detail).toContain('signal=connected');
+      expect(warn).toHaveBeenCalledWith('[cord] microphone failed: mic-slow', expect.any(String));
+    } finally {
+      warn.mockRestore();
+      media.dispose();
+    }
+  });
+
   it('сторож (R147) смотрит на захват, а не на выход шумодава: микрофон кончился — перезахват', async () => {
     const { media, track, raw } = micSession({ suppression: 'rnnoise' });
     try {

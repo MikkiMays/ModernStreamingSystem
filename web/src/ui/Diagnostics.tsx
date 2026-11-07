@@ -136,6 +136,8 @@ export default function Diagnostics({
   const pauses = useStore(meeting.media.videoPauseCount);
   // Журнал камеры (R189, И7): что сторож заметил и чем кончилось — без текста и имён.
   const cameraEvents = useStore(meeting.media.cameraLog?.events ?? NO_CAMERA_EVENTS);
+  // Журнал микрофона (R191): что задержало включение.
+  const micEvents = useStore(meeting.media.micLog?.events ?? NO_CAMERA_EVENTS);
   const stalls = useStore(meeting.media.videoStallCount);
   useEffect(() => {
     let disposed = false;
@@ -208,6 +210,7 @@ export default function Diagnostics({
       ...(board ? [`board latency: p50 ${board.p50} ms, p95 ${board.p95} ms (${board.count})`] : []),
       ...samples.map(sampleLine),
       ...(meeting.media.cameraLog?.lines() ?? []),
+      ...(meeting.media.micLog?.lines() ?? []),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
@@ -465,6 +468,24 @@ export default function Diagnostics({
             </h3>
             <ul className="diagnostics-camera-log">
               {cameraEvents.map((event, i) => (
+                <li key={`${event.at}-${i}`}>
+                  <time dateTime={new Date(event.at).toISOString()}>
+                    {new Date(event.at).toLocaleTimeString(locale(t), { hour12: false })}
+                  </time>{' '}
+                  <code>{event.kind}</code>
+                  {event.detail ? ` ${event.detail}` : ''}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {micEvents.length > 0 && (
+          <section className="diagnostics-card" aria-labelledby={`${id}-mic`}>
+            <h3 className="diagnostics-card__title" id={`${id}-mic`}>
+              {t(($) => $.diagnostics.micLog)}
+            </h3>
+            <ul className="diagnostics-camera-log">
+              {micEvents.map((event, i) => (
                 <li key={`${event.at}-${i}`}>
                   <time dateTime={new Date(event.at).toISOString()}>
                     {new Date(event.at).toLocaleTimeString(locale(t), { hour12: false })}

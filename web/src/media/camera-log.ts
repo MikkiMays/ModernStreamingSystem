@@ -17,7 +17,11 @@ export const CAMERA_LOG_SIZE = 30;
 export class CameraLog {
   readonly events = new Store<readonly CameraEvent[]>([]);
 
-  constructor(private readonly now: () => number = () => Date.now()) {}
+  constructor(
+    private readonly now: () => number = () => Date.now(),
+    /** Чей журнал — первое слово строки: `camera` или `mic` (R191). */
+    private readonly label = 'camera',
+  ) {}
 
   note(kind: string, detail?: string): void {
     this.events.update((events) => {
@@ -30,7 +34,7 @@ export class CameraLog {
   lines(): string[] {
     return this.events.get().map((event) => {
       const time = new Date(event.at).toISOString().slice(11, 19);
-      return `camera ${time} ${event.kind}${event.detail ? ` ${event.detail}` : ''}`;
+      return `${this.label} ${time} ${event.kind}${event.detail ? ` ${event.detail}` : ''}`;
     });
   }
 }
