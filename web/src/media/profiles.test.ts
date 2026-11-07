@@ -156,7 +156,8 @@ describe('screen profiles', () => {
     expect(svc.videoEncoding?.maxBitrate).toBe(2000000);
     expect(cameraOptions({ resolution: 720, fps: 30 }, h264).videoEncoding?.maxBitrate).toBe(2500000);
     expect(svc.scalabilityMode).toBe('L1T3');
-    expect(svc.backupCodec).toEqual({ codec: 'h264' });
+    // Запасной кодек — по той же таблице, а не по пресету LiveKit (R193).
+    expect(svc.backupCodec).toEqual({ codec: 'h264', encoding: { maxBitrate: 2500000, maxFramerate: 30 } });
     expect(svc.backupCodecPolicy).toBe(BackupCodecPolicy.SIMULCAST);
   });
 

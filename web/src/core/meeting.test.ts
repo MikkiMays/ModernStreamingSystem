@@ -382,10 +382,7 @@ describe('встречу завершили технические работы'
     await vi.advanceTimersByTimeAsync(0);
     const asked = ask.mock.calls.length;
     meeting.start();
-    control().onEvent(
-      { type: 'maintenance.warning', sequence: 2, eventId: 'e', payload: {} },
-      true,
-    );
+    control().onEvent({ type: 'maintenance.warning', sequence: 2, eventId: 'e', payload: {} }, true);
     await vi.advanceTimersByTimeAsync(0);
     expect(ask.mock.calls.length).toBe(asked + 1);
     expect(meeting.ended.get()).toBeNull();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CameraLoad, cameraLoadLadder } from './camera-load';
+import { CameraLoad, cameraLoadLadder, cameraLoadSignal } from './camera-load';
 
 describe('ступени нагрузки камеры (R192)', () => {
   it('сверху — выбранное; ниже — кадр, у самого низа — частота', () => {
@@ -14,6 +14,26 @@ describe('ступени нагрузки камеры (R192)', () => {
       { resolution: 480, fps: 15 },
     ]);
     expect(cameraLoadLadder({ resolution: 480, fps: 15 })).toEqual([{ resolution: 480, fps: 15 }]);
+  });
+});
+
+describe('сигнал ступени (ревью R192)', () => {
+  const sample = { limitation: 'none', encodeMs: 10, fps: 30, software: true };
+  it('`cpu` и долгий кадр программного кодировщика — перегрузка', () => {
+    expect(cameraLoadSignal({ ...sample, limitation: 'cpu' })).toBe('over');
+    expect(cameraLoadSignal({ ...sample, encodeMs: 40 })).toBe('over');
+  });
+  it('долгий кадр аппаратного — задержка конвейера, а не процессор', () => {
+    expect(cameraLoadSignal({ ...sample, encodeMs: 40, software: false })).toBe('calm');
+  });
+  it('браузер не называет причину (Safari) или называет канал: спокойствие доказывает время кадра, иначе ступень не вернётся', () => {
+    expect(cameraLoadSignal({ ...sample, limitation: 'unknown' })).toBe('calm');
+    expect(cameraLoadSignal({ ...sample, limitation: 'bandwidth' })).toBe('calm');
+    expect(cameraLoadSignal({ ...sample, limitation: 'unknown', encodeMs: null })).toBe('other');
+    expect(cameraLoadSignal({ ...sample, limitation: 'unknown', encodeMs: 40 })).toBe('over');
+  });
+  it('частота ступени меняет бюджет: на 15 кадрах 40 мс — успевает', () => {
+    expect(cameraLoadSignal({ ...sample, encodeMs: 40, fps: 15 })).toBe('calm');
   });
 });
 
@@ -48,6 +68,14 @@ describe('CameraLoad', () => {
     // И не приближают возврат: это не спокойствие процессора.
     for (let i = 0; i < 40; i++) expect(load.observe('other', 3)).toBeNull();
     expect(load.step).toBe(1);
+  });
+
+  it('всплеск не роняет до дна: после шага вниз перегрузка какое-то время не считается', () => {
+    const load = new CameraLoad();
+    expect(over(load, 3)).toBe(1);
+    expect(over(load, CameraLoad.COOL_SAMPLES)).toBeNull();
+    expect(load.step).toBe(1);
+    expect(over(load, 3)).toBe(2);
   });
 
   it('вниз не глубже нижней ступени', () => {

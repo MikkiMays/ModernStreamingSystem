@@ -303,7 +303,11 @@ public class MaintenanceWindows {
 
   /** Забыть прочитанное: следующее чтение пойдёт в базу. */
   public void forget() {
-    last = null;
+    // Прочитанное не выбрасывается, а устаревает: упади база, запасом останется оно, иначе вопрос о
+    // состоянии во время
+    // обновления открыл бы продукт всем посреди работ (ревью R194).
+    var seen = last;
+    last = seen == null ? null : new Read(seen.window(), System.nanoTime() - 2 * FRESH_NANOS);
   }
 
   private Window open(String kind, long startsAt, Long endsAt, String reason) {

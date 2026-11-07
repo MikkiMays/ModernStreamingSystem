@@ -316,6 +316,8 @@
   padding: 0;
   border: 0;
   border-radius: inherit;
+  /* Только на телефоне: на компьютере нажатие по миниатюре ничего не закрепляло, а рядом с показом закрыло бы его (ревью R190). */
+  display: none;
   background: transparent;
   cursor: pointer;
 }
@@ -327,6 +329,13 @@
 @media (max-width: 700px), (pointer: coarse) {
   .people-strip .person-tile > .participant-more {
     display: none;
+  }
+  .person-tile__pin {
+    display: block;
+  }
+  /* Подпись и пометки лежат выше кнопки и съедали бы нажатие на маленькой миниатюре. */
+  .people-strip .person-tile > :is(.person-caption, .tile-recovery, .video-paused) {
+    pointer-events: none;
   }
 }
 .tile-recovery {

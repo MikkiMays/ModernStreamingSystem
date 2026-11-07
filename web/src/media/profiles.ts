@@ -341,7 +341,16 @@ export function cameraRateSatisfied(
 export function cameraOptions(profile: ScreenProfile, shape: PublishShape = BASELINE): TrackPublishOptions {
   return {
     videoCodec: shape.codec,
-    ...backupOptions(shape),
+    // Запасной кодек — по той же таблице: без `encoding` LiveKit взял бы свой пресет, не связанный с выбранным уровнем (R193).
+    ...(shape.backup
+      ? {
+          backupCodec: {
+            codec: shape.backup,
+            encoding: { maxBitrate: cameraBitrate(profile, shape.backup), maxFramerate: profile.fps },
+          },
+          backupCodecPolicy: SIMULCAST_BACKUP,
+        }
+      : { backupCodec: false as const }),
     videoEncoding: { maxBitrate: cameraBitrate(profile, shape.codec), maxFramerate: profile.fps },
     degradationPreference: 'maintain-resolution',
     simulcast: shape.simulcast,

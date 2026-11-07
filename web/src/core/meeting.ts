@@ -779,6 +779,7 @@ export class Meeting {
   /** `own` — человек вышел сам; любой другой конец — повод спросить, не технические ли это работы. */
   private end(reason: string, own = false) {
     if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
+    const first = !this.ended.get();
     const snapshot = this.snapshot.get();
     const byMaintenance = snapshot.endReason === 'maintenance';
     if (byMaintenance) reason = t(($) => $.meeting.end.maintenance);
@@ -794,8 +795,11 @@ export class Meeting {
     this.ended.set(reason);
     clearInterval(this.syncTimer);
     void this.uploader.pause();
+    // Каждый повтор закрытого снимка и старая запись о конце не должны снова открывать страницу работ (ревью R194): доверие на
+    // десять минут — только свежему, первому концу этой встречи.
+    const recent = !!snapshot.closedAt && Date.now() - new Date(snapshot.closedAt).getTime() < 600_000;
     // Снимок с причиной мог не успеть: несохранённая комната уходит быстро, и тогда ответят возможности.
-    if (byMaintenance) noteMeetingEnded();
+    if (byMaintenance && first && recent) noteMeetingEnded();
     else if (!own) wakeMaintenanceWatch();
   }
   /**

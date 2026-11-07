@@ -24,6 +24,30 @@ export function cameraLoadLadder(level: Pick<ScreenProfile, 'resolution' | 'fps'
 /** Что сказал замер: процессор не успевает, успевает — или вопрос не о нём (канал, браузер молчит). */
 export type CameraLoadSignal = 'over' | 'calm' | 'other';
 
+/** Доля бюджета кадра, после которой кодировщик не успевает: та же, что у сторожа кодека. */
+const ENCODE_SHARE = 0.8;
+
+/**
+ * Замер отдачи → сигнал ступени. Время кадра судит только программный кодировщик: у аппаратного в нём сидит задержка конвейера
+ * при свободном процессоре, и снижать кадр за неё незачем. Там, где браузер причину не называет (Safari, Firefox) или называет
+ * канал, спокойствие доказывает время кадра — иначе ступень только опускалась бы и не возвращалась.
+ */
+export function cameraLoadSignal(sample: {
+  limitation: string;
+  encodeMs: number | null;
+  fps: number;
+  software: boolean | null;
+}): CameraLoadSignal {
+  const slow =
+    sample.software !== false &&
+    sample.encodeMs !== null &&
+    sample.encodeMs > (ENCODE_SHARE * 1000) / sample.fps;
+  if (sample.limitation === 'cpu' || slow) return 'over';
+  if (sample.limitation === 'unknown' || sample.limitation === 'bandwidth')
+    return sample.encodeMs === null ? 'other' : 'calm';
+  return 'calm';
+}
+
 /**
  * Какая ступень сейчас. Такт — замер отдачи, 3 с: вниз после трёх подряд (≈ 9 с, всплеск — не перегрузка), вверх после
  * минуты спокойствия. Сорвалось вскоре после возврата — следующий возврат вдвое терпеливее: качание туда-сюда хуже, чем
@@ -35,25 +59,31 @@ export class CameraLoad {
   static readonly MAX_CALM_SAMPLES = 160;
   /** Сколько замеров после возврата перегрузка считается срывом этого возврата. */
   private static readonly RELAPSE_SAMPLES = 20;
+  /** Сколько замеров после шага вниз новая перегрузка не считается: шаг ещё не подействовал, а всплеск не должен уронить до дна. */
+  static readonly COOL_SAMPLES = 10;
 
   step = 0;
   private over = 0;
   private calm = 0;
   private patience = CameraLoad.CALM_SAMPLES;
   private sinceReturn = Infinity;
+  private sinceDown = Infinity;
 
   /** @returns новая ступень, если её нужно применить; `deepest` — номер нижней ступени. */
   observe(signal: CameraLoadSignal, deepest: number): number | null {
     this.sinceReturn++;
+    this.sinceDown++;
     if (signal === 'other') return null;
     if (signal === 'over') {
       this.calm = 0;
+      if (this.sinceDown <= CameraLoad.COOL_SAMPLES) return null;
       this.over++;
       if (this.over < CameraLoad.OVER_SAMPLES || this.step >= deepest) return null;
       this.over = 0;
       if (this.sinceReturn <= CameraLoad.RELAPSE_SAMPLES)
         this.patience = Math.min(this.patience * 2, CameraLoad.MAX_CALM_SAMPLES);
       this.sinceReturn = Infinity;
+      this.sinceDown = 0;
       return ++this.step;
     }
     this.over = 0;
@@ -71,5 +101,6 @@ export class CameraLoad {
     this.calm = 0;
     this.patience = CameraLoad.CALM_SAMPLES;
     this.sinceReturn = Infinity;
+    this.sinceDown = Infinity;
   }
 }
