@@ -77,6 +77,8 @@ export const KINDS = [
   'camera-denied',
   'background-stalled',
   'background-dropped',
+  // Микрофон включился медленно (R191): что задержало — в журнале микрофона, человеку ничего.
+  'mic-slow',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 

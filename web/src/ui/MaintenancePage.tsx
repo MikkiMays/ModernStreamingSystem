@@ -43,6 +43,16 @@ export function MaintenancePage({ state }: { state: ActiveMaintenance }) {
     const timer = setInterval(() => setNow(Date.now()), CLOCK_MS);
     return () => clearInterval(timer);
   }, []);
+  const root = useRef<HTMLDivElement>(null);
+  // Под страницей может остаться встреча (окно открылось посреди неё): до неё не должны дотянуться ни Tab, ни
+  // экранный диктор, а фокус — уйти с кнопки, которой больше не видно (ревью 1.2).
+  useEffect(() => {
+    const page = root.current;
+    if (!page) return;
+    const hidden = inertOutside(page);
+    page.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+    return () => hidden.forEach((el) => (el.inert = false));
+  }, []);
   const estimate =
     state.endsAt === null
       ? null
@@ -50,7 +60,7 @@ export function MaintenancePage({ state }: { state: ActiveMaintenance }) {
         ? t(($) => $.maintenance.until, { time: formatEnd(state.endsAt, now, locale(t)) })
         : t(($) => $.maintenance.late);
   return (
-    <div className="maintenance">
+    <div className="maintenance" ref={root}>
       <svg className="maintenance__arcs" viewBox="0 0 320 320" aria-hidden="true" focusable="false">
         <circle cx="320" cy="320" r="90" strokeOpacity="0.22" />
         <circle cx="320" cy="320" r="150" strokeOpacity="0.15" />
@@ -62,7 +72,9 @@ export function MaintenancePage({ state }: { state: ActiveMaintenance }) {
       </header>
       <main className="maintenance__main" aria-labelledby={`${id}-title`}>
         <CordMark size={56} className="maintenance__mark" />
-        <h1 id={`${id}-title`}>{t(($) => $.maintenance.title)}</h1>
+        <h1 id={`${id}-title`} tabIndex={-1}>
+          {t(($) => $.maintenance.title)}
+        </h1>
         <p className="maintenance__body">
           {state.endedMeeting ? t(($) => $.maintenance.endedMeeting) : t(($) => $.maintenance.body)}
         </p>
@@ -77,4 +89,18 @@ export function MaintenancePage({ state }: { state: ActiveMaintenance }) {
       </main>
     </div>
   );
+}
+
+/** Всё на странице, кроме `el` и его предков, — `inert`; возвращает, что закрыто здесь (закрытое до — не трогает). */
+function inertOutside(el: HTMLElement): HTMLElement[] {
+  const hidden: HTMLElement[] = [];
+  for (let node: HTMLElement | null = el; node && node !== document.body; node = node.parentElement) {
+    for (const sibling of node.parentElement?.children ?? []) {
+      if (sibling === node || !(sibling instanceof HTMLElement) || sibling.inert) continue;
+      if (sibling.tagName === 'SCRIPT' || sibling.tagName === 'STYLE') continue;
+      sibling.inert = true;
+      hidden.push(sibling);
+    }
+  }
+  return hidden;
 }

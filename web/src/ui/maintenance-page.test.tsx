@@ -54,3 +54,19 @@ it('человека вывели из встречи — страница на�
   show({ endedMeeting: true });
   expect(screen.getByText(/Встреча завершилась, потому что начались работы/)).toBeInTheDocument();
 });
+
+it('встреча под страницей недоступна с клавиатуры и диктору, фокус — на заголовке; после — всё как было', () => {
+  const meeting = document.createElement('button');
+  const already = document.createElement('div');
+  already.inert = true;
+  document.body.append(meeting, already);
+  const { unmount } = show();
+  expect(meeting.inert).toBe(true);
+  expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
+  unmount();
+  expect(meeting.inert).toBe(false);
+  // Закрытое до страницы — не её дело открывать.
+  expect(already.inert).toBe(true);
+  meeting.remove();
+  already.remove();
+});

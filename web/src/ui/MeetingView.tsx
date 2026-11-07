@@ -199,7 +199,10 @@ export function MeetingView({
   // Итог этого звонка — для «Сообщить о проблеме», откуда бы поддержку ни открыли, пока встреча на экране.
   useEffect(() => provideCallReport(() => meeting.media.callReport()), [meeting]);
   // Журнал камеры (R189, И7) — туда же: что сторож заметил и чем кончилось, без текста и имён.
-  useEffect(() => provideCameraLog(() => meeting.media.cameraLog.lines()), [meeting]);
+  useEffect(
+    () => provideCameraLog(() => [...meeting.media.cameraLog.lines(), ...meeting.media.micLog.lines()]),
+    [meeting],
+  );
   useEffect(() => {
     if (section) show('settings');
   }, [section, show]);

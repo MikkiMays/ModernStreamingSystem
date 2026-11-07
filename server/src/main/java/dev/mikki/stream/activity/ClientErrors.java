@@ -65,7 +65,8 @@ public class ClientErrors {
 
   /**
    * Виды ошибок без кода реестра ({@code core/failure.ts}: {@code KINDS}). Виды {@code camera-*} и
-   * {@code background-*} — самолечение камеры (R189, И7): человек их не видит, счётчик — видит.
+   * {@code background-*} — самолечение камеры (R189, И7), {@code mic-slow} — микрофон включился
+   * медленно (R191): человек их не видит, счётчик — видит.
    */
   public static final Set<String> KINDS =
       Set.of(
@@ -90,7 +91,8 @@ public class ClientErrors {
           "camera-heal-failed",
           "camera-denied",
           "background-stalled",
-          "background-dropped");
+          "background-dropped",
+          "mic-slow");
 
   /** Разных пар «место — код» в одной сводке — столько же держит клиент. */
   public static final int MAX_ENTRIES = 60;

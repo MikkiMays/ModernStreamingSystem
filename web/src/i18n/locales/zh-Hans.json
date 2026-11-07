@@ -3050,6 +3050,7 @@
     "ms": "{{value}} 毫秒",
     "codec": "编解码器",
     "cameraLog": "摄像头日志",
+    "micLog": "麦克风日志",
     "profile": "编解码器配置",
     "layers": "分层",
     "singleLayer": "单层",
