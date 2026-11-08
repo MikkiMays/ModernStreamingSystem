@@ -15,6 +15,10 @@ import org.springframework.stereotype.Component;
  * сменил владелец пароль — все прежние токены перестали действовать, без списка отозванных.
  *
  * <p>Пароль пуст — страницы нет: ни входа, ни ответа о том, что она где-то есть ({@code 404}).
+ *
+ * <p>Второй вход — ключ пульта флота (R207, Р-115): токен {@code fleet.<ключ>} с {@code FLEET_KEY}
+ * из {@code .env} принимается наравне с сессией владельца, без входа и без срока: пульт на A держит
+ * ключ в своих настройках и ходит по туннелю или магистрали. Пароль владельца пульту не нужен.
  */
 @Component
 public class AdminAccess {
@@ -25,21 +29,30 @@ public class AdminAccess {
 
   public static final long LIFETIME_SECONDS = 8 * 3600L;
 
+  /** Префикс токена пульта флота: {@code fleet.<ключ>}. */
+  public static final String FLEET_PREFIX = "fleet.";
+
   private final Secrets secrets;
   private final String password;
+  private final String fleetKey;
 
   public AdminAccess(Secrets secrets, StreamProperties config) {
     this.secrets = secrets;
     this.password = config.adminPassword() == null ? "" : config.adminPassword().trim();
+    this.fleetKey = config.fleetKey() == null ? "" : config.fleetKey().trim();
   }
 
+  /** Есть ли хоть один вход: пароль владельца или ключ пульта. */
   public boolean enabled() {
-    return !password.isEmpty();
+    return !password.isEmpty() || !fleetKey.isEmpty();
   }
 
-  /** Пароль на токен. Частоту попыток считает тот, кто зовёт. */
+  /**
+   * Пароль на токен. Частоту попыток считает тот, кто зовёт. Без пароля — 404, даже если есть ключ.
+   */
   public ServerAccess.Issued connect(String candidate) {
-    requireEnabled();
+    if (password.isEmpty())
+      throw new Problem(404, "ADMIN_DISABLED", "Страница владельца на этом сервере выключена");
     if (!Secrets.equal(candidate == null ? "" : candidate, password))
       throw new Problem(401, "ADMIN_PASSWORD_INVALID", "Неверный пароль владельца");
     long expiresAt = System.currentTimeMillis() / 1000 + LIFETIME_SECONDS;
@@ -48,6 +61,9 @@ public class AdminAccess {
 
   public boolean valid(String token) {
     if (!enabled() || token == null || token.isEmpty()) return false;
+    if (token.startsWith(FLEET_PREFIX))
+      return !fleetKey.isEmpty() && Secrets.equal(token.substring(FLEET_PREFIX.length()), fleetKey);
+    if (password.isEmpty()) return false;
     int dot = token.indexOf('.');
     if (dot <= 0 || dot == token.length() - 1) return false;
     long expiresAt;

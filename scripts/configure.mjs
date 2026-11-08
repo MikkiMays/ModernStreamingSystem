@@ -145,6 +145,9 @@ const values = {
   // Пусто — страница выключена.
   ADMIN_PASSWORD: "",
   SERVER_NAME: app,
+  // Имя пульта флота (R207, Р-119): только у A (`--admin=admin.callcord.ru`). Пусто — блока `@admin` на
+  // шлюзе как бы нет, служба `fleet` не поднимается (профиль `admin`).
+  ADMIN_HOST: topology.admin ?? "",
   ...(monitoring
     ? {
         ...Object.fromEntries(Object.entries(MONITORING_KEYS).map(([k, make]) => [k, make()])),
@@ -179,6 +182,16 @@ if (refresh && monitoring) {
       : text + `COMPOSE_PROFILES=${env.COMPOSE_PROFILES}\n`;
   }
   if (text !== existing) await writeFile(".env", text, { mode: 0o600 });
+}
+// `--admin` при перевыпуске: имя пульта — единственное, что `--refresh` дописывает в `.env` кроме профиля
+// `monitoring`; без него у шлюза A нет блока `@admin`. Удаление имени — `--admin=` (пустое).
+if (refresh && "admin" in args) {
+  let text = await readFile(".env", "utf8");
+  if (!text.endsWith("\n")) text += "\n";
+  const line = `ADMIN_HOST=${topology.admin ?? ""}`;
+  text = /^ADMIN_HOST=.*$/m.test(text) ? text.replace(/^ADMIN_HOST=.*$/m, line) : text + line + "\n";
+  env.ADMIN_HOST = topology.admin ?? "";
+  await writeFile(".env", text, { mode: 0o600 });
 }
 
 /**

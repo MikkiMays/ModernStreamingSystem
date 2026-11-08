@@ -163,3 +163,35 @@ test('server configured before topology.json refreshes once its addresses are na
     await rm(directory, { recursive: true });
   }
 });
+
+test('имя пульта (R207): --admin пишет ADMIN_HOST и маршрут edge, --refresh --admin дописывает его в .env', async () => {
+  const root = resolve(tmpdir());
+  const directory = await mkdtemp(join(root, 'streaming-config-'));
+  try {
+    const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+    const base = [script, '--app=app.example.test', '--rtc=rtc.example.test', '--turn=turn.example.test', '--ip=192.0.2.1'];
+    const run = (...extra) => spawnSync(process.execPath, [...base, ...extra], { cwd: directory, encoding: 'utf8' });
+    const plain = run();
+    assert.equal(plain.status, 0, plain.stderr);
+    assert.match(await readFile(join(directory, '.env'), 'utf8'), /^ADMIN_HOST=$/m);
+    assert.equal(JSON.parse(await readFile(join(directory, 'infra/generated/edge.json'), 'utf8')).apps.layer4.servers.main.routes.length, 3);
+    const named = run('--refresh', '--admin=admin.example.test');
+    assert.equal(named.status, 0, named.stderr);
+    const env = await readFile(join(directory, '.env'), 'utf8');
+    assert.match(env, /^ADMIN_HOST=admin.example.test$/m);
+    assert.equal(env.match(/^ADMIN_HOST=/gm).length, 1);
+    const edge = JSON.parse(await readFile(join(directory, 'infra/generated/edge.json'), 'utf8'));
+    assert.equal(edge.apps.layer4.servers.main.routes.length, 4);
+    assert.deepEqual(edge.apps.tls.certificates.automate.at(-1), 'admin.example.test');
+    const stored = JSON.parse(await readFile(join(directory, 'infra/generated/topology.json'), 'utf8'));
+    assert.equal(stored.admin, 'admin.example.test');
+    // Следующий перевыпуск без --admin помнит имя из topology.json.
+    const again = run('--refresh');
+    assert.equal(again.status, 0, again.stderr);
+    assert.equal(JSON.parse(await readFile(join(directory, 'infra/generated/edge.json'), 'utf8')).apps.layer4.servers.main.routes.length, 4);
+  } finally {
+    const child = relative(root, resolve(directory));
+    assert(child.startsWith('streaming-config-') && !child.includes(sep) && !child.includes('..'));
+    await rm(directory, { recursive: true });
+  }
+});

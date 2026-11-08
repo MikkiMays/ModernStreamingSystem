@@ -225,6 +225,8 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         tg: fileURLToPath(new URL('./tg.html', import.meta.url)),
+        // Пульт флота (R207, Р-119): третий вход, шлюз отдаёт его только на имени ADMIN_HOST.
+        admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
       },
     },
   },
