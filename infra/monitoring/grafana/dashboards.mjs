@@ -102,7 +102,38 @@ const ie = `(95 * ${ppl} / (${ppl} + 10))`;
 const r = `(93.2 - ${id} - ${ie})`;
 const mos = `clamp(1 + 0.035 * ${r} + 0.000007 * ${r} * (${r} - 60) * (100 - ${r}), 1, 4.5)`;
 
+/** Сеть машины без петли, мостов Docker и veth — то, что уходит в провод. */
+const wire = 'device!~"lo|veth.*|docker.*|br-.*|cni.*|flannel.*"';
+const fleetDashboard = dashboard(
+  'cord-fleet',
+  'Cord — флот',
+  'Все машины флота (R208, R209): железо, кто из контейнеров ест ресурсы, встречи и люди на продукте. Метка machine: a — стенд разработки и пульт, fra — продукт cordcam.ru (meet), msk — Москва, hel — Хельсинки.',
+  [
+    stat('Встреч на продукте', 'sum(cord_rooms_active{machine="fra"})'),
+    stat('Людей на продукте', 'sum(cord_participants_connected{machine="fra"})'),
+    stat('Интеграций открыто', 'sum(cord_integrations_active{machine="fra"})'),
+    stat('Встреч начато за сутки', 'sum(increase(cord_meetings_started_total{machine="fra"}[1d]))'),
+    stat('Машин на связи', 'count(up{kind="node"} == 1)'),
+    stat('Худший steal, %', 'max(avg by (machine) (rate(node_cpu_seconds_total{mode="steal"}[5m])) * 100)', 'percent'),
+    series('Встречи по машинам', [['sum by (machine) (cord_rooms_active)', '{{machine}}']]),
+    series('Люди по машинам', [['sum by (machine) (cord_participants_connected)', '{{machine}}']]),
+    series('ЦП занят, %', [['100 - avg by (machine) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100', '{{machine}}']], 'percent'),
+    series('Steal (хост отнимает ЦП), %', [['avg by (machine) (rate(node_cpu_seconds_total{mode="steal"}[2m])) * 100', '{{machine}}']], 'percent'),
+    series('Память занята, %', [['(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100', '{{machine}}']], 'percent'),
+    series('Диск свободен', [['node_filesystem_avail_bytes{mountpoint="/"}', '{{machine}}']], 'bytes'),
+    series('Сеть: исходящий', [[`sum by (machine) (rate(node_network_transmit_bytes_total{${wire}}[2m])) * 8`, '{{machine}}']], 'bps'),
+    series('Сеть: входящий', [[`sum by (machine) (rate(node_network_receive_bytes_total{${wire}}[2m])) * 8`, '{{machine}}']], 'bps'),
+    series('Контейнеры: ЦП (топ-10)', [['topk(10, sum by (machine, name) (rate(container_cpu_usage_seconds_total{name!=""}[2m])))', '{{machine}} · {{name}}']], 'percentunit'),
+    series('Контейнеры: память (топ-10)', [['topk(10, max by (machine, name) (container_memory_working_set_bytes{name!=""}))', '{{machine}} · {{name}}']], 'bytes'),
+    series('Входы во встречи', [['sum by (machine, result) (rate(cord_joins_total[5m])) * 60', '{{machine}} · {{result}}']], 'short'),
+    series('Ошибки у людей (виды)', [['topk(8, sum by (machine, code) (rate(cord_client_errors_total[10m])) * 600)', '{{machine}} · {{code}}']], 'short'),
+    series('Нагрузка (load average 1 мин) на ядро', [['node_load1 / on (machine) group_left count by (machine) (node_cpu_seconds_total{mode="idle"})', '{{machine}}']]),
+    series('Шлюз: запросы в секунду', [['sum by (machine) (rate(caddy_http_requests_total[2m]))', '{{machine}}']]),
+  ],
+);
+
 const dashboards = [
+  fleetDashboard,
   dashboard('cord-meetings', 'Cord — встречи', 'Встречи, люди, входы и отказы — из ядра. Боты не люди.', [
     stat('Идут встречи', 'sum(cord_rooms_active{state="live"})'),
     stat('Ждут второго', 'sum(cord_rooms_active{state="waiting"})'),

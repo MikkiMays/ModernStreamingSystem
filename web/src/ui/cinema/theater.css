@@ -592,11 +592,13 @@ button.watch-ad:hover {
   и так крутят клавишами сбоку, а кнопка «без звука» остаётся. Остальное просто мельче.
 */
 @media (max-width: 700px) {
+  /* Узко — ползунок короче, но он есть: громкость кинозала отдельно от голосов встречи (R213). На iPhone громкость
+     элемента не меняется вовсе — там только «без звука» (`data-volume="mute-only"`). */
   .watch-volume .slider {
-    display: none;
+    width: 72px;
   }
-  .watch-volume {
-    width: 40px;
+  .watch-volume[data-volume='mute-only'] .slider {
+    display: none;
   }
   .watch-time {
     display: none;

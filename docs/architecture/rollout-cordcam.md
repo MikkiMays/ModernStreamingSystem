@@ -83,11 +83,13 @@ python3 scripts/cohost-cutover.py           # без --apply ничего не �
 **2.3. Имена `cordcam.ru` и режим `strict`** — `RELEASE.md` §6 «Переход в strict», пп. 1–7, с этими значениями:
 ```bash
 D=$(date +%Y%m%d); cp -a infra/generated infra/generated.before-$D-cordcam && cp -p .env .local/env.before-$D-cordcam
-sed -i -e 's/^DEPLOY_MODE=.*/DEPLOY_MODE=strict/' -e 's/^APP_HOST=.*/APP_HOST=cordcam.ru/' \
-  -e 's/^RTC_HOST=.*/RTC_HOST=rtc-fra.cordcam.ru/' -e 's/^TURN_HOST=.*/TURN_HOST=turn-fra.cordcam.ru/' .env
-grep -E '^(DEPLOY_MODE|APP_HOST|RTC_HOST|TURN_HOST|PUBLIC_URL)=' .env     # PUBLIC_URL, если есть, → https://cordcam.ru/
+# .env руками не править: с R200 §8.6 --refresh с именами сам переписывает DEPLOY_MODE, APP_HOST, RTC_HOST, TURN_HOST,
+# PUBLIC_URL и LIVEKIT_URL (секреты не трогает) и печатает «.env retargeted: …». До этого LIVEKIT_URL и PUBLIC_URL
+# оставались старыми — SFU звал клиентов на meet.nikg.tech, служба интеграций отказывала по Origin (выправлено руками 08.11).
 node scripts/configure.mjs --refresh --app=cordcam.ru --rtc=rtc-fra.cordcam.ru --turn=turn-fra.cordcam.ru --ip=108.165.32.23
-docker compose up -d edge gateway livekit && docker compose restart edge livekit
+grep -E '^(DEPLOY_MODE|APP_HOST|RTC_HOST|TURN_HOST|PUBLIC_URL|LIVEKIT_URL)=' .env   # все — cordcam.ru / rtc-fra / turn-fra
+# core, gateway и services читают .env — пересоздаются `up`; edge и livekit читают порождённые файлы только при старте.
+docker compose up -d edge gateway core services livekit && docker compose restart edge livekit
 for n in cordcam.ru rtc-fra.cordcam.ru turn-fra.cordcam.ru; do
   echo | openssl s_client -connect 108.165.32.23:443 -servername $n 2>/dev/null | openssl x509 -noout -subject -issuer
 done                                         # Let's Encrypt у всех
@@ -115,7 +117,7 @@ node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn
 результат 2.1 (кто держит 443), «ADMIN_PASSWORD задан», что не сошлось.
 
 Откат шага 2: `.env` из `.local/env.before-<дата>-cordcam`, `infra/generated.before-<дата>-cordcam` на место,
-`docker compose up -d edge gateway livekit && docker compose restart edge livekit` — установка снова на `meet.nikg.tech`
+`docker compose up -d edge gateway core services livekit && docker compose restart edge livekit` — установка снова на `meet.nikg.tech`
 (в DNS `meet.nikg.tech` пока есть).
 
 Старую установку cordcam (157.22.241.114) **не останавливать** до шага «узел msk»: её база — для переноса избранного.

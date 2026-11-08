@@ -125,6 +125,22 @@ public class MediaService {
     }
   }
 
+  /**
+   * Люди на узле по снимкам комнат: подключённые и восстанавливающие связь (их медиа было на этом
+   * узле) в открытых комнатах узла. Знаменатель правил отказа узла ({@code NodeHealth}, Р-105).
+   */
+  public Set<String> onNode(String nodeId) {
+    var people = new HashSet<String>();
+    for (var room : repository.all()) {
+      if (room.closedAt != null || !nodes.resolve(room.mediaNode).id().equals(nodeId)) continue;
+      for (var member : room.members.values())
+        if (member.human()
+            && (member.status == RoomState.Status.CONNECTED
+                || member.status == RoomState.Status.RECOVERING)) people.add(member.id);
+    }
+    return people;
+  }
+
   @Transactional
   public void moveRoom(String roomId, String from, String to) {
     var room = rooms.lock(roomId);

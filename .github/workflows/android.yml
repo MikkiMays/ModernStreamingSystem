@@ -32,11 +32,13 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci
         working-directory: mobile
-      # Адрес сервера — переменная репозитория CORD_SERVER_URL (Settings → Variables), не код: своя установка —
-      # свой адрес. Без неё APK не собирается — оболочка без сервера бесполезна.
+      # Продукт один — https://cordcam.ru (R200, Р-110), адрес записан в mobile/capacitor.config.json. Другая
+      # установка задаёт свой переменной репозитория CORD_ANDROID_SERVER (Settings → Variables); без неё
+      # скрипт только сверяет, что конфиг и offline.html называют один адрес. Переменная CORD_SERVER_URL —
+      # стенд разработки для verify-deployed.yml, к APK она отношения не имеет: людям стенд не отдаётся.
       - name: Point the shell at this installation's server
         env:
-          CORD_SERVER_URL: ${{ vars.CORD_SERVER_URL }}
+          CORD_ANDROID_SERVER: ${{ vars.CORD_ANDROID_SERVER }}
         run: node scripts/set-server.mjs
         working-directory: mobile
       # Копирует www и capacitor.config.json в проект Android и пишет подключение плагинов Capacitor

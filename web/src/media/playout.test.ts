@@ -515,3 +515,90 @@ describe('передача запаса приёмнику', () => {
     expect(() => applyPlayoutTarget(ended as unknown as RTCRtpReceiver, 200)).not.toThrow();
   });
 });
+
+/*
+  R191, «выключается быстро, а включается долго»: живой замер 07.11.2026 — у слушателя цель запаса росла
+  с 120 до 400 мс за три выключения микрофона говорящего, и голос после включения приходил на 300–450 мс
+  позже. SFU перестаёт слать заглушённую дорожку, NetEq полсекунды гасит звук, и Chrome считает это десятками
+  «событий заглушки» по 1–9 мс. Для `classifyTrouble` это выглядит как опоздавшие пакеты.
+*/
+describe('говорящий выключил микрофон (R191)', () => {
+  /** Настоящие разности счётчиков соседних опросов из замера. */
+  const fadeOut = (
+    at: number,
+    previous: PlayoutSample,
+    events: number,
+    concealed: number,
+    silent: number,
+  ) => ({
+    ...audio(at),
+    concealedSamples: (previous.concealedSamples ?? 0) + concealed,
+    silentConcealedSamples: (previous.silentConcealedSamples ?? 0) + silent,
+    concealmentEvents: (previous.concealmentEvents ?? 0) + events,
+  });
+
+  it('то, что записано в замере, без признака выглядит как джиттер — поэтому признак и нужен', () => {
+    const buffer = new PlayoutBuffer('conversation', profileFor('conversation'), 0);
+    const start = audio(0);
+    buffer.observe(start, 0);
+    const decision = buffer.observe(fadeOut(2, start, 51, 44541, 40320), 2000);
+    expect(decision.trouble).toBe('jitter');
+  });
+
+  it('хвост заглушки после выключения — не джиттер: цель не растёт, сколько раз ни выключай', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
+    let last = audio(0);
+    buffer.observe(last, 0);
+    for (let press = 0; press < 10; press++) {
+      const at = 2 + press * 6;
+      // Опрос, попавший на выключение: говорящий уже заглушён.
+      const tail = fadeOut(at, last, 42, 55947, 54720);
+      const off = buffer.observe(tail, at * 1000, true);
+      expect(off.trouble).toBe('none');
+      expect(off.targetMs).toBeLessThanOrEqual(profile.startMs);
+      // Весь опрос в тишине.
+      const quiet = fadeOut(at + 2, tail, 0, 96000, 96000);
+      expect(buffer.observe(quiet, (at + 2) * 1000, true).targetMs).toBeLessThanOrEqual(profile.startMs);
+      // Опрос, попавший на включение: сам он уже не заглушён, но половина интервала — ещё та тишина.
+      buffer.muteChanged();
+      const back = fadeOut(at + 4, quiet, 9, 3700, 0);
+      const on = buffer.observe(back, (at + 4) * 1000, false);
+      expect(on.trouble).toBe('none');
+      expect(on.targetMs).toBeLessThanOrEqual(profile.startMs);
+      last = back;
+    }
+  });
+
+  it('выключили и включили между двумя опросами — опрос всё равно не считается', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
+    const start = audio(0);
+    buffer.observe(start, 0);
+    buffer.muteChanged();
+    buffer.muteChanged();
+    const decision = buffer.observe(fadeOut(2, start, 51, 3700, 2000), 2000, false);
+    expect(decision).toMatchObject({ trouble: 'none', targetMs: profile.startMs });
+  });
+
+  it('скачок джиттера на первом пакете после тишины не поднимает запас', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
+    buffer.observe(audio(0), 0);
+    buffer.muteChanged();
+    // RFC 3550: разрыв в потоке даёт разовый скачок сглаженного джиттера.
+    const decision = buffer.observe(audio(2, { jitter: 0.2 }), 2000, false);
+    expect(decision.targetMs).toBe(profile.startMs);
+  });
+
+  it('настоящий джиттер у незаглушённого говорящего поднимает запас, как и раньше', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
+    buffer.observe(audio(0), 0);
+    buffer.muteChanged();
+    buffer.observe(audio(2), 2000, false);
+    const decision = buffer.observe(audio(4, jittery(5)), 4000, false);
+    expect(decision.trouble).toBe('jitter');
+    expect(decision.targetMs).toBe(profile.startMs + profile.riseMs);
+  });
+});

@@ -51,13 +51,21 @@ test("cohost rejects ambiguous SNI, unsafe hosts and internal service port colli
   assert.throws(() => createEdge({ ...hosts, app: "-meet.example.test" }));
 });
 
-test("admin console name (R207) gets a certificate and an SNI route to the gateway, strict mode only", () => {
+test("admin console name (R207, R211) gets a certificate, its own gateway port and a client-certificate check, strict mode only", () => {
   const config = createEdge({ ...hosts, admin: "admin.example.test" });
   assert.deepEqual(config.apps.tls.certificates.automate, [...Object.values(hosts), "admin.example.test"]);
   const routes = config.apps.layer4.servers.main.routes;
   assert.equal(routes.length, 4);
   assert.deepEqual(routes.at(-1).match, [{ tls: { sni: ["admin.example.test"] } }]);
-  assert.deepEqual(routes.at(-1).handle.at(-1).upstreams, [{ dial: ["127.0.0.1:8091"] }]);
+  // Свой порт шлюза (R211): на порту приложения блока пульта нет, подставленный `Host` до него не дотянется.
+  assert.deepEqual(routes.at(-1).handle.at(-1).upstreams, [{ dial: ["127.0.0.1:8092"] }]);
+  // TLS к имени пульта — только с клиентским сертификатом нашего центра; у остальных имён проверки нет.
+  assert.deepEqual(routes.at(-1).handle[0].connection_policies[0].client_authentication, {
+    trusted_ca_certs_pem_files: ["/etc/tls/admin-ca.crt"],
+    mode: "require_and_verify",
+  });
+  for (const other of routes.slice(0, -1))
+    assert.equal(other.handle[0].connection_policies?.[0]?.client_authentication, undefined);
   assert.equal(createEdge(hosts).apps.layer4.servers.main.routes.length, 3);
   for (const options of [
     { admin: hosts.app },

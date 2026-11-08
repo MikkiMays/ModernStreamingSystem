@@ -17,6 +17,18 @@
  */
 export const SILENCE_MS = 6000;
 
+/**
+ * Молчание короче {@link SILENCE_MS}, о котором стоит сказать ядру (R200 §5.3, Р-105): `media.stall` —
+ * подсказка, без действий у клиента. Ядро складывает её с промахами своего опроса узла: половина людей
+ * узла молчит и узел не отвечает — узел мёртв, переезд за ≈ 5 с вместо 15. Порог 5 с: один человек с
+ * плохим Wi-Fi ничего не решает, а замирание хоста на 2–4 с не успевает дать жалобу вовсе. Опрос
+ * статистики идёт раз в 2 с, поэтому подсказка уходит через 5–7 с после последней увиденной жизни.
+ */
+export const STALL_MS = 5000;
+
+/** Что сказать ядру после очередного опроса: началось молчание, вернулась жизнь, или ничего нового. */
+export type Stall = 'begin' | 'end' | null;
+
 export interface SilenceSample {
   now: number;
   /** Сумма `bytesReceived` по `inbound-rtp` всех отчётов (`inboundBytes`). */
@@ -61,6 +73,8 @@ export class SilenceWatch {
   private lastRtp: number | null = null;
   private lastKeepalives: number | null = null;
   private nudged = false;
+  private stalled = false;
+  private last: SilenceSample | null = null;
   /**
    * Браузер отдаёт STUN-счётчики пары. Не отдаёт (так бывает в Firefox) — молчание ни о чём не говорит: в
    * тихой встрече RTP стоит законно, и толчок был бы ложным. Тогда обрыв ловит ICE `disconnected` и `online`.
@@ -76,6 +90,7 @@ export class SilenceWatch {
     if (sample.keepalives > 0) this.keepalivesSeen = true;
     this.lastRtp = sample.rtpBytes;
     this.lastKeepalives = sample.keepalives;
+    this.last = sample;
     if (this.lastAliveAt === null || alive) {
       this.lastAliveAt = sample.now;
       if (alive) this.nudged = false;
@@ -88,10 +103,31 @@ export class SilenceWatch {
     return true;
   }
 
+  /**
+   * После {@link observe}: пора ли сказать ядру о молчании (`begin`, один раз на эпизод) или о том,
+   * что жизнь после молчания вернулась (`end`). Те же условия, что у толчка, но порог {@link STALL_MS}.
+   */
+  stall(): Stall {
+    const sample = this.last;
+    if (!sample || this.lastAliveAt === null) return null;
+    if (this.stalled) {
+      if (this.lastAliveAt !== sample.now) return null;
+      this.stalled = false;
+      return 'end';
+    }
+    if (sample.hidden || !this.keepalivesSeen) return null;
+    if (!sample.connected || !sample.iceConnected || !sample.subscribed) return null;
+    if (sample.now - this.lastAliveAt < STALL_MS) return null;
+    this.stalled = true;
+    return 'begin';
+  }
+
   /** Новое соединение: отсчёт молчания — от него; эпизод не снимается, его снимает только жизнь. */
   reset(now: number) {
     this.lastAliveAt = now;
     this.lastRtp = null;
     this.lastKeepalives = null;
+    this.stalled = false;
+    this.last = null;
   }
 }

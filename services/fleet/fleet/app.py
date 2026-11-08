@@ -184,6 +184,14 @@ def create_app(state: App | None = None) -> FastAPI:
         return response
 
     def actor_of(request: Request) -> Actor | None:
+        # R211: сертификат владельца проверен на входе (`edge`), шлюз пульта сказал об этом своим заголовком. Ставит
+        # его только блок пульта на своём порту, а пришло через шлюз — значит, есть `X-Real-IP`.
+        if (
+            settings.edge_cert
+            and request.headers.get("x-cord-edge-cert") == "verified"
+            and real_ip(request) is not None
+        ):
+            return Actor(OWNER, None, client_ip(request))
         token = request.cookies.get(settings.cookie_name)
         session = state.auth.session(token)
         if session:
@@ -251,6 +259,7 @@ def create_app(state: App | None = None) -> FastAPI:
             "allowIps": bool(settings.allow_ips),
             "executor": {"mode": settings.executor, "sshMachines": list(settings.ssh_machines)},
             "adminHost": settings.admin_host or None,
+            "auth": "edge-cert" if settings.edge_cert else "password",
             "agentOps": list(settings.agent_ops),
         }
 

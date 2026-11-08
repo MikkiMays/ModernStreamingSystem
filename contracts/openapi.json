@@ -734,6 +734,7 @@
               "message.send",
               "media.lost",
               "media.restored",
+              "media.stall",
               "screen.started",
               "screen.preview",
               "view.open",

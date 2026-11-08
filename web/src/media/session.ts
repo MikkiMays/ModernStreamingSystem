@@ -839,9 +839,14 @@ export class MediaSession {
           if (this.wanted.microphone) signal('mic-off');
           this.wanted.microphone = false;
         }
+        // Чужое выключение — не про канал (R191, R214): буфер слушателя не должен расти от затухания звука.
+        if (!participant.isLocal) this.playout.muteChanged(publication.trackSid);
         this.refreshTracks();
       })
-      .on(RoomEvent.TrackUnmuted, this.refreshTracks)
+      .on(RoomEvent.TrackUnmuted, (publication, participant) => {
+        if (!participant.isLocal) this.playout.muteChanged(publication.trackSid);
+        this.refreshTracks();
+      })
       .on(RoomEvent.TrackStreamStateChanged, (publication, state) => {
         if (this.disposed || publication.kind !== Track.Kind.Video) return;
         console.debug('[cord] stream state', publication.source, publication.trackSid, state);
@@ -957,6 +962,7 @@ export class MediaSession {
           kind: this.playoutKind(participant.identity, publication.source, track.kind),
           group: this.playoutGroup(participant.identity, publication.source),
           receiver: track.receiver,
+          muted: () => publication.isMuted,
           stats: () => track.getRTCStatsReport(),
         });
       }
@@ -1026,6 +1032,16 @@ export class MediaSession {
       ) {
         console.info('[cord] path is silent on a live connection (no RTP, no STUN) - asking for resume');
         this.nudge('silence');
+      }
+      // Подсказка ядру о молчании (R200 §5.3, Р-105) — без действий здесь: решает ядро, сложив её с
+      // промахами своего опроса узла. Жизнь вернулась сама — говорим и об этом, чтобы отметка не висела.
+      switch (this.silence.stall()) {
+        case 'begin':
+          this.reportConnection('media.stall', () => this.room.state === ConnectionState.Connected);
+          break;
+        case 'end':
+          this.reportConnection('media.restored', () => this.room.state === ConnectionState.Connected);
+          break;
       }
     } catch {
       // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
@@ -2259,7 +2275,7 @@ export class MediaSession {
   };
   /** `option: 'ice-failed'` — потеря особая: сеть не пропускает звонок, ядро считает такой вход (R149). */
   private reportConnection(
-    type: 'media.lost' | 'media.restored',
+    type: 'media.lost' | 'media.restored' | 'media.stall',
     current: () => boolean,
     option?: 'ice-failed',
   ) {

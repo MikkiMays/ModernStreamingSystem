@@ -33,6 +33,7 @@ public class RoomService {
   private final List<RoomObserver> observers;
   private final Maintenance maintenance;
   private final dev.mikki.stream.nodes.MediaNodes nodes;
+  private final dev.mikki.stream.nodes.LossReports losses;
   private final SecureRandom codeRandom = new SecureRandom();
 
   /**
@@ -63,8 +64,10 @@ public class RoomService {
       RateLimits limits,
       List<RoomObserver> observers,
       Maintenance maintenance,
-      dev.mikki.stream.nodes.MediaNodes nodes) {
+      dev.mikki.stream.nodes.MediaNodes nodes,
+      dev.mikki.stream.nodes.LossReports losses) {
     this.nodes = nodes;
+    this.losses = losses;
     this.rooms = rooms;
     this.config = config;
     this.secrets = secrets;
@@ -1152,6 +1155,16 @@ public class RoomService {
   public Ack command(String roomId, String credential, Command command, String address) {
     var room = lock(roomId);
     var member = authenticate(room, credential);
+    if (command.type().equals("media.stall")) {
+      // Подсказка ядру, а не состояние (R200 §5.3, Р-105): входящее молчание при живом по мнению
+      // SDK
+      // соединении. Участник остаётся CONNECTED, снимок не меняется, события не идут и квитанция не
+      // хранится — отметку получает только NodeHealth через LossReports.
+      requireActive(room, member);
+      if (member.generation == command.generation() && member.status == CONNECTED)
+        losses.lost(nodes.resolve(room.mediaNode).id(), member.id, now());
+      return new Ack(command.commandId(), true, room.sequence, null);
+    }
     return receipt(
         "command:" + roomId + ":" + member.id,
         command.commandId(),
@@ -1683,10 +1696,16 @@ public class RoomService {
                 member.status = RECOVERING;
                 member.clientReportedLoss = true;
                 member.recoveryDeadline = now() + config.recoverySeconds() * 1000L;
+                // Второй признак отказа узла (Р-105): кто и с какого момента без медиа.
+                losses.lost(nodes.resolve(room.mediaNode).id(), member.id, now());
               }
             }
             case "media.restored" -> {
               requireActive(room, member);
+              // Жизнь пути вернулась — снять отметку беды и у того, кто лишь предупреждал
+              // (`media.stall`) и остался CONNECTED: иначе короткое замирание хоста считалось бы
+              // потерей 20 с (правило C).
+              if (member.generation == command.generation()) losses.restored(member.id);
               if (member.generation == command.generation()
                   && (member.status == RECOVERING || member.status == JOINING)) {
                 member.status = CONNECTED;
