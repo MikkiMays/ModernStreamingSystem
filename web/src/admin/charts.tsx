@@ -85,6 +85,7 @@ export function Sparkline({
         </strong>
       </figcaption>
       <svg
+        className="admin-spark__plot"
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
         role="img"
@@ -149,6 +150,7 @@ export function DayBars({
         </strong>
       </figcaption>
       <svg
+        className="admin-bars__plot"
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
         role="img"
