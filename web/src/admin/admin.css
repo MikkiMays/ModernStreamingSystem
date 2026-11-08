@@ -159,6 +159,7 @@
 
 .admin-panel {
   display: grid;
+  align-content: start;
   gap: var(--space-3);
   padding: var(--space-4);
   border: var(--hairline) solid var(--line);
@@ -283,6 +284,11 @@
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
+}
+
+.admin-tile[data-compact] .admin-tile__value {
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
 }
 
 .admin-tile__label {
@@ -814,4 +820,8 @@ dd[data-tone='ok'] {
   overflow-x: auto;
   font-size: var(--text-xs);
   white-space: pre-wrap;
+}
+
+.admin-compare .admin-meter {
+  grid-template-columns: minmax(8em, 16em) minmax(0, 1fr) max-content;
 }

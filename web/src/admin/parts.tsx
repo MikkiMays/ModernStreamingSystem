@@ -9,13 +9,16 @@ export function Tile({
   value,
   label,
   tone,
+  compact,
 }: {
   value: ReactNode;
   label: ReactNode;
   tone?: 'warn' | 'bad' | 'ok';
+  /** Значение — слова, а не число: мельче и с переносом. */
+  compact?: boolean;
 }) {
   return (
-    <div className="admin-tile" data-tone={tone}>
+    <div className="admin-tile" data-tone={tone} data-compact={compact || undefined}>
       <div className="admin-tile__value">{value}</div>
       <div className="admin-tile__label">{label}</div>
     </div>

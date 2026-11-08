@@ -60,6 +60,7 @@ export function Live() {
               value={busiest ? busiest.title : '—'}
               label={`${t.busiest}${data.totals.busiest ? ` · ${t.cpu} ${percent(data.totals.busiest.cpu)}` : ''}`}
               tone={data.totals.busiest && data.totals.busiest.cpu >= 0.8 ? 'bad' : undefined}
+              compact
             />
           </div>
         )}

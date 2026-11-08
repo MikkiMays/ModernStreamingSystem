@@ -137,12 +137,10 @@ export function Support({ console }: { console: Console }) {
           onValueChange={setTab}
           options={TABS.map((value) => ({
             value,
-            label: (
-              <>
-                {value === 'INBOX' ? t.all : t.statuses[value]}
-                {total && value !== 'INBOX' && <span className="admin-count">{total[COUNT_OF[value]]}</span>}
-              </>
-            ),
+            label:
+              value === 'INBOX'
+                ? t.all
+                : `${t.statuses[value]}${total ? ` · ${total[COUNT_OF[value]]}` : ''}`,
             title: value === 'INBOX' ? t.allHint : undefined,
           }))}
         />
@@ -328,8 +326,8 @@ function StatsPanel({ stats }: { stats?: Record<string, Boxed<SupportStats>> }) 
             <div className="admin-tiles">
               <Tile value={s.created} label={t.statsCreated} />
               <Tile value={s.resolved} label={t.statsResolved} />
-              <Tile value={minutes(s.firstResponseMedianMinutes)} label={t.statsFirst} />
-              <Tile value={minutes(s.resolveMedianMinutes)} label={t.statsResolve} />
+              <Tile value={minutes(s.firstResponseMedianMinutes)} label={t.statsFirst} compact />
+              <Tile value={minutes(s.resolveMedianMinutes)} label={t.statsResolve} compact />
               <Tile
                 value={s.withinSla === null ? '—' : `${Math.round(s.withinSla * 100)} %`}
                 label={t.statsWithin}
@@ -563,7 +561,7 @@ function TicketDrawer({
               ]}
             />
             {kind === 'reply' && <p className="admin-hint">{t.noteReplyHint}</p>}
-            <Field label={t.templates} inline>
+            <Field label={t.templates}>
               <Select
                 value=""
                 onChange={(event) => {

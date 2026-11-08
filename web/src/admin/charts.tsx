@@ -137,7 +137,8 @@ export function DayBars({
   const width = Math.max(days.length * 12, 240);
   const height = 140;
   const slot = width / Math.max(1, days.length);
-  const gap = Math.min(2, slot / 4);
+  // Тонкие столбики: зазор — треть шага, не меньше 2 единиц.
+  const gap = Math.max(Math.min(2, slot / 4), slot / 3);
   const shown = hover === null ? null : days[hover];
   return (
     <figure className="admin-bars" aria-labelledby={id}>
@@ -168,7 +169,6 @@ export function DayBars({
                   y={height - h}
                   width={Math.max(0.5, slot - gap)}
                   height={h}
-                  rx={Math.min(4, (slot - gap) / 2)}
                 />
               )}
             </g>
