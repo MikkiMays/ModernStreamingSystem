@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.mikki.stream.media.LossReports;
 import dev.mikki.stream.media.MediaGateway;
 import dev.mikki.stream.media.MediaService;
 import dev.mikki.stream.media.NodeHealth;
@@ -16,14 +17,22 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Отказ узла по двум признакам (R200 §5, Р-105): промахи опроса раз в 2 с и жалобы людей. Время в
+ * тестах — явное; опрос «не ответил» = {@code null} через 1 с после начала опроса.
+ */
 class NodeHealthTest {
   final MediaNodes nodes = mock(MediaNodes.class);
   final MediaService media = mock(MediaService.class);
+  final LossReports losses = new LossReports();
   final SimpleMeterRegistry registry = new SimpleMeterRegistry();
-  final NodeHealth health =
-      new NodeHealth(nodes, mock(MediaGateway.class), media, registry, mock(Clock.class));
+  final AtomicLong now = new AtomicLong();
+  final Clock clock = mock(Clock.class);
+  final NodeHealth health;
   final MediaNode hel =
       new MediaNode(
           "hel",
@@ -36,34 +45,170 @@ class NodeHealthTest {
           2,
           true);
 
+  NodeHealthTest() {
+    when(clock.millis()).thenAnswer(_ -> now.get());
+    health = new NodeHealth(nodes, mock(MediaGateway.class), media, losses, registry, clock);
+  }
+
+  final MediaGateway.NodeStats ok = new MediaGateway.NodeStats(1, 4);
+  final Set<String> four = Set.of("a", "b", "c", "d");
+
+  /** Промах опроса в момент {@code at}: начался за секунду до — таймаут вызова. */
+  void miss(long at) {
+    now.set(at);
+    health.observe(hel, (MediaGateway.NodeStats) null, at);
+  }
+
+  void answer(long at) {
+    now.set(at);
+    health.observe(hel, ok, at);
+  }
+
+  double gauge(String name) {
+    return registry.get(name).tag("node", "hel").gauge().value();
+  }
+
   @Test
-  void threeMissesInARowMarkTheNodeDeadOnceAndMoveItsRooms() {
-    health.observe(hel, new MediaGateway.NodeStats(1, 0), 1000);
-    verify(nodes).load("hel", 1, 0, Double.NaN, Double.NaN, Double.NaN);
-    health.observe(hel, (MediaGateway.NodeStats) null, 6000);
-    health.observe(hel, (MediaGateway.NodeStats) null, 11000);
+  void ruleA_twoMissesAndHalfThePeopleLosingMediaMoveTheRoomsWithinAboutFiveSeconds() {
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    // SFU остановился в t≈0,5. Опросы в 2 и 4 с не отвечают (промахи в 3 и 5 с).
+    miss(3000);
+    verify(nodes, never()).unreachable("hel", true);
+    miss(5000);
+    // Два промаха, жалоб нет — пока только «недоступен»: новых встреч нет, идущие не трогаются.
+    verify(nodes).unreachable("hel", true);
     verify(media, never()).evacuate("hel");
-    assertThat(registry.get("cord.node.up").tag("node", "hel").gauge().value()).isEqualTo(1);
-    health.observe(hel, (MediaGateway.NodeStats) null, 16000);
+    assertThat(gauge("cord.node.up")).isEqualTo(1);
+    assertThat(gauge("cord.node.reachable")).isEqualTo(0);
+    // Один из четырёх заметил молчание (media.stall ≈ 5 с) — четверть, не половина.
+    losses.lost("hel", "a", 5200);
+    health.reassess(hel, 5200);
+    verify(media, never()).evacuate("hel");
+    // Второй — половина: узел мёртв сразу по жалобе, а не по следующему опросу.
+    losses.lost("hel", "b", 5600);
+    health.reassess(hel, 5600);
     verify(nodes).down("hel", true);
-    assertThat(registry.get("cord.node.up").tag("node", "hel").gauge().value()).isEqualTo(0);
-    // Переселяет проход `sweep` — и на каждом проходе, пока узел мёртв: опоздавшие комнаты не
-    // застрянут.
+    verify(media, times(1)).evacuate("hel");
+    assertThat(gauge("cord.node.up")).isEqualTo(0);
+    // Отметки узла забыты вместе с его комнатами; `sweep` доселяет опоздавших на каждом проходе.
+    assertThat(losses.reported("hel")).isEqualTo(0);
     when(nodes.all()).thenReturn(List.of(hel));
     when(nodes.isDown("hel")).thenReturn(true);
     health.sweep();
-    verify(media, times(1)).evacuate("hel");
-    health.observe(hel, (MediaGateway.NodeStats) null, 21000);
-    health.sweep();
     verify(media, times(2)).evacuate("hel");
-    // Ожил — снова в выборе, комнаты назад не ездят: `sweep` живой узел не трогает.
-    health.observe(hel, new MediaGateway.NodeStats(0, 0), 26000);
+    // Дальнейшие промахи и жалобы смерть не повторяют.
+    miss(7000);
+    losses.lost("hel", "c", 7100);
+    health.reassess(hel, 7100);
+    verify(nodes, times(1)).down("hel", true);
+    // Ожил — снова в выборе; комнаты назад не ездят (sweep живой узел не трогает).
+    answer(30000);
     verify(nodes).down("hel", false);
+    verify(nodes).unreachable("hel", false);
     when(nodes.isDown("hel")).thenReturn(false);
     health.sweep();
-    assertThat(registry.get("cord.node.up").tag("node", "hel").gauge().value()).isEqualTo(1);
-    assertThat(registry.get("cord.node.rooms").tag("node", "hel").gauge().value()).isEqualTo(0);
     verify(media, times(2)).evacuate("hel");
+    assertThat(gauge("cord.node.up")).isEqualTo(1);
+    assertThat(gauge("cord.node.reachable")).isEqualTo(1);
+  }
+
+  @Test
+  void missesWithoutComplaintsAreTheBackboneNotTheNode_noRoomMoves() {
+    // Магистраль через фильтр A легла на полминуты, SFU узла и его люди в порядке.
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    for (long at = 3000; at <= 31000; at += 2000) miss(at);
+    verify(nodes).unreachable("hel", true);
+    verify(nodes, never()).down("hel", true);
+    verify(media, never()).evacuate("hel");
+    assertThat(gauge("cord.node.up")).isEqualTo(1);
+    assertThat(gauge("cord.node.reachable")).isEqualTo(0);
+    // Магистраль вернулась — узел снова принимает встречи.
+    answer(33000);
+    verify(nodes).unreachable("hel", false);
+    verify(nodes, never()).down("hel", false);
+    assertThat(gauge("cord.node.reachable")).isEqualTo(1);
+  }
+
+  @Test
+  void aHostStallOfTwoToFourSecondsIsNotAnOutageEvenWithOneComplaint() {
+    // Хост B замер на 3 с: один промах (следующий опрос уже ответил), один человек успел
+    // пожаловаться.
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    miss(3000);
+    losses.lost("hel", "a", 3500);
+    health.reassess(hel, 3500);
+    answer(5000);
+    verify(nodes, never()).unreachable("hel", true);
+    verify(nodes, never()).down("hel", true);
+    verify(media, never()).evacuate("hel");
+  }
+
+  @Test
+  void ruleB_fourMissesWithNobodyConnectedRetireTheNode() {
+    when(media.onNode("hel")).thenReturn(Set.of());
+    answer(0);
+    miss(3000);
+    miss(5000);
+    miss(7000);
+    verify(media, never()).evacuate("hel");
+    verify(nodes).unreachable("hel", true);
+    miss(9000);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+  }
+
+  @Test
+  void ruleC_peopleStuckWithoutMediaForTwentySecondsWhileTheNodeAnswersMoveAway() {
+    // UDP и 443 к узлу режут у провайдера: магистраль отвечает, люди без медиа и не возвращаются.
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    losses.lost("hel", "a", 1000);
+    losses.lost("hel", "b", 1500);
+    losses.lost("hel", "c", 2000);
+    for (long at = 2000; at <= 20000; at += 2000) answer(at);
+    verify(media, never()).evacuate("hel");
+    answer(21500);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+    verify(nodes, never()).unreachable("hel", true);
+  }
+
+  @Test
+  void complaintsAloneAreSomeonesWifiNotTheNode() {
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    losses.lost("hel", "a", 1000);
+    losses.lost("hel", "b", 1200);
+    losses.lost("hel", "c", 1400);
+    health.reassess(hel, 1400);
+    for (long at = 2000; at <= 18000; at += 2000) answer(at);
+    verify(media, never()).evacuate("hel");
+    // Вернулись раньше 20 с — никакого правила C.
+    losses.restored("a");
+    losses.restored("b");
+    answer(22000);
+    answer(40000);
+    verify(media, never()).evacuate("hel");
+    verify(nodes, never()).down("hel", true);
+  }
+
+  @Test
+  void peopleWhoLeftTheRoomDoNotCountAsComplaints() {
+    // Жаловались трое, но двое уже вышли: из оставшихся троих в беде один — не половина.
+    when(media.onNode("hel")).thenReturn(Set.of("c", "d", "e"));
+    answer(0);
+    losses.lost("hel", "a", 500);
+    losses.lost("hel", "b", 600);
+    losses.lost("hel", "c", 700);
+    miss(3000);
+    miss(5000);
+    verify(media, never()).evacuate("hel");
+    losses.lost("hel", "d", 5100);
+    health.reassess(hel, 5100);
+    verify(media).evacuate("hel");
   }
 
   @Test
@@ -109,11 +254,11 @@ class NodeHealthTest {
 
   @Test
   void aSingleMissIsNotAnOutage() {
-    health.observe(hel, new MediaGateway.NodeStats(2, 0), 1000);
-    health.observe(hel, (MediaGateway.NodeStats) null, 6000);
-    health.observe(hel, new MediaGateway.NodeStats(2, 0), 11000);
-    health.observe(hel, (MediaGateway.NodeStats) null, 16000);
-    health.observe(hel, (MediaGateway.NodeStats) null, 21000);
+    answer(1000);
+    miss(3000);
+    answer(5000);
+    miss(7000);
+    miss(9000);
     verify(nodes, never()).down("hel", true);
     verify(media, never()).evacuate("hel");
   }

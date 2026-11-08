@@ -664,8 +664,10 @@ gh run download <id> -R MikkiMays/ModernStreamingSystem -n cord-android-debug -D
 - **`update.sh` встреч не проверяет** — сначала `active-meetings.sh`.
 - **`update.sh` перевыпускает конфигурацию** только по правке `scripts/configure.mjs` и `scripts/edge-config.mjs`;
   правка одного `scripts/turn-guard.mjs` (правила relay) до сервера сама не дойдёт — `--refresh` руками.
-- **`--refresh` не трогает `.env`**, а повторный `setup.sh` при живом `.env` не меняет режим: смена режима —
-  правкой `.env` и `--refresh` с именами (§6 «Переход в strict»).
+- **`--refresh` не трогает секреты и правки владельца в `.env`**, но адресные ключи (`DEPLOY_MODE`, `APP_HOST`,
+  `RTC_HOST`, `TURN_HOST`, `PUBLIC_URL`, `LIVEKIT_URL`, порты) с R200 переписывает по именам из аргументов и
+  `topology.json`; повторный `setup.sh` при живом `.env` ничего не меняет: смена режима или имён — `--refresh` с
+  именами (§6 «Переход в strict»), `.env` руками не править.
 - **TURN/TLS только в `strict`.** Сервер с одним именем звонок из VPN «только 443» не пропустит, что бы ни
   показывал HTTPS.
 - **UFW: первое совпавшее правило главнее.** Поздний `deny` после прежнего `allow` не действует — сначала
