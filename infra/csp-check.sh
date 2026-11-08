@@ -28,7 +28,7 @@ paths=(/ /tg /tg/ /tg.html /tgx /room/00000000-0000-0000-0000-000000000000 /down
 output="$(
   docker run --rm --network none \
     -e APP_HOST=cord.test -e RTC_HOST=rtc.cord.test -e PUBLIC_URL=https://cord.test -e ADMIN_HOST=admin.cord.test \
-    -e INTERNAL_SECRET=csp-check-secret-csp-check-secret -e GATEWAY_PORT=18091 -e HOOKS_PORT=18090 \
+    -e INTERNAL_SECRET=csp-check-secret-csp-check-secret -e GATEWAY_PORT=18091 -e HOOKS_PORT=18090 -e ADMIN_GATEWAY_PORT=18092 \
     -v "$root/infra/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$site:/srv:ro" \
     --entrypoint sh "$image" -c '
       caddy run --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/caddy.log 2>&1 &
@@ -39,13 +39,18 @@ output="$(
         head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
         rm -f /tmp/body
       done
-      # Пульт флота (R207): на своём имени — admin.html с той же политикой; на имени приложения admin.html нет.
+      # Пульт флота (R207, R211): свой порт шлюза — admin.html с той же политикой; на порту приложения пульта нет даже с
+      # подставленным Host (edge ведёт имя пульта только на свой порт и только с клиентским сертификатом).
       for path in / /nodes /admin.html; do
         echo "== admin:$path"
-        wget -S -O /tmp/body --header "Host: admin.cord.test" "http://127.0.0.1:18091$path" 2>&1 | grep -iE "^ +(content-security-policy|x-frame-options):" || true
+        wget -S -O /tmp/body --header "Host: admin.cord.test" "http://127.0.0.1:18092$path" 2>&1 | grep -iE "^ +(content-security-policy|x-frame-options):" || true
         head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
         rm -f /tmp/body
       done
+      echo "== spoofed-host:/"
+      wget -S -O /tmp/body --header "Host: admin.cord.test" "http://127.0.0.1:18091/" 2>&1 | grep -iE "^ +(content-security-policy|x-frame-options):" || true
+      head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
+      rm -f /tmp/body
       echo "== app:/admin.html"
       wget -S -O /tmp/body --header "Host: cord.test" "http://127.0.0.1:18091/admin.html" 2>&1 | grep -iE "^ +(content-security-policy|x-frame-options):" || true
       head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
@@ -105,6 +110,7 @@ for path in / /nodes /admin.html; do
 done
 # На имени приложения файла пульта нет: SPA отдаёт index.html (неизвестный путь → try_files).
 check "app:/admin.html" "пульт не виден на имени приложения" lacks "$(block app:/admin.html)" "CORD-ADMIN"
+check "spoofed-host:/" "подставленный Host на порту приложения пульта не открывает (R211)" lacks "$(block spoofed-host:/)" "CORD-ADMIN"
 
 if [ "$fail" != 0 ]; then
   echo "$output" >&2
