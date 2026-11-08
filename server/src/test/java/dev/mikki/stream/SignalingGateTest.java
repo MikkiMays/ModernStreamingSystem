@@ -39,7 +39,9 @@ class SignalingGateTest {
                 .header("Authorization", "Bearer another-token"))
         .andExpect(status().isOk());
 
-    verify(media).authorizeSignaling("actual-signaling-token");
+    // Узел, принявший сокет (R195): без заголовка X-Media-Node — null, ядро считает узел
+    // управляющим.
+    verify(media).authorizeSignaling("actual-signaling-token", null);
     verifyNoMoreInteractions(media);
   }
 
