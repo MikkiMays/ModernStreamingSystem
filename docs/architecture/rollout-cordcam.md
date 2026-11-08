@@ -18,7 +18,7 @@
 Итог: A (108.165.32.75, `callcord.ru`) — разработка и админ-панель, людей нет; **meet
 (108.165.32.23) — продукт `cordcam.ru`** (ядро, база, сайт) и медиаузел `fra`; B — узел `hel`; cordcam — узел `msk`.
 Разделы 3–6 ниже написаны под прежнюю схему (продукт на A) и будут переписаны главной сессией вместе с проектом
-админ-панели — **сейчас их не выполнять**; раздел «Сейчас» от схемы не зависит.
+админ-панели — **их не выполнять**. Выполнять: «Сейчас», затем «Шаг 2» (продукт на meet).
 
 **Порядок для исполнителя.** Сейчас — только раздел **«Сейчас»** ниже: он ничего не меняет у людей. Разделы 3–6 —
 **только по сигналу** владельца, который передаст сообщение главной сессии «код выкачен, DNS переключён, делай раздел N».
@@ -51,6 +51,75 @@
 
 На этом всё до сигнала. **Не делать сейчас**: не останавливать и не переконфигурировать установки cordcam и meet, не
 трогать A (кроме п. 4), не менять DNS.
+
+## Шаг 2 (по сигналу 08.11.2026 — DNS уже переключён): продукт `cordcam.ru` на meet одним узлом
+
+Владелец 08.11.2026 перевёл `cordcam.ru` и `www` на meet (108.165.32.23) и удалил старые `rtc`/`turn.cordcam.ru`:
+старая установка cordcam по имени больше недоступна, «ничего страшного если временно сайты не будут работать». Задача —
+поднять продукт на meet под именами `cordcam.ru` (сайт), `rtc-fra.cordcam.ru` (медиа), `turn-fra.cordcam.ru` (TURN);
+`www.cordcam.ru` владелец удаляет.
+Медиаузлы `hel` и `msk` подключаются позже, отдельным шагом. Основа — `docs/RELEASE.md` §6 («Перед обновлением»,
+«Обновление», «Переход в strict»); ниже — только то, чем этот случай отличается. Порядок строгий.
+
+**2.0. Условие.** «Сейчас» выполнен и отчёт отдан. DNS с самого meet:
+```bash
+for h in cordcam.ru rtc-fra.cordcam.ru turn-fra.cordcam.ru; do printf '%-22s %s\n' $h "$(getent ahostsv4 $h | awk 'NR==1{print $1}')"; done
+# все три — 108.165.32.23; иначе остановиться
+```
+
+**2.1. Соседи на 443.** На meet рядом с Cord живут другие сайты (апекс `nikg.tech`, `app.`, `media.`, `remote.nikg.tech`,
+скрипт `scripts/cohost-cutover.py`). Ничего из чужого не удалять и не перенастраивать:
+```bash
+cd /opt/meet/ModernStreamingSystem          # каталог установки; сверить: docker compose ls
+docker compose ls; docker ps --format '{{.Names}} {{.Ports}}' | grep -E ':443->|:80->'
+python3 scripts/cohost-cutover.py           # без --apply ничего не меняет — прочитать, кто держит 443
+```
+Если 443 держит не `edge` Cord, а другой обратный прокси — остановиться и написать владельцу: имена `cordcam.ru` надо
+добавить в тот прокси, это другой порядок.
+
+**2.2. Обновление до `main`** — `RELEASE.md` §6 «Перед обновлением» и «Обновление» как есть (`backlog/bin/active-meetings.sh`
+= 0, `./update.sh --check`, затем `sudo ./update.sh --yes`). Встречи на meet при этом оборвутся — владелец согласен.
+
+**2.3. Имена `cordcam.ru` и режим `strict`** — `RELEASE.md` §6 «Переход в strict», пп. 1–7, с этими значениями:
+```bash
+D=$(date +%Y%m%d); cp -a infra/generated infra/generated.before-$D-cordcam && cp -p .env .local/env.before-$D-cordcam
+sed -i -e 's/^DEPLOY_MODE=.*/DEPLOY_MODE=strict/' -e 's/^APP_HOST=.*/APP_HOST=cordcam.ru/' \
+  -e 's/^RTC_HOST=.*/RTC_HOST=rtc-fra.cordcam.ru/' -e 's/^TURN_HOST=.*/TURN_HOST=turn-fra.cordcam.ru/' .env
+grep -E '^(DEPLOY_MODE|APP_HOST|RTC_HOST|TURN_HOST|PUBLIC_URL)=' .env     # PUBLIC_URL, если есть, → https://cordcam.ru/
+node scripts/configure.mjs --refresh --app=cordcam.ru --rtc=rtc-fra.cordcam.ru --turn=turn-fra.cordcam.ru --ip=108.165.32.23
+docker compose up -d edge gateway livekit && docker compose restart edge livekit
+for n in cordcam.ru rtc-fra.cordcam.ru turn-fra.cordcam.ru; do
+  echo | openssl s_client -connect 108.165.32.23:443 -servername $n 2>/dev/null | openssl x509 -noout -subject -issuer
+done                                         # Let's Encrypt у всех
+```
+`www.cordcam.ru` установка не обслуживает (генератор знает три имени: сайт, медиа, TURN) — владелец удаляет эту запись
+из DNS; конфигурацию руками не дописывать.
+
+**2.4. Админ-пароль ядра** (для будущей админ-панели на `admin.callcord.ru` и дренажа): если `ADMIN_PASSWORD` в `.env`
+пуст — задать длинный случайный (`openssl rand -base64 33`) и `docker compose up -d --no-deps --force-recreate core`.
+Сам пароль — **не** в отчёт; владельцу — «задан».
+
+**2.5. Проверки** — `RELEASE.md` §6 «После обновления» с доменом `cordcam.ru` и `--turn=turn-fra.cordcam.ru:443`:
+```bash
+curl -s https://cordcam.ru/ | grep -o 'name="cord-build" content="[^"]*"'
+curl -fsS https://cordcam.ru/api/v1/ping
+node scripts/smoke.mjs
+node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn=turn-fra.cordcam.ru:443 --transport=tls
+```
+Живая проверка — две вкладки на `https://cordcam.ru`: встреча, звук, камера, показ экрана.
+
+**2.6. Избранное старой установки cordcam (по желанию владельца).** Бэкап `/root/<cordcam>-cord-<дата>.sql.gz` из «Сейчас»
+не восстанавливать целиком: он затёр бы базу meet. Таблицы избранного переносит главная сессия по отдельной просьбе.
+
+**2.7. Отчёт** владельцу: `cord-build`, итог `smoke.mjs` и `turn-relay-check.mjs`, вывод `openssl` по трём именам,
+результат 2.1 (кто держит 443), «ADMIN_PASSWORD задан», что не сошлось.
+
+Откат шага 2: `.env` из `.local/env.before-<дата>-cordcam`, `infra/generated.before-<дата>-cordcam` на место,
+`docker compose up -d edge gateway livekit && docker compose restart edge livekit` — установка снова на `meet.nikg.tech`
+(в DNS `meet.nikg.tech` пока есть).
+
+Старую установку cordcam (157.22.241.114) **не останавливать** до шага «узел msk»: её база — для переноса избранного.
+
 
 ---
 
