@@ -5,6 +5,7 @@ import static dev.mikki.stream.room.RoomState.Status.*;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.nodes.LossReports;
 import dev.mikki.stream.nodes.MediaNodes;
 import dev.mikki.stream.room.*;
 import dev.mikki.stream.shared.Problem;
@@ -19,6 +20,7 @@ public class MediaService {
   private final MediaGateway gateway;
   private final StreamProperties config;
   private final MediaNodes nodes;
+  private final LossReports losses;
   private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MediaService.class);
 
   public MediaService(
@@ -26,8 +28,10 @@ public class MediaService {
       RoomRepository repository,
       MediaGateway gateway,
       StreamProperties config,
-      MediaNodes nodes) {
+      MediaNodes nodes,
+      LossReports losses) {
     this.nodes = nodes;
+    this.losses = losses;
     this.rooms = rooms;
     this.repository = repository;
     this.gateway = gateway;
@@ -126,19 +130,41 @@ public class MediaService {
   }
 
   /**
-   * Люди на узле по снимкам комнат: подключённые и восстанавливающие связь (их медиа было на этом
-   * узле) в открытых комнатах узла. Знаменатель правил отказа узла ({@code NodeHealth}, Р-105).
+   * Люди узла по снимкам комнат (знаменатель правил отказа узла, {@code NodeHealth}, Р-105): на
+   * связи и восстанавливающие связь — их медиа было на этом узле. Восстанавливающие — отдельно:
+   * правило C считает только их, подсказка {@code media.stall} статуса не меняет.
    */
-  public Set<String> onNode(String nodeId) {
-    var people = new HashSet<String>();
+  public record People(Set<String> connected, Set<String> recovering) {
+    public static final People NONE = new People(Set.of(), Set.of());
+
+    public int size() {
+      return connected.size() + recovering.size();
+    }
+
+    public boolean isEmpty() {
+      return size() == 0;
+    }
+
+    public Set<String> all() {
+      var all = new HashSet<String>(connected);
+      all.addAll(recovering);
+      return all;
+    }
+  }
+
+  /** Люди узла {@code nodeId} в его открытых комнатах — {@link People}. */
+  public People onNode(String nodeId) {
+    var connected = new HashSet<String>();
+    var recovering = new HashSet<String>();
     for (var room : repository.all()) {
       if (room.closedAt != null || !nodes.resolve(room.mediaNode).id().equals(nodeId)) continue;
-      for (var member : room.members.values())
-        if (member.human()
-            && (member.status == RoomState.Status.CONNECTED
-                || member.status == RoomState.Status.RECOVERING)) people.add(member.id);
+      for (var member : room.members.values()) {
+        if (!member.human()) continue;
+        if (member.status == CONNECTED) connected.add(member.id);
+        else if (member.status == RECOVERING) recovering.add(member.id);
+      }
     }
-    return people;
+    return new People(connected, recovering);
   }
 
   @Transactional
@@ -218,6 +244,9 @@ public class MediaService {
     if (member.recoveryDeadline != null && rooms.now() >= member.recoveryDeadline) return;
     if (type.equals("participant_joined")) {
       if (member.clientReportedLoss) return;
+      // Вошёл в SFU заново — здоров: отметка беды (Р-105) снимается, даже если `media.restored`
+      // не дошёл.
+      losses.restored(member.id);
       member.status = CONNECTED;
       member.mediaSid = sid;
       member.generation++;
@@ -287,6 +316,8 @@ public class MediaService {
               member.recoveryDeadline != null
                   && rooms.now() > member.recoveryDeadline - config.recoverySeconds() * 500L;
           if (member.status != CONNECTED && (!member.clientReportedLoss || stale)) {
+            // Снова на связи по SFU — и для отказа узла (Р-105) он больше не в беде.
+            losses.restored(member.id);
             member.status = CONNECTED;
             member.clientReportedLoss = false;
             member.recoveryDeadline = null;

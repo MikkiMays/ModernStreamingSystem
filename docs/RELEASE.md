@@ -253,7 +253,8 @@ LiveKit не перезапускает — даже названный в сп�
 ```bash
 cd /opt/ModernStreamingSystem
 BACKUP=infra/generated.before-$(date +%Y%m%d-%H%M%S); cp -a infra/generated "$BACKUP"
-node scripts/configure.mjs --refresh          # .env и секреты не трогает, аргументы — из topology.json
+node scripts/configure.mjs --refresh --check  # что перевыпуск сделает с .env; ничего не пишет (выход 3 — см. ниже)
+node scripts/configure.mjs --refresh          # секреты не трогает; аргументы — из topology.json, адреса .env — по ним
 diff <(jq -S 'del(.keys, .redis, .prometheus)' "$BACKUP/livekit.json") \
      <(jq -S 'del(.keys, .redis, .prometheus)' infra/generated/livekit.json)   # без секретов
 diff "$BACKUP/edge.json" infra/generated/edge.json
@@ -377,11 +378,14 @@ grep -q '^ADMIN_PASSWORD=.' .env && echo "ADMIN_PASSWORD задан"
 cat infra/generated/topology.json
 df -h / && docker system df             # свободно меньше 25 ГБ (CORD_DISK_FLOOR_GB) — сначала sudo bash infra/tidy.sh
 backlog/bin/active-meetings.sh          # 0 — пусто
-./update.sh --check                     # что пересоберётся и тронет ли он SFU
+./update.sh --check                     # что пересоберётся, тронет ли он SFU и те ли имена в topology.json, что в .env
 ```
 
 `.env` целиком не печатать: в нём секреты. `topology.json` нет — сервер поставлен до него, и `--refresh`
-откажет (deployment.md → «Обновление и остановка»).
+откажет (deployment.md → «Обновление и остановка»). `topology.json` называет другие имена, режим или адрес, чем
+`.env` (`.env` правили руками), — `--check` печатает «ВНИМАНИЕ» и готовую команду, которая выровняет `topology.json`
+по `.env`; без неё обновление с перевыпуском конфигурации не начинается: перевыпуск вернул бы прежние имена в `.env`,
+`edge.json` и `livekit.json`.
 
 ### Обновление
 

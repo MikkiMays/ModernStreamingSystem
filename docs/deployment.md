@@ -654,8 +654,12 @@ docker compose exec -T postgres psql -U streaming -d streaming \
 которых соседний сайт на том же 443 потерял бы маршруты, — лежат в
 `infra/generated/topology.json`. Установке, сделанной до появления этого файла, перевыпуск
 откажет и назовёт, чего ему не хватает; создайте файл, повторив исходные аргументы установки.
-`.env` перевыпуск не переписывает, поэтому смена режима — это правка `DEPLOY_MODE`, `RTC_HOST`, `TURN_HOST`
-в `.env` и `--refresh` с новыми именами ([RELEASE.md → «Переход в strict»](RELEASE.md#переход-в-strict)).
+Секреты и правки владельца в `.env` перевыпуск не трогает, а адресные ключи (режим, имена, порты, `PUBLIC_URL`,
+`LIVEKIT_URL`) выводит из топологии и при расхождении переписывает (R200 §8.6) — поэтому смена режима и имён — это
+`--refresh` с новыми именами, без правки `.env` руками ([RELEASE.md → «Переход в strict»](RELEASE.md#переход-в-strict)).
+Если `.env` уже правили руками, а `topology.json` остался прежним, перевыпуск без имён откажет и напечатает команду,
+которая выровняет `topology.json` по `.env`; заранее это покажут `node scripts/configure.mjs --refresh --check` и
+`./update.sh --check`. После перевыпуска, переписавшего `.env`, `./update.sh` сам пересоздаёт core, gateway и services.
 LiveKit и edge читают порождённые файлы только при старте: после `--refresh` — `docker compose restart livekit`
 (и `edge`, если менялся `edge.json`), без встреч.
 
