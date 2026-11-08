@@ -44,19 +44,27 @@ class CoreLink:
     async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         return await self._send("GET", path, params=params)
 
-    async def post(self, path: str, json: Any = None) -> Any:
-        return await self._send("POST", path, json=json)
+    async def post(self, path: str, json: Any = None, headers: dict[str, str] | None = None) -> Any:
+        return await self._send("POST", path, json=json, headers=headers)
 
-    async def put(self, path: str, json: Any = None) -> Any:
-        return await self._send("PUT", path, json=json)
+    async def put(self, path: str, json: Any = None, headers: dict[str, str] | None = None) -> Any:
+        return await self._send("PUT", path, json=json, headers=headers)
 
     async def delete(self, path: str) -> Any:
         return await self._send("DELETE", path)
 
     async def _send(
-        self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None, auth: bool = True
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json: Any = None,
+        auth: bool = True,
+        headers: dict[str, str] | None = None,
     ) -> Any:
-        headers = {}
+        extra = headers
+        headers = dict(extra or {})
         if auth:
             headers[ADMIN_HEADER] = await self.token()
         try:
@@ -66,7 +74,7 @@ class CoreLink:
         if response.status_code == 401 and auth and self.core.kind == "password" and self._token:
             # Токен протух раньше срока (сменили пароль) — один повтор с новым входом.
             self._token = None
-            return await self._send(method, path, params=params, json=json, auth=auth)
+            return await self._send(method, path, params=params, json=json, auth=auth, headers=extra)
         if response.status_code >= 400:
             problem = self._problem(response)
             raise Problem(

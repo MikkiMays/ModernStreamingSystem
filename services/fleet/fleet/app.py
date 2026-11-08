@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -19,7 +20,16 @@ from pydantic import BaseModel, Field
 from . import catalog
 from .auth import AGENT, OWNER, Actor, Auth
 from .core_link import CoreLink
-from .errors import AUTH_DISABLED, CSRF_REJECTED, FORBIDDEN, NOT_FOUND, OPERATION_INVALID, Problem, problem_handler
+from .errors import (
+    AUTH_DISABLED,
+    CSRF_REJECTED,
+    FORBIDDEN,
+    MACHINE_NO_CORE,
+    NOT_FOUND,
+    OPERATION_INVALID,
+    Problem,
+    problem_handler,
+)
 from .executor import Executor, Jobs, SshExecutor
 from .machines import Machine, Machines, parse
 from .metrics import Metrics
@@ -77,7 +87,18 @@ class Block(BaseModel):
 
 
 class SupportStatus(BaseModel):
-    status: str = Field(max_length=20, pattern=r"^[A-Z_]+$")
+    status: Literal["NEW", "OPEN", "WAITING", "DONE", "ARCHIVED"]
+
+
+class SupportUpdate(BaseModel):
+    assignee: str | None = Field(default=None, max_length=40, pattern=r"^[\w@. -]*$")
+    priority: Literal["low", "normal", "high", "urgent"] | None = None
+    tags: str | None = Field(default=None, max_length=400)
+
+
+class SupportNote(BaseModel):
+    kind: Literal["note", "reply"]
+    text: str = Field(min_length=1, max_length=4000)
 
 
 class NodeAdd(BaseModel):
@@ -118,6 +139,10 @@ class App:
             await link.close()
         await self.metrics.close()
 
+    def with_core(self) -> list[Machine]:
+        """Машины, у ядра которых есть учётные данные пульта, — их ящики и рычаги доступны."""
+        return [m for m in self.machines if m.core and m.core.kind]
+
     def core(self, machine_id: str) -> CoreLink:
         machine = self.machines.get(machine_id)
         link = self.cores.get(machine.id)
@@ -137,6 +162,39 @@ class App:
         )
         if job.kind == "status" and job.status == "ok" and not job.dry_run:
             self.store.save_machine_state(job.machine, {"lines": [line["text"] for line in self.store.lines(job.id)]})
+
+
+def live_totals(views: list[dict[str, Any]]) -> dict[str, Any]:
+    """Сводка флота над карточками: встречи, люди, экраны, интеграции, трафик и самая загруженная машина."""
+
+    def total(path: tuple[str, ...]) -> float:
+        out = 0.0
+        for view in views:
+            value: Any = view
+            for key in path:
+                value = value.get(key) if isinstance(value, dict) else None
+            out += value or 0
+        return out
+
+    integrations = 0.0
+    for view in views:
+        integrations += sum(v or 0 for v in ((view.get("core") or {}).get("integrations") or {}).values())
+    busiest = max(
+        (v for v in views if (v.get("load") or {}).get("cpu") is not None),
+        key=lambda v: v["load"]["cpu"],
+        default=None,
+    )
+    return {
+        "meetings": total(("core", "live")),
+        "waiting": total(("core", "waiting")),
+        "humans": total(("core", "connected")),
+        "screens": total(("core", "screens")),
+        "bots": total(("core", "bots")),
+        "integrations": integrations,
+        "netInMbps": total(("load", "netInMbps")),
+        "netOutMbps": total(("load", "netOutMbps")),
+        "busiest": {"machine": busiest["id"], "cpu": busiest["load"]["cpu"]} if busiest else None,
+    }
 
 
 def create_app(state: App | None = None) -> FastAPI:
@@ -308,9 +366,10 @@ def create_app(state: App | None = None) -> FastAPI:
     async def overview(actor: Actor = Depends(current)):
         allow(actor, "read")
         machines = []
+        metrics = await state.metrics.machines(list(state.machines))
         for machine in state.machines:
             entry: dict[str, Any] = machine.view()
-            entry["metrics"] = await state.metrics.machine(machine)
+            entry["metrics"] = metrics[machine.id]
             saved = state.store.machine_state(machine.id)
             entry["status"] = {"lines": saved[0].get("lines", []), "updatedAt": saved[1]} if saved else None
             if machine.core and machine.core.kind:
@@ -341,7 +400,7 @@ def create_app(state: App | None = None) -> FastAPI:
         "now": "/api/v1/admin/now",
         "server": "/api/v1/admin/server",
         "blocks": "/api/v1/admin/blocks",
-        "support": "/api/v1/admin/support",
+        "analytics": "/api/v1/admin/analytics",
         "maintenance": "/api/v1/admin/maintenance/window",
         "drain": "/api/v1/admin/maintenance",
         "meetings": "/api/v1/admin/meetings",
@@ -356,7 +415,7 @@ def create_app(state: App | None = None) -> FastAPI:
         path = READS.get(what)
         if not path:
             raise Problem(404, NOT_FOUND, f"Ядро не отдаёт «{what}»")
-        params = {k: v for k, v in request.query_params.items() if k in ("from", "to", "tz", "group", "code", "outcome", "ip", "room", "cursor", "limit")}
+        params = {k: v for k, v in request.query_params.items() if k in ("from", "to", "tz", "mode", "group", "code", "outcome", "ip", "room", "cursor", "limit")}
         return await state.core(machine).get(path, params or None)
 
     async def lever(actor: Actor, machine: str, action: str, call, *, target: str | None = None, args: dict[str, Any] | None = None):
@@ -422,12 +481,131 @@ def create_app(state: App | None = None) -> FastAPI:
         allow(actor, "abuse")
         return await lever(actor, machine, "shield.clear", state.core(machine).delete("/api/v1/admin/shield"))
 
-    @app.put(PREFIX + "/core/{machine}/support/{id}/status")
+    # ── Флот — live (R209) ───────────────────────────────────────────────────────────────────────
+    @app.get(PREFIX + "/live")
+    async def live(actor: Actor = Depends(current)):
+        """Живой снимок флота раз в 5 с: ряды VictoriaMetrics по машинам и встречи каждого ядра."""
+        allow(actor, "read")
+        machines = list(state.machines)
+        cores = state.with_core()
+        snapshot, *nows = await asyncio.gather(
+            state.metrics.live(machines), *(safe(state.core(m.id).get("/api/v1/admin/now")) for m in cores)
+        )
+        now_by_id = {m.id: box for m, box in zip(cores, nows)}
+        views = []
+        for machine in machines:
+            view = {**machine.view(), **snapshot["machines"][machine.id]}
+            view["now"] = now_by_id.get(machine.id)
+            views.append(view)
+        return {"serverTime": int(time.time()), "error": snapshot["error"], "machines": views, "totals": live_totals(views)}
+
+    @app.get(PREFIX + "/live/history")
+    async def live_history(minutes: int = Query(default=30, ge=5, le=360), actor: Actor = Depends(current)):
+        allow(actor, "read")
+        return await state.metrics.history(list(state.machines), minutes)
+
+    # ── Обращения всей системы (R215) ────────────────────────────────────────────────────────────
+    SUPPORT_FILTERS = ("status", "topic", "q", "assignee", "priority", "overdue", "sort", "before", "limit")
+    PRIORITY_RANK = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
+
+    def support_cores(machine: str | None) -> list[Machine]:
+        cores = state.with_core()
+        if machine:
+            found = state.machines.get(machine)
+            if found not in cores:
+                raise Problem(409, MACHINE_NO_CORE, f"У машины {machine} нет ядра с учётными данными пульта")
+            return [found]
+        return cores
+
+    def tag(machine: Machine, item: dict[str, Any]) -> dict[str, Any]:
+        return {**item, "machine": machine.id, "machineTitle": machine.title or machine.id, "product": machine.product or None}
+
+    def ticket_id(id: str) -> str:
+        if len(id) != 36 or any(c not in "0123456789abcdef-" for c in id):
+            raise Problem(400, NOT_FOUND, "Номер обращения — UUID")
+        return id
+
+    @app.get(PREFIX + "/support")
+    async def support_inbox(request: Request, machine: str | None = Query(default=None, max_length=16), actor: Actor = Depends(current)):
+        """Ящик всей системы: ядро каждой машины спрашивается с теми же фильтрами, ответы склеиваются."""
+        allow(actor, "read")
+        params = {k: v for k, v in request.query_params.items() if k in SUPPORT_FILTERS}
+        limit = max(1, min(int(params.get("limit") or 50), 200))
+        cores = support_cores(machine)
+        boxes = await asyncio.gather(*(safe(state.core(m.id).get("/api/v1/admin/support", params)) for m in cores))
+        tickets: list[dict[str, Any]] = []
+        errors = []
+        for m, box in zip(cores, boxes):
+            if box["error"]:
+                errors.append({"machine": m.id, **box["error"]})
+            else:
+                tickets.extend(tag(m, item) for item in box["data"] or [])
+        sort = params.get("sort", "NEW")
+        if sort == "OLD":
+            tickets.sort(key=lambda t: (t.get("createdAt") or 0, t["id"]))
+        elif sort == "PRIORITY":
+            tickets.sort(key=lambda t: (PRIORITY_RANK.get(t.get("priority"), 2), t.get("createdAt") or 0, t["id"]))
+        else:
+            tickets.sort(key=lambda t: (-(t.get("createdAt") or 0), t["id"]))
+        skipped = [m.id for m in state.machines if m.core and not m.core.kind] if not machine else []
+        return {"tickets": tickets[:limit], "more": len(tickets) > limit, "errors": errors, "skipped": skipped}
+
+    COUNT_KEYS = ("fresh", "open", "waiting", "done", "archived", "breached", "unassigned")
+
+    @app.get(PREFIX + "/support/counts")
+    async def support_counts(actor: Actor = Depends(current)):
+        allow(actor, "read")
+        cores = state.with_core()
+        boxes = await asyncio.gather(*(safe(state.core(m.id).get("/api/v1/admin/support/counts")) for m in cores))
+        total = dict.fromkeys(COUNT_KEYS, 0)
+        machines: dict[str, Any] = {}
+        for m, box in zip(cores, boxes):
+            machines[m.id] = box
+            for key in COUNT_KEYS:
+                total[key] += int((box["data"] or {}).get(key) or 0)
+        return {"total": total, "machines": machines}
+
+    @app.get(PREFIX + "/support/stats")
+    async def support_stats(days: int = Query(default=30, ge=1, le=365), actor: Actor = Depends(current)):
+        allow(actor, "read")
+        cores = state.with_core()
+        boxes = await asyncio.gather(*(safe(state.core(m.id).get("/api/v1/admin/support/stats", {"days": days})) for m in cores))
+        return {"days": days, "machines": {m.id: box for m, box in zip(cores, boxes)}}
+
+    @app.get(PREFIX + "/support/{machine}/{id}")
+    async def support_ticket(machine: str, id: str, actor: Actor = Depends(current)):
+        allow(actor, "read")
+        m = support_cores(machine)[0]
+        data = await state.core(m.id).get(f"/api/v1/admin/support/{ticket_id(id)}")
+        return {"ticket": tag(m, data["ticket"]), "notes": data.get("notes", [])}
+
+    def as_actor(actor: Actor) -> dict[str, str]:
+        return {"X-Cord-Admin-Actor": "agent" if actor.kind == AGENT else "owner"}
+
+    @app.put(PREFIX + "/support/{machine}/{id}/status")
     async def support_status(machine: str, id: str, body: SupportStatus, actor: Actor = Depends(current)):
         allow(actor, "support")
-        if len(id) > 64:
-            raise Problem(400, NOT_FOUND, "Код обращения слишком длинный")
-        return await lever(actor, machine, "support.status", state.core(machine).put(f"/api/v1/admin/support/{id}/status", body.model_dump()), target=f"{machine}:{id}", args=body.model_dump())
+        m = support_cores(machine)[0]
+        call = state.core(m.id).put(f"/api/v1/admin/support/{ticket_id(id)}/status", body.model_dump(), headers=as_actor(actor))
+        return await lever(actor, m.id, "support.status", call, target=f"{m.id}:{id}", args=body.model_dump())
+
+    @app.put(PREFIX + "/support/{machine}/{id}")
+    async def support_update(machine: str, id: str, body: SupportUpdate, actor: Actor = Depends(current)):
+        allow(actor, "support")
+        m = support_cores(machine)[0]
+        payload = body.model_dump(exclude_none=True)
+        if not payload:
+            raise Problem(400, OPERATION_INVALID, "Нечего менять")
+        call = state.core(m.id).put(f"/api/v1/admin/support/{ticket_id(id)}", payload, headers=as_actor(actor))
+        return await lever(actor, m.id, "support.update", call, target=f"{m.id}:{id}", args=payload)
+
+    @app.post(PREFIX + "/support/{machine}/{id}/notes")
+    async def support_note(machine: str, id: str, body: SupportNote, actor: Actor = Depends(current)):
+        allow(actor, "support")
+        m = support_cores(machine)[0]
+        call = state.core(m.id).post(f"/api/v1/admin/support/{ticket_id(id)}/notes", body.model_dump(), headers=as_actor(actor))
+        # Текст заметки в журнал пульта не идёт: в ответе человеку бывает его контакт.
+        return await lever(actor, m.id, "support.note", call, target=f"{m.id}:{id}", args={"kind": body.kind})
 
     # ── Узлы ─────────────────────────────────────────────────────────────────────────────────────
     def read_registry(machine: Machine) -> tuple[dict[str, Any] | None, str | None]:
@@ -534,7 +712,7 @@ def create_app(state: App | None = None) -> FastAPI:
     @app.get(PREFIX + "/metrics/machines")
     async def metrics_machines(actor: Actor = Depends(current)):
         allow(actor, "read")
-        return {m.id: await state.metrics.machine(m) for m in state.machines}
+        return await state.metrics.machines(list(state.machines))
 
     @app.get(PREFIX + "/metrics/alerts")
     async def metrics_alerts(actor: Actor = Depends(current)):
