@@ -172,6 +172,33 @@ class AccessTest(unittest.TestCase):
         self.assertEqual(sessions.status_code, 403)
 
 
+class EdgeCertTest(unittest.TestCase):
+    """R211: «только по сертификату» — сертификат проверяет `edge`, шлюз пульта ставит `X-Cord-Edge-Cert`."""
+
+    def test_verified_certificate_via_the_admin_gateway_is_the_owner(self):
+        client, _, _ = build(settings=Settings(edge_cert=True, insecure_dev=True, core_credentials={"a": "password:stand-pass"}))
+        headers = {"X-Cord-Edge-Cert": "verified", "X-Real-IP": "203.0.113.7"}
+        self.assertEqual(client.get("/api/fleet/overview", headers={**READ, **headers}).status_code, 200)
+        me = client.get("/api/fleet/auth/me", headers={**READ, **headers}).json()
+        self.assertEqual((me["actor"], me["auth"]), ("owner", "edge-cert"))
+
+    def test_without_the_gateway_or_the_mode_the_header_means_nothing(self):
+        cert = Settings(edge_cert=True, insecure_dev=True)
+        client, _, _ = build(settings=cert)
+        # Без X-Real-IP — запрос не через шлюз пульта (кто-то на самой машине): заголовок не принимается.
+        self.assertEqual(client.get("/api/fleet/overview", headers={"X-Cord-Edge-Cert": "verified"}).status_code, 401)
+        # Режим выключен — заголовок ничего не значит.
+        client, _, _ = build()
+        headers = {"X-Cord-Edge-Cert": "verified", "X-Real-IP": "203.0.113.7"}
+        self.assertEqual(client.get("/api/fleet/overview", headers={**READ, **headers}).status_code, 401)
+
+    def test_changes_still_need_the_console_header_and_origin(self):
+        client, _, _ = build(settings=Settings(edge_cert=True, insecure_dev=True, admin_host="admin.callcord.ru"))
+        cert = {"X-Cord-Edge-Cert": "verified", "X-Real-IP": "203.0.113.7"}
+        bare = client.post("/api/fleet/core/a/maintenance/now", json={"graceSeconds": 60, "reason": "x"}, headers=cert)
+        self.assertEqual(bare.status_code, 403)
+
+
 class OverviewTest(unittest.TestCase):
     def test_overview_reads_cores_and_tolerates_failures(self):
         client, _, core = build()

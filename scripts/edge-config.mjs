@@ -7,6 +7,9 @@ const RESERVED = [1080, 5432, 6379, 7880, 7881, 8080, 5349];
 // keeps these files in sync with the certificate Caddy issued for the same name.
 export const TURN_CERT = "/etc/tls/turn.crt";
 export const TURN_KEY = "/etc/tls/turn.key";
+// Удостоверяющий центр клиентских сертификатов пульта (R211): без сертификата от него TLS к имени пульта не
+// устанавливается вовсе. Файл кладёт `infra/fleet/admin-cert.sh`.
+export const ADMIN_CA = "/etc/tls/admin-ca.crt";
 export const TURN_TLS_PORT = 5349;
 
 const validHost = (value) =>
@@ -19,7 +22,7 @@ const validHost = (value) =>
 
 export function servicePorts(args) {
   const ports = {};
-  for (const [name, fallback] of [["gateway-port", 8091], ["hooks-port", 8090]]) {
+  for (const [name, fallback] of [["gateway-port", 8091], ["hooks-port", 8090], ["admin-gateway-port", 8092]]) {
     const value = String(args[name] ?? fallback);
     if (!/^\d+$/.test(value) || Number(value) < 1024 || Number(value) > 65535)
       throw new Error(`--${name} must be an unprivileged TCP port`);
@@ -175,12 +178,23 @@ export function createEdge(args) {
   const { mode, app, rtc, turn, admin, hosts, legacy, legacyPort, ports } =
     resolveTopology(topology);
   const gateway = ports["gateway-port"];
-  const route = (sni, target, http = false) => ({
+  const route = (sni, target, http = false, clientCa = null) => ({
     match: [sni.length ? { tls: { sni } } : { tls: {} }],
     handle: [
       {
         handler: "tls",
-        ...(http ? { connection_policies: [{ alpn: ["http/1.1"] }] } : {}),
+        ...(http
+          ? {
+              connection_policies: [
+                {
+                  alpn: ["http/1.1"],
+                  ...(clientCa
+                    ? { client_authentication: { trusted_ca_certs_pem_files: [clientCa], mode: "require_and_verify" } }
+                    : {}),
+                },
+              ],
+            }
+          : {}),
       },
       {
         handler: "proxy",
@@ -201,7 +215,9 @@ export function createEdge(args) {
   let routes;
   if (mode === "strict") {
     routes = [route([turn], 5349), route([app], gateway, true), route([rtc], gateway, true)];
-    if (admin) routes.push(route([admin], gateway, true));
+    // Пульт (R207, R211) — на своём порту шлюза: блок пульта живёт только там, и подставленный `Host` на имени
+    // приложения до него не дотянется. TLS к имени пульта — только с клиентским сертификатом нашего центра.
+    if (admin) routes.push(route([admin], ports["admin-gateway-port"], true, ADMIN_CA));
   }
   else if (mode === "simple") routes = [route([app], gateway, true)];
   else routes = [];

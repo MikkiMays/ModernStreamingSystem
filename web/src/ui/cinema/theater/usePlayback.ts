@@ -86,7 +86,7 @@ export function usePlayback({
     if (!source || !element) return;
     let alive = true;
     echo.suppress();
-    element.volume = watchLevel(preferences.watchVolume, deafened);
+    setWatchLevel(element, watchLevel(preferences.watchVolume, deafened));
     element.playbackRate = 1;
     const fail = (message: string) => {
       if (!alive) return;
@@ -154,7 +154,7 @@ export function usePlayback({
   }, [source]);
 
   useEffect(() => {
-    if (video.current) video.current.volume = watchLevel(preferences.watchVolume, deafened);
+    if (video.current) setWatchLevel(video.current, watchLevel(preferences.watchVolume, deafened));
   }, [preferences.watchVolume, deafened]);
 
   /**
@@ -199,6 +199,15 @@ export function usePlayback({
     chooseVoice,
     chooseLevel,
   };
+}
+
+/**
+ * Громкость и «без звука» плеера (R213, владелец: «нельзя менять/выключать громкость… с телефона»). Safari на iPhone
+ * громкость элемента не меняет — `volume` там только для чтения, и ноль не глушил; `muted` работает везде.
+ */
+export function setWatchLevel(element: HTMLMediaElement, level: number) {
+  element.volume = level;
+  element.muted = level <= 0;
 }
 
 /** Громкость плеера кинозала, 0–1: своя ручка, а «звук встречи» (R156) глушит и его. */

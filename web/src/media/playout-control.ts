@@ -30,6 +30,8 @@ export interface PlayoutTrack {
    */
   group?: string;
   receiver?: RTCRtpReceiver;
+  /** Заглушён ли говорящий — читается после статистики (`PlayoutBuffer.observe`, R191). */
+  muted?(): boolean;
   stats(): Promise<RTCStatsReport | undefined>;
 }
 
@@ -89,6 +91,11 @@ export class PlayoutController {
 
   forget(id: string) {
     this.buffers.delete(id);
+  }
+
+  /** Говорящий выключил или включил микрофон: ближайший опрос не судит о канале (R191). */
+  muteChanged(id: string) {
+    this.buffers.get(id)?.buffer.muteChanged();
   }
 
   private retune() {
@@ -158,7 +165,7 @@ export class PlayoutController {
         };
         this.buffers.set(track.id, entry);
       }
-      const decision = entry.buffer.observe(sample, now);
+      const decision = entry.buffer.observe(sample, now, track.muted?.() ?? false);
       if (track.kind !== 'video' && track.group) heard.set(track.group, decision.targetMs);
       // У картинки нет своего права на задержку: она обязана совпадать с губами. Поэтому,
       // когда рядом есть звук того же участника, видео просит ровно столько же, сколько он, —

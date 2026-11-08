@@ -10,57 +10,59 @@ global:
   scrape_interval: 30s
   scrape_timeout: 10s
 
+# Метка `machine` — у каждой цели (R208): `a` — эта машина (стенд разработки и пульт), удалённые — из
+# `infra/generated/scrape-nodes/fleet-*.json` (fra — продукт cordcam.ru, msk, hel). Дашборды делят по ней dev и прод.
 scrape_configs:
   # Ядро: встречи, люди, входы, отказы, блоки (cord_*), JVM, HTTP, пул базы.
   - job_name: core
     metrics_path: /actuator/prometheus
-    static_configs: [{ targets: ['127.0.0.1:8080'] }]
+    static_configs: [{ targets: ['127.0.0.1:8080'], labels: { machine: a, kind: local } }]
 
   # SFU: комнаты, участники (боты считаются — людей говорит ядро), пакеты, потери.
   - job_name: livekit
-    static_configs: [{ targets: ['127.0.0.1:6789'] }]
+    static_configs: [{ targets: ['127.0.0.1:6789'], labels: { machine: a, kind: local } }]
     basic_auth:
       username: metrics
       password: '%{LIVEKIT_METRICS_PASSWORD}'
 
   # Шлюз Caddy: запросы, статусы, задержки (`metrics` в infra/Caddyfile).
   - job_name: gateway
-    static_configs: [{ targets: ['127.0.0.1:2019'] }]
+    static_configs: [{ targets: ['127.0.0.1:2019'], labels: { machine: a, kind: local } }]
 
   # Загрузки файлов.
   - job_name: tusd
-    static_configs: [{ targets: ['127.0.0.1:1080'] }]
+    static_configs: [{ targets: ['127.0.0.1:1080'], labels: { machine: a, kind: local } }]
 
   # Службы: музыка, Telegram-бот.
   - job_name: services
-    static_configs: [{ targets: ['127.0.0.1:18100'] }]
+    static_configs: [{ targets: ['127.0.0.1:18100'], labels: { machine: a, kind: local } }]
 
   # Куратор: синтетический звонок через SFU раз в минуту (`cord-publisher --probe`, W1b).
   - job_name: probe
-    static_configs: [{ targets: ['127.0.0.1:9402'] }]
+    static_configs: [{ targets: ['127.0.0.1:9402'], labels: { machine: a, kind: local } }]
 
   # Машина: ЦП (и steal — главный признак замирания хоста), память, диск, сеть; textfile-метрики хоста
   # (`cord_host_soft_lockups_total` из `infra/host/soft-lockups.sh`).
   - job_name: node
-    static_configs: [{ targets: ['127.0.0.1:9100'] }]
+    static_configs: [{ targets: ['127.0.0.1:9100'], labels: { machine: a, kind: local } }]
 
   - job_name: postgres
-    static_configs: [{ targets: ['127.0.0.1:9187'] }]
+    static_configs: [{ targets: ['127.0.0.1:9187'], labels: { machine: a, kind: local } }]
 
   - job_name: redis
-    static_configs: [{ targets: ['127.0.0.1:9121'] }]
+    static_configs: [{ targets: ['127.0.0.1:9121'], labels: { machine: a, kind: local } }]
 
   # Проверки «как видно снаружи»: главная по внешнему имени, срок сертификата.
   - job_name: gatus
-    static_configs: [{ targets: ['127.0.0.1:8084'] }]
+    static_configs: [{ targets: ['127.0.0.1:8084'], labels: { machine: a, kind: local } }]
 
   # Сам мониторинг — чтобы видеть его цену на графике «Сервер».
   - job_name: victoriametrics
-    static_configs: [{ targets: ['127.0.0.1:8428'] }]
+    static_configs: [{ targets: ['127.0.0.1:8428'], labels: { machine: a, kind: local } }]
   - job_name: vmalert
-    static_configs: [{ targets: ['127.0.0.1:8880'] }]
+    static_configs: [{ targets: ['127.0.0.1:8880'], labels: { machine: a, kind: local } }]
   - job_name: alertmanager
-    static_configs: [{ targets: ['127.0.0.1:9093'] }]
+    static_configs: [{ targets: ['127.0.0.1:9093'], labels: { machine: a, kind: local } }]
 
   # Медиаузлы (R195): SFU, машина, шлюз-лайт и куратор каждого узла — через магистраль на локальных портах
   # узла управления (`infra/generated/scrape-nodes/<узел>.json`, метки `node` и `role`). Пароль метрик SFU —

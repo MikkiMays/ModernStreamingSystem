@@ -1,3 +1,4 @@
+import { currentPlatform } from '../../../media/platform';
 import { useMemo, useRef, type CSSProperties, type MutableRefObject, type RefObject } from 'react';
 import {
   Clapperboard,
@@ -349,8 +350,10 @@ function Volume({
     meeting.media.saveSettings({ watchVolume: value });
   };
   const muted = volume <= 0;
+  // iPhone и iPad: громкость элемента там только для чтения — ползунок ничего бы не менял (R213).
+  const volumeFixed = currentPlatform().os === 'ios';
   return (
-    <div className="watch-volume">
+    <div className="watch-volume" data-volume={volumeFixed ? 'mute-only' : undefined}>
       <IconButton
         label={muted ? t(($) => $.cinema.theater.unmute) : t(($) => $.cinema.theater.mute)}
         onClick={() => setVolume(muted ? memory.current : 0)}

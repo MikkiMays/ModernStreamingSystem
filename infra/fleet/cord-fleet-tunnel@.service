@@ -1,0 +1,17 @@
+# Постоянный SSH-туннель пульта к рабочей машине флота (R208): метрики агентов, ядра и шлюза — на loopback A.
+# Переменные — /etc/cord-fleet/%i.env (HOST, KEY, FORWARDS — список -L), их пишет infra/fleet/tunnels.sh.
+[Unit]
+Description=Cord: туннель пульта к машине %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/cord-fleet/%i.env
+ExecStart=/usr/bin/ssh -N -T -i ${KEY} -o BatchMode=yes -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new \
+  -o UserKnownHostsFile=/etc/cord-fleet/known_hosts $FORWARDS root@${HOST}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

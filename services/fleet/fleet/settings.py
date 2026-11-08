@@ -49,11 +49,14 @@ class Settings:
     data_dir: Path = Path("/data")
     insecure_dev: bool = False
     core_credentials: dict[str, str] = field(default_factory=dict)
+    # R211: вход по клиентскому сертификату — его проверяет `edge` на имени пульта, а шлюз пульта ставит
+    # `X-Cord-Edge-Cert: verified`. Тогда пароль и код не нужны (владелец 08.11: «только по сертификату»).
+    edge_cert: bool = False
 
     @property
     def enabled(self) -> bool:
         """Без пароля и секрета кода входа нет — пульт отвечает 404 на всё, кроме здоровья."""
-        return bool(self.password_hash and self.totp_secret)
+        return self.edge_cert or bool(self.password_hash and self.totp_secret)
 
     @property
     def cookie_name(self) -> str:
@@ -104,4 +107,5 @@ def from_env(env: dict[str, str] | None = None) -> Settings:
         data_dir=Path(env.get("FLEET_DATA", "/data")),
         insecure_dev=env.get("FLEET_INSECURE_DEV", "") == "1",
         core_credentials=credentials,
+        edge_cert=env.get("FLEET_AUTH", "").strip() == "edge-cert",
     )
