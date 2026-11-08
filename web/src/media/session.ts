@@ -96,6 +96,7 @@ import { videoPool } from './video-pool';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import { PathRetry, starvedUplink } from './path-retry';
 import { LocalNetworks } from './local-networks';
+import { SilenceWatch, transportKeepalives } from './silence-watch';
 import { udpOpen, type IceServerLike } from './udp-probe';
 import { offersTls, readRelayOnly, relayOnlyConfig } from './turn-tls';
 import { profileFor, type PlayoutClass } from './playout';
@@ -327,9 +328,6 @@ export const MEDIA_RESET_GAP_MS = 60000;
 export const HOLD_CAMERA_MS = 6000;
 /** Пауза между «отписаться» и «подписаться» у дорожки, которая так и не пришла: SFU должен успеть первое. */
 const SUBSCRIPTION_TOGGLE_MS = 250;
-
-/** Сколько молчания входящих при живом соединении — повод для resume (R195 §6.3). */
-const SILENCE_MS = 3000;
 
 export class MediaSession {
   readonly preferences = new Store(readPreferences());
@@ -682,7 +680,12 @@ export class MediaSession {
   private lastInboundBytes = 0;
   /** Когда в последний раз шли байты медиа: свидетель живого пути при опоздавшем сигнале (R151). */
   private lastFlowAt = 0;
-  private silenceNudged = false;
+  /** Молчание пути при живом соединении (`silence-watch.ts`): по STUN-счётчикам пары, не по RTP. */
+  private silence = new SilenceWatch();
+  /** Куда подключено текущее соединение SFU — чтобы переезд на тот же адрес ничего не рвал. */
+  private connectedUrl: string | null = null;
+  /** `relocate` пришёл, пока шёл `start`: `finally` того `start` запускает новый. */
+  private restartPending = false;
   private signalGrace?: ReturnType<typeof setTimeout>;
   /** Голоса, чья переподписка ждёт паузы говорящего. */
   private pausing = new Set<string>();
@@ -995,7 +998,22 @@ export class MediaSession {
       );
       if (retry) void this.restartIce();
       else void this.watchNetworks();
-      this.watchSilence(flowing);
+      if (
+        this.silence.observe({
+          now: Date.now(),
+          rtpBytes: inbound,
+          keepalives: transportKeepalives(this.playout.reports),
+          hidden: typeof document !== 'undefined' && document.hidden,
+          connected: this.room.state === ConnectionState.Connected,
+          iceConnected: this.playout.link.ice === 'connected',
+          subscribed: [...this.room.remoteParticipants.values()].some((participant) =>
+            [...participant.trackPublications.values()].some((publication) => publication.isSubscribed),
+          ),
+        })
+      ) {
+        console.info('[cord] path is silent on a live connection (no RTP, no STUN) - asking for resume');
+        this.nudge('silence');
+      }
     } catch {
       // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
     } finally {
@@ -1725,6 +1743,7 @@ export class MediaSession {
           : {}),
       });
       if (this.disposed || generation !== this.generation) await this.room.disconnect();
+      else this.connectedUrl = url;
     } catch (error) {
       if (!this.disposed) {
         if (error instanceof ApiError && [403, 404, 410].includes(error.status)) {
@@ -1743,6 +1762,11 @@ export class MediaSession {
     } finally {
       this.room.off(RoomEvent.SignalConnected, signalled);
       this.connecting = false;
+      // Переезд пришёл посреди этого входа (`relocate`): тот вышел по смене поколения, входим заново.
+      if (this.restartPending && !this.disposed) {
+        this.restartPending = false;
+        void this.start();
+      }
     }
   }
   /**
@@ -1809,38 +1833,34 @@ export class MediaSession {
     this.nudge('online');
   }
   /**
-   * Входящее молчание (R195 §6.3): соединение «живое» по SDK и ICE, подписки есть, а пакетов нет
-   * {@link SILENCE_MS} — так выглядит сменившийся без события адрес (VPN посреди встречи). Один толчок
-   * на эпизод; пришли пакеты — эпизод кончился.
-   */
-  private watchSilence(flowing: boolean) {
-    if (flowing) {
-      this.silenceNudged = false;
-      return;
-    }
-    if (this.silenceNudged || this.room.state !== ConnectionState.Connected) return;
-    if (this.playout.link.ice !== 'connected' || Date.now() - this.lastFlowAt < SILENCE_MS) return;
-    const subscribed = [...this.room.remoteParticipants.values()].some((participant) =>
-      [...participant.trackPublications.values()].some((publication) => publication.isSubscribed),
-    );
-    if (!subscribed) return;
-    this.silenceNudged = true;
-    console.info('[cord] inbound packets stopped on a live connection - asking for resume');
-    this.nudge('silence');
-  }
-  /**
    * Встреча переехала на другой узел медиа (R195): узел умер, ядро переназначило комнату и сказало об этом
-   * снимком. Старое соединение мёртво, ждать его таймаутов незачем: закрываем и входим заново — `start`
-   * берёт новый токен с адресом нового узла. Дорожки опубликуются заново, как после любого полного входа.
+   * снимком (`mediaMoves` вырос). Старое соединение мёртво, ждать его таймаутов незачем: закрываем — **не
+   * останавливая дорожки** (`disconnect(false)`: показ экрана переживает переезд) — и входим заново, `start`
+   * берёт токен с адресом нового узла. Окно восстановления начинается заново: сервер дал свежие 20 с.
+   * Если `start` уже идёт (например, ждёт токен старого узла), он сам перезапустится по `restartPending`.
+   * Адрес не изменился (ярлык сменился, узел тот же) — ничего не делаем.
    */
   async relocate() {
     if (this.disposed) return;
-    console.info('[cord] the meeting moved to another media node - reconnecting there');
-    this.generation++;
-    clearTimeout(this.reconnectTimer);
-    await this.room.disconnect().catch(() => {});
+    let url: string;
+    try {
+      ({ url } = await this.api.token());
+    } catch {
+      return; // Обычный путь восстановления разберётся сам.
+    }
     if (this.disposed) return;
-    void this.start();
+    if (url === this.connectedUrl && this.room.state === ConnectionState.Connected) return;
+    console.info('[cord] the meeting moved to another media node - reconnecting there');
+    this.recovery.recovered();
+    this.generation++;
+    this.restartPending = true;
+    clearTimeout(this.reconnectTimer);
+    await this.room.disconnect(false).catch(() => {});
+    if (this.disposed) return;
+    if (!this.connecting) {
+      this.restartPending = false;
+      void this.start();
+    }
   }
   private async restartIce() {
     // Только TURN по TLS выбран руками (`turn-tls.ts`): искать путь лучше — значит ломать проверку.
@@ -2177,10 +2197,9 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     this.fullRetry = 0;
     this.everConnected = true;
-    // Молчание меряется от этого соединения: иначе сразу после переподключения старая метка потока дала
-    // бы лишний толчок resume (замер на узле B, 08.11.2026).
+    // Молчание меряется от этого соединения (эпизод толчка снимает только увиденная жизнь пути).
     this.lastFlowAt = Date.now();
-    this.silenceNudged = false;
+    this.silence.reset(Date.now());
     const cycle = ++this.connectionCycle;
     this.reportConnection(
       'media.restored',
