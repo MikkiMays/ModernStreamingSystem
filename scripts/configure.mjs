@@ -17,12 +17,20 @@ const args = Object.fromEntries(
  * никогда: `.env` существует, скрипт отказывается работать, и человек остаётся с конфигом
  * той версии, на которой ставил. Именно этот класс расхождений и незаметен дольше всего.
  *
- * ЧТО ДЕЛАЕТ. Читает существующий `.env`, берёт из него ВСЕ секреты и адреса как есть и
- * переписывает только порождаемые файлы. Секреты не меняются, живые сессии не отзываются,
- * сам `.env` не трогается — включая то, что владелец правил руками (ACCESS_PASSWORD,
- * ADMISSION_OPEN, лимиты).
+ * ЧТО ДЕЛАЕТ. Читает существующий `.env`, берёт из него ВСЕ секреты как есть и переписывает
+ * порождаемые файлы. Секреты не меняются, живые сессии не отзываются, то, что владелец правил
+ * руками (ACCESS_PASSWORD, ADMISSION_OPEN, лимиты), не трогается. В `.env` переписываются только
+ * адресные ключи, которые генератор сам выводит из топологии (R200 §8.6, `derived` ниже), — и
+ * только если топология назвала другие адреса; разошлись с `.env` имена, не названные в команде, —
+ * отказ (`--check` показывает это заранее).
  */
 const refresh = "refresh" in args;
+/**
+ * `--refresh --check` — показать, что перевыпуск сделал бы с `.env`, и ничего не записать (`update.sh --check`).
+ * Выход 3 — перевыпуск без имён вернул бы прежние адреса (см. «Имена topology.json против .env» ниже).
+ */
+const check = "check" in args;
+if (check && !refresh) throw new Error("--check works only with --refresh: a new installation has nothing to compare.");
 const existing = await readFile(".env", "utf8").catch((e) => {
   if (e.code === "ENOENT") return null;
   throw e;
@@ -68,6 +76,80 @@ if (refresh) {
   topologyArgs = { ...stored, ...args };
 }
 const topology = resolveTopology(topologyArgs);
+const { ports, app, rtc, turn, ip, mode } = topology;
+
+/**
+ * Адресные ключи `.env`, которые генератор сам выводит из топологии (R200 §8.6). Секреты и то, что правил владелец,
+ * `--refresh` не трогает. Но имена, режим и порты задаются аргументами и `topology.json`, а в `.env` лежат их копии —
+ * и до R200 при смене имён (`--refresh --app=cordcam.ru …`) там оставались прежние `APP_HOST`, `PUBLIC_URL`,
+ * `LIVEKIT_URL`: ядро и служба интеграций отказывали запросам по Origin, SFU звал клиентов на старое имя, и всё это
+ * правилось руками (meet → `cordcam.ru`, 08.11.2026). Теперь ключи при расхождении переписываются на месте; остальные
+ * строки остаются байт в байт. `SERVER_NAME` — имя для людей, его меняем только пока оно равно прежнему адресу.
+ */
+const derived = {
+  DEPLOY_MODE: mode,
+  APP_HOST: app,
+  RTC_HOST: rtc,
+  TURN_HOST: turn,
+  PUBLIC_IP: ip,
+  GATEWAY_PORT: ports["gateway-port"],
+  HOOKS_PORT: ports["hooks-port"],
+  PUBLIC_URL: topology.origin,
+  LIVEKIT_URL: topology.origin.replace(/^https/, "wss"),
+};
+const retargets = [];
+if (refresh) {
+  const wanted = Object.fromEntries(Object.entries(derived).map(([k, v]) => [k, String(v)]));
+  if (saved.SERVER_NAME !== undefined && saved.SERVER_NAME === saved.APP_HOST && saved.APP_HOST !== app)
+    wanted.SERVER_NAME = app;
+  for (const [k, want] of Object.entries(wanted)) if (saved[k] !== want) retargets.push([k, saved[k], want]);
+}
+const describe = ([k, from, to]) => `${k}: ${from === undefined ? "(не было)" : from} → ${to}`;
+
+/**
+ * Имена topology.json против .env (ревью R200 §8.6). Перевыпуск без имён в командной строке берёт имена из
+ * topology.json — и переписал бы ими адресные ключи `.env`, а заодно `edge.json` и `livekit.json`. Если `.env` правили
+ * руками (meet → cordcam.ru, 08.11.2026), а topology.json остался прежним, обычное `./update.sh` вернуло бы продукт на
+ * старое имя. Поэтому имя, режим или адрес, которые разошлись с `.env` и не названы в этой команде, — отказ до записи
+ * чего-либо и готовая команда, которая выровняет topology.json по `.env`. Названы — значит, переезд и задуман.
+ */
+const HOST_SOURCES = {
+  DEPLOY_MODE: ["mode", "domain", "app", "rtc", "turn"],
+  APP_HOST: ["app", "domain", "mode"],
+  RTC_HOST: ["rtc", "domain", "mode"],
+  TURN_HOST: ["turn", "domain", "mode"],
+  PUBLIC_IP: ["ip"],
+};
+const drift = retargets.filter(
+  ([k, from]) => k in HOST_SOURCES && from !== undefined && from !== "" && !HOST_SOURCES[k].some((a) => a in args),
+);
+if (drift.length) {
+  const names =
+    saved.DEPLOY_MODE === "strict"
+      ? `--mode=strict --app=${saved.APP_HOST} --rtc=${saved.RTC_HOST} --turn=${saved.TURN_HOST}`
+      : saved.DEPLOY_MODE === "simple"
+        ? `--mode=simple --domain=${saved.APP_HOST}`
+        : "--mode=ip";
+  const message = `ВНИМАНИЕ: ${TOPOLOGY_FILE} называет не те адреса, что .env (${drift.map(describe).join("; ")}).
+Перевыпуск без имён вернул бы их в .env, edge.json и livekit.json — сервер ушёл бы со своего имени.
+Если правда — .env, выровнять topology.json по нему (перевыпустит и порождённые файлы, секреты не тронет):
+  node scripts/configure.mjs --refresh ${names} --ip=${saved.PUBLIC_IP}
+Если правда — topology.json (переезд задуман), назвать имена в команде явно, как в docs/RELEASE.md «Переход в strict».`;
+  if (!check) throw new Error(message);
+  console.log(message);
+}
+if (check) {
+  const rest = retargets.filter((r) => !drift.includes(r));
+  console.log(
+    rest.length
+      ? `Перевыпуск перепишет в .env (секреты не тронет): ${rest.map(describe).join("; ")}.`
+      : drift.length
+        ? "Остальные адресные ключи .env совпадают с топологией."
+        : "Перевыпуск .env не меняет: адреса совпадают с топологией.",
+  );
+  console.log("Это была проверка: ничего не записано.");
+  process.exit(drift.length ? 3 : 0);
+}
 
 const secret = () => randomBytes(32).toString("hex");
 
@@ -88,7 +170,6 @@ const MONITORING_KEYS = {
 const key = refresh ? saved.LIVEKIT_API_KEY : `API${randomBytes(9).toString("hex")}`;
 const mediaSecret = refresh ? saved.LIVEKIT_API_SECRET : secret();
 const redis = refresh ? saved.REDIS_PASSWORD : secret();
-const { ports, app, rtc, turn, ip, mode } = topology;
 
 await mkdir("infra/generated/tls", { recursive: true });
 
@@ -116,15 +197,7 @@ if (mode === "ip" && !certExists) {
 }
 
 const values = {
-  DEPLOY_MODE: mode,
-  APP_HOST: app,
-  RTC_HOST: rtc,
-  TURN_HOST: turn,
-  PUBLIC_IP: ip,
-  GATEWAY_PORT: ports["gateway-port"],
-  HOOKS_PORT: ports["hooks-port"],
-  PUBLIC_URL: topology.origin,
-  LIVEKIT_URL: topology.origin.replace(/^https/, "wss"),
+  ...derived,
   LIVEKIT_INTERNAL_URL: "http://127.0.0.1:7880",
   LIVEKIT_API_KEY: key,
   LIVEKIT_API_SECRET: mediaSecret,
@@ -155,9 +228,9 @@ const values = {
       }
     : {}),
 };
-// Перевыпуск не трогает .env: там живут секреты и то, что владелец правил руками. Единственное
-// исключение — `--monitoring`: недостающие ключи профиля дописываются в конец, а `COMPOSE_PROFILES`
-// получает `monitoring` рядом с тем, что там уже было.
+// Перевыпуск .env целиком не пишет: там живут секреты и то, что владелец правил руками. Исключения —
+// адресные ключи (`retargets` ниже), `--admin` и `--monitoring`: недостающие ключи профиля дописываются
+// в конец, а `COMPOSE_PROFILES` получает `monitoring` рядом с тем, что там уже было.
 if (!refresh)
   await writeFile(
     ".env",
@@ -168,28 +241,11 @@ if (!refresh)
   );
 const env = refresh ? { ...saved } : { ...values };
 
-/**
- * Адресные ключи `.env` при перевыпуске (R200 §8.6). Секреты и то, что правил владелец, `--refresh` не
- * трогает. Но имена, режим и порты задаются аргументами и `topology.json`, а в `.env` лежат их копии —
- * и до сих пор при смене имён (`--refresh --app=cordcam.ru …`) там оставались прежние `APP_HOST`,
- * `PUBLIC_URL`, `LIVEKIT_URL`: ядро и служба интеграций отказывали запросам по Origin, SFU звал
- * клиентов на старое имя, и всё это правилось руками (meet → `cordcam.ru`, 08.11.2026). Теперь ключи,
- * которые генератор сам выводит из топологии, при расхождении переписываются на месте; остальные строки
- * остаются байт в байт. `SERVER_NAME` — имя для людей, его меняем только пока оно равно прежнему адресу.
- */
-const ADDRESS_KEYS = [
-  "DEPLOY_MODE", "APP_HOST", "RTC_HOST", "TURN_HOST", "PUBLIC_IP",
-  "GATEWAY_PORT", "HOOKS_PORT", "PUBLIC_URL", "LIVEKIT_URL",
-];
+// Адресные ключи `.env` при перевыпуске — план посчитан выше (`retargets`), здесь он записывается.
 let envText = existing;
-const retargeted = [];
+const retargeted = retargets.map(describe);
 if (refresh) {
-  const wanted = Object.fromEntries(ADDRESS_KEYS.map((k) => [k, String(values[k])]));
-  if (saved.SERVER_NAME !== undefined && saved.SERVER_NAME === saved.APP_HOST && saved.APP_HOST !== values.APP_HOST)
-    wanted.SERVER_NAME = values.SERVER_NAME;
-  for (const [k, want] of Object.entries(wanted)) {
-    if (saved[k] === want) continue;
-    retargeted.push(`${k}: ${saved[k] === undefined ? "(не было)" : saved[k]} → ${want}`);
+  for (const [k, , want] of retargets) {
     env[k] = want;
     const line = new RegExp(`^${k}=.*$`, "m");
     envText = line.test(envText)

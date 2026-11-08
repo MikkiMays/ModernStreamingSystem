@@ -1157,12 +1157,12 @@ public class RoomService {
     var member = authenticate(room, credential);
     if (command.type().equals("media.stall")) {
       // Подсказка ядру, а не состояние (R200 §5.3, Р-105): входящее молчание при живом по мнению
-      // SDK
-      // соединении. Участник остаётся CONNECTED, снимок не меняется, события не идут и квитанция не
-      // хранится — отметку получает только NodeHealth через LossReports.
+      // SDK соединении. Участник остаётся CONNECTED, снимок не меняется, события не идут, квитанция
+      // не хранится — отметку получает только NodeHealth через LossReports, и живёт она недолго
+      // (LossReports.STALL_MS), если за ней не придёт media.lost.
       requireActive(room, member);
       if (member.generation == command.generation() && member.status == CONNECTED)
-        losses.lost(nodes.resolve(room.mediaNode).id(), member.id, now());
+        losses.stall(nodes.resolve(room.mediaNode).id(), member.id, now());
       return new Ack(command.commandId(), true, room.sequence, null);
     }
     return receipt(

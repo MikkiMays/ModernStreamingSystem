@@ -157,9 +157,37 @@ if (( RESTART_MEDIA )); then
   fi
 fi
 
+# Генератор конфигурации — своим node или в контейнере. Аргументы передаются как есть.
+configure() {
+  if command -v node >/dev/null; then
+    node scripts/configure.mjs "$@"
+  else
+    docker run --rm -v "$PWD:/w" -w /w "$NODE_IMAGE" \
+      sh -c 'apk add --no-cache openssl >/dev/null && node scripts/configure.mjs "$@"' configure "$@"
+  fi
+}
+
+# Имена topology.json против .env (ревью R200 §8.6). Перевыпуск без имён берёт их из topology.json и
+# переписывает ими адресные ключи .env, edge.json и livekit.json: .env, поправленный руками (meet → cordcam.ru),
+# вернулся бы к прежним именам, и сервер ушёл бы со своего имени. `--refresh --check` ничего не пишет и печатает
+# готовую команду, которая выровняет topology.json по .env; разошлось — обновление с перевыпуском не начинается.
+TOPOLOGY_DRIFT=0
+if (( CHECK || (REGENERATE && ! KEEP_CALLS) )); then
+  if plan="$(configure --refresh --check 2>&1)"; then
+    (( CHECK )) && sed 's/^/    /' <<<"$plan"
+  else
+    TOPOLOGY_DRIFT=1
+    warn "Перевыпуск конфигурации так, как он есть, не пройдёт:"
+    sed 's/^/      /' <<<"$plan"
+  fi
+fi
+
 if (( CHECK )); then
   note "Это была проверка: ничего не изменено."
   exit 0
+fi
+if (( TOPOLOGY_DRIFT )); then
+  die "Обновлению нужен перевыпуск конфигурации, а он сейчас переписал бы адреса (выше). Выровняйте topology.json командой из подсказки и запустите ./update.sh снова. Ничего не изменено."
 fi
 
 NOTHING_TO_DO=0
@@ -250,21 +278,23 @@ rollback() {
   warn "откатить и его: git reset --hard $BEFORE"
 }
 
+ENV_RETARGETED=0
 if (( REGENERATE )) && (( ! KEEP_CALLS )); then
   step "Перевыпускаем конфигурацию"
-  # `.env` генератор не трогает: секреты и живые сессии переживают обновление. А соседние
-  # сайты на том же 443 записаны только в infra/generated/topology.json — без него генератор
-  # откажется работать и скажет, чего ему не хватает. Молча портить чужой сайт нельзя.
+  # Секреты генератор не трогает: живые сессии переживают обновление. Адресные ключи `.env` (имена, режим,
+  # порты, PUBLIC_URL, LIVEKIT_URL) он переписывает по топологии (R200 §8.6) — если они разошлись; имена, которые
+  # разошлись с .env, проверка выше сюда не пустила. Соседние сайты на том же 443 записаны только в
+  # infra/generated/topology.json — без него генератор откажется работать и скажет, чего ему не хватает.
+  # Молча портить чужой сайт нельзя.
   BACKUP="infra/generated.before-$(date +%Y%m%d-%H%M%S)"
   cp -a infra/generated "$BACKUP"
-  if command -v node >/dev/null; then
-    node scripts/configure.mjs --refresh || die "Не удалось перевыпустить конфигурацию."
-  else
-    docker run --rm -v "$PWD:/w" -w /w "$NODE_IMAGE" \
-      sh -c 'apk add --no-cache openssl >/dev/null && node scripts/configure.mjs --refresh' \
-      || die "Не удалось перевыпустить конфигурацию."
-  fi
+  cp -p .env "$BACKUP/env.before"
+  configure --refresh || die "Не удалось перевыпустить конфигурацию."
   note "Прежние конфиги рядом: $BACKUP"
+  if ! cmp -s .env "$BACKUP/env.before"; then
+    ENV_RETARGETED=1
+    note ".env перенацелен (прежний — $BACKUP/env.before): core, gateway и services будут пересозданы"
+  fi
 fi
 
 if (( ${#REBUILD[@]} )); then
@@ -323,6 +353,17 @@ for service in "${REBUILD[@]}"; do
   docker compose up -d --no-deps "$service"
   note "$service"
 done
+if (( ENV_RETARGETED )); then
+  # .env читают при старте контейнера core, gateway и services (и probe мониторинга): перевыпуск переписал в нём
+  # адреса, и без пересоздания они так и остались бы с прежними PUBLIC_URL и LIVEKIT_URL — Origin, адрес SFU.
+  # Пересобранные уже пересозданы выше; базы адресов из .env не читают и не трогаются.
+  for service in core gateway services probe; do
+    [[ " ${REBUILD[*]} " == *" $service "* ]] && continue
+    [[ "$service" == probe && -z "$(docker compose ps -q probe 2>/dev/null)" ]] && continue
+    docker compose up -d --no-deps --force-recreate "$service"
+    note "$service (новый .env)"
+  done
+fi
 if (( ${#MONITORING_SERVICES[@]} )); then
   docker compose up -d --no-deps --force-recreate "${MONITORING_SERVICES[@]}"
   note "мониторинг: ${MONITORING_SERVICES[*]}"

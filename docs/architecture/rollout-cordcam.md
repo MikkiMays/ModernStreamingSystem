@@ -138,6 +138,37 @@ sudo -E bash infra/youtube-proxy/client.sh 152.234.227.199`, в `.env` — `CINE
 services`), чтобы она приняла новый Origin.
 
 
+**2.10. Перед следующим `./update.sh` на meet: в `topology.json` те же имена, что в `.env` (ревью R200 §8.6).** Если
+имена `cordcam.ru` вписывались в `.env` руками (2.9), `infra/generated/topology.json` мог остаться с `meet.nikg.tech`.
+С выкаткой R200 §8.6 перевыпуск без имён (его зовёт `./update.sh`, когда менялся генератор) берёт имена из
+`topology.json` и переписал бы ими `.env`, `edge.json` и `livekit.json` — продукт ушёл бы с `cordcam.ru`. Новый
+генератор такой перевыпуск отказывает, а `./update.sh --check` предупреждает; но **сейчас на meet стоит прежний
+генератор: `--check` он не знает и выполнил бы перевыпуск по-настоящему**. Поэтому сверить только чтением:
+```bash
+cd /opt/meet/ModernStreamingSystem
+cat infra/generated/topology.json
+grep -E '^(DEPLOY_MODE|APP_HOST|RTC_HOST|TURN_HOST|PUBLIC_IP)=' .env
+```
+В `topology.json` есть `"app": "cordcam.ru"`, `"rtc": "rtc-fra.cordcam.ru"`, `"turn": "turn-fra.cordcam.ru"`,
+`"ip": "108.165.32.23"` (а `"mode"`, если есть, — `strict`), и `.env` говорит то же — ничего не делать. Иначе — без
+идущих встреч (`backlog/bin/active-meetings.sh` = 0) выровнять `topology.json` по `.env` одной командой (секреты не
+меняются; `edge.json` и `livekit.json` выпускаются под те же имена) и проверить TLS, как в 2.3:
+```bash
+D=$(date +%Y%m%d-%H%M); cp -a infra/generated infra/generated.before-$D-align && cp -p .env .local/env.before-$D-align
+node scripts/configure.mjs --refresh --mode=strict --app=cordcam.ru --rtc=rtc-fra.cordcam.ru --turn=turn-fra.cordcam.ru --ip=108.165.32.23
+grep -E '"(mode|app|rtc|turn|ip)"' infra/generated/topology.json   # strict, cordcam.ru, rtc-fra…, turn-fra…, 108.165.32.23
+docker compose restart edge livekit
+for n in cordcam.ru rtc-fra.cordcam.ru turn-fra.cordcam.ru; do
+  echo | openssl s_client -connect 108.165.32.23:443 -servername $n 2>/dev/null | openssl x509 -noout -subject -issuer
+done                                         # Let's Encrypt у всех
+```
+Напечатала команда `.env retargeted: …` (так делает генератор с R200 §8.6) — вместо `restart edge livekit` выполнить
+напечатанную ею строку пересоздания. `LIVEKIT_URL=wss://rtc-fra.cordcam.ru` из 2.9 такой генератор заменит на
+`wss://cordcam.ru`: так он пишет его всем установкам strict (сигналинг идёт через `/rtc` сайта) — это не ошибка.
+После выкатки то же самое скажет `./update.sh --check` (или `node scripts/configure.mjs --refresh --check`: «ВНИМАНИЕ»,
+выход 3 и эта же команда с именами из `.env`), а `./update.sh` с расхождением обновление не начнёт («Ничего не
+изменено»). Откат: `infra/generated.before-<…>-align` на место и `docker compose restart edge livekit`.
+
 ---
 
 ## 0. Что получится
