@@ -85,6 +85,18 @@ public class RequestGuard extends OncePerRequestFilter {
       response.sendError(403);
       return;
     }
+    // Ключ пульта флота (R207, Р-115) действует только мимо шлюза — по туннелю или магистрали с A.
+    // Запрос, пришедший
+    // через шлюз (его секрет на месте), — снаружи: там ключ пульта не принимается, даже верный.
+    // Шлюз и сам портит такой
+    // заголовок (infra/Caddyfile), это вторая стена.
+    var adminToken = request.getHeader(dev.mikki.stream.access.AdminAccess.HEADER);
+    if (adminToken != null
+        && adminToken.startsWith(dev.mikki.stream.access.AdminAccess.FLEET_PREFIX)
+        && Secrets.equal(request.getHeader("X-Internal-Secret"), config.internalSecret())) {
+      response.sendError(401);
+      return;
+    }
     if (closed(request)) {
       response.setStatus(401);
       response.setContentType("application/json;charset=UTF-8");
