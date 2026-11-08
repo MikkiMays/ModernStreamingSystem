@@ -147,7 +147,7 @@ export function JobView({ id, console }: { id: string; console: Console }) {
           <Button
             variant="quiet"
             size="sm"
-            icon={<ArrowLeft size={14} />}
+            icon={<ArrowLeft size={16} />}
             onClick={() => console.go('/jobs')}
           >
             {text.jobs.back}
@@ -159,7 +159,7 @@ export function JobView({ id, console }: { id: string; console: Console }) {
         job && (
           <>
             {(job.status === 'running' || job.status === 'queued') && (
-              <Button variant="danger" size="sm" icon={<Square size={14} />} onClick={() => void cancel()}>
+              <Button variant="danger" size="sm" icon={<Square size={16} />} onClick={() => void cancel()}>
                 {text.jobs.cancel}
               </Button>
             )}
@@ -168,7 +168,7 @@ export function JobView({ id, console }: { id: string; console: Console }) {
                 {text.jobs.repeat}
               </Button>
             )}
-            <Button variant="quiet" size="sm" icon={<Copy size={14} />} onClick={() => void copy()}>
+            <Button variant="quiet" size="sm" icon={<Copy size={16} />} onClick={() => void copy()}>
               {text.jobs.copy}
             </Button>
           </>

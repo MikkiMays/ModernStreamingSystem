@@ -53,7 +53,7 @@ export function ErrorLine({ error, onRetry }: { error: unknown; onRetry?: () => 
       <AlertTriangle size={16} aria-hidden="true" />
       <span>{failureText(error)}</span>
       {onRetry && (
-        <Button variant="quiet" size="sm" icon={<RefreshCw size={14} />} onClick={onRetry}>
+        <Button variant="quiet" size="sm" icon={<RefreshCw size={16} />} onClick={onRetry}>
           {text.app.retry}
         </Button>
       )}

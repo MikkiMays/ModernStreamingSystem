@@ -45,7 +45,7 @@ function FleetAudit({ console }: { console: Console }) {
         <Button
           variant="quiet"
           size="sm"
-          icon={<Download size={14} />}
+          icon={<Download size={16} />}
           onClick={() => window.open('/api/fleet/audit/export', '_blank')}
         >
           {text.audit.export}

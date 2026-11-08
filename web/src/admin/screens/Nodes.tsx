@@ -84,7 +84,7 @@ export function Nodes({ console }: { console: Console }) {
       <Panel
         title={`${text.nodes.title} — ${machine.product ?? machine.title}`}
         actions={
-          <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setAdding(true)}>
+          <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={() => setAdding(true)}>
             {text.nodes.add}
           </Button>
         }

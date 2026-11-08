@@ -36,7 +36,7 @@ export function Overview({ console }: { console: Console }) {
           <Button
             variant="quiet"
             size="sm"
-            icon={<RefreshCw size={14} />}
+            icon={<RefreshCw size={16} />}
             loading={overview.isFetching}
             onClick={() => void overview.refetch()}
           >

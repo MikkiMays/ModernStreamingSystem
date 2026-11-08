@@ -55,18 +55,18 @@ export type Section =
   | 'audit';
 
 const SECTIONS: { id: Section; icon: ReactNode }[] = [
-  { id: 'overview', icon: <LayoutDashboard size={18} /> },
-  { id: 'nodes', icon: <Server size={18} /> },
-  { id: 'meetings', icon: <Users size={18} /> },
-  { id: 'maintenance', icon: <Wrench size={18} /> },
-  { id: 'deploys', icon: <Rocket size={18} /> },
-  { id: 'security', icon: <ShieldAlert size={18} /> },
-  { id: 'errors', icon: <Activity size={18} /> },
-  { id: 'metrics', icon: <LineChart size={18} /> },
-  { id: 'flags', icon: <Flag size={18} /> },
-  { id: 'releases', icon: <Package size={18} /> },
-  { id: 'jobs', icon: <ClipboardList size={18} /> },
-  { id: 'audit', icon: <BookOpen size={18} /> },
+  { id: 'overview', icon: <LayoutDashboard size={20} /> },
+  { id: 'nodes', icon: <Server size={20} /> },
+  { id: 'meetings', icon: <Users size={20} /> },
+  { id: 'maintenance', icon: <Wrench size={20} /> },
+  { id: 'deploys', icon: <Rocket size={20} /> },
+  { id: 'security', icon: <ShieldAlert size={20} /> },
+  { id: 'errors', icon: <Activity size={20} /> },
+  { id: 'metrics', icon: <LineChart size={20} /> },
+  { id: 'flags', icon: <Flag size={20} /> },
+  { id: 'releases', icon: <Package size={20} /> },
+  { id: 'jobs', icon: <ClipboardList size={20} /> },
+  { id: 'audit', icon: <BookOpen size={20} /> },
 ];
 
 /** Маршрут — первый сегмент пути (`/nodes`, `/jobs/abc`); шлюз отдаёт `admin.html` на любой путь. */
