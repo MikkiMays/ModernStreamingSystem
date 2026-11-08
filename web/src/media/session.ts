@@ -839,9 +839,14 @@ export class MediaSession {
           if (this.wanted.microphone) signal('mic-off');
           this.wanted.microphone = false;
         }
+        // Чужое выключение — не про канал (R191, R214): буфер слушателя не должен расти от затухания звука.
+        if (!participant.isLocal) this.playout.muteChanged(publication.trackSid);
         this.refreshTracks();
       })
-      .on(RoomEvent.TrackUnmuted, this.refreshTracks)
+      .on(RoomEvent.TrackUnmuted, (publication, participant) => {
+        if (!participant.isLocal) this.playout.muteChanged(publication.trackSid);
+        this.refreshTracks();
+      })
       .on(RoomEvent.TrackStreamStateChanged, (publication, state) => {
         if (this.disposed || publication.kind !== Track.Kind.Video) return;
         console.debug('[cord] stream state', publication.source, publication.trackSid, state);
@@ -957,6 +962,7 @@ export class MediaSession {
           kind: this.playoutKind(participant.identity, publication.source, track.kind),
           group: this.playoutGroup(participant.identity, publication.source),
           receiver: track.receiver,
+          muted: () => publication.isMuted,
           stats: () => track.getRTCStatsReport(),
         });
       }

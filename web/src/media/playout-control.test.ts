@@ -66,6 +66,29 @@ function track(
 }
 
 describe('контроллер запаса', () => {
+  it('заглушённая дорожка (R191): хвост заглушки её выключения не поднимает запас, а знание о ней остаётся', async () => {
+    const controller = new PlayoutController();
+    let seconds = 0;
+    let extra: Record<string, unknown> = {};
+    let muted = false;
+    const voice = {
+      ...track('voice', 'conversation', () => statsOf([...path(), inbound(seconds, extra)])),
+      muted: () => muted,
+    };
+    await controller.tick([voice], 0);
+    const start = profileFor('conversation').startMs;
+    expect(voice.receiver.jitterBufferTarget).toBe(start);
+    // Цифры опроса из живого замера: 51 событие по 1–2 мс.
+    muted = true;
+    controller.muteChanged('voice');
+    seconds = 2;
+    extra = { concealedSamples: 44541, silentConcealedSamples: 40320, concealmentEvents: 51 };
+    const [report] = await controller.tick([voice], 2000);
+    expect(report).toMatchObject({ trouble: 'none', targetMs: start });
+    expect(voice.receiver.jitterBufferTarget).toBe(start);
+    expect(controller.targetFor('voice')).toBe(start);
+  });
+
   it('в одной комнате разговор остаётся быстрым, а музыка получает секундный запас', async () => {
     const controller = new PlayoutController();
     let seconds = 0;

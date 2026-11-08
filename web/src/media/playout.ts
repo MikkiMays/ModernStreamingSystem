@@ -230,6 +230,8 @@ export class PlayoutBuffer {
   private bloatedPolls = 0;
   private calmSince: number;
   private profile: PlayoutProfile;
+  /** С прошлого опроса говорящий выключал или включал микрофон ({@link muteChanged}). */
+  private muteTouched = false;
   constructor(
     readonly kind: PlayoutClass,
     profile: PlayoutProfile,
@@ -250,7 +252,27 @@ export class PlayoutBuffer {
     this.targetMs = clamp(this.targetMs, profile.floorMs, profile.ceilingMs);
   }
 
-  observe(current: PlayoutSample, now = Date.now()): PlayoutDecision {
+  /**
+   * Говорящий выключил или включил микрофон (R191): этот интервал статистики — не о канале, даже если
+   * к следующему опросу микрофон уже снова включён.
+   */
+  muteChanged() {
+    this.muteTouched = true;
+  }
+
+  /**
+   * @param muted говорящий сейчас заглушён. SFU перестаёт слать его дорожку, и NetEq полсекунды гасит
+   *   звук: Chrome считает это десятками «событий заглушки» по 1–9 мс, и для {@link classifyTrouble} это
+   *   неотличимо от опоздавших пакетов. Живой замер 07.11.2026 (R191): цель разговора уезжала со 120 до
+   *   потолка 400 мс за три выключения микрофона, а голос после включения приходил на 300–450 мс позже
+   *   (спуск — 20 мс за 8 с, то есть две минуты). Отсюда и «выключается быстро, а включается долго»:
+   *   выключение слышно сразу, потому что звук гасит сам говорящий, а включение идёт через этот запас.
+   *   Такой интервал о канале не говорит ничего: цель не двигается, скачок джиттера на первом пакете
+   *   после тишины не считается, спокойный спуск идёт как шёл.
+   */
+  observe(current: PlayoutSample, now = Date.now(), muted = false): PlayoutDecision {
+    const silenced = muted || this.muteTouched;
+    this.muteTouched = false;
     const previous = this.previous;
     this.previous = current;
     const dt = previous ? current.timestamp - previous.timestamp : 0;
@@ -275,7 +297,7 @@ export class PlayoutBuffer {
     const accelerationRatio = usable && samples > 0 ? removed / samples : 0;
     const freezes = delta('freezeCount');
     const trouble: TroubleKind =
-      this.kind === 'video'
+      this.kind === 'video' || silenced
         ? 'none'
         : classifyTrouble({
             concealedSamples: concealed,
@@ -283,7 +305,7 @@ export class PlayoutBuffer {
             lost: delta('packetsLost'),
           });
 
-    const jitterMs = (finite(current.jitter) ?? 0) * 1000;
+    const jitterMs = silenced ? 0 : (finite(current.jitter) ?? 0) * 1000;
     this.peakJitterMs = Math.max(jitterMs, this.peakJitterMs * 0.8);
 
     const profile = this.profile;
