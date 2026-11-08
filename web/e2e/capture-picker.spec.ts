@@ -60,6 +60,16 @@ test('окно показа: вкладки, режим, качество и п�
   const share = dialog.getByRole('button', { name: 'Показать', exact: true });
   await expect(share).toBeInViewport({ ratio: 1 });
   await expect(share).toBeDisabled();
+  // Контраст — по окну, каким его видит человек, а не в кадре проявления: в середине анимации прозрачности
+  // подписи вкладок светлее своего цвета (4,35 против настоящих 4,75), и проверка падала через раз (main 42428060256).
+  await dialog.evaluate((element) =>
+    Promise.all(
+      element
+        .getAnimations({ subtree: true })
+        .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
   expect(
     (await new AxeBuilder({ page }).include('.capture-picker').withTags(['wcag2a', 'wcag2aa']).analyze())
       .violations,
