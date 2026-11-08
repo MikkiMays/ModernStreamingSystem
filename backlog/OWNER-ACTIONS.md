@@ -113,9 +113,10 @@
     Ответ:
 19. **DNS (R200, Р-110), все записи — серое облако (DNS only), без AAAA.** Таблица — страница «Серверы Cord на
     cordcam.ru». Сейчас: в `cordcam.ru` добавить `fra`, `rtc-fra`, `turn-fra` → 108.165.32.23; `hel`, `rtc-hel`,
-    `turn-hel` → 152.234.227.199; `msk`, `rtc-msk`, `turn-msk` → 157.22.241.114; `admin` → 108.165.32.75; CAA, SPF,
-    DMARC, нулевой MX; TTL `cordcam.ru` и `www` → 1 min; SSL Full (strict). `callcord.ru` — удалить записи и зону. Позже,
-    по сигналу: `cordcam.ru`, `www` → 108.165.32.23; удалить `rtc`, `turn` в `cordcam.ru` и имена meet в `nikg.tech`.
+    `turn-hel` → 152.234.227.199; `msk`, `rtc-msk`, `turn-msk` → 157.22.241.114; CAA, SPF, DMARC, нулевой MX; TTL
+    `cordcam.ru` и `www` → 1 min; SSL Full (strict). В `callcord.ru` (это сервер A — разработка и админ-панель):
+    `callcord.ru`, `www`, `rtc`, `turn`, `admin` → 108.165.32.75. Позже, по сигналу: `cordcam.ru`, `www` →
+    108.165.32.23; удалить `rtc`, `turn` в `cordcam.ru`, имена meet в `nikg.tech`, затем `cord.*` в `nikg.tech`.
     Ответ:
 20. **Вопросы к R200/R207**: (а) ядро продукта — на meet во Франкфурте (рекомендация) или на cordcam в Москве?
     (б) переводить встречу на другой сервер — только создатель, ведущий или все? (в) тариф и полоса серверов cordcam и
