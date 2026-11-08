@@ -50,3 +50,20 @@ test("cohost rejects ambiguous SNI, unsafe hosts and internal service port colli
     );
   assert.throws(() => createEdge({ ...hosts, app: "-meet.example.test" }));
 });
+
+test("admin console name (R207) gets a certificate and an SNI route to the gateway, strict mode only", () => {
+  const config = createEdge({ ...hosts, admin: "admin.example.test" });
+  assert.deepEqual(config.apps.tls.certificates.automate, [...Object.values(hosts), "admin.example.test"]);
+  const routes = config.apps.layer4.servers.main.routes;
+  assert.equal(routes.length, 4);
+  assert.deepEqual(routes.at(-1).match, [{ tls: { sni: ["admin.example.test"] } }]);
+  assert.deepEqual(routes.at(-1).handle.at(-1).upstreams, [{ dial: ["127.0.0.1:8091"] }]);
+  assert.equal(createEdge(hosts).apps.layer4.servers.main.routes.length, 3);
+  for (const options of [
+    { admin: hosts.app },
+    { admin: "Admin.example.test" },
+    { admin: "admin.example.test", "legacy-hosts": "admin.example.test" },
+  ])
+    assert.throws(() => createEdge({ ...hosts, ...options }), JSON.stringify(options));
+  assert.throws(() => createEdge({ domain: "meet.example.test", ip: "192.0.2.1", admin: "admin.example.test" }), /strict/);
+});

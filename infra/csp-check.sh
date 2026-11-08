@@ -18,6 +18,7 @@ trap 'rm -rf "$site"' EXIT
 chmod 755 "$site"
 printf '<!doctype html><title>index</title>CORD-INDEX\n' >"$site/index.html"
 printf '<!doctype html><title>tg</title>CORD-TG\n' >"$site/tg.html"
+printf '<!doctype html><title>admin</title>CORD-ADMIN\n' >"$site/admin.html"
 chmod 644 "$site"/*.html
 
 paths=(/ /tg /tg/ /tg.html /tgx /room/00000000-0000-0000-0000-000000000000 /download /join/123456789 /assets/x.js)
@@ -26,7 +27,7 @@ paths=(/ /tg /tg/ /tg.html /tgx /room/00000000-0000-0000-0000-000000000000 /down
 # и запросы — на его же 127.0.0.1.
 output="$(
   docker run --rm --network none \
-    -e APP_HOST=cord.test -e RTC_HOST=rtc.cord.test -e PUBLIC_URL=https://cord.test \
+    -e APP_HOST=cord.test -e RTC_HOST=rtc.cord.test -e PUBLIC_URL=https://cord.test -e ADMIN_HOST=admin.cord.test \
     -e INTERNAL_SECRET=csp-check-secret-csp-check-secret -e GATEWAY_PORT=18091 -e HOOKS_PORT=18090 \
     -v "$root/infra/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$site:/srv:ro" \
     --entrypoint sh "$image" -c '
@@ -38,6 +39,17 @@ output="$(
         head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
         rm -f /tmp/body
       done
+      # Пульт флота (R207): на своём имени — admin.html с той же политикой; на имени приложения admin.html нет.
+      for path in / /nodes /admin.html; do
+        echo "== admin:$path"
+        wget -S -O /tmp/body --header "Host: admin.cord.test" "http://127.0.0.1:18091$path" 2>&1 | grep -iE "^ +(content-security-policy|x-frame-options):" || true
+        head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
+        rm -f /tmp/body
+      done
+      echo "== app:/admin.html"
+      wget -S -O /tmp/body --header "Host: cord.test" "http://127.0.0.1:18091/admin.html" 2>&1 | grep -iE "^ +(content-security-policy|x-frame-options):" || true
+      head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
+      rm -f /tmp/body
     '
 )"
 
@@ -81,6 +93,18 @@ for path in "${paths[@]}"; do
       ;;
   esac
 done
+
+for path in / /nodes /admin.html; do
+  headers="$(block "admin:$path")"
+  csp="$(policy "admin:$path")"
+  check "admin:$path" "одна политика CSP" test "$(grep -ci 'content-security-policy:' <<<"$headers")" = 1
+  check "admin:$path" "frame-ancestors 'none'" has "$csp" "frame-ancestors 'none'"
+  check "admin:$path" "X-Frame-Options DENY" has "$headers" "x-frame-options: deny"
+  check "admin:$path" "остальная политика та же" test "${csp%"$none_tail"}" = "$base"
+  check "admin:$path" "отдаёт admin.html" has "$headers" "CORD-ADMIN"
+done
+# На имени приложения файла пульта нет: SPA отдаёт index.html (неизвестный путь → try_files).
+check "app:/admin.html" "пульт не виден на имени приложения" lacks "$(block app:/admin.html)" "CORD-ADMIN"
 
 if [ "$fail" != 0 ]; then
   echo "$output" >&2

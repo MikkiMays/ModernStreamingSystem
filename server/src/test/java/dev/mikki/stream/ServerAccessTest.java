@@ -188,6 +188,26 @@ class ServerAccessTest {
   }
 
   @Test
+  void theFleetKeyIsRefusedWhenTheRequestCameThroughTheGateway() throws Exception {
+    // R207, Р-115: ключ пульта — только мимо шлюза (туннель, магистраль). Пришёл через шлюз —
+    // значит снаружи.
+    var outside = get("/api/v1/admin/activity");
+    outside.addHeader("X-Cord-Admin", "fleet.ключ-пульта");
+    outside.addHeader("X-Internal-Secret", INTERNAL_SECRET);
+    assertThat(through("", outside).getStatus()).isEqualTo(401);
+    assertThat(outside.getAttribute("reached")).isEqualTo(false);
+    var tunnel = get("/api/v1/admin/activity");
+    tunnel.addHeader("X-Cord-Admin", "fleet.ключ-пульта");
+    assertThat(through("", tunnel).getStatus()).isEqualTo(200);
+    assertThat(tunnel.getAttribute("reached")).isEqualTo(true);
+    // Сессия владельца через шлюз — как раньше.
+    var owner = get("/api/v1/admin/activity");
+    owner.addHeader("X-Cord-Admin", "1794000000.подпись");
+    owner.addHeader("X-Internal-Secret", INTERNAL_SECRET);
+    assertThat(through("", owner).getStatus()).isEqualTo(200);
+  }
+
+  @Test
   void anOpenServerGuardsNothing() throws Exception {
     var request = get("/api/v1/favorites");
     assertThat(through("", request).getStatus()).isEqualTo(200);

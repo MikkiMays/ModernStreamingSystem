@@ -185,6 +185,14 @@ jobs:
       # имён контейнера (NET_ADMIN — только внутри него, вместо iptables — ловушка). Хост не меняется.
       - name: Verify the page player's subnet rules
         run: bash infra/sniffer-subnet-test.sh
+      # Пульт флота (R207, профиль `admin`): служба `fleet` тем же образом, что идёт на A, без сети; compose с
+      # профилем; настройщик `.local/fleet.env`.
+      - name: Verify the fleet console service
+        run: |
+          docker build -f services/fleet/Dockerfile --target test -t cord-fleet-test .
+          docker run --rm --network none --read-only --tmpfs /tmp cord-fleet-test
+          docker compose --profile admin config --quiet
+          node --test scripts/fleet-setup.test.mjs
       - name: Verify integrations, bot commands and audio queue
         run: docker compose run --rm --no-deps --entrypoint python -v "$PWD/services/tests:/tests:ro" -e PYTHONPATH=/app:/tests services -m unittest discover -s /tests -v
       # Пакет кинозала и его плеер страниц (`services/sniffer`) держат черту в 110 знаков строже, чем

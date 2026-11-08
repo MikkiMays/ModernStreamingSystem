@@ -82,6 +82,12 @@ export function resolveTopology(args) {
         throw new Error(`Specify --${field}=host.example.com`);
       return args[field];
     });
+    // Пульт флота (R207, Р-119): четвёртое имя только у A — `admin.callcord.ru`. Edge берёт ему
+    // сертификат и ведёт на шлюз, где блок `@admin` отдаёт `admin.html` и API службы `fleet`.
+    const admin = args.admin || null;
+    if (admin !== null && !validHost(admin))
+      throw new Error("--admin must be a lowercase DNS name, for example admin.example.com");
+    if (admin) hosts.push(admin);
     if (new Set(hosts).size !== hosts.length)
       throw new Error("App, RTC, TURN and legacy DNS names must all be distinct");
     const { legacy, port } = legacyHosts(args, ports, hosts);
@@ -91,6 +97,7 @@ export function resolveTopology(args) {
       app,
       rtc,
       turn,
+      admin,
       ip: args.ip,
       hosts,
       legacy,
@@ -104,6 +111,9 @@ export function resolveTopology(args) {
       origin: `https://${app}`,
     };
   }
+
+  if (args.admin && mode !== "strict")
+    throw new Error("--admin needs strict mode (three DNS names): the console is a fourth name on the same edge");
 
   if (mode === "simple") {
     const domain = args.domain ?? args.app;
@@ -162,7 +172,7 @@ export function validateEdgeHosts(args) {
 
 export function createEdge(args) {
   const topology = args.mode || args.domain || args.ip ? args : { ...args, ip: "192.0.2.1" };
-  const { mode, app, rtc, turn, hosts, legacy, legacyPort, ports } =
+  const { mode, app, rtc, turn, admin, hosts, legacy, legacyPort, ports } =
     resolveTopology(topology);
   const gateway = ports["gateway-port"];
   const route = (sni, target, http = false) => ({
@@ -189,7 +199,10 @@ export function createEdge(args) {
   };
 
   let routes;
-  if (mode === "strict") routes = [route([turn], 5349), route([app], gateway, true), route([rtc], gateway, true)];
+  if (mode === "strict") {
+    routes = [route([turn], 5349), route([app], gateway, true), route([rtc], gateway, true)];
+    if (admin) routes.push(route([admin], gateway, true));
+  }
   else if (mode === "simple") routes = [route([app], gateway, true)];
   else routes = [];
   if (legacy.length) routes.push(passthrough);

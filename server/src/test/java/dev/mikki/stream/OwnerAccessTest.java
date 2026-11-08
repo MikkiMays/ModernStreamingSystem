@@ -34,6 +34,40 @@ class OwnerAccessTest {
     return new AdminAccess(new Secrets(config), config);
   }
 
+  private static AdminAccess adminWithFleetKey(String password, String fleetKey) {
+    var config = settings(password);
+    when(config.fleetKey()).thenReturn(fleetKey);
+    return new AdminAccess(new Secrets(config), config);
+  }
+
+  /**
+   * Ключ пульта флота (R207, Р-115): токен {@code fleet.<ключ>} открывает админ-API без пароля
+   * владельца; чужой ключ, пустой ключ и ключ как пароль — нет. Пароля нет — входа паролем всё
+   * равно нет (404), но ключ работает.
+   */
+  @Test
+  void theFleetKeyOpensTheAdminApiWithoutTheOwnerPassword() {
+    var admin = adminWithFleetKey("", "ключ-пульта-из-env");
+    assertThat(admin.enabled()).isTrue();
+    assertThat(admin.valid("fleet.ключ-пульта-из-env")).isTrue();
+    admin.require("fleet.ключ-пульта-из-env");
+    assertThat(admin.valid("fleet.чужой")).isFalse();
+    assertThat(admin.valid("fleet.")).isFalse();
+    assertThat(admin.valid("ключ-пульта-из-env")).isFalse();
+    assertThatThrownBy(() -> admin.connect("ключ-пульта-из-env"))
+        .isInstanceOfSatisfying(
+            Problem.class, p -> assertThat(p.code()).isEqualTo("ADMIN_DISABLED"));
+    assertThatThrownBy(() -> admin.require("1.x"))
+        .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.status()).isEqualTo(401));
+    // Без ключа в настройках токен пульта — просто неверный токен.
+    assertThat(admin("пароль").valid("fleet.ключ-пульта-из-env")).isFalse();
+    assertThat(adminWithFleetKey("пароль", "  ").valid("fleet.")).isFalse();
+    // Оба входа вместе: сессия владельца и ключ пульта живут рядом.
+    var both = adminWithFleetKey("пароль", "ключ");
+    assertThat(both.valid(both.connect("пароль").token())).isTrue();
+    assertThat(both.valid("fleet.ключ")).isTrue();
+  }
+
   /** Без пароля в настройках страницы нет вовсе: ни входа, ни ответа о том, что она есть. */
   @Test
   void withoutAPasswordThereIsNoOwnerPage() {
