@@ -7,10 +7,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import dev.mikki.stream.media.LossReports;
 import dev.mikki.stream.media.MediaGateway;
 import dev.mikki.stream.media.MediaService;
 import dev.mikki.stream.media.NodeHealth;
+import dev.mikki.stream.nodes.LossReports;
 import dev.mikki.stream.nodes.MediaNode;
 import dev.mikki.stream.nodes.MediaNodes;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;

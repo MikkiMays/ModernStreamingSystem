@@ -1,4 +1,4 @@
-package dev.mikki.stream.media;
+package dev.mikki.stream.nodes;
 
 import java.util.List;
 import java.util.Map;

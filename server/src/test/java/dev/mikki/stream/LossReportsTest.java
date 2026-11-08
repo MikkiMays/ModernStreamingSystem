@@ -2,7 +2,7 @@ package dev.mikki.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.mikki.stream.media.LossReports;
+import dev.mikki.stream.nodes.LossReports;
 import java.util.ArrayList;
 import java.util.Set;
 import org.junit.jupiter.api.Test;

@@ -33,7 +33,7 @@ public class RoomService {
   private final List<RoomObserver> observers;
   private final Maintenance maintenance;
   private final dev.mikki.stream.nodes.MediaNodes nodes;
-  private final dev.mikki.stream.media.LossReports losses;
+  private final dev.mikki.stream.nodes.LossReports losses;
   private final SecureRandom codeRandom = new SecureRandom();
 
   /**
@@ -65,7 +65,7 @@ public class RoomService {
       List<RoomObserver> observers,
       Maintenance maintenance,
       dev.mikki.stream.nodes.MediaNodes nodes,
-      dev.mikki.stream.media.LossReports losses) {
+      dev.mikki.stream.nodes.LossReports losses) {
     this.nodes = nodes;
     this.losses = losses;
     this.rooms = rooms;

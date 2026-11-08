@@ -1,5 +1,6 @@
 package dev.mikki.stream.media;
 
+import dev.mikki.stream.nodes.LossReports;
 import dev.mikki.stream.nodes.MediaNode;
 import dev.mikki.stream.nodes.MediaNodes;
 import io.micrometer.core.instrument.Gauge;
