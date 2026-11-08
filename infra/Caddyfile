@@ -75,10 +75,43 @@
 
 http://:{$GATEWAY_PORT:8091} {
 	bind 127.0.0.1
+	# Пульт флота (R207, Р-119): третий HTML-вход `admin.html` и API службы `fleet` — только на имени
+	# `ADMIN_HOST`. Имя пусто (продукт, узлы) — блок привязан к `admin.invalid` и недостижим: страницы
+	# пульта там нет, и шлюз не выдаёт, что она где-то есть. Политика и заголовки — те же, что у приложения.
+	# `X-Real-IP` ставит шлюз (по нему служба держит список адресов), `X-Fleet-Agent` снаружи не проходит:
+	# ключ агент-сессии принимается только с самой машины, без шлюза.
+	@admin host {$ADMIN_HOST:admin.invalid}
+	handle @admin {
+		import headers
+		@fleet path /api/fleet/*
+		handle @fleet {
+			request_body {
+				max_size 256KB
+			}
+			reverse_proxy 127.0.0.1:{$FLEET_PORT:18200} {
+				header_up X-Real-IP {remote_host}
+				header_up -X-Fleet-Agent
+			}
+		}
+		handle {
+			root * /srv
+			@hashed path /assets/*
+			header @hashed Cache-Control "public, max-age=31536000, immutable"
+			@unhashed not path /assets/*
+			header @unhashed Cache-Control "no-cache"
+			try_files {path} /admin.html
+			encode zstd gzip
+			file_server
+		}
+	}
 	@app host {$APP_HOST}
 	handle @app {
 		import headers
 		import signaling
+		# Вход пульта (R207) лежит в том же бандле, но на имени приложения его нет: 404, как у любого чужого файла.
+		handle /admin.html {
+			respond 404
+		}
 		handle_path /downloads/windows/* {
 			root * /releases
 			header Cache-Control "no-cache"
