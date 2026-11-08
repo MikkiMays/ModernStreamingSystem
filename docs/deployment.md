@@ -692,8 +692,8 @@ LiveKit и edge читают порождённые файлы только пр
 | --- | --- |
 | Адрес этого сервера (ядро, службы, веб) | `sudo ./setup.sh --domain …` → `PUBLIC_URL` в `.env` |
 | Каталог серверов для клиента Windows | `.local/catalog/servers.jws`: образец — `infra/catalog/servers.example.json` → `.local/catalog/servers.source.json`, затем `node scripts/sign-catalog.mjs sign --key …`. Нет файла — `/api/v1/catalog` отвечает 404, клиент остаётся на сервере из своей сборки |
-| Сервер по умолчанию и канал обновлений клиента Windows | переменные репозитория клиента `CORD_DEFAULT_SERVER` (и при желании `CORD_UPDATE_CHANNEL`, иначе `<сервер>downloads/windows/desktop/`) |
-| Сервер оболочки Android | переменная репозитория `CORD_SERVER_URL` (`mobile/scripts/set-server.mjs` в `android.yml`) |
+| Сервер по умолчанию и канал обновлений клиента Windows | продукт `https://cordcam.ru/` — `desktop/build/update-keys.json` (`defaultServer`) в репозитории клиента; канал — `<сервер>downloads/windows/desktop/` или переменная `CORD_UPDATE_CHANNEL`; другая установка — ветка `deploy/<имя>` с `build/installations/<имя>.json`. Дымовой прогон CI идёт на стенд из переменной `CORD_SMOKE_SERVER` (пока нет — `CORD_DEFAULT_SERVER`) |
+| Сервер оболочки Android | продукт `https://cordcam.ru` — `mobile/capacitor.config.json`; другая установка — переменная репозитория `CORD_ANDROID_SERVER` (`mobile/scripts/set-server.mjs` в `android.yml`) |
 | Проверка выкаченного сервера из CI | переменная репозитория `CORD_SERVER_URL` (`verify-deployed.yml`, запуск вручную) |
 | Клиент Windows на `/download` этого сервера | `.local/windows-releases` — `backlog/bin/publish-windows.sh --desktop <версия>` |
 

@@ -164,8 +164,39 @@ if (!refresh)
     { mode: 0o600 },
   );
 const env = refresh ? { ...saved } : { ...values };
+
+/**
+ * Адресные ключи `.env` при перевыпуске (R200 §8.6). Секреты и то, что правил владелец, `--refresh` не
+ * трогает. Но имена, режим и порты задаются аргументами и `topology.json`, а в `.env` лежат их копии —
+ * и до сих пор при смене имён (`--refresh --app=cordcam.ru …`) там оставались прежние `APP_HOST`,
+ * `PUBLIC_URL`, `LIVEKIT_URL`: ядро и служба интеграций отказывали запросам по Origin, SFU звал
+ * клиентов на старое имя, и всё это правилось руками (meet → `cordcam.ru`, 08.11.2026). Теперь ключи,
+ * которые генератор сам выводит из топологии, при расхождении переписываются на месте; остальные строки
+ * остаются байт в байт. `SERVER_NAME` — имя для людей, его меняем только пока оно равно прежнему адресу.
+ */
+const ADDRESS_KEYS = [
+  "DEPLOY_MODE", "APP_HOST", "RTC_HOST", "TURN_HOST", "PUBLIC_IP",
+  "GATEWAY_PORT", "HOOKS_PORT", "PUBLIC_URL", "LIVEKIT_URL",
+];
+let envText = existing;
+const retargeted = [];
+if (refresh) {
+  const wanted = Object.fromEntries(ADDRESS_KEYS.map((k) => [k, String(values[k])]));
+  if (saved.SERVER_NAME !== undefined && saved.SERVER_NAME === saved.APP_HOST && saved.APP_HOST !== values.APP_HOST)
+    wanted.SERVER_NAME = values.SERVER_NAME;
+  for (const [k, want] of Object.entries(wanted)) {
+    if (saved[k] === want) continue;
+    retargeted.push(`${k}: ${saved[k] === undefined ? "(не было)" : saved[k]} → ${want}`);
+    env[k] = want;
+    const line = new RegExp(`^${k}=.*$`, "m");
+    envText = line.test(envText)
+      ? envText.replace(line, `${k}=${want}`)
+      : `${envText.endsWith("\n") || envText === "" ? envText : envText + "\n"}${k}=${want}\n`;
+  }
+  if (envText !== existing) await writeFile(".env", envText, { mode: 0o600 });
+}
 if (refresh && monitoring) {
-  let text = existing.endsWith("\n") ? existing : existing + "\n";
+  let text = envText.endsWith("\n") ? envText : envText + "\n";
   for (const [k, make] of Object.entries(MONITORING_KEYS))
     if (!saved[k]) {
       env[k] = make();
@@ -178,7 +209,7 @@ if (refresh && monitoring) {
       ? text.replace(/^COMPOSE_PROFILES=.*$/m, `COMPOSE_PROFILES=${env.COMPOSE_PROFILES}`)
       : text + `COMPOSE_PROFILES=${env.COMPOSE_PROFILES}\n`;
   }
-  if (text !== existing) await writeFile(".env", text, { mode: 0o600 });
+  if (text !== envText) await writeFile(".env", text, { mode: 0o600 });
 }
 
 /**
@@ -292,10 +323,17 @@ microphone and screen sharing become available.
 Open TCP 443, TCP 7881, UDP 3478 and UDP 7882.
 There is no TURN over TLS without DNS names: networks that allow only 443 get no media.`,
 };
+const retargetNote = retargeted.length
+  ? `
+.env retargeted (secrets untouched): ${retargeted.join("; ")}.
+core, gateway and services read .env — recreate them; edge and livekit read the generated files only at start:
+  docker compose up -d edge gateway core services livekit && docker compose restart edge livekit
+`
+  : "";
 console.log(`Mode: ${mode}
 ${notes[mode]}
 
-Configuration written to ${resolve("infra/generated")}. Secrets are in .env.
+Configuration written to ${resolve("infra/generated")}. Secrets are in .env.${retargetNote}
 Apply the documented firewall rules before starting services.
 
 Server address to paste into Cord: ${topology.origin}`);

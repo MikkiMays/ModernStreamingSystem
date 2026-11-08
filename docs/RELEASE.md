@@ -451,28 +451,28 @@ D=$(date +%Y%m%d)
 cp -a infra/generated infra/generated.before-$D-strict && cp -p .env .local/env.before-$D-strict
 ```
 
-2. `.env` — режим и имена (`--refresh` `.env` не переписывает):
-
-```bash
-sed -i -e 's/^DEPLOY_MODE=.*/DEPLOY_MODE=strict/' \
-  -e 's/^RTC_HOST=.*/RTC_HOST=rtc.<домен>/' -e 's/^TURN_HOST=.*/TURN_HOST=turn.<домен>/' .env
-grep -E '^(DEPLOY_MODE|APP_HOST|RTC_HOST|TURN_HOST)=' .env
-```
+2. `.env` руками не править. Секреты и правки владельца `--refresh` не трогает, а адресные ключи
+   (`DEPLOY_MODE`, `APP_HOST`, `RTC_HOST`, `TURN_HOST`, `PUBLIC_IP`, `PUBLIC_URL`, `LIVEKIT_URL`, порты шлюза)
+   с R200 §8.6 переписывает сам по именам из аргументов и печатает, что поменял (`.env retargeted: …`). До
+   этого `LIVEKIT_URL` и `PUBLIC_URL` оставались старыми, и ядро со службой интеграций отказывали по Origin
+   (meet → `cordcam.ru`, 08.11.2026).
 
 3. Конфигурация:
 
 ```bash
 node scripts/configure.mjs --refresh --app=<домен> --rtc=rtc.<домен> --turn=turn.<домен> --ip=<IP>
+grep -E '^(DEPLOY_MODE|APP_HOST|RTC_HOST|TURN_HOST|PUBLIC_URL|LIVEKIT_URL)=' .env
 ```
 
 Печатает `Mode: strict`. Нет Node на хосте — тем же образом, что `update.sh`:
 `docker run --rm -v "$PWD:/w" -w /w node:22-alpine sh -c 'apk add --no-cache openssl >/dev/null && node scripts/configure.mjs --refresh --app=… --rtc=… --turn=… --ip=…'`.
 
-4. Подъём. `.env` поменялся, поэтому `up` пересоздаёт `gateway` и вместе с ним `core`; `edge` и `livekit` читают
-   новые файлы только при старте:
+4. Подъём. `.env` поменялся, поэтому `up` пересоздаёт всё, что его читает: `core`, `gateway` и `services`
+   (служба интеграций сверяет Origin с `PUBLIC_URL` — без пересоздания она отказывает новому имени); `edge` и
+   `livekit` читают новые файлы только при старте:
 
 ```bash
-docker compose up -d edge gateway livekit && docker compose restart edge livekit
+docker compose up -d edge gateway core services livekit && docker compose restart edge livekit
 ```
 
 5. Сертификаты трёх имён (ACME выдаёт их за секунды):
@@ -505,7 +505,7 @@ node scripts/smoke.mjs
 «Проверка владельцем», п. 3).
 
 Откат перехода: вернуть `infra/generated.before-<дата>-strict` на место `infra/generated`, `.env` из
-`.local/env.before-<дата>-strict`, `docker compose up -d edge gateway livekit && docker compose restart edge
+`.local/env.before-<дата>-strict`, `docker compose up -d edge gateway core services livekit && docker compose restart edge
 livekit`, правило `sudo ufw allow 5349/tcp`.
 
 ### Новый сервер
@@ -622,8 +622,9 @@ CI ветки собирает клиент с `https://cordcam.ru/` и ключ
 
 - `.github/workflows/android.yml` — на пуш и PR, если тронуты `mobile/**` или сам workflow; вручную —
   `gh workflow run android.yml -R MikkiMays/ModernStreamingSystem --ref main`.
-- Собирает отладочный APK (`assembleDebug`, отладочный ключ) с сервером из переменной репы `CORD_SERVER_URL`
-  (сейчас `https://cord.nikg.tech`, `mobile/scripts/set-server.mjs`); без переменной не собирается.
+- Собирает отладочный APK (`assembleDebug`, отладочный ключ) с адресом продукта `https://cordcam.ru` из
+  `mobile/capacitor.config.json` (R200, Р-110); `mobile/scripts/set-server.mjs` без переменной только сверяет файлы.
+  Стенд `cord.nikg.tech` в APK не попадает: переменная `CORD_SERVER_URL` — только для `verify-deployed.yml`.
 - Результат — артефакт `cord-android-debug` (`app-debug.apk`), живёт 14 дней. На сервер и в магазины не
   выкладывается.
 
@@ -634,8 +635,8 @@ gh run download <id> -R MikkiMays/ModernStreamingSystem -n cord-android-debug -D
 
 - Номер — `versionName` и `versionCode` (§1); правка в `mobile/` и запускает сборку.
 - Правка веба нового APK не требует: оболочка грузит страницу с сервера.
-- APK для другого сервера — сборка руками с `CORD_SERVER_URL=https://<сервер> node scripts/set-server.mjs`
-  ([mobile.md](mobile.md) §8; нужны Android SDK и JDK 21, на этой машине их нет) или другая переменная репы
+- APK для другого сервера — сборка руками с `CORD_ANDROID_SERVER=https://<сервер> node scripts/set-server.mjs`
+  ([mobile.md](mobile.md) §8; нужны Android SDK и JDK 21, на этой машине их нет) или та же переменная репы
   (владелец).
 
 ## 9. Учёт в конце выпуска
@@ -703,8 +704,10 @@ gh run download <id> -R MikkiMays/ModernStreamingSystem -n cord-android-debug -D
   `CORD_SIGN_PFX_BASE64` и `CORD_SIGN_PASSWORD`. Без него — SmartScreen.
 - **Ключ подписи обновлений** — секрет `CORD_UPDATE_SIGN_KEY` (задан); смена — новый открытый ключ в
   `desktop/build/update-keys.json`, выпуск клиента, затем новый секрет. Ключ cordcam — только на сервере cordcam.
-- **Переменные реп:** `CORD_DEFAULT_SERVER` и `CORD_UPDATE_CHANNEL` (Windows), `CORD_SERVER_URL` (ядро: APK и
-  `verify-deployed.yml`).
+- **Переменные реп:** `CORD_SMOKE_SERVER` (Windows — стенд для дымового прогона CI; пока его нет, берётся
+  `CORD_DEFAULT_SERVER`) и `CORD_UPDATE_CHANNEL` (Windows), `CORD_SERVER_URL` (ядро: `verify-deployed.yml`),
+  `CORD_ANDROID_SERVER` (ядро: APK другой установки). Адрес продукта `https://cordcam.ru` — в коде обоих клиентов
+  (`desktop/build/update-keys.json`, `mobile/capacitor.config.json`), не в переменных (R200, Р-110).
 - **Ключ каталога серверов** — `node scripts/sign-catalog.mjs keygen --out <путь>.pem`, открытый ключ в
   `contracts/catalog-keys.json` и `desktop/build/catalog-keys.json`, выпуск клиента, затем `sign`.
 - **Команды root на хосте** (если среда агента их не пускает; в сессии Claude Code — с префиксом `! `):
