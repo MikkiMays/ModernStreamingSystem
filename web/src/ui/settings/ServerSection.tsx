@@ -72,22 +72,28 @@ export function ServerSection({
   const title = (id: string) => nodeProbe.title(id, language);
   const country = (id: string) =>
     loads?.find((n) => n.id === id)?.country ?? nodes.find((n) => n.id === id)?.country;
-  // Один узел — как в 1.2.1: строка «Хельсинки · 12 мс», выбирать не из чего.
-  const singleLine = nodes
+  // Один узел — строка «Хельсинки · 12 мс», выбирать не из чего. Один узел не мерят (нечего сравнивать), поэтому без
+  // замера — просто имя: «не отвечает» было бы неправдой о живом узле. Узел без имени — неявный, без реестра (стенд,
+  // продукт до подключения узлов): о нём строке сказать нечего, её нет.
+  const named = nodes.filter((node) => title(node.id) !== node.id);
+  const singleLine = named
     .map((node) => {
       const latency = ms(node.id);
       return latency === null
-        ? t(($) => $.settings.server.nodeClosed, { node: title(node.id) })
+        ? title(node.id)
         : t(($) => $.settings.server.nodeMs, { node: title(node.id), ms: latency });
     })
     .join(', ');
+  // Имя сервера, совпадающее с адресом, — один раз, а не «cord.nikg.tech · cord.nikg.tech».
+  const serverName = current?.name || serverLabel(saved);
+  const serverHost = new URL(currentServerUrl()).host;
   return (
     <SettingGroup title={t(($) => $.settings.server.connection)}>
       <SettingRow
         id="server-current"
         hint={
           <>
-            {`${current?.name || serverLabel(saved)} · ${new URL(currentServerUrl()).host}`}
+            {serverName && serverName !== serverHost ? `${serverName} · ${serverHost}` : serverHost}
             {/* Загрузка этого сервера словами и палочками (R143). */}
             {load && (
               <>
@@ -107,9 +113,7 @@ export function ServerSection({
           }
         />
       ) : (
-        nodes.length > 0 && (
-          <SettingRow id="server-node" hint={singleLine || t(($) => $.settings.server.nodeUnknown)} />
-        )
+        named.length > 0 && <SettingRow id="server-node" hint={singleLine} />
       )}
       {!!saved.password && (
         <SettingRow id="server-password">

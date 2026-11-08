@@ -172,4 +172,20 @@ describe('«Сервер»: Авто и список узлов', () => {
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
     expect(screen.getByText('Франкфурт · 41 мс')).toBeInTheDocument();
   });
+
+  it('один узел без замера — только имя, без «не отвечает»: один узел не мерят, он живой', () => {
+    vi.spyOn(nodeProbe, 'last').mockReturnValue(null);
+    nodeProbe.schedule([NODES[0]!]);
+    show();
+    expect(screen.getByText('Франкфурт')).toBeInTheDocument();
+    expect(screen.queryByText(/не отвечает/)).not.toBeInTheDocument();
+  });
+
+  it('неявный узел без реестра (стенд, продукт до подключения узлов) — строки узла нет', () => {
+    vi.spyOn(nodeProbe, 'last').mockReturnValue(null);
+    nodeProbe.schedule([{ id: 'main', title: {}, rtcUrl: 'wss://x', probeUrl: 'https://x', control: true }]);
+    show();
+    expect(screen.queryByText(/main/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/не отвечает/)).not.toBeInTheDocument();
+  });
 });
