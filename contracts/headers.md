@@ -17,6 +17,20 @@
 Службы (бот, кинозал, музыка) этого заголовка не присылают: Telegram-беседа входит своим профилем
 избранного, и правило одной встречи её не касается.
 
+## `X-Cord-Client` — каким клиентом открыт Cord (R210, Р-126)
+
+| | |
+| --- | --- |
+| Значение | слово: `web` (браузер, в том числе браузер телефона), `desktop` (приложение для Windows), `android` (приложение для телефона), `telegram` (Mini App) |
+| Куда | во все запросы веба к ядру (`web/src/core/client-kind.ts`), `POST /api/v1/visit` и сводки `POST /api/v1/client-errors` |
+| Обязателен | нет. Без него или с чужим словом тип угадывается по `User-Agent`: `Electron` — `desktop`, иначе `web` |
+| Что хранит ядро | только слово типа и слово ОС из `User-Agent` (`windows`, `macos`, `linux`, `android`, `ios`, `other`) в строках аналитики (`visitor_days`, V16); строка агента не хранится нигде |
+| Разбор | `server/.../activity/ClientKind.java` |
+
+Тот же профиль из `X-Cord-Profile` уходит и в `POST /api/v1/visit` (`{stage: "open"|"prejoin"}`, раз на сессию) и в
+`POST /api/v1/client-errors`: ядро ведёт по нему аналитику продукта (`docs/architecture/admin-analytics.md` §2) —
+HMAC его хэша, без адреса. Без профиля событие принимается и не считается.
+
 ## `X-Cord-Leave` — выйти оттуда и войти сюда
 
 | | |

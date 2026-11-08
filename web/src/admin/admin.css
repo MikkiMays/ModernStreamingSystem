@@ -464,3 +464,354 @@
 .admin-tabs .ui-tabs__panel {
   margin-top: var(--space-3);
 }
+
+/* ── Флот — live, аналитика, обращения (R209, R210, R215) ─────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+td[data-tone='bad'],
+dd[data-tone='bad'] {
+  color: var(--danger);
+}
+
+td[data-tone='warn'],
+dd[data-tone='warn'] {
+  color: var(--warning);
+}
+
+td[data-tone='ok'],
+dd[data-tone='ok'] {
+  color: var(--success);
+}
+
+.admin-live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr));
+  gap: var(--space-4);
+}
+
+.admin-live-card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+}
+
+.admin-live-card .admin-hint,
+.admin-specs {
+  margin: 0;
+}
+
+.admin-specs {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.admin-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.admin-meters,
+.admin-compare {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-meters {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+}
+
+.admin-meter {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.admin-meter__label {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-meter__track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-active);
+}
+
+.admin-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--accent-fill);
+}
+
+.admin-meter[data-tone='warn'] .admin-meter__fill {
+  background: var(--warning);
+}
+
+.admin-meter[data-tone='bad'] .admin-meter__fill {
+  background: var(--danger-fill);
+}
+
+.admin-meter__value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.admin-sparks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  gap: var(--space-3);
+}
+
+.admin-spark,
+.admin-bars {
+  margin: 0;
+}
+
+.admin-spark figcaption,
+.admin-bars figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.admin-spark figcaption strong,
+.admin-bars figcaption strong {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-spark svg {
+  display: block;
+  width: 100%;
+  height: 48px;
+  touch-action: none;
+}
+
+.admin-spark__empty {
+  height: 48px;
+  color: var(--muted);
+}
+
+.admin-spark__line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+
+.admin-spark__base,
+.admin-bars__base {
+  stroke: var(--line);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.admin-spark__cross {
+  stroke: var(--line-strong);
+  stroke-width: 1px;
+}
+
+.admin-bars svg {
+  display: block;
+  width: 100%;
+  height: 160px;
+}
+
+.admin-bars__hit {
+  fill: transparent;
+}
+
+.admin-bars__bar {
+  fill: var(--accent-fill);
+}
+
+.admin-bars__bar[data-hover] {
+  fill: var(--accent-fill-hover);
+}
+
+.admin-bars__axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.admin-hbars {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.admin-hbars li {
+  display: grid;
+  grid-template-columns: minmax(6em, 9em) minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-hbars__label {
+  color: var(--text-secondary);
+}
+
+.admin-hbars__track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-1);
+  background: var(--surface-active);
+}
+
+.admin-hbars__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-1);
+  background: var(--accent-fill);
+}
+
+.admin-hbars__value {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-live-core h3,
+.admin-subhead {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.admin-live-core p {
+  margin: 0 0 var(--space-1);
+}
+
+.admin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.admin-caption {
+  padding-bottom: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  text-align: left;
+}
+
+.admin-count {
+  margin-left: var(--space-1);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-dl--compact {
+  gap: var(--space-0-5) var(--space-3);
+}
+
+.admin-dl__pair {
+  display: contents;
+}
+
+.admin-table-wrap--tall {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.admin-retention td,
+.admin-retention th {
+  text-align: right;
+}
+
+.admin-retention td:first-child,
+.admin-retention th:first-child {
+  text-align: left;
+}
+
+/* Удержание — одна гамма: заливка растёт с долей вернувшихся, число в ячейке есть всегда. */
+.admin-retention__cell {
+  background: color-mix(in srgb, var(--accent-fill) calc(var(--share, 0) * 70%), transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-retention__early {
+  color: var(--muted);
+}
+
+.admin-retention__total td {
+  font-weight: var(--weight-semibold);
+}
+
+.admin-search {
+  flex: 1 1 260px;
+}
+
+.admin-ticket__summary {
+  max-width: 420px;
+}
+
+.admin-ticket__text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-secondary);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.admin-ticket__message {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.admin-timeline {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-timeline li {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--line);
+  white-space: pre-wrap;
+}
+
+.admin-timeline li[data-kind='reply'] {
+  border-left-color: var(--accent);
+}
+
+.admin-timeline li[data-kind='status'],
+.admin-timeline li[data-kind='assign'],
+.admin-timeline li[data-kind='priority'],
+.admin-timeline li[data-kind='tags'] {
+  color: var(--text-secondary);
+}
+
+.admin-diagnostics pre {
+  margin: 0;
+  overflow-x: auto;
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+}

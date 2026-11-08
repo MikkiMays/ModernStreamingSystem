@@ -8,7 +8,8 @@ import type {
   PokerGame,
   Snapshot,
 } from './types';
-import { entryHeaders } from '../core/identity';
+import { entryHeaders, profileSecret } from '../core/identity';
+import { clientHeaders } from '../core/client-kind';
 import { prepareProof, takeProof, type ProofAction } from '../core/proof';
 import { noteError, type SupportReceipt, type SupportTicket } from '../core/support';
 import { FriendlyError, OfflineError, type FailureCount } from '../core/failure';
@@ -122,6 +123,8 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
         ...(credential ? { Authorization: `Bearer ${credential}` } : {}),
         ...(bearer ? { 'X-Cord-Session': bearer } : {}),
+        // Тип клиента — для аналитики ядра (R210): слово, без версии и устройства.
+        ...clientHeaders(),
         ...init.headers,
       },
     });
@@ -176,7 +179,13 @@ export async function sendFailures(errors: readonly FailureCount[], keepalive: b
       method: 'POST',
       keepalive,
       body: JSON.stringify({ errors }),
-      headers: { 'Content-Type': 'application/json', ...(bearer ? { 'X-Cord-Session': bearer } : {}) },
+      // Профиль и тип клиента — чтобы ядро сосчитало «ошибок на сессию» (R210): только число.
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Cord-Profile': profileSecret(),
+        ...clientHeaders(),
+        ...(bearer ? { 'X-Cord-Session': bearer } : {}),
+      },
       ...(keepalive ? {} : { signal: AbortSignal.timeout(8000) }),
     });
     return response.status < 500;

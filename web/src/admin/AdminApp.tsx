@@ -2,7 +2,10 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   Activity,
+  ChartColumn,
   BookOpen,
+  Gauge,
+  Inbox,
   ClipboardList,
   Flag,
   LayoutDashboard,
@@ -39,11 +42,17 @@ const Nodes = lazy(() => import('./screens/Nodes').then((m) => ({ default: m.Nod
 const Deploys = lazy(() => import('./screens/Deploys').then((m) => ({ default: m.Deploys })));
 const Audit = lazy(() => import('./screens/Audit').then((m) => ({ default: m.Audit })));
 const Later = lazy(() => import('./screens/Later').then((m) => ({ default: m.Later })));
+const Live = lazy(() => import('./screens/Live').then((m) => ({ default: m.Live })));
+const Analytics = lazy(() => import('./screens/Analytics').then((m) => ({ default: m.Analytics })));
+const Support = lazy(() => import('./screens/Support').then((m) => ({ default: m.Support })));
 
 export type Section =
   | 'overview'
+  | 'live'
   | 'nodes'
   | 'meetings'
+  | 'analytics'
+  | 'support'
   | 'maintenance'
   | 'deploys'
   | 'security'
@@ -56,8 +65,11 @@ export type Section =
 
 const SECTIONS: { id: Section; icon: ReactNode }[] = [
   { id: 'overview', icon: <LayoutDashboard size={20} /> },
+  { id: 'live', icon: <Gauge size={20} /> },
   { id: 'nodes', icon: <Server size={20} /> },
   { id: 'meetings', icon: <Users size={20} /> },
+  { id: 'analytics', icon: <ChartColumn size={20} /> },
+  { id: 'support', icon: <Inbox size={20} /> },
   { id: 'maintenance', icon: <Wrench size={20} /> },
   { id: 'deploys', icon: <Rocket size={20} /> },
   { id: 'security', icon: <ShieldAlert size={20} /> },
@@ -262,6 +274,12 @@ function Screen({ route, console }: { route: { section: Section; rest: string[] 
   switch (route.section) {
     case 'overview':
       return <Overview console={console} />;
+    case 'live':
+      return <Live />;
+    case 'analytics':
+      return <Analytics console={console} />;
+    case 'support':
+      return <Support console={console} />;
     case 'jobs':
       return <Jobs console={console} jobId={route.rest[0]} />;
     case 'maintenance':
