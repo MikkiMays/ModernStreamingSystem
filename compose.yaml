@@ -379,7 +379,7 @@ services:
       GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: 'false'
       GF_NEWS_NEWS_FEED_ENABLED: 'false'
       GF_PLUGINS_PREINSTALL_DISABLED: 'true'
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/cord-meetings.json
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/cord-fleet.json
       # Пульт (R212): Grafana — под `https://<ADMIN_HOST>/grafana/`, вход — прокси-заголовком от шлюза пульта,
       # который пускает только с клиентским сертификатом (R211). Без ADMIN_HOST — как раньше, по паролю на 127.0.0.1.
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-%(protocol)s://%(domain)s:%(http_port)s/}
