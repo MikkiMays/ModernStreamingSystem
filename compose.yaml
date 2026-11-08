@@ -380,6 +380,17 @@ services:
       GF_NEWS_NEWS_FEED_ENABLED: 'false'
       GF_PLUGINS_PREINSTALL_DISABLED: 'true'
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/cord-meetings.json
+      # Пульт (R212): Grafana — под `https://<ADMIN_HOST>/grafana/`, вход — прокси-заголовком от шлюза пульта,
+      # который пускает только с клиентским сертификатом (R211). Без ADMIN_HOST — как раньше, по паролю на 127.0.0.1.
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-%(protocol)s://%(domain)s:%(http_port)s/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: ${GRAFANA_SUB_PATH:-false}
+      GF_AUTH_PROXY_ENABLED: ${GRAFANA_AUTH_PROXY:-false}
+      GF_AUTH_PROXY_HEADER_NAME: X-WEBAUTH-USER
+      GF_AUTH_PROXY_HEADER_PROPERTY: username
+      GF_AUTH_PROXY_AUTO_SIGN_UP: 'true'
+      GF_AUTH_PROXY_WHITELIST: 127.0.0.1
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Admin
+      GF_SECURITY_ALLOW_EMBEDDING: ${GRAFANA_AUTH_PROXY:-false}
       GF_LOG_LEVEL: warn
     volumes:
       - grafana:/var/lib/grafana
