@@ -237,7 +237,12 @@ public class Analytics implements RoomObserver {
       long midnight = day.plusDays(1).atStartOfDay(config.zone()).toInstant().toEpochMilli();
       long end = Math.min(now, midnight);
       long seconds = (end - start) / 1000;
-      if (seconds == 0) break;
+      if (seconds == 0) {
+        // Меньше секунды до полуночи — этот обрезок не в счёт, отрезок продолжается с полуночи.
+        if (end == now) break;
+        start = end;
+        continue;
+      }
       tally(day, key).presence += seconds;
       start += seconds * 1000;
     }

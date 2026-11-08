@@ -250,6 +250,28 @@ class AnalyticsTest {
     assertThat(jdbc.sql("SELECT COUNT(*) FROM visitors").query(Long.class).single()).isEqualTo(1);
   }
 
+  /**
+   * Отрезок, начатый за полсекунды до полуночи, не застревает: секунды после неё засчитаны новому
+   * дню.
+   */
+  @Test
+  void aSegmentStartingJustBeforeMidnightCarriesOn() {
+    var room = new RoomState();
+    room.id = "room-2";
+    room.startedAt = now.get();
+    var a = member("m-a", RoomState.Status.CONNECTED);
+    room.members.put(a.id, a);
+    room.profiles.put(a.id, Secrets.hash(PROFILE_A));
+    now.set(at(DAY1.plusDays(1), 0, 0) - 500);
+    analytics.changed(room, "room.changed", now.get());
+    now.addAndGet(10_500);
+    analytics.flush();
+    now.addAndGet(5_000);
+    analytics.closed(room, "empty", now.get());
+    analytics.flush();
+    assertThat(presence(DAY1.plusDays(1))).isEqualTo(15);
+  }
+
   private long presence(LocalDate day) {
     return jdbc.sql("SELECT presence_seconds FROM visitor_days WHERE visitor_key=? AND local_day=?")
         .params(key(PROFILE_A), day)
