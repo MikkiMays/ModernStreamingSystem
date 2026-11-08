@@ -224,6 +224,42 @@ services:
       - ./infra/generated/backbone.json:/etc/backbone.json:ro
       - ./infra/generated/backbone-pki:/pki:ro
     mem_limit: 128m
+  # ── Профиль `admin` (R207, docs/architecture/admin-panel.md, Р-112) ──────────────────────────────────
+  # Пульт флота — только на A: `admin.callcord.ru` → шлюз (блок `@admin` в infra/Caddyfile) → эта служба на
+  # 127.0.0.1:18200. Настройки — `.local/fleet.env` (`node scripts/fleet-setup.mjs`), не `.env`: продукту
+  # секреты пульта незачем, пульту — секреты продукта. Состояние (сессии, журнал, задачи) — том `fleet-data`;
+  # ключи SSH к машинам — каталог `FLEET_KEYS_DIR` (по умолчанию `.local/fleet-keys`) только для чтения;
+  # реестр узлов стенда — `./infra/generated/nodes`. По умолчанию исполнитель — сухой прогон: команды на
+  # машины не уходят, пока владелец не включит `--executor=ssh` (Р-116).
+  fleet:
+    profiles: [admin]
+    logging: *default-logging
+    build: { context: ., dockerfile: services/fleet/Dockerfile, target: fleet }
+    network_mode: host
+    env_file:
+      - path: .local/fleet.env
+        required: false
+    environment:
+      FLEET_DATA: /data
+      FLEET_LISTEN: 127.0.0.1:18200
+    restart: unless-stopped
+    read_only: true
+    init: true
+    tmpfs: [/tmp]
+    volumes:
+      - fleet-data:/data
+      - ./infra/generated/nodes:/nodes:ro
+      - ${FLEET_KEYS_DIR:-./.local/fleet-keys}:/keys:ro
+    mem_limit: 256m
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18200/api/fleet/health', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      retries: 5
   volume-init:
     logging: *default-logging
     image: alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
@@ -440,6 +476,8 @@ volumes:
   metrics:
   grafana:
   alerts:
+  # Профиль `admin` (R207): SQLite пульта — сессии, журнал, задачи.
+  fleet-data:
 networks:
   # Своя сеть плеера страниц: мост с выходом в интернет (подменой адреса хоста), но в подсети, которой
   # стена `infra/sniffer-firewall.sh` запрещает частные сети. Подсеть — та же, что у стены.
