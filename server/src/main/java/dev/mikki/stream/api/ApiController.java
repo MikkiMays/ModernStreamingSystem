@@ -65,7 +65,11 @@ public class ApiController {
       String rtcUrl,
       String probeUrl,
       String stun,
-      boolean control) {}
+      boolean control,
+      /** Страна узла (ISO 3166-1 alpha-2) для флага; реестр без страны — поля нет. */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          String country) {}
 
   public record QualityRules(
       @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
@@ -170,7 +174,13 @@ public class ApiController {
             .map(
                 n ->
                     new MediaNodeInfo(
-                        n.id(), n.title(), n.rtcUrl(), n.probeUrl(), n.stun(), n.control()))
+                        n.id(),
+                        n.title(),
+                        n.rtcUrl(),
+                        n.probeUrl(),
+                        n.stun(),
+                        n.control(),
+                        n.country()))
             .toList());
   }
 

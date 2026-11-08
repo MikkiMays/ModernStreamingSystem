@@ -2629,6 +2629,9 @@
           "control": {
             "type": "boolean"
           },
+          "country": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -2728,6 +2731,40 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "NodeLoad": {
+        "properties": {
+          "control": {
+            "type": "boolean"
+          },
+          "country": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "level": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "control",
+          "id",
+          "level",
+          "state",
+          "title"
+        ],
         "type": "object"
       },
       "NodeMeasure": {
@@ -5925,6 +5962,29 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/Load"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "load-controller"
+        ]
+      }
+    },
+    "/api/v1/nodes": {
+      "get": {
+        "operationId": "nodes",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NodeLoad"
+                  },
+                  "type": "array"
                 }
               }
             },

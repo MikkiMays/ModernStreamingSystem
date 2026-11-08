@@ -232,7 +232,10 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 шести на каждое место, ЦП хоста вместе со steal (steal > 25 % — не ниже 3) и отдача канала к `STREAM_UPLINK_MBPS`;
 все места заняты — 4; вниз — только после 30 с ниже порога. Наружу (`GET /api/v1/load`, открыт как пинг, 120 в
 минуту с адреса) — только ступень и состояние `ok | busy | full | maintenance | closed`, без чисел. Соседей по
-каталогу больше нет (R195: один адрес, медиаузлы, `cord_node_up{node}` и `cord_node_choice_total{node,reason}`). Наружу доли не уходят; владельцу они видны метрикой
+каталогу больше нет (R195: один адрес, медиаузлы, `cord_node_up{node}` и `cord_node_choice_total{node,reason}`). Та же
+ступень у каждого медиаузла (R200): `cord_node_level{node}` по `ListRooms` узла (`cord_node_rooms`,
+`cord_node_participants`) и его node-exporter по магистрали; наружу — `GET /api/v1/nodes` (ступень и состояние
+`ok | busy | full | down | drained`, без чисел), алерт `NodeSaturated`. Наружу доли не уходят; владельцу они видны метрикой
 `cord_server_load_share{kind=rooms|people|cpu|uplink|steal}` (0…1, с 01.11.2026) — панель «Загрузка для людей:
 доли» рядом со ступенью «Загрузка для людей (1–4)» на «Cord — сервер»: видно, какое узкое место подняло ступень.
 Устройство — `docs/architecture.md` → «Загрузка сервера».

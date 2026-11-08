@@ -54,6 +54,7 @@ public class OpenApiConfig {
               "RoomYou",
               "Capabilities",
               "MediaNodeInfo",
+              "NodeLoad",
               "NodeMeasure",
               "MaintenanceNotice",
               "QualityRules",
@@ -122,6 +123,9 @@ public class OpenApiConfig {
       schemas.get("Capabilities").getRequired().remove("maintenance");
       // Окно технических работ (R194): окна чаще всего нет — и поля нет.
       schemas.get("Capabilities").getRequired().remove("maintenanceWindow");
+      // Страна узла (R200): реестр до флагов её не знает — поля нет.
+      schemas.get("MediaNodeInfo").getRequired().remove("country");
+      schemas.get("NodeLoad").getRequired().remove("country");
       schemas.get("MaintenanceNotice").getRequired().remove("endsAt");
       schemas
           .get("MaintenanceNotice")

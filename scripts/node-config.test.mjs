@@ -27,7 +27,7 @@ test('a media node gets its own files, the registry, the control backbone and no
   try {
     await writeFile(join(directory, '.env'), ENV, { mode: 0o600 });
     const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
-    const first = run('--node=hel', '--ip=203.0.113.7', '--app=hel.example.test', '--rtc=rtc-hel.example.test', '--turn=turn-hel.example.test', '--title-ru=Хельсинки', '--title-en=Helsinki', '--max-rooms=3', '--ssh=root@203.0.113.7', '--ssh-key=/root/.ssh/k');
+    const first = run('--node=hel', '--ip=203.0.113.7', '--app=hel.example.test', '--rtc=rtc-hel.example.test', '--turn=turn-hel.example.test', '--title-ru=Хельсинки', '--title-en=Helsinki', '--country=fi', '--max-rooms=3', '--uplink-mbps=500', '--cores=2', '--ssh=root@203.0.113.7', '--ssh-key=/root/.ssh/k');
     assert.equal(first.status, 0, first.stderr);
     assert.ok(!first.stdout.includes('0123456789abcdef'), 'secret leaked to stdout');
 
@@ -38,6 +38,15 @@ test('a media node gets its own files, the registry, the control backbone and no
     assert.equal(control.control, true);
     assert.equal(control.rtcUrl, 'wss://app.example.test');
     assert.equal(control.stun, 'stun:turn.example.test:3478');
+    // Ёмкость и флаг (R200): узел управления — из .env и машины, медиаузел — из флагов.
+    assert.equal(control.country, 'DE');
+    assert.equal(control.uplinkMbps, 1000);
+    assert.ok(control.cores >= 1);
+    assert.equal(control.loadUrl, 'http://127.0.0.1:9100/metrics');
+    assert.equal(hel.country, 'FI');
+    assert.equal(hel.uplinkMbps, 500);
+    assert.equal(hel.cores, 2);
+    assert.equal(hel.loadUrl, 'http://127.0.0.1:21002/metrics');
     assert.deepEqual(hel.title, { ru: 'Хельсинки', en: 'Helsinki' });
     assert.equal(hel.index, 1);
     assert.equal(hel.rtcUrl, 'wss://rtc-hel.example.test');
@@ -97,6 +106,9 @@ test('a media node gets its own files, the registry, the control backbone and no
     assert.equal(msk.index, 2);
     assert.equal(msk.rtcUrl, 'wss://198.51.100.9');
     assert.equal(msk.stun, 'stun:198.51.100.9:3478');
+    assert.equal(msk.country, undefined, 'no country until the operator names one');
+    assert.equal(msk.uplinkMbps, 1000, 'default uplink');
+    assert.equal(msk.loadUrl, 'http://127.0.0.1:22002/metrics');
     assert.equal(again.nodes.find((n) => n.id === 'hel').internalUrl, 'http://127.0.0.1:21000');
     await stat(join(directory, 'infra/generated/nodes/msk/tls/turn.crt'));
     const mskLivekit = JSON.parse(await readFile(join(directory, 'infra/generated/nodes/msk/livekit.json'), 'utf8'));
@@ -108,6 +120,8 @@ test('a media node gets its own files, the registry, the control backbone and no
     const drained = JSON.parse(await readFile(join(directory, 'infra/generated/nodes/registry.json'), 'utf8'));
     assert.equal(drained.nodes.find((n) => n.id === 'hel').enabled, false);
     assert.equal(drained.nodes.find((n) => n.id === 'hel').rtcUrl, 'wss://rtc-hel.example.test');
+    assert.equal(drained.nodes.find((n) => n.id === 'hel').country, 'FI', 'refresh keeps the country');
+    assert.equal(drained.nodes.find((n) => n.id === 'hel').uplinkMbps, 500);
 
     // Сертификат узла при перевыпуске без --renew не меняется.
     const before = await readFile(join(dir, 'pki/node.crt'), 'utf8');
@@ -127,6 +141,11 @@ test('a media node gets its own files, the registry, the control backbone and no
     assert.match(run('--node=Hel', '--ip=1.2.3.4', '--mode=ip').stderr, /Node id/);
     assert.match(run('--node=fra', '--ip=1.2.3.4', '--mode=ip').stderr, /control node/);
     assert.match(run('--node=new', '--ip=1.2.3.4').stderr, /--mode=ip/);
+    assert.match(run('--node=hel', '--refresh', '--country=Finland').stderr, /ISO 3166/);
+    assert.match(run('--node=hel', '--refresh', '--uplink-mbps=fast').stderr, /positive integer/);
+    // Страна узла управления — флагом без --node.
+    assert.equal(run('--country=nl').status, 0);
+    assert.equal(JSON.parse(await readFile(join(directory, 'infra/generated/nodes/registry.json'), 'utf8')).nodes[0].country, 'NL');
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

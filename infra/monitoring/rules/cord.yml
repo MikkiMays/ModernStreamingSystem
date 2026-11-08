@@ -198,6 +198,14 @@ groups:
         labels: { severity: warn }
         annotations: { summary: 'Реестр медиаузлов проигнорирован: control в registry.json ≠ NODE_ID в .env — узлы не работают, встречи идут на одном узле' }
 
+      # Узел на ступени 4 минуту (R200, server-selection.md §3.4): новые встречи на него не ставятся,
+      # идущие не трогаются — SFU сам снижает слои картинки. Ведущий видит «мест нет» в настройках.
+      - alert: NodeSaturated
+        expr: cord_node_level >= 4
+        for: 1m
+        labels: { severity: warn }
+        annotations: { summary: 'Медиаузел {{ $labels.node }} заполнен (ступень 4) больше минуты: новые встречи идут на другие узлы' }
+
       # Остался один живой узел — не авария, но резерва для переезда нет.
       - alert: NodeSingle
         expr: count(cord_node_up == 1) == 1 and count(cord_node_up) > 1

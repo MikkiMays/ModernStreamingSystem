@@ -7,6 +7,7 @@ import dev.mikki.stream.access.Entrant;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.nodes.MediaNodes;
 import dev.mikki.stream.room.Permissions.Action;
 import dev.mikki.stream.shared.Json;
 import dev.mikki.stream.shared.Problem;
@@ -139,7 +140,7 @@ public class RoomService {
           room.createdFrom = origin;
           room.createdBy = entrant.profileHash();
           // Узел медиа — по замеру пути создателя (R195); ядро проверяет его по реестру и живости.
-          var choice = nodes.choose(request.preferredNode());
+          var choice = nodes.choose(request.preferredNode(), measures(request.measurements()));
           room.mediaNode = choice.node().id();
           if (request.preferredNode() != null || request.measurements() != null)
             log.info(
@@ -159,6 +160,21 @@ public class RoomService {
             limits.hit("rooms:profile:" + entrant.profileHash(), hour.perProfile().roomsCreated());
           return admission(room, member, request.commandId(), url);
         });
+  }
+
+  /**
+   * Замеры создателя для выбора узла (R200): лучшее из UDP и TCP в мс; узел без ответа — {@code
+   * null}, он в сравнении не участвует.
+   */
+  static List<MediaNodes.Measure> measures(List<Contracts.NodeMeasure> measured) {
+    if (measured == null) return List.of();
+    var out = new ArrayList<MediaNodes.Measure>(measured.size());
+    for (var m : measured) {
+      var udp = Boolean.TRUE.equals(m.udpOpen()) ? m.udpMs() : null;
+      var ms = udp != null ? udp : m.tcpMs();
+      out.add(new MediaNodes.Measure(m.node(), ms, udp != null));
+    }
+    return out;
   }
 
   /**
