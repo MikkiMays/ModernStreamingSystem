@@ -31,6 +31,8 @@ export interface NodeInfo {
   probeUrl: string;
   stun?: string | null;
   control: boolean;
+  /** Страна узла (ISO 3166-1 alpha-2) для флага (R200); реестр без страны — поля нет. */
+  country?: string;
 }
 
 /** Что намерили до одного узла; `null` — замер не удался (узел далёк или не отвечает). */
@@ -302,3 +304,8 @@ export class NodeProbe {
 }
 
 export const nodeProbe = new NodeProbe();
+
+/** Страна узла для флага по его id; неизвестный узел — нет страны. */
+export function nodeCountry(id: string | null | undefined): string | undefined {
+  return id ? nodeProbe.known().find((n) => n.id === id)?.country : undefined;
+}

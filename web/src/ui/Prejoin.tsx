@@ -11,12 +11,15 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { nodeProbe } from '../media/node-probe';
+import { nodeCountry, nodeProbe } from '../media/node-probe';
+import { manualNode, nodeForCreate, setManualNode } from '../core/node-choice';
+import { Flag } from './kit/Flag';
+import { locale } from '../i18n';
 import { prepareHuman, publicApi, RoomApi } from '../api/client';
 import type { Admission } from '../api/types';
 import type { DeviceChoice } from '../media/session';
 import type { Destination } from './Home';
-import { Avatar, Logo } from './primitives';
+import { Avatar, Logo, useStore } from './primitives';
 import { clearCreateTitle, readCreateTitle } from '../core/recent-meetings';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { autoJoinEnabled, favoriteApi } from '../core/favorites';
@@ -66,6 +69,7 @@ export function Prejoin({
   );
   const automaticStarted = useRef(false);
   const [preferences, setPreferences] = useState(readPreferences);
+  const manual = useStore(manualNode);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [choices, setChoices] = useState<DeviceChoice>(() => readPreferences().devices);
   const [camera, setCamera] = useState(false);
@@ -164,9 +168,9 @@ export function Prejoin({
                   { commandId: commandId.current, invite: destination.invite, name: displayName },
                   leave,
                 )
-              : // Узел медиа — по замеру пути с этого устройства (R195): результат обычно уже есть; идущий
-                // замер ждём не дольше бюджета, чтобы не задерживать вход.
-                nodeProbe.preferred().then(({ node, measures }) =>
+              : // Узел медиа — ручной выбор из настроек или замер пути с этого устройства (R195, R200):
+                // результат обычно уже есть; идущий замер ждём не дольше бюджета, чтобы не задерживать вход.
+                nodeForCreate().then(({ preferredNode, measurements, manual }) =>
                   publicApi.create(
                     {
                       commandId: commandId.current,
@@ -174,7 +178,9 @@ export function Prejoin({
                       name: displayName,
                       approvalRequired,
                       integrationsAllowed,
-                      ...(node ? { preferredNode: node, measurements: measures } : {}),
+                      ...(preferredNode
+                        ? { preferredNode, measurements, ...(manual ? { manual: true } : {}) }
+                        : {}),
                     },
                     leave,
                   ),
@@ -529,6 +535,18 @@ export function Prejoin({
                 }}
                 label={t(($) => $.prejoin.integrations)}
               />
+              {/* Узел выбран руками в «Настройки → Сервер» (R200): видно до создания, сброс — в «Авто». */}
+              {manual && (
+                <p className="prejoin-server" data-testid="prejoin-server">
+                  <Flag country={nodeCountry(manual)} />
+                  <span>
+                    {t(($) => $.prejoin.serverManual, { node: nodeProbe.title(manual, locale(t)) })}
+                  </span>
+                  <button type="button" className="prejoin-server__reset" onClick={() => setManualNode(null)}>
+                    {t(($) => $.prejoin.serverReset)}
+                  </button>
+                </p>
+              )}
             </>
           )}
           {error && (

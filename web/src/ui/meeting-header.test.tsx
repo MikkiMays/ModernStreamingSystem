@@ -7,6 +7,7 @@ import { Store } from '../core/store';
 import { savePreferences } from '../core/preferences';
 import type { Meeting } from '../core/meeting';
 import { t } from '../i18n';
+import { nodeProbe } from '../media/node-probe';
 import { headerStatus, MeetingHeader } from './MeetingHeader';
 
 const roomId = '00000000-0000-4000-8000-000000000001';
@@ -91,6 +92,40 @@ it('counts the meeting from the core’s start, by the server clock', () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('names the meeting node with a flag next to PING, only when there is more than one node (R200)', () => {
+  const nodes = [
+    {
+      id: 'fra',
+      title: { ru: 'Франкфурт' },
+      rtcUrl: 'wss://fra',
+      probeUrl: 'https://fra',
+      control: true,
+      country: 'DE',
+    },
+    {
+      id: 'hel',
+      title: { ru: 'Хельсинки' },
+      rtcUrl: 'wss://hel',
+      probeUrl: 'https://hel',
+      control: false,
+      country: 'FI',
+    },
+  ];
+  vi.spyOn(nodeProbe, 'refresh').mockResolvedValue({ at: 1, node: 'hel', measures: [] });
+  nodeProbe.schedule(nodes);
+  vi.spyOn(nodeProbe, 'latency').mockReturnValue(12);
+  show(fakeMeeting({ mediaNode: 'hel' }));
+  const badge = screen.getByTestId('meeting-node');
+  expect(badge).toHaveTextContent('Хельсинки');
+  expect(badge).toHaveAttribute('title', 'Хельсинки · 12 мс');
+  expect(badge.querySelector('.ui-flag[data-country="FI"]')).not.toBeNull();
+  cleanup();
+  nodeProbe.schedule([nodes[0]!]);
+  show(fakeMeeting({ mediaNode: 'fra' }));
+  expect(screen.queryByTestId('meeting-node')).not.toBeInTheDocument();
+  nodeProbe.schedule([]);
 });
 
 it('shows no clock until the core reports a start', () => {

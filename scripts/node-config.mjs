@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile, readFile, access, chmod } from "node:fs/promises";
 import { isIP } from "node:net";
+import { cpus } from "node:os";
 import { resolve } from "node:path";
 import { createEdge, resolveTopology } from "./edge-config.mjs";
 import { createLivekit } from "./livekit-config.mjs";
@@ -17,8 +18,8 @@ import {
  * Медиаузел как код (R195). Запускается на узле управления (A) из корня репозитория, где лежит `.env`.
  *
  *   node scripts/node-config.mjs --node=hel --ip=152.234.227.199 \
- *     --app=hel.callcord.ru --rtc=rtc-hel.callcord.ru --turn=turn-hel.callcord.ru \
- *     --title-ru=Хельсинки --title-en=Helsinki --max-rooms=2 \
+ *     --app=hel.cordcam.ru --rtc=rtc-hel.cordcam.ru --turn=turn-hel.cordcam.ru \
+ *     --title-ru=Хельсинки --title-en=Helsinki --country=FI --max-rooms=2 --uplink-mbps=1000 --cores=2 \
  *     --ssh=root@152.234.227.199 --ssh-key=/root/.ssh/cord_fi
  *   node scripts/node-config.mjs --node=hel --mode=ip --ip=…        # до DNS: самоподписанный сертификат
  *   node scripts/node-config.mjs --node=hel --refresh                 # перевыпуск файлов по nodes.json
@@ -33,6 +34,12 @@ import {
  *
  * Узел управления (A) тоже узел: первая запись `nodes.json` с `control: true` строится из `.env` и
  * получает `--control-id` (по умолчанию `fra`). Его сертификат — такой же, как у медиаузлов.
+ *
+ * Ёмкость и показ (R200, `server-selection.md` §3.4): `country` — ISO 3166-1 alpha-2 для флага у человека;
+ * `uplinkMbps` — отдача канала узла (доля трафика в ступени нагрузки); `cores` — ядра хоста, для справки;
+ * `loadUrl` — node-exporter узла по магистрали (`127.0.0.1:2N002`), откуда ядро читает ЦП и трафик. У узла
+ * управления `loadUrl` — его собственный node-exporter (профиль `monitoring`), страна и ядра — из `.env`
+ * (`NODE_COUNTRY`) и `os.cpus()`.
  */
 const args = Object.fromEntries(
   process.argv.slice(2).map((arg) => {
@@ -79,9 +86,16 @@ Object.assign(control, {
   internalUrl: env.LIVEKIT_INTERNAL_URL || "http://127.0.0.1:7880",
   maxRooms: Number(args["control-max-rooms"] ?? control.maxRooms ?? env.STREAM_MAX_ROOMS ?? 8),
   enabled: control.enabled ?? true,
+  country: control.country ?? env.NODE_COUNTRY ?? "DE",
+  uplinkMbps: Number(control.uplinkMbps ?? env.STREAM_UPLINK_MBPS ?? 1000),
+  cores: control.cores ?? cpus().length,
+  loadUrl: control.loadUrl ?? "http://127.0.0.1:9100/metrics",
 });
 if (args["title-ru"] && !args.node) control.title.ru = args["title-ru"];
 if (args["title-en"] && !args.node) control.title.en = args["title-en"];
+if (args.country && !args.node) control.country = assertCountry(args.country);
+if (args["uplink-mbps"] && !args.node) control.uplinkMbps = assertPositive("--uplink-mbps", args["uplink-mbps"]);
+if (args.cores && !args.node) control.cores = assertPositive("--cores", args.cores);
 
 // ── Медиаузел ─────────────────────────────────────────────────────────────────────────────────────
 let node = null;
@@ -95,7 +109,7 @@ if (args.node) {
     const used = new Set(registry.nodes.map((n) => n.index).filter(Boolean));
     let index = 1;
     while (used.has(index)) index++;
-    node = { id, index, enabled: true, maxRooms: 2, title: { ru: id, en: id } };
+    node = { id, index, enabled: true, maxRooms: 2, title: { ru: id, en: id }, uplinkMbps: 1000 };
     registry.nodes.push(node);
   }
   // Аргументы правят запись реестра; `--refresh` без аргументов повторяет её как есть.
@@ -121,6 +135,10 @@ if (args.node) {
   if (args["title-en"]) node.title.en = args["title-en"];
   if (args["max-rooms"]) node.maxRooms = Number(args["max-rooms"]);
   if (!Number.isInteger(node.maxRooms) || node.maxRooms < 1) throw new Error("--max-rooms must be a positive integer");
+  if (args.country) node.country = assertCountry(args.country);
+  if (args["uplink-mbps"]) node.uplinkMbps = assertPositive("--uplink-mbps", args["uplink-mbps"]);
+  if (args.cores) node.cores = assertPositive("--cores", args.cores);
+  if (!node.uplinkMbps) node.uplinkMbps = 1000;
   if (args.enabled !== undefined) node.enabled = args.enabled !== "false";
   if (args.ssh) node.ssh = args.ssh;
   if (args["ssh-key"]) node.sshKey = args["ssh-key"];
@@ -133,6 +151,8 @@ if (args.node) {
   node.probeUrl = topology.origin;
   node.stun = `stun:${topology.turn}:3478`;
   node.internalUrl = `http://127.0.0.1:${controlPorts(node.index).livekit}`;
+  // ЦП и трафик узла ядро читает у node-exporter узла через магистраль — отдельного образа не нужно.
+  node.loadUrl = `http://127.0.0.1:${controlPorts(node.index).node}/metrics`;
 
   const dir = `infra/generated/nodes/${id}`;
   await mkdir(`${dir}/pki`, { recursive: true });
@@ -215,8 +235,8 @@ if (args["write-env"]) {
   await writeFile(".env", text, { mode: 0o600 });
 }
 
-console.log(`Nodes: ${registry.nodes.map((n) => `${n.id}${n.control ? " (control)" : ""}${n.enabled ? "" : " [drained]"}`).join(", ")}
-${node ? `Node ${node.id}: ${node.mode} · ${node.rtcUrl} · twirp via ${node.internalUrl} · files in ${resolve(`infra/generated/nodes/${node.id}`)}` : ""}
+console.log(`Nodes: ${registry.nodes.map((n) => `${n.id}${n.control ? " (control)" : ""}${n.country ? ` ${n.country}` : ""}${n.enabled ? "" : " [drained]"}`).join(", ")}
+${node ? `Node ${node.id}: ${node.mode} · ${node.rtcUrl} · twirp via ${node.internalUrl} · load via ${node.loadUrl} · ${node.maxRooms} rooms, ${node.uplinkMbps} Mbit/s${node.cores ? `, ${node.cores} cores` : ""} · files in ${resolve(`infra/generated/nodes/${node.id}`)}` : ""}
 Control node ${control.id}: backbone infra/generated/backbone.json, pki infra/generated/backbone-pki, targets infra/generated/scrape-nodes/
 
 .env of the control node needs (${args["write-env"] ? "written" : "add with --write-env or by hand"}):
@@ -227,6 +247,18 @@ Firewall on the control node: allow ${BACKBONE_PORT}/tcp from ${mediaNodes.map((
 Next: backlog/bin/node.sh ${node?.id ?? "<id>"} deploy`);
 
 // ── Вспомогательное ───────────────────────────────────────────────────────────────────────────────
+function assertCountry(value) {
+  const code = String(value).trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) throw new Error(`--country must be an ISO 3166-1 alpha-2 code like DE, FI, RU (got ${JSON.stringify(value)})`);
+  return code;
+}
+
+function assertPositive(flag, value) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`${flag} must be a positive integer`);
+  return n;
+}
+
 function openssl(params) {
   execFileSync("openssl", params, { stdio: ["ignore", "ignore", "pipe"] });
 }

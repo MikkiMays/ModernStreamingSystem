@@ -2,7 +2,8 @@
   "locale": "zh-Hans",
   "common": {
     "close": "关闭",
-    "guestInitial": "访"
+    "guestInitial": "访",
+    "cancel": "取消"
   },
   "language": {
     "label": "语言",
@@ -208,8 +209,8 @@
       },
       "server-node": {
         "label": "会议节点",
-        "hint": "从本设备到每个媒体节点的测量路径",
-        "keywords": "媒体节点 延迟 路径 服务器"
+        "hint": "自动：按测得路径选最近节点；也可手动选择",
+        "keywords": "媒体节点 延迟 路径 服务器 区域 旗帜 自动 手动 迁移"
       },
       "server-password": {
         "label": "已保存的密码",
@@ -454,10 +455,22 @@
       "connection": "连接",
       "leaveFirst": "请先离开会议",
       "forget": "忘记密码",
-      "shared": "Cord 只有一个地址。会议运行在最近的媒体节点上，由系统根据从您的设备测得的路径选择，无需更换服务器。",
       "nodeMs": "{{node}} · {{ms}} 毫秒",
       "nodeClosed": "{{node}} · 无响应",
-      "nodeUnknown": "尚未测量到各节点的路径"
+      "nodeUnknown": "尚未测量到各节点的路径",
+      "auto": "自动",
+      "autoHint": "按本设备测得的路径选择最近的节点，并考虑负载",
+      "autoCreated": "节点在创建会议时选定，并在整个会议期间保持不变。选择其他节点即可迁移会议。",
+      "manualHint": "你接下来创建的会议将使用此节点。通过链接加入的人会进入该会议所在的节点。",
+      "thisMeeting": "本次会议的节点",
+      "creatorOnly": "只有会议创建者才能将会议迁移到其他节点",
+      "moveAsk": "将会议迁移到{{node}}？",
+      "moveNote": "这需要几秒钟：所有人的音视频会短暂中断，然后在新节点上恢复。",
+      "move": "迁移",
+      "moving": "正在将会议迁移到{{node}}…",
+      "nodeDown": "无响应",
+      "nodeDrained": "维护中",
+      "nodeMsShort": "{{ms}} 毫秒"
     },
     "sounds": {
       "cues": "提示音",
@@ -572,7 +585,8 @@
       "ended": "已结束",
       "waiting": "等待进入",
       "recovering": "正在恢复连接…",
-      "connecting": "正在连接…"
+      "connecting": "正在连接…",
+      "node": "会议节点"
     },
     "settings": {
       "saveFailed": "保存失败",
@@ -658,7 +672,9 @@
       "done": "会议链接已复制",
       "failed": "无法复制会议链接",
       "copy": "复制"
-    }
+    },
+    "nodeFallback": "{{asked}}已满——会议已在{{got}}创建",
+    "nodeMoved": "会议现在位于{{node}}"
   },
   "chess": {
     "title": "国际象棋",
@@ -2721,7 +2737,9 @@
       },
       "default": "默认",
       "numbered": "设备 {{n}}"
-    }
+    },
+    "serverManual": "服务器：{{node}} · 手动选择",
+    "serverReset": "自动"
   },
   "loader": {
     "slow": "网络较慢",
@@ -3299,11 +3317,14 @@
     "MAINTENANCE_WINDOW_EXISTS": "维护时段已存在，请先关闭",
     "MAINTENANCE_WINDOW_INVALID": "请检查维护时段：ISO-8601 格式并带时区偏移，开始时间在未来，结束时间晚于开始时间且不超过上限",
     "MAINTENANCE_WINDOW_NONE": "当前没有维护时段",
+    "MEDIA_MOVE_BUSY": "会议正在恢复连接，请一分钟后重试",
+    "MEDIA_MOVE_RATE": "会议每分钟最多只能迁移一次",
     "MEDIA_UNAVAILABLE": "通话暂时不可用。请一分钟后重试",
     "MUSIC_TIMEOUT": "平台未及时响应——请重试",
     "MUSIC_UNREACHABLE": "此服务器无法访问该平台",
     "NAME_INVALID": "请输入名字",
     "NAME_RESERVED": "该名字已被保留：会议参与者不能使用",
+    "NODE_UNAVAILABLE": "该节点目前不接受会议",
     "OPEN_ROOMS": "你的网络已有多个会议在进行。请先结束其中一个",
     "PASSWORD_MISSES": "密码错误次数过多。请稍后再试",
     "PLATFORM_BUSY": "平台正忙于处理其他请求，请稍后几秒再试",

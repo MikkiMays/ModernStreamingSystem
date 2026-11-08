@@ -18,6 +18,7 @@ export type RoomAction =
   | 'participant.remove'
   | 'participant.mute'
   | 'telegram.link'
+  | 'media.move'
   | 'integrations.use'
   | 'music.view'
   | 'music.enable'
@@ -63,6 +64,7 @@ const KIND: Record<RoomAction, Kind> = {
   'participant.remove': 'creator',
   'participant.mute': 'creator',
   'telegram.link': 'creator',
+  'media.move': 'creator',
   'integrations.use': 'integrations',
   'music.view': 'participant',
   'music.enable': 'integrations',

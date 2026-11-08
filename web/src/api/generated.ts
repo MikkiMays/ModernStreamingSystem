@@ -495,6 +495,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["nodes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ping": {
         parameters: {
             query?: never;
@@ -681,6 +697,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["join"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rooms/{id}/media/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["moveMedia"];
         delete?: never;
         options?: never;
         head?: never;
@@ -882,6 +914,7 @@ export interface components {
         Admission: {
             credential: string;
             inviteUrl: string | null;
+            nodeFallback?: components["schemas"]["NodeFallback"];
             participantId: string;
             /** Format: int32 */
             recoverySeconds: number;
@@ -1080,6 +1113,7 @@ export interface components {
             /** Format: uuid */
             commandId: string;
             integrationsAllowed?: boolean;
+            manual?: boolean;
             measurements?: components["schemas"]["NodeMeasure"][];
             name: string;
             preferredNode?: string;
@@ -1586,8 +1620,14 @@ export interface components {
             startedAt?: string;
             startsAt?: string;
         };
+        MediaMove: {
+            /** Format: uuid */
+            commandId: string;
+            to: string;
+        };
         MediaNodeInfo: {
             control: boolean;
+            country?: string;
             id: string;
             probeUrl: string;
             rtcUrl: string;
@@ -1617,6 +1657,21 @@ export interface components {
             number?: string;
             /** @enum {string} */
             status?: "NEW" | "OPEN" | "DONE";
+        };
+        NodeFallback: {
+            asked: string;
+            got: string;
+        };
+        NodeLoad: {
+            control: boolean;
+            country?: string;
+            id: string;
+            /** Format: int32 */
+            level: number;
+            state: string;
+            title: {
+                [key: string]: string;
+            };
         };
         NodeMeasure: {
             node: string;
@@ -3050,6 +3105,26 @@ export interface operations {
             };
         };
     };
+    nodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NodeLoad"][];
+                };
+            };
+        };
+    };
     ping: {
         parameters: {
             query?: never;
@@ -3393,6 +3468,34 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Admission"];
+                };
+            };
+        };
+    };
+    moveMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaMove"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Ack"];
                 };
             };
         };

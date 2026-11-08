@@ -2,7 +2,8 @@
   "locale": "fr",
   "common": {
     "close": "Fermer",
-    "guestInitial": "I"
+    "guestInitial": "I",
+    "cancel": "Annuler"
   },
   "language": {
     "label": "Langue",
@@ -208,8 +209,8 @@
       },
       "server-node": {
         "label": "Nœud de la réunion",
-        "hint": "Chemin mesuré depuis cet appareil vers chaque nœud média",
-        "keywords": "nœud média latence chemin serveur"
+        "hint": "Auto : le plus proche par chemin mesuré, ou au choix",
+        "keywords": "nœud média latence chemin serveur région drapeau auto manuel déplacer"
       },
       "server-password": {
         "label": "Mot de passe enregistré",
@@ -454,10 +455,22 @@
       "connection": "Connexion",
       "leaveFirst": "Quittez d'abord la réunion",
       "forget": "Oublier le mot de passe",
-      "shared": "Cord est une seule adresse. La réunion vit sur le nœud média le plus proche, choisi par le système d’après le chemin mesuré depuis votre appareil : il n’y a pas de serveur à changer.",
       "nodeMs": "{{node}} · {{ms}} ms",
       "nodeClosed": "{{node}} · ne répond pas",
-      "nodeUnknown": "Le chemin vers les nœuds n’a pas encore été mesuré"
+      "nodeUnknown": "Le chemin vers les nœuds n’a pas encore été mesuré",
+      "auto": "Auto",
+      "autoHint": "Le nœud le plus proche selon le chemin mesuré depuis cet appareil, en tenant compte de la charge",
+      "autoCreated": "Le nœud a été choisi à la création de la réunion et reste le même toute la réunion. Choisissez-en un autre pour déplacer la réunion.",
+      "manualHint": "La prochaine réunion que vous créerez sera sur ce nœud. Les personnes qui entrent par lien arrivent sur le nœud de cette réunion.",
+      "thisMeeting": "Nœud de cette réunion",
+      "creatorOnly": "Seule la personne qui a créé la réunion peut la déplacer vers un autre nœud",
+      "moveAsk": "Déplacer la réunion vers {{node}} ?",
+      "moveNote": "Cela prend quelques secondes : le son et la vidéo se coupent pour tout le monde et reviennent sur le nouveau nœud.",
+      "move": "Déplacer",
+      "moving": "Déplacement de la réunion vers {{node}}…",
+      "nodeDown": "ne répond pas",
+      "nodeDrained": "en maintenance",
+      "nodeMsShort": "{{ms}} ms"
     },
     "sounds": {
       "cues": "Signaux",
@@ -574,7 +587,8 @@
       "ended": "Terminée",
       "waiting": "En attente d'admission",
       "recovering": "Rétablissement de la connexion…",
-      "connecting": "Connexion…"
+      "connecting": "Connexion…",
+      "node": "Nœud de la réunion"
     },
     "settings": {
       "saveFailed": "Impossible d'enregistrer",
@@ -660,7 +674,9 @@
       "done": "Lien de la réunion copié",
       "failed": "Impossible de copier le lien de la réunion",
       "copy": "Copier"
-    }
+    },
+    "nodeFallback": "{{asked}} est saturé — la réunion a été créée sur {{got}}",
+    "nodeMoved": "La réunion est maintenant sur {{node}}"
   },
   "chess": {
     "title": "Échecs",
@@ -2781,7 +2797,9 @@
       },
       "default": "Par défaut",
       "numbered": "Appareil {{n}}"
-    }
+    },
+    "serverManual": "Serveur : {{node}} · choisi manuellement",
+    "serverReset": "Auto"
   },
   "loader": {
     "slow": "Réseau lent",
@@ -3365,11 +3383,14 @@
     "MAINTENANCE_WINDOW_EXISTS": "Une fenêtre de maintenance existe déjà. Fermez-la d’abord",
     "MAINTENANCE_WINDOW_INVALID": "Vérifiez les heures de la fenêtre : ISO-8601 avec décalage, début dans le futur, fin après le début et dans la limite",
     "MAINTENANCE_WINDOW_NONE": "Aucune fenêtre de maintenance pour le moment",
+    "MEDIA_MOVE_BUSY": "La réunion rétablit sa connexion — réessayez dans une minute",
+    "MEDIA_MOVE_RATE": "Une réunion ne peut être déplacée qu’une fois par minute",
     "MEDIA_UNAVAILABLE": "Les appels sont temporairement indisponibles. Réessayez dans une minute",
     "MUSIC_TIMEOUT": "La plateforme n'a pas répondu à temps — réessayez",
     "MUSIC_UNREACHABLE": "Cette plateforme est inaccessible depuis ce serveur",
     "NAME_INVALID": "Saisissez un nom",
     "NAME_RESERVED": "Ce nom est réservé : un participant ne peut pas le porter",
+    "NODE_UNAVAILABLE": "Ce nœud n’accepte pas de réunions pour le moment",
     "OPEN_ROOMS": "Plusieurs réunions sont déjà en cours depuis votre réseau. Terminez-en une",
     "PASSWORD_MISSES": "Trop de mots de passe erronés. Réessayez plus tard",
     "PLATFORM_BUSY": "Les plateformes sont occupées par d’autres demandes — réessayez dans quelques secondes",

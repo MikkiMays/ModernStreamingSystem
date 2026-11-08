@@ -135,11 +135,14 @@ public class MediaGateway {
     execute(client(nodes.resolve(nodeId)).deleteRoom(roomId));
   }
 
+  /** Что узел держит сейчас: комнаты SFU и люди на связи в них (сумма {@code num_participants}). */
+  public record NodeStats(int rooms, int participants) {}
+
   /**
-   * Жив ли узел и сколько комнат он держит — опрос {@link NodeHealth}. Отказ — {@link Problem}
-   * {@code MEDIA_UNAVAILABLE}, как у любого вызова SFU.
+   * Жив ли узел и сколько комнат и людей он держит — опрос {@link NodeHealth}. Отказ — {@link
+   * Problem} {@code MEDIA_UNAVAILABLE}, как у любого вызова SFU.
    */
-  public int rooms(MediaNode node) {
+  public NodeStats rooms(MediaNode node) {
     var client =
         healthClients.computeIfAbsent(
             node.internalUrl(),
@@ -153,7 +156,33 @@ public class MediaGateway {
                             .callTimeout(Duration.ofSeconds(1))
                             .build()));
     var list = execute(client.listRooms(List.of()));
-    return list == null ? 0 : list.size();
+    if (list == null) return new NodeStats(0, 0);
+    int people = 0;
+    for (var room : list) people += room.getNumParticipants();
+    return new NodeStats(list.size(), people);
+  }
+
+  /** Клиент для чтения node-exporter узла: та же секунда, что и у опроса SFU. */
+  private final okhttp3.OkHttpClient metricsClient =
+      new okhttp3.OkHttpClient.Builder().callTimeout(Duration.ofSeconds(1)).build();
+
+  /**
+   * Текст метрик node-exporter узла по его {@code loadUrl} — только ЦП и сеть ({@code collect[]}).
+   * Нет адреса или узел не ответил — {@code null}: ступень считается без ЦП и канала, это не отказ.
+   */
+  public String metrics(MediaNode node) {
+    if (node.loadUrl() == null) return null;
+    var url =
+        node.loadUrl()
+            + (node.loadUrl().contains("?") ? "&" : "?")
+            + "collect[]=cpu&collect[]=netdev";
+    try (var response =
+        metricsClient.newCall(new okhttp3.Request.Builder().url(url).build()).execute()) {
+      if (!response.isSuccessful() || response.body() == null) return null;
+      return response.body().string();
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   private <T> T execute(retrofit2.Call<T> call) {

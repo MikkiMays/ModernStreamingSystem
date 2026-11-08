@@ -7,6 +7,7 @@ import dev.mikki.stream.access.Entrant;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.nodes.MediaNodes;
 import dev.mikki.stream.room.Permissions.Action;
 import dev.mikki.stream.shared.Json;
 import dev.mikki.stream.shared.Problem;
@@ -139,16 +140,24 @@ public class RoomService {
           room.createdFrom = origin;
           room.createdBy = entrant.profileHash();
           // Узел медиа — по замеру пути создателя (R195); ядро проверяет его по реестру и живости.
-          var choice = nodes.choose(request.preferredNode());
+          var manual = Boolean.TRUE.equals(request.manual()) && request.preferredNode() != null;
+          var choice =
+              nodes.choose(request.preferredNode(), measures(request.measurements()), manual);
           room.mediaNode = choice.node().id();
           if (request.preferredNode() != null || request.measurements() != null)
             log.info(
-                "room {} on node {} ({}; asked {}; measured {})",
+                "room {} on node {} ({}{}; asked {}; measured {})",
                 room.id,
                 room.mediaNode,
                 choice.reason(),
+                manual ? ", manual" : "",
                 request.preferredNode(),
                 request.measurements());
+          // Просили узел руками, а дали другой — человеку скажут словами (Р-101), не откажут.
+          var fallback =
+              manual && !room.mediaNode.equals(request.preferredNode())
+                  ? new NodeFallback(request.preferredNode(), room.mediaNode)
+                  : null;
           var member = newMember(room, request.name(), true, request.commandId(), entrant);
           var url = invite(room);
           rooms.insert(room, now());
@@ -157,8 +166,33 @@ public class RoomService {
           if (address != null) limits.hit("rooms:ip:" + address, hour.perIp().roomsCreated());
           if (entrant.profileHash() != null)
             limits.hit("rooms:profile:" + entrant.profileHash(), hour.perProfile().roomsCreated());
-          return admission(room, member, request.commandId(), url);
+          var admission = admission(room, member, request.commandId(), url);
+          return fallback == null
+              ? admission
+              : new Admission(
+                  admission.roomId(),
+                  admission.participantId(),
+                  admission.credential(),
+                  admission.inviteUrl(),
+                  admission.recoverySeconds(),
+                  admission.snapshot(),
+                  fallback);
         });
+  }
+
+  /**
+   * Замеры создателя для выбора узла (R200): лучшее из UDP и TCP в мс; узел без ответа — {@code
+   * null}, он в сравнении не участвует.
+   */
+  static List<MediaNodes.Measure> measures(List<Contracts.NodeMeasure> measured) {
+    if (measured == null) return List.of();
+    var out = new ArrayList<MediaNodes.Measure>(measured.size());
+    for (var m : measured) {
+      var udp = Boolean.TRUE.equals(m.udpOpen()) ? m.udpMs() : null;
+      var ms = udp != null ? udp : m.tcpMs();
+      out.add(new MediaNodes.Measure(m.node(), ms, udp != null));
+    }
+    return out;
   }
 
   /**

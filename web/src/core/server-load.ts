@@ -57,3 +57,20 @@ function usePolled<T>(path: string, enabled: boolean, every: number, map: (raw: 
 export function useServerLoad(enabled = true): ServerLoad | null {
   return usePolled('/api/v1/load', enabled, 15_000, (raw) => raw as ServerLoad);
 }
+
+/** Узел из `GET /api/v1/nodes` (R200): ступень и состояние без чисел, страна для флага. */
+export interface NodeLoad {
+  id: string;
+  title: Record<string, string>;
+  country?: string;
+  control: boolean;
+  level: number;
+  state: 'ok' | 'busy' | 'full' | 'down' | 'drained';
+}
+
+/** Ступени всех узлов — пока открыт раздел «Сервер»; раз в 10 с (ядро меряет раз в 5 с). */
+export function useNodesLoad(enabled = true): NodeLoad[] | null {
+  return usePolled('/api/v1/nodes', enabled, 10_000, (raw) =>
+    Array.isArray(raw) ? (raw as NodeLoad[]) : [],
+  );
+}

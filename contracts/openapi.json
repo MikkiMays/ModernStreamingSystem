@@ -52,6 +52,9 @@
               "null"
             ]
           },
+          "nodeFallback": {
+            "$ref": "#/components/schemas/NodeFallback"
+          },
           "participantId": {
             "type": "string"
           },
@@ -824,6 +827,9 @@
             "type": "string"
           },
           "integrationsAllowed": {
+            "type": "boolean"
+          },
+          "manual": {
             "type": "boolean"
           },
           "measurements": {
@@ -2624,10 +2630,31 @@
         },
         "type": "object"
       },
+      "MediaMove": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "minLength": 1,
+            "pattern": "[a-z][a-z0-9-]{0,15}",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "to"
+        ],
+        "type": "object"
+      },
       "MediaNodeInfo": {
         "properties": {
           "control": {
             "type": "boolean"
+          },
+          "country": {
+            "type": "string"
           },
           "id": {
             "type": "string"
@@ -2728,6 +2755,55 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "NodeFallback": {
+        "properties": {
+          "asked": {
+            "type": "string"
+          },
+          "got": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "asked",
+          "got"
+        ],
+        "type": "object"
+      },
+      "NodeLoad": {
+        "properties": {
+          "control": {
+            "type": "boolean"
+          },
+          "country": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "level": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "control",
+          "id",
+          "level",
+          "state",
+          "title"
+        ],
         "type": "object"
       },
       "NodeMeasure": {
@@ -5936,6 +6012,29 @@
         ]
       }
     },
+    "/api/v1/nodes": {
+      "get": {
+        "operationId": "nodes",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NodeLoad"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "load-controller"
+        ]
+      }
+    },
     "/api/v1/ping": {
       "get": {
         "operationId": "ping",
@@ -6496,6 +6595,55 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/media/move": {
+      "post": {
+        "operationId": "moveMedia",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
                 }
               }
             },

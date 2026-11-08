@@ -2,7 +2,8 @@
   "locale": "pt-BR",
   "common": {
     "close": "Fechar",
-    "guestInitial": "C"
+    "guestInitial": "C",
+    "cancel": "Cancelar"
   },
   "language": {
     "label": "Idioma",
@@ -208,8 +209,8 @@
       },
       "server-node": {
         "label": "Nó da reunião",
-        "hint": "Caminho medido deste dispositivo até cada nó de mídia",
-        "keywords": "nó de mídia latência caminho servidor"
+        "hint": "Automático: o mais próximo pelo caminho, ou à escolha",
+        "keywords": "nó de mídia latência caminho servidor região bandeira automático manual mover"
       },
       "server-password": {
         "label": "Senha salva",
@@ -454,10 +455,22 @@
       "connection": "Conexão",
       "leaveFirst": "Saia da reunião primeiro",
       "forget": "Esquecer senha",
-      "shared": "O Cord é um único endereço. A reunião vive no nó de mídia mais próximo, escolhido pelo sistema pelo caminho medido a partir do seu dispositivo — não há servidor para trocar.",
       "nodeMs": "{{node}} · {{ms}} ms",
       "nodeClosed": "{{node}} · não responde",
-      "nodeUnknown": "O caminho até os nós ainda não foi medido"
+      "nodeUnknown": "O caminho até os nós ainda não foi medido",
+      "auto": "Automático",
+      "autoHint": "O nó mais próximo pelo caminho medido deste dispositivo, levando a carga em conta",
+      "autoCreated": "O nó foi escolhido ao criar a reunião e fica o mesmo durante toda a reunião. Escolha outro para mover a reunião.",
+      "manualHint": "A próxima reunião que você criar ficará neste nó. Quem entra pelo link vai para o nó daquela reunião.",
+      "thisMeeting": "Nó desta reunião",
+      "creatorOnly": "Só quem criou a reunião pode movê-la para outro nó",
+      "moveAsk": "Mover a reunião para {{node}}?",
+      "moveNote": "Leva alguns segundos: áudio e vídeo caem para todos e voltam já no novo nó.",
+      "move": "Mover",
+      "moving": "Movendo a reunião para {{node}}…",
+      "nodeDown": "não responde",
+      "nodeDrained": "em manutenção",
+      "nodeMsShort": "{{ms}} ms"
     },
     "sounds": {
       "cues": "Alertas",
@@ -574,7 +587,8 @@
       "ended": "Encerrada",
       "waiting": "Aguardando para entrar",
       "recovering": "Restabelecendo a conexão…",
-      "connecting": "Conectando…"
+      "connecting": "Conectando…",
+      "node": "Nó da reunião"
     },
     "settings": {
       "saveFailed": "Não foi possível salvar",
@@ -660,7 +674,9 @@
       "done": "Link da reunião copiado",
       "failed": "Não foi possível copiar o link da reunião",
       "copy": "Copiar"
-    }
+    },
+    "nodeFallback": "{{asked}} está ocupado — a reunião foi criada em {{got}}",
+    "nodeMoved": "A reunião agora está em {{node}}"
   },
   "chess": {
     "title": "Xadrez",
@@ -2781,7 +2797,9 @@
       },
       "default": "Padrão",
       "numbered": "Dispositivo {{n}}"
-    }
+    },
+    "serverManual": "Servidor: {{node}} · escolhido manualmente",
+    "serverReset": "Automático"
   },
   "loader": {
     "slow": "Rede lenta",
@@ -3365,11 +3383,14 @@
     "MAINTENANCE_WINDOW_EXISTS": "Já existe uma janela de manutenção. Feche-a primeiro",
     "MAINTENANCE_WINDOW_INVALID": "Verifique os horários da janela: ISO-8601 com fuso, início no futuro, fim depois do início e dentro do limite",
     "MAINTENANCE_WINDOW_NONE": "No momento não há janela de manutenção",
+    "MEDIA_MOVE_BUSY": "A reunião está restabelecendo a conexão — tente de novo em um minuto",
+    "MEDIA_MOVE_RATE": "Uma reunião só pode ser movida uma vez por minuto",
     "MEDIA_UNAVAILABLE": "As chamadas estão indisponíveis no momento. Tente de novo em um minuto",
     "MUSIC_TIMEOUT": "A plataforma não respondeu a tempo — tente de novo",
     "MUSIC_UNREACHABLE": "Esta plataforma está indisponível a partir deste servidor",
     "NAME_INVALID": "Digite um nome",
     "NAME_RESERVED": "Este nome é reservado: um participante não pode usá-lo",
+    "NODE_UNAVAILABLE": "Este nó não está aceitando reuniões agora",
     "OPEN_ROOMS": "Já há várias reuniões em andamento a partir da sua rede. Encerre uma delas",
     "PASSWORD_MISSES": "Muitas senhas erradas. Tente mais tarde",
     "PLATFORM_BUSY": "As plataformas estão ocupadas com outras solicitações — tente novamente em alguns segundos",

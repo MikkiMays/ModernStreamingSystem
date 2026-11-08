@@ -11,9 +11,9 @@ import type { CameraEvent } from '../media/camera-log';
 import { StatsSampler, type Sample } from '../media/diagnostics';
 import type { CodecInfo, PublishSource } from '../media/codec-planner';
 import { gradeName, pathName } from '../media/link-quality';
-import { nodeProbe } from '../media/node-probe';
+import { nodeCountry, nodeProbe } from '../media/node-probe';
 import { useStore } from './primitives';
-import { Button, Dialog } from './kit';
+import { Button, Dialog, Flag } from './kit';
 import { DeviceCheck } from './DeviceCheck';
 import './diagnostics.css';
 
@@ -245,9 +245,25 @@ export default function Diagnostics({
       <div className="diagnostics">
         <DeviceCheck preferences={preferences} />
         <section className="diagnostics-card" aria-labelledby={`${id}-network`}>
-          <h3 className="diagnostics-card__title" id={`${id}-network`}>
-            <Wifi aria-hidden="true" /> {t(($) => $.diagnostics.network)}
-          </h3>
+          <div className="diagnostics-card__head">
+            <h3 className="diagnostics-card__title" id={`${id}-network`}>
+              <Wifi aria-hidden="true" /> {t(($) => $.diagnostics.network)}
+            </h3>
+            {/* Узел встречи и флаг — ненавязчиво сверху карточки (R200, владелец: «невзначай сверху»). */}
+            {snapshot.mediaNode && (
+              <span className="diagnostics-card__node" data-testid="diagnostics-node">
+                <Flag country={nodeCountry(snapshot.mediaNode)} />
+                <span>
+                  {nodeProbe.latency(snapshot.mediaNode) === null
+                    ? nodeProbe.title(snapshot.mediaNode, locale(t))
+                    : t(($) => $.diagnostics.nodeMs, {
+                        node: nodeProbe.title(snapshot.mediaNode, locale(t)),
+                        ms: nodeProbe.latency(snapshot.mediaNode),
+                      })}
+                </span>
+              </span>
+            )}
+          </div>
           <dl className="diagnostics-metrics">
             <Metric label={t(($) => $.diagnostics.media.label)}>
               {media.status === 'connected'

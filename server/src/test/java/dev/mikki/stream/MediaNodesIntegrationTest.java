@@ -186,6 +186,98 @@ class MediaNodesIntegrationTest {
     assertThat(rooms.read(rooms.create(create("hel")).roomId()).mediaNode).isEqualTo("fra");
   }
 
+  /** Ручной выбор при создании (Р-101): узел уважается; занятый — замена со словами, не отказ. */
+  @Test
+  void aManualNodeIsHonouredAndAFallbackIsNamedWhenItCannotBe() {
+    var host = rooms.create(manual("hel"));
+    assertThat(rooms.read(host.roomId()).mediaNode).isEqualTo("hel");
+    assertThat(host.nodeFallback()).isNull();
+
+    nodes.down("hel", true);
+    var fallen = rooms.create(manual("hel"));
+    assertThat(rooms.read(fallen.roomId()).mediaNode).isEqualTo("fra");
+    assertThat(fallen.nodeFallback())
+        .isEqualTo(new dev.mikki.stream.room.Contracts.NodeFallback("hel", "fra"));
+    // Авто с тем же исходом — без плашки: человек ничего не просил.
+    assertThat(rooms.create(create("hel")).nodeFallback()).isNull();
+  }
+
+  /** Своя команда на каждый вызов: одинаковый commandId вернул бы квитанцию прошлого входа. */
+  Create manual(String node) {
+    return new Create(UUID.randomUUID(), "Встреча", "Организатор", false, null, node, null, true);
+  }
+
+  /**
+   * Ручной перевод идущей встречи (Р-104): создатель — да, гость — нет; те же проверки, что у
+   * узлов.
+   */
+  @Test
+  void theCreatorMovesTheMeetingAndEveryoneReconnectsThere() {
+    var host = rooms.create(create("fra"));
+    var guest =
+        rooms.join(
+            host.roomId(),
+            new Join(UUID.randomUUID(), host.inviteUrl().split("invite=")[1], "Гость"));
+    media.observe(
+        host.roomId(),
+        Map.of(host.participantId(), "PA_1", guest.participantId(), "PA_2"),
+        now.incrementAndGet());
+    assertThat(host.snapshot().you().can()).contains("media.move");
+    assertThat(rooms.snapshot(guest.roomId(), guest.credential()).you().can())
+        .doesNotContain("media.move");
+
+    assertThatThrownBy(
+            () -> media.move(guest.roomId(), guest.credential(), UUID.randomUUID(), "hel"))
+        .isInstanceOf(Problem.class)
+        .satisfies(e -> assertThat(((Problem) e).status()).isEqualTo(403));
+    assertThatThrownBy(() -> media.move(host.roomId(), host.credential(), UUID.randomUUID(), "msk"))
+        .isInstanceOf(Problem.class)
+        .satisfies(e -> assertThat(((Problem) e).code()).isEqualTo("NODE_UNAVAILABLE"));
+    // Тот же узел — успех без переезда.
+    assertThat(media.move(host.roomId(), host.credential(), UUID.randomUUID(), "fra").ok())
+        .isTrue();
+    assertThat(rooms.read(host.roomId()).mediaMoves).isNull();
+
+    var ack = media.move(host.roomId(), host.credential(), UUID.randomUUID(), "hel");
+    assertThat(ack.ok()).isTrue();
+    var moved = rooms.read(host.roomId());
+    assertThat(moved.mediaNode).isEqualTo("hel");
+    assertThat(moved.mediaMoves).isEqualTo(1);
+    assertThat(moved.members.values()).allMatch(m -> m.status == RoomState.Status.RECOVERING);
+    assertThat(
+            new MediaGateway(config, nodes, repository)
+                .token(moved, moved.members.get(guest.participantId()))
+                .url())
+        .isEqualTo("wss://rtc-hel.test");
+
+    // Пока люди восстанавливаются — второй перевод не принимается; после — не чаще раза в минуту.
+    assertThatThrownBy(() -> media.move(host.roomId(), host.credential(), UUID.randomUUID(), "fra"))
+        .isInstanceOf(Problem.class)
+        .satisfies(e -> assertThat(((Problem) e).code()).isEqualTo("MEDIA_MOVE_BUSY"));
+    media.observe(
+        host.roomId(),
+        Map.of(host.participantId(), "PB_1", guest.participantId(), "PB_2"),
+        now.incrementAndGet());
+    assertThatThrownBy(() -> media.move(host.roomId(), host.credential(), UUID.randomUUID(), "fra"))
+        .isInstanceOf(Problem.class)
+        .satisfies(e -> assertThat(((Problem) e).code()).isEqualTo("MEDIA_MOVE_RATE"));
+    now.addAndGet(MediaService.MOVE_INTERVAL_MS);
+    assertThat(media.move(host.roomId(), host.credential(), UUID.randomUUID(), "fra").ok())
+        .isTrue();
+    assertThat(rooms.read(host.roomId()).mediaMoves).isEqualTo(2);
+    // Мёртвый или дренируемый узел — отказ словами, а не переезд в никуда. Люди сначала
+    // возвращаются на связь (иначе окно восстановления истекло бы вместе с минутой ожидания).
+    media.observe(
+        host.roomId(),
+        Map.of(host.participantId(), "PC_1", guest.participantId(), "PC_2"),
+        now.incrementAndGet());
+    now.addAndGet(MediaService.MOVE_INTERVAL_MS);
+    nodes.down("hel", true);
+    assertThatThrownBy(() -> media.move(host.roomId(), host.credential(), UUID.randomUUID(), "hel"))
+        .isInstanceOf(Problem.class)
+        .satisfies(e -> assertThat(((Problem) e).code()).isEqualTo("NODE_UNAVAILABLE"));
+  }
+
   @Test
   void capabilitiesListTheNodesPeopleCanMeasureControlFirst() {
     var caps = api.capabilities();

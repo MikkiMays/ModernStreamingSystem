@@ -1,6 +1,7 @@
 # Выбор сервера, переезд встречи и один домен `cordcam.ru` (R200)
 
-Статус: **проект и инструкции, кода нет** (фаза 1 R200). Дата: 08.11.2026. Основа — `distributed-media.md` (R195,
+Статус: проект принят; **фаза 2 в работе** — ветка `release/r200-impl`, журнал
+`backlog/journal/2026-11-08-r200-impl.md` (сделано: §8.1 реестр и ёмкость; §8.2 + §8.3 настройки, флаги, диагностика, ручной выбор и перевод через `relocate`). **Схема §6 заменена Р-110/Р-110′** (A — разработка и админ-панель на `callcord.ru`, продукт `cordcam.ru` — ядро на meet): §6.4–§6.6 и §8.6 в части «A обслуживает `cordcam.ru`» и редиректа `cord.nikg.tech` устарели — см. `rollout-cordcam.md` и набросок `admin-panel.md`. Дата проекта: 08.11.2026. Основа — `distributed-media.md` (R195,
 поправки 08.11) и то, что выпущено в 1.2.1: независимые SFU-узлы, `RoomState.mediaNode`, замер пути создателем,
 эвакуация с мёртвого узла за ≈ 15 с, выбор сервера убран из веба и клиента Windows.
 
@@ -630,7 +631,7 @@ Cloudflare». Продукт там не жил, ни один клиент на
 | `server/.../nodes/MediaNode.java` | те же поля (`ignoreUnknown` остаётся) |
 | `server/.../nodes/MediaNodes.java` | `level(id)`: ступень 1–4 по §3.4; `decide()` — не ставить на ступень 4 и на прогнозные > 75 %; при равенстве замера ± 20 мс — менее загруженный; причины `full-level`, `headroom` в `cord.node.choice` |
 | `server/.../media/MediaGateway.java` (`rooms()` → `NodeStats{rooms, participants}`), `media/NodeHealth.java` | `ListRooms` → суммировать `num_participants`; период опроса 2 с (§5.2) |
-| `infra/Caddyfile.node` + маленький обработчик `GET /api/v1/load` на узле | ступень ЦП/steal/канала узла без ядра: самый дешёвый путь — контейнер `node-load` (Go, 50 строк, читает `/proc`, как `LoadMeter`) **или** ядро читает `node-exporter` узла по магистрали (`127.0.0.1:2N002`) — выбрать второе, если не хочется нового образа: ядро уже умеет ходить по магистрали |
+| `server/.../media/NodeExporter.java` | **сделано так**: ядро читает `node-exporter` узла по магистрали (`loadUrl` реестра = `http://127.0.0.1:2N002/metrics?collect[]=cpu&collect[]=netdev`), доли — по разности двух снимков; нового образа на узле нет |
 | `server/.../api/ApiController.java` | `GET /api/v1/nodes` → `[{id, title, country, level, state, drained}]` (без чисел — только ступень, как `LoadMeter`); `capabilities.nodes[]` получает `country` |
 | `contracts/openapi.json`, `web/src/api/generated.ts` | через `backlog/bin/gen-contracts.sh` |
 | `infra/monitoring/rules/cord.yml` | `NodeSaturated` (ступень 4 ≥ 60 с), `NodeUnreachable` (магистраль; люди в порядке) |
