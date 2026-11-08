@@ -292,10 +292,12 @@ it('leads to «О программе» from the footer without showing the versi
 it('lets the sidebar be resized and remembers the width (T46)', () => {
   const view = show();
   const handle = view.getByRole('separator', { name: 'Ширина боковой панели' });
-  expect(handle).toHaveAttribute('aria-valuenow', '280');
+  expect(handle).toHaveAttribute('aria-valuenow', '300');
+  // Уже минимума не сжимается: шапка «Избранное · 1 из 10 · + Группа» в одну строку (R205).
+  expect(handle).toHaveAttribute('aria-valuemin', '280');
   fireEvent.keyDown(handle, { key: 'ArrowRight' });
-  expect(handle).toHaveAttribute('aria-valuenow', '296');
-  expect(localStorage.getItem('cord:panel:home-sidebar')).toBe('296');
+  expect(handle).toHaveAttribute('aria-valuenow', '316');
+  expect(localStorage.getItem('cord:panel:home-sidebar')).toBe('316');
 });
 
 it('боковая панель сворачивается значком в шапке, как в ChatGPT и Claude, и помнит это (R130)', () => {

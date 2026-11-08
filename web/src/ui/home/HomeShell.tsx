@@ -43,7 +43,8 @@ export function HomeShell({
 }) {
   const { t } = useTranslation();
   const docked = useMediaQuery(HOME_NAV_DOCKED);
-  const width = usePanelWidth('home-sidebar', { min: 240, max: 400, default: 280 });
+  // Минимум — по шапке «Избранное · 1 из 10 · + Группа» в одну строку и имени встречи, которое читается (R205).
+  const width = usePanelWidth('home-sidebar', { min: 280, max: 400, default: 300 });
   const { collapsed: folded, setCollapsed } = usePanelCollapsed('home-sidebar');
   /** Свёрнута — только у панели сбоку; выдвижная под бургером всегда целиком. */
   const collapsed = docked && folded;
