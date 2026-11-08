@@ -16,14 +16,16 @@ class LossReportsTest {
   }
 
   @Test
-  void theFirstComplaintSetsTheClockAndRepeatsDoNotMoveIt() {
+  void theFirstComplaintSetsTheStartAndRepeatsOnlyMoveTheLatestComplaint() {
     losses.lost("hel", "a", 1000);
     losses.lost("hel", "a", 9000);
     assertThat(all("hel", 9000)).isEqualTo(1);
+    // Правило C — от начала беды.
     assertThat(losses.stuck("hel", people, 8000, 9000)).isEqualTo(1);
     assertThat(losses.stuck("hel", people, 8001, 9000)).isEqualTo(0);
-    assertThat(losses.since("hel", people, 1000, 9000)).isEqualTo(1);
-    assertThat(losses.since("hel", people, 1001, 9000)).isEqualTo(0);
+    // Правило A — по последней жалобе.
+    assertThat(losses.since("hel", people, 9000, 9000)).isEqualTo(1);
+    assertThat(losses.since("hel", people, 9001, 9000)).isEqualTo(0);
   }
 
   @Test

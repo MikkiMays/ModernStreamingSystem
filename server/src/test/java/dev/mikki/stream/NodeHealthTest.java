@@ -366,6 +366,66 @@ class NodeHealthTest {
     verify(media, never()).evacuate("hel");
   }
 
+  // ——— Правило A — только жалобы этой полосы промахов ———
+
+  @Test
+  void ruleA_oldMarksPlusABriefBackbonePauseAreOnlyUnreachable() {
+    // «a» и «b» в беде давно (переподключаются или вернулись, а возврат потерялся); потом
+    // магистраль
+    // замирает на 3–4 с — два промаха. Это «недоступен», а не мёртвый узел (§5.2).
+    when(media.onNode("hel")).thenReturn(people(Set.of("c", "d"), Set.of("a", "b")));
+    answer(0);
+    losses.lost("hel", "a", 1000);
+    losses.lost("hel", "b", 1500);
+    for (long at = 2000; at <= 12000; at += 2000) answer(at);
+    miss(15000);
+    miss(17000);
+    health.reassess(hel, 17100);
+    verify(nodes).unreachable("hel", true);
+    verify(nodes, never()).down("hel", true);
+    verify(media, never()).evacuate("hel");
+    answer(19000);
+    verify(nodes).unreachable("hel", false);
+    verify(nodes, never()).down("hel", true);
+  }
+
+  @Test
+  void ruleA_complaintsJustBeforeTheFirstMissCountButOlderOnesDoNot() {
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    for (long at = 2000; at <= 10000; at += 2000) answer(at);
+    // За 8 с до первого промаха — не эта беда; за 4 с — эта (клиент заметил раньше опроса).
+    losses.stall("hel", "a", 4000);
+    losses.stall("hel", "b", 8000);
+    miss(12000);
+    miss(14000);
+    health.reassess(hel, 14100);
+    verify(nodes, never()).down("hel", true);
+    losses.stall("hel", "c", 14500);
+    health.reassess(hel, 14500);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+  }
+
+  @Test
+  void ruleA_anEpisodeThatBeganBeforeTheMissesCountsWhenThePersonComplainsDuringThem() {
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    // Подсказка «a» в 1 с, промахи с 9 с; переподключение SDK «a» в 9,5 с — тот же эпизод, но
+    // жалоба
+    // уже в эти промахи.
+    losses.stall("hel", "a", 1000);
+    for (long at = 2000; at <= 8000; at += 2000) answer(at);
+    miss(9000);
+    losses.lost("hel", "a", 9500);
+    health.reassess(hel, 9500);
+    miss(11000);
+    verify(nodes, never()).down("hel", true);
+    losses.lost("hel", "b", 11200);
+    health.reassess(hel, 11200);
+    verify(nodes).down("hel", true);
+  }
+
   @Test
   void peopleAndNodeExporterSharesReachTheRegistryWithTheRooms() {
     health.observe(hel, new MediaGateway.NodeStats(1, 5), 1000);

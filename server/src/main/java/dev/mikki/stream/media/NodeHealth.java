@@ -36,7 +36,8 @@ import org.springframework.stereotype.Component;
  * правил:
  *
  * <ul>
- *   <li><b>A</b> — ≥ {@link #MISSES_WITH_PEOPLE} промахов подряд <b>и</b> пожаловались ядру ({@code
+ *   <li><b>A</b> — ≥ {@link #MISSES_WITH_PEOPLE} промахов подряд <b>и</b> в эти же промахи (не
+ *       раньше чем за {@link #STREAK_SLACK_MS} до первого) пожаловались ядру ({@code
  *       media.stall}/{@code media.lost}, {@link LossReports}) хотя бы двое и не меньше половины
  *       людей узла. Проверяется и по опросу, и сразу по каждой жалобе: ≈ 4–6 с от остановки SFU.
  *   <li><b>B</b> — ≥ {@link #MISSES_WITHOUT_PEOPLE} промахов подряд, а судить некому: людей на узле
@@ -82,6 +83,13 @@ public class NodeHealth {
 
   /** Узел молчит, люди есть, жалоб нет: снимки комнат перечитываются не чаще этого (правило B). */
   static final long RECHECK_MS = 10_000;
+
+  /**
+   * Правило A считает жалобы этой полосы промахов: пришедшие не раньше чем за столько до первого
+   * промаха. Старые отметки (человек давно переподключается, возврат потерялся) с паузой магистрали
+   * на 3–4 с — это «недоступен», а не мёртвый узел (§5.2).
+   */
+  static final long STREAK_SLACK_MS = 5000;
 
   /** Сглаживание долей ЦП и канала между опросами — как у {@code LoadMeter}. */
   private static final double EWMA = 0.35;
@@ -252,10 +260,12 @@ public class NodeHealth {
     if (state.up.get() == 0) return;
     int failures = state.failures;
     if (failures < MISSES_WITH_PEOPLE) return;
-    // Снимки комнат — только когда они могут что-то решить: есть жалобы (правило A), промахов стало
-    // ровно столько, сколько нужно правилу B, или узел давно молчит и люди могли разойтись (раз в
-    // RECHECK_MS). Длинный обрыв магистрали без жалоб не читает базу каждые 2 с.
-    boolean reports = losses.reported(node.id()) > 0;
+    // Снимки комнат — только когда они могут что-то решить: есть жалобы этой полосы промахов
+    // (правило A), промахов стало ровно столько, сколько нужно правилу B, или узел давно молчит и
+    // люди могли разойтись (раз в RECHECK_MS). Длинный обрыв магистрали без жалоб не читает базу
+    // каждые 2 с.
+    long from = state.since - STREAK_SLACK_MS;
+    boolean reports = losses.since(node.id(), null, from, now) > 0;
     boolean recheck = failures > MISSES_WITHOUT_PEOPLE && now - state.peopleAt >= RECHECK_MS;
     if (!reports && failures != MISSES_WITHOUT_PEOPLE && !recheck) return;
     var people = media.onNode(node.id());
@@ -265,7 +275,7 @@ public class NodeHealth {
         die(node, state, now, "%d misses in a row, nobody connected".formatted(failures));
       return;
     }
-    var lost = losses.since(node.id(), people.all(), Long.MIN_VALUE, now);
+    var lost = losses.since(node.id(), people.all(), from, now);
     if (quorum(lost, people.size()))
       die(
           node,

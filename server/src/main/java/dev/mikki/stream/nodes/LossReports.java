@@ -52,8 +52,11 @@ public class LossReports {
   /** Отметка старше этого забывается: окно восстановления давно вышло, человек уже не в комнате. */
   static final long FORGET_MS = 120_000;
 
-  /** Начало беды и было ли {@code media.lost} (иначе — только подсказка {@code media.stall}). */
-  private record Mark(long at, boolean lost) {
+  /**
+   * Начало беды, последняя жалоба и было ли {@code media.lost} (иначе — только подсказка {@code
+   * media.stall}).
+   */
+  private record Mark(long at, long last, boolean lost) {
     boolean live(long now) {
       long age = now - at;
       return age <= FORGET_MS && (lost || age <= STALL_MS);
@@ -76,8 +79,9 @@ public class LossReports {
   }
 
   /**
-   * Живая отметка времени не сдвигает: {@code media.lost} после свежей подсказки — тот же эпизод с
-   * её началом. Отжившая заменяется новой. Отметка на другом узле (комната переехала) снимается.
+   * Живая отметка начала не сдвигает: {@code media.lost} после свежей подсказки — тот же эпизод с
+   * её началом; помнится только последняя жалоба. Отжившая заменяется новой. Отметка на другом узле
+   * (комната переехала) снимается.
    */
   private void mark(String node, String participant, long now, boolean lost) {
     if (node == null || participant == null) return;
@@ -88,8 +92,8 @@ public class LossReports {
         .compute(
             participant,
             (k, old) -> {
-              if (old == null || !old.live(now)) return new Mark(now, lost);
-              return lost && !old.lost() ? new Mark(old.at(), true) : old;
+              if (old == null || !old.live(now)) return new Mark(now, now, lost);
+              return new Mark(old.at(), Math.max(old.last(), now), old.lost() || lost);
             });
     for (var listener : listeners) listener.accept(node);
   }
@@ -106,12 +110,13 @@ public class LossReports {
   }
 
   /**
-   * Сколько живых отметок узла началось не раньше {@code from} (правило A: жалобы этой полосы
-   * промахов) — среди {@code among} или, если {@code null}, всех. Пересечение с людьми узла держит
-   * числитель внутри знаменателя: ушедший из комнаты не считается, даже если отметка ещё жива.
+   * Сколько участников с живой отметкой жаловались не раньше {@code from} (правило A: жалобы этой
+   * полосы промахов, а не старые) — среди {@code among} или, если {@code null}, всех. Пересечение с
+   * людьми узла держит числитель внутри знаменателя: ушедший из комнаты не считается, даже если
+   * отметка ещё жива.
    */
   public int since(String node, Set<String> among, long from, long now) {
-    return count(node, among, now, mark -> mark.at() >= from);
+    return count(node, among, now, mark -> mark.last() >= from);
   }
 
   /**
