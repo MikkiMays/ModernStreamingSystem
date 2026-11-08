@@ -818,6 +818,39 @@
         },
         "type": "object"
       },
+      "Counts": {
+        "properties": {
+          "archived": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "breached": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "done": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "fresh": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "open": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unassigned": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "waiting": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Create": {
         "properties": {
           "approvalRequired": {
@@ -1483,6 +1516,16 @@
       },
       "Entry": {
         "properties": {
+          "archivedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "assignee": {
+            "type": "string"
+          },
+          "breached": {
+            "type": "boolean"
+          },
           "contact": {
             "type": "string"
           },
@@ -1492,6 +1535,14 @@
           },
           "diagnostics": {
             "type": "string"
+          },
+          "firstResponseAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "firstResponseDueAt": {
+            "format": "int64",
+            "type": "integer"
           },
           "id": {
             "type": "string"
@@ -1512,17 +1563,43 @@
           "number": {
             "type": "string"
           },
+          "pausedMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "resolveDueAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "slaMet": {
+            "type": "boolean"
+          },
           "status": {
             "enum": [
               "NEW",
               "OPEN",
-              "DONE"
+              "WAITING",
+              "DONE",
+              "ARCHIVED"
             ],
             "type": "string"
           },
           "statusAt": {
             "format": "int64",
             "type": "integer"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "topic": {
             "type": "string"
@@ -2751,7 +2828,9 @@
             "enum": [
               "NEW",
               "OPEN",
-              "DONE"
+              "WAITING",
+              "DONE",
+              "ARCHIVED"
             ],
             "type": "string"
           }
@@ -2835,6 +2914,49 @@
           "tcpMs",
           "udpMs",
           "udpOpen"
+        ],
+        "type": "object"
+      },
+      "Note": {
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "ticketId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NoteRequest": {
+        "properties": {
+          "kind": {
+            "pattern": "note|reply",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
         ],
         "type": "object"
       },
@@ -4155,13 +4277,51 @@
         ],
         "type": "object"
       },
+      "Stats": {
+        "properties": {
+          "created": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "days": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "firstResponseMedianMinutes": {
+            "format": "double",
+            "type": "number"
+          },
+          "resolved": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "resolveMedianMinutes": {
+            "format": "double",
+            "type": "number"
+          },
+          "topics": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "withinSla": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
       "StatusChange": {
         "properties": {
           "status": {
             "enum": [
               "NEW",
               "OPEN",
-              "DONE"
+              "WAITING",
+              "DONE",
+              "ARCHIVED"
             ],
             "type": "string"
           }
@@ -4471,7 +4631,9 @@
             "enum": [
               "NEW",
               "OPEN",
-              "DONE"
+              "WAITING",
+              "DONE",
+              "ARCHIVED"
             ],
             "type": "string"
           }
@@ -4480,6 +4642,20 @@
           "chat",
           "status"
         ],
+        "type": "object"
+      },
+      "Ticket": {
+        "properties": {
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            },
+            "type": "array"
+          },
+          "ticket": {
+            "$ref": "#/components/schemas/Entry"
+          }
+        },
         "type": "object"
       },
       "TxSwitch": {
@@ -4552,6 +4728,38 @@
           "codec",
           "hw",
           "source"
+        ],
+        "type": "object"
+      },
+      "Update": {
+        "properties": {
+          "assignee": {
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[\\p{L}\\p{N}@._ -]*",
+            "type": "string"
+          },
+          "priority": {
+            "pattern": "low|normal|high|urgent",
+            "type": "string"
+          },
+          "tags": {
+            "maxLength": 400,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Visit": {
+        "properties": {
+          "stage": {
+            "pattern": "open|prejoin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
         ],
         "type": "object"
       },
@@ -4673,6 +4881,61 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/analytics": {
+      "get": {
+        "operationId": "analytics",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "default": "actual",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "analytics-controller"
+        ]
+      }
+    },
     "/api/v1/admin/audit": {
       "get": {
         "operationId": "audit",
@@ -5426,6 +5689,89 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "NEW",
+                "OPEN",
+                "WAITING",
+                "DONE",
+                "ARCHIVED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "pattern": "[a-z]{2,16}",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assignee",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "pattern": "low|normal|high|urgent",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "enum": [
+                "NEW",
+                "OLD",
+                "PRIORITY"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -5448,6 +5794,150 @@
         ]
       }
     },
+    "/api/v1/admin/support/{id}": {
+      "get": {
+        "operationId": "ticket",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ticket"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
+        ]
+      },
+      "put": {
+        "operationId": "update_1",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Cord-Admin-Actor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Update"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/support/{id}/notes": {
+      "post": {
+        "operationId": "note",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Cord-Admin-Actor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
+        ]
+      }
+    },
     "/api/v1/admin/support/{id}/status": {
       "put": {
         "operationId": "status",
@@ -5455,6 +5945,14 @@
           {
             "in": "header",
             "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Cord-Admin-Actor",
             "required": false,
             "schema": {
               "type": "string"
@@ -5482,6 +5980,76 @@
         },
         "responses": {
           "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/support/counts": {
+      "get": {
+        "operationId": "counts",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Counts"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/support/stats": {
+      "get": {
+        "operationId": "stats",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stats"
+                }
+              }
+            },
             "description": "OK"
           }
         },
@@ -7101,6 +7669,29 @@
         },
         "tags": [
           "support-controller"
+        ]
+      }
+    },
+    "/api/v1/visit": {
+      "post": {
+        "operationId": "visit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Visit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "analytics-controller"
         ]
       }
     }

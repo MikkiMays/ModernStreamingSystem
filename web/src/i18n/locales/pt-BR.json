@@ -3667,7 +3667,9 @@
       "statuses": {
         "NEW": "Nova",
         "OPEN": "Em andamento",
-        "DONE": "Resolvida"
+        "DONE": "Resolvida",
+        "WAITING": "Aguardando resposta",
+        "ARCHIVED": "Arquivado"
       },
       "contact": "Contato: {{contact}}",
       "noContact": "Nenhum contato",

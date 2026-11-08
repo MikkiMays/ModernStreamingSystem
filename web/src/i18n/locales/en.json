@@ -3627,7 +3627,9 @@
       "statuses": {
         "NEW": "New",
         "OPEN": "In progress",
-        "DONE": "Resolved"
+        "DONE": "Resolved",
+        "WAITING": "Waiting for reply",
+        "ARCHIVED": "Archived"
       },
       "contact": "Contact: {{contact}}",
       "noContact": "No contact left",
