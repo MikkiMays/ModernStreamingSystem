@@ -61,6 +61,11 @@ export class SilenceWatch {
   private lastRtp: number | null = null;
   private lastKeepalives: number | null = null;
   private nudged = false;
+  /**
+   * Браузер отдаёт STUN-счётчики пары. Не отдаёт (так бывает в Firefox) — молчание ни о чём не говорит: в
+   * тихой встрече RTP стоит законно, и толчок был бы ложным. Тогда обрыв ловит ICE `disconnected` и `online`.
+   */
+  private keepalivesSeen = false;
 
   /** Очередной опрос статистики. @returns `true` — пора просить resume (один раз на эпизод). */
   observe(sample: SilenceSample): boolean {
@@ -68,6 +73,7 @@ export class SilenceWatch {
     const alive =
       (this.lastRtp !== null && sample.rtpBytes !== this.lastRtp) ||
       (this.lastKeepalives !== null && sample.keepalives !== this.lastKeepalives);
+    if (sample.keepalives > 0) this.keepalivesSeen = true;
     this.lastRtp = sample.rtpBytes;
     this.lastKeepalives = sample.keepalives;
     if (this.lastAliveAt === null || alive) {
@@ -75,7 +81,7 @@ export class SilenceWatch {
       if (alive) this.nudged = false;
       return false;
     }
-    if (sample.hidden || this.nudged) return false;
+    if (sample.hidden || this.nudged || !this.keepalivesSeen) return false;
     if (!sample.connected || !sample.iceConnected || !sample.subscribed) return false;
     if (sample.now - this.lastAliveAt < SILENCE_MS) return false;
     this.nudged = true;

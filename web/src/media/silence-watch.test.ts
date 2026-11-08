@@ -58,6 +58,11 @@ describe('SilenceWatch', () => {
     expect(dead({})).toBe(true);
   });
 
+  it('браузер не отдаёт STUN-счётчики пары — молчание RTP не повод: тихая встреча не толкается', () => {
+    const watch = new SilenceWatch();
+    for (let t = 0; t <= 60_000; t += 2000) expect(watch.observe(sample(t, 1000, 0)), `t=${t}`).toBe(false);
+  });
+
   it('после переподключения счётчики начинаются с нуля — падение тоже считается жизнью', () => {
     const watch = new SilenceWatch();
     watch.observe(sample(0, 5000, 300));
