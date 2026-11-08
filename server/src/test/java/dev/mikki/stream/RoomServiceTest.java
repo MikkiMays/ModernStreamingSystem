@@ -753,7 +753,7 @@ class RoomServiceTest {
   }
 
   @Test
-  void onlyTwoScreenSlotsCanBeGrantedConcurrently() throws Exception {
+  void onlyOneScreenSlotCanBeGrantedConcurrently() throws Exception {
     var host = host();
     var a = guest(host);
     var b = guest(host);
@@ -775,7 +775,9 @@ class RoomServiceTest {
               .toList();
       int accepted = 0;
       for (var job : jobs) if (job.get()) accepted++;
-      assertThat(accepted).isEqualTo(2);
+      // Показ один на встречу (R202, MAX_SCREENS по умолчанию 1): из трёх одновременных — ровно
+      // один.
+      assertThat(accepted).isEqualTo(1);
     }
   }
 
