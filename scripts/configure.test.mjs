@@ -256,3 +256,88 @@ test('имя пульта (R207): --admin пишет ADMIN_HOST и маршру�
     await rm(directory, { recursive: true });
   }
 });
+
+test('перевыпуск не возвращает в .env, правленный руками, прежние имена из topology.json; --check говорит это заранее (ревью R200 §8.6)', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
+  try {
+    const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+    const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
+    assert.equal(run('--domain=meet.example.test', '--ip=192.0.2.1', '--legacy-hosts=site.example.test').status, 0);
+    const names = ['.env', 'infra/generated/edge.json', 'infra/generated/livekit.json', 'infra/generated/topology.json'];
+    const files = async () =>
+      Object.fromEntries(await Promise.all(names.map(async (f) => [f, await readFile(join(directory, f), 'utf8')])));
+
+    // Адреса совпадают — проверка спокойна и ничего не пишет.
+    const before = await files();
+    const calm = run('--refresh', '--check');
+    assert.equal(calm.status, 0, calm.stderr);
+    assert.match(calm.stdout, /\.env не меняет/);
+    assert.deepEqual(await files(), before);
+
+    // Сервер перенесли на новые имена, поправив только .env (meet → cordcam.ru, 08.11.2026).
+    const edited = before['.env']
+      .replace(/^DEPLOY_MODE=.*$/m, 'DEPLOY_MODE=strict')
+      .replace(/^APP_HOST=.*$/m, 'APP_HOST=cordcam.example.test')
+      .replace(/^RTC_HOST=.*$/m, 'RTC_HOST=rtc-fra.example.test')
+      .replace(/^TURN_HOST=.*$/m, 'TURN_HOST=turn-fra.example.test')
+      .replace(/^PUBLIC_URL=.*$/m, 'PUBLIC_URL=https://cordcam.example.test')
+      .replace(/^LIVEKIT_URL=.*$/m, 'LIVEKIT_URL=wss://rtc-fra.example.test');
+    await writeFile(join(directory, '.env'), edited);
+    const stale = await files();
+
+    const warned = run('--refresh', '--check');
+    assert.equal(warned.status, 3, warned.stderr);
+    assert.match(warned.stdout, /ВНИМАНИЕ: infra\/generated\/topology\.json называет не те адреса, что \.env/);
+    assert.match(warned.stdout, /APP_HOST: cordcam\.example\.test → meet\.example\.test/);
+    assert.match(warned.stdout, /ничего не записано/);
+    const align = /node scripts\/configure\.mjs (--refresh .*)$/m.exec(warned.stdout)[1].split(' ');
+    assert.deepEqual(align, [
+      '--refresh', '--mode=strict', '--app=cordcam.example.test', '--rtc=rtc-fra.example.test',
+      '--turn=turn-fra.example.test', '--ip=192.0.2.1',
+    ]);
+    assert.deepEqual(await files(), stale);
+
+    // Обычный перевыпуск (так его зовёт ./update.sh) отказывает и ничего не трогает.
+    const refused = run('--refresh');
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /называет не те адреса/);
+    assert.deepEqual(await files(), stale);
+
+    // Команда из подсказки выравнивает topology.json по .env: имена в .env те же, соседний сайт на месте.
+    const aligned = run(...align);
+    assert.equal(aligned.status, 0, aligned.stderr);
+    const after = await readFile(join(directory, '.env'), 'utf8');
+    for (const line of [
+      'DEPLOY_MODE=strict', 'APP_HOST=cordcam.example.test', 'RTC_HOST=rtc-fra.example.test',
+      'TURN_HOST=turn-fra.example.test', 'PUBLIC_URL=https://cordcam.example.test',
+    ])
+      assert.match(after, new RegExp(`^${line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), line);
+    const stored = JSON.parse(await readFile(join(directory, 'infra/generated/topology.json'), 'utf8'));
+    assert.equal(stored.app, 'cordcam.example.test');
+    assert.equal(stored['legacy-hosts'], 'site.example.test');
+    const sfu = JSON.parse(await readFile(join(directory, 'infra/generated/livekit.json'), 'utf8'));
+    assert.equal(sfu.turn.domain, 'turn-fra.example.test');
+    // Дальше перевыпуск снова обычный.
+    const again = run('--refresh', '--check');
+    assert.equal(again.status, 0, again.stdout);
+    assert.equal(run('--refresh').status, 0);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
+
+test('--check бывает только у перевыпуска', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
+  try {
+    const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+    const fresh = spawnSync(process.execPath, [script, '--check', '--domain=app.example.test', '--ip=192.0.2.1'], {
+      cwd: directory,
+      encoding: 'utf8',
+    });
+    assert.notEqual(fresh.status, 0);
+    assert.match(fresh.stderr, /--check works only with --refresh/);
+    await assert.rejects(readFile(join(directory, '.env'), 'utf8'));
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
