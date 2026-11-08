@@ -623,3 +623,193 @@ AAAA не публикуем (правило `docs/deployment.md`). CAA: `0 issu
 | 8 | владелец, +30 дней | удалить `cord.*`, `meet` из `nikg.tech` | `dig +short A cord.nikg.tech` — пусто |
 
 Откат любого DNS-шага — вернуть прежний адрес (TTL 60 с = минута).
+
+---
+
+## 8. План фазы 2 — по файлам, с оценкой
+
+Оценки — в часах работы одного агента, включая тесты; «S» ≤ 4 ч, «M» 4–12 ч, «L» 12–30 ч. Порядок — сверху вниз:
+каждая порция самодостаточна и выкатывается отдельно.
+
+### 8.1 Реестр и ёмкость узлов (ядро + скрипты) — **M**
+
+| Файл | Что |
+|---|---|
+| `scripts/node-config.mjs` (+ `.test.mjs`) | поля узла `country` («DE», «FI», «RU»), `uplinkMbps`, `cores`; флаги `--country=`, `--uplink-mbps=`, `--cores=`; `--write-env` без изменений |
+| `server/.../nodes/MediaNode.java` | те же поля (`ignoreUnknown` остаётся) |
+| `server/.../nodes/MediaNodes.java` | `level(id)`: ступень 1–4 по §3.4; `decide()` — не ставить на ступень 4 и на прогнозные > 75 %; при равенстве замера ± 20 мс — менее загруженный; причины `full-level`, `headroom` в `cord.node.choice` |
+| `server/.../media/MediaGateway.java` (`rooms()` → `NodeStats{rooms, participants}`), `media/NodeHealth.java` | `ListRooms` → суммировать `num_participants`; период опроса 2 с (§5.2) |
+| `infra/Caddyfile.node` + маленький обработчик `GET /api/v1/load` на узле | ступень ЦП/steal/канала узла без ядра: самый дешёвый путь — контейнер `node-load` (Go, 50 строк, читает `/proc`, как `LoadMeter`) **или** ядро читает `node-exporter` узла по магистрали (`127.0.0.1:2N002`) — выбрать второе, если не хочется нового образа: ядро уже умеет ходить по магистрали |
+| `server/.../api/ApiController.java` | `GET /api/v1/nodes` → `[{id, title, country, level, state, drained}]` (без чисел — только ступень, как `LoadMeter`); `capabilities.nodes[]` получает `country` |
+| `contracts/openapi.json`, `web/src/api/generated.ts` | через `backlog/bin/gen-contracts.sh` |
+| `infra/monitoring/rules/cord.yml` | `NodeSaturated` (ступень 4 ≥ 60 с), `NodeUnreachable` (магистраль; люди в порядке) |
+| Тесты | `MediaNodesTest` (ступень, запас, равенство), `NodeHealthTest` (период, суммы), `node-config.test.mjs` |
+
+### 8.2 Настройки → Сервер и диагностика (веб = Electron) — **M**
+
+| Файл | Что |
+|---|---|
+| `web/src/ui/settings/ServerSection.tsx` | убрать `note={t(settings.server.shared)}` (текст про автоматический выбор); радио **«Авто»** (по умолчанию) + список узлов: `Flag` + город + `nodeMs` + `LoadBars(level)`; у создателя во встрече — кнопка «Перевести сюда» (вызов `api.moveMedia(to)`); вне встречи — выбор запоминается (`core/node-choice.ts`, `localStorage cord:node:manual`); недоступные узлы (ступень 4, дренаж) — серые |
+| `web/src/core/node-choice.ts` (новый) | «Авто / вручную `<id>`» с памятью на устройстве; `preferredNode` при создании = ручной узел, иначе результат `nodeProbe.preferred()`; поле `manual: true` в запросе — для журнала/метрики `reason="manual"` |
+| `web/src/core/server-load.ts` | `useNodesLoad()` — `GET /api/v1/nodes` раз в 10 с, пока открыт раздел |
+| `web/src/ui/kit/Flag.tsx` (новый) + `brand/flags/{de,fi,ru}.svg` | эмодзи-флаг там, где он рисуется; SVG — на Windows (Electron, Chrome под Windows без эмодзи-флагов) |
+| `web/src/ui/MeetingHeader.tsx` | рядом с `Ping` — ненавязчиво: `🇫🇮 Хельсинки` (или SVG + «HEL») мелким шрифтом, `title` с «узел встречи · 12 мс»; скрывается на узком экране |
+| `web/src/ui/Diagnostics.tsx` | «Узел встречи» переносится **в заголовок карточки** (флаг + город + мс); нижняя метрика остаётся для копирования текста |
+| `web/src/ui/Prejoin.tsx`, главная | бейдж «Сервер: 🇫🇮 Хельсинки · вручную — сбросить», когда выбор ручной |
+| `web/src/i18n/locales/*.json` (8 языков) | убрать `settings.server.shared`; новые `settings.server.auto`, `.manual`, `.moveHere`, `.moving`, `.moved`, `.noSeats`, `.resetManual`; `cord-i18n` |
+| Клиент Windows | кода нет: настройки — веб; проверить `desktop-section.test.tsx` и отрисовку SVG-флагов |
+| Тесты | `server-section.test.tsx` (радио, список, права), `diagnostics.test.tsx`, `meeting-header.test.tsx`, `node-choice.test.ts`, i18n-покрытие |
+
+### 8.3 Ручной выбор при создании (ядро) — **S**
+
+| Файл | Что |
+|---|---|
+| `server/.../room/Contracts.java` | `CreateRoomRequest.manual: Boolean` (вместе с `preferredNode`) |
+| `server/.../room/RoomService.java:142` | причина `manual`/`manual-full` в журнале и `cord.node.choice`; если ручной узел недоступен — `admission` несёт `nodeFallback: {asked, got}` для плашки клиента |
+| `server/.../room/Permissions.java` | действие `MEDIA_MOVE` → `Rule.CREATOR` |
+| Тесты | `RoomServiceTest`, `ContractsValidationTest` |
+
+### 8.4 Тёплый переезд (§4) — **L**, самая большая и самая рискованная порция
+
+| Файл | Что |
+|---|---|
+| `server/.../room/RoomState.java` | `mediaMove` (`@JsonInclude(NON_NULL)`, `ignoreUnknown`) |
+| `server/.../media/MediaService.java` | `startMove(roomId, to, by)`, `ready(roomId, moveId, participantId, caps)`, `done(...)`, `tick()` (prepare → switch по готовности/дедлайну; abort < 50 %); `authorizeSignaling` — принимать узел `to` при живом `mediaMove`; игнорировать `participant_left` с узла `from` во время переезда; `CreateRoom` на узле `to` через `MediaGateway` |
+| `server/.../media/MediaGateway.java` | `createRoom(node, roomId, maxParticipants)`; `token(member, node)` для `?move=` |
+| `server/.../api/*` | `POST /rooms/{id}/media/move`, `POST …/media/move/{moveId}/ready`, `…/done`; `GET /token?move=` |
+| `web/src/media/move.ts` (новый, ≈ 400 строк) | координатор: `roomB`, клоны (`mediaStreamTrack.clone()` → `publishTrack`), подписки на B, таблица слотов, фазы, отчёт разрыва (`inbound-rtp` до/после) |
+| `web/src/media/session.ts` | реакция на `snapshot.mediaMove`; `swap` дорожек; `roomA.disconnect(false)`; взаимодействие с `relocate` (опоздавшие) и окном восстановления |
+| `web/src/media/playout.ts`, сцена (`MeetingView`/плитки) | `swap(trackA, trackB)` на тех же элементах; «последний кадр» Р-94 при отсутствии B-кадра |
+| `web/src/media/link-quality.ts` | оценка «канал позволяет 2× видео» для решения «видео B до или после switch» |
+| `web/e2e/media/move.spec.ts` + `netns.sh` | две машины, два SFU (как в тесте на B), измерение паузы звука `voice-probe` и `framesDecoded`; сценарии: все готовы; один опоздал; abort; показ экрана во время переезда |
+| Метрики/алерты | `cord_media_move_total{result}`, `cord_media_move_seconds`, `cord_media_move_gap_ms`; панель Grafana «Узлы» |
+| Тесты ядра | `MediaMoveTest` (фазы, дедлайны, abort, права, forward_auth с `to`), `MediaServiceTest` (вебхуки во время переезда) |
+
+### 8.5 Отказ узла быстрее (§5) — **M**
+
+| Файл | Что |
+|---|---|
+| `server/.../media/NodeHealth.java` | период 2 с; правила A/B/C; состояние `unreachable`; учёт `media.lost`/`media.stall` по узлу за 5 с (из `ConnectionReports`/`reportConnection`) |
+| `server/.../media/MediaService.java` | `evacuate` без изменений; `unreachable` → только `down` для размещения |
+| `web/src/media/session.ts`, `silence-watch.ts` | отправка `media.stall` при молчании ≥ 3 с (без действий) |
+| `infra/monitoring/rules/cord.yml` | `NodeDown` по новому состоянию, `NodeUnreachable` |
+| Тесты | `NodeHealthTest` (таблица правил: зависание без жалоб — нет переезда; магистраль без жалоб — `unreachable`; жалобы + промахи — переезд за ≤ 6 с), живой прогон на паре A–B (`docker stop livekit` на B; `docker pause backbone` на A; `stress-ng` на B) |
+
+### 8.6 Домен `cordcam.ru` в коде — **M**
+
+| Файл | Что |
+|---|---|
+| `scripts/configure.mjs`, `scripts/edge-config.mjs` | `--app=cordcam.ru --rtc=rtc-fra.cordcam.ru --turn=turn-fra.cordcam.ru` (strict) + **`--redirect-hosts=cord.nikg.tech`** (новое: имя на edge → gateway → `301 https://<PUBLIC_URL><путь>#cord-prefs=…`); `rtc.cord.`/`turn.cord.nikg.tech` остаются на 30 дней как доп. SNI медиа A |
+| `infra/Caddyfile` | блок редиректа с переносом `#cord-prefs` (механизм R136: страница-переходник, читающая localStorage старого origin и передающая в hash) |
+| `server` `ALLOWED_ORIGINS`/CSP (`CSP_NODES`) | `cordcam.ru` + временно `cord.nikg.tech`; `connect-src` на `*.cordcam.ru` |
+| Клиент Windows | `CORD_DEFAULT_SERVER=https://cordcam.ru/`, каталог `seq+1` (`scripts/sign-catalog.mjs`), `build/installations/cordcam.json` → основной сервер и ключи; последний выпуск канала `deploy/cordcam` |
+| Android | `CORD_SERVER_URL=https://cordcam.ru` (`mobile/scripts/set-server.mjs`) |
+| `docs/RELEASE.md`, `backlog/README.md` («Стенды») | один прод `cordcam.ru`, узлы `fra/hel/msk/fra2` |
+| Тесты | `configure.test.mjs`, `edge-config.test.mjs`, e2e редиректа с переносом избранного |
+
+### 8.7 Готовность к оранжевому облаку (по желанию) — **S**
+
+`CF-Connecting-IP` как доверенный заголовок только с адресов Cloudflare (`infra/Caddyfile`: `trusted_proxies cloudflare`
+через модуль или список), ядро берёт адрес из `X-Forwarded-For` только от gateway; пинг WS событий ≤ 50 с. Не выкатывать
+оранжевое — только быть готовыми.
+
+### 8.8 Итог по размеру
+
+| Порция | Оценка | Зависит от |
+|---|---|---|
+| 8.1 реестр и ёмкость | M (≈ 10 ч) | — |
+| 8.2 настройки, флаги, диагностика | M (≈ 10 ч) | 8.1 (ступени) |
+| 8.3 ручной выбор при создании | S (≈ 3 ч) | 8.1 |
+| 8.4 тёплый переезд | L (≈ 25–30 ч) | 8.1–8.3; стенд с двумя SFU |
+| 8.5 отказ быстрее | M (≈ 8 ч) | — |
+| 8.6 домен в коде | M (≈ 8 ч) + выпуски клиентов | DNS владельца |
+| 8.7 готовность к оранжевому | S (≈ 3 ч) | — |
+| **Всего** | **≈ 70–75 ч** | |
+
+Порядок выкатки: 8.1 → 8.5 → 8.6 (с DNS) → 8.2 + 8.3 → 8.4. Пункты 8.2–8.3 дают владельцу «Авто/вручную» и флаги быстро;
+8.4 — то, что отличает нас от Discord (переезд без разрыва), и делается последним, с живыми замерами.
+
+---
+
+## 9. Приёмка (числа)
+
+| Что | Критерий |
+|---|---|
+| Размещение | p95 «Создать встречу → медиа подключено» не хуже 1.2.1 (2,1 с ведущий) |
+| Ручной перевод | 5 прогонов на паре узлов: пауза звука у слушателя ≤ 0,5 с (p95), ни одного чёрного кадра камеры, показ экрана без паузы > 1 с; опоздавший — восстановился ≤ 5 с; abort — никто не потерял связь |
+| Отказ узла | `docker stop livekit` на B: звук у всех ≤ 8 с (5 прогонов), худший ≤ 10 с |
+| Ложные переезды | сутки на живом B с `stress-ng --cpu 2 -t 10s` каждые 10 мин и `docker pause backbone` 15 с каждый час — **0** переездов; алерты `NodeUnreachable` при паузах магистрали — есть |
+| Мигающий VPN (netns `flap` 7 с) | узел встречи не меняется; у остальных разрывов нет (voice-probe) |
+| Перегрузка | при ступени 4 на `hel` новая встреча с `preferredNode=hel` уходит на `fra` с причиной `full-level`; вход в идущую встречу на `hel` не отказан |
+| Cloudflare | все записи §7.3 серые; `dig` каждого имени совпадает с таблицей; `https://cordcam.ru` — сертификат Let's Encrypt, HSTS; `turn-relay-check.mjs --transport=tls` на каждом `turn-<узел>` |
+
+---
+
+## 10. Что не удалось определить и что нужно от владельца
+
+1. **`remote.nikg.tech`, `app.nikg.tech`, `media.nikg.tech`** — используются ли они чем-то, кроме старого meet? Пока не
+   удалять (§7.4).
+2. **`nikg.tech` апекс** (оранжевый, 1 тыс. посетителей) — сайт владельца? Не трогаем.
+3. **Канал и тариф сервера cordcam** (полоса, лимит трафика) и **режется ли YouTube** на нём (Р-99, первый шаг раздела 5
+   `rollout-cordcam.md`).
+4. **Доступность A по HTTPS из России** под нагрузкой — проверяется первыми днями на `cordcam.ru` по `cord_joins_total`;
+   если плохо — пересмотр Р-108.
+5. **Режет ли фильтр A загрузку с домашнего интернета** (п. 16 `OWNER-ACTIONS.md`) — если да, узел `fra` понижается в
+   выборе для всех, а не только для немцев.
+6. Подтверждение решений Р-100…Р-109 (`backlog/DECISIONS.md`) — особенно: только создатель может переводить встречу
+   (Р-104) и «управление остаётся во Франкфурте» (Р-108).
+7. Для `deploy/cordcam`: согласие, что последний выпуск канала переводит клиентов на основной сервер и ключи.
+
+---
+
+## 11. Источники
+
+1. Discord Developer Docs, Channel resource — `rtc_region` («voice region id for the voice channel, automatic when set to
+   null»), Voice resource — Voice Region object (`optimal`: «true for a single server that is closest to the current
+   user's client») — https://docs.discord.com/developers/resources/channel ,
+   https://docs.discord.com/developers/resources/voice
+2. Discord Support, «Voice Regions on Discord FAQ» (регион «Automatic» — по первому вошедшему, держится, пока канал не
+   опустеет) — https://support.discord.com/hc/en-us/articles/1500007645701 (прочитано в пересказе поисковой выдачи и
+   источников 4–5: прямая загрузка страницы отдала 403)
+3. Discord Engineering, «How Discord Handles Two and Half Million Concurrent Voice Users using WebRTC» (2018) —
+   https://discord.com/blog/how-discord-handles-two-and-half-million-concurrent-voice-users-using-webrtc
+4. How-To Geek, «How to Change the Server Region on Discord» (27.09.2020): «after a brief period (usually less than one
+   second) of interruption»; в личных звонках менять можно посреди звонка —
+   https://www.howtogeek.com/688813/how-to-change-server-region-on-discord/
+5. discord-media.com, «Discord Voice Regions: How to Change Server Location to Fix Lag»: «Everyone in that channel will
+   briefly disconnect and reconnect»; «Admins Only» —
+   https://discord-media.com/en/news/discord-voice-regions-how-to-change-server-location-to-fix-lag.html
+6. Pycord issue #1567 — журнал `VOICE_SERVER_UPDATE` при смене региона: новый `endpoint`, закрытие WS кодом 4000,
+   повторное рукопожатие через ≈ 1 с — https://github.com/Pycord-Development/pycord/issues/1567
+7. Discord Developer Docs, Gateway events — «Voice Server Update … when the current voice instance fails over to a new
+   server. A null endpoint means that the voice server allocated has gone away…» —
+   https://docs.discord.com/developers/events/gateway-events
+8. Discord Engineering, «How We Moved Discord Voice to the Edge» (2025) —
+   https://discord.com/blog/how-we-moved-discord-voice-to-the-edge
+9. Zoom, «Zoom: Architected for Reliability» (Meeting Zones, MMR, least-loaded, active-active failover) —
+   https://library.zoom.com/admin-corner/architecture-and-design/zoom-architected-for-reliability
+10. Публичные разборы архитектуры Meet/Zoom (реконструкции, не первоисточник) — например
+    https://www.systemdesignhandbook.com/guides/google-meet-system-design/
+11. LiveKit, «Scaling WebRTC with distributed mesh» — live migrations «reduced to under a second» —
+    https://livekit.com/blog/scaling-webrtc-with-distributed-mesh
+12. Jitsi, «Bridge cascading is back» (Octo) — https://jitsi.org/blog/bridge-cascading-is-back/
+13. Исходники livekit-server v1.13.6, `pkg/service/roommanager.go` `StartSession`: дубликат identity убирается
+    `ParticipantCloseReasonDuplicateIdentity` только внутри комнаты того же сервера —
+    https://github.com/livekit/livekit/blob/v1.13.6/pkg/service/roommanager.go
+14. Cloudflare Docs, Proxy status (DNS only vs proxied; только HTTP/HTTPS/WS через прокси) —
+    https://developers.cloudflare.com/dns/proxy-status/
+15. Cloudflare Docs, «Exposed IP addresses» (предупреждение у DNS-only записей рядом с проксированными) —
+    https://developers.cloudflare.com/dns/manage-dns-records/troubleshooting/exposed-ip-address/
+16. Cloudflare Docs, Security Center → Security Insights (Unproxied A records, SPF/DMARC, HSTS, dangling records) —
+    https://developers.cloudflare.com/security-center/security-insights/
+17. Cloudflare Docs, «Using Cloudflare with WebSockets» (поддержка на всех тарифах, закрытие простаивающих соединений)
+    — https://developers.cloudflare.com/support/network/using-cloudflare-with-websockets/
+18. RDAP/whois: 157.22.241.114 — RIPE, `GIR_SER-NET`, `GLOBAL INTERNET SOLUTIONS LLC`, RU, AS207713
+    (https://rdap.db.ripe.net/ip/157.22.241.114); 108.165.32.23 — ARIN, `KOARA-INTERNATIONAL-LIMITED`,
+    108.165.32.0/23 (https://rdap.arin.net/registry/ip/108.165.32.23)
+19. Исходники `livekit-client` 2.22.4 (`web/node_modules/livekit-client/dist/livekit-client.esm.mjs`): `Room` `:34027`,
+    `addSimulcastTrack` с `mediaStreamTrack.clone()` `:24354`, `publishTrack(MediaStreamTrack)` `:32287`,
+    `SignalClient` ping из `JoinResponse` `:18936`, `prepareConnection`/`RegionUrlProvider` только для Cloud `:35263`
+20. Внутренние: `docs/architecture/distributed-media.md` (R195), `docs/architecture/rollout.md` (R198),
+    `backlog/journal/2026-11-08-r195-nodes.md`, `docs/load/2026-11-02-load-report.md` (T09), `docs/capacity.md`,
+    `docs/abuse-model.md`, `backlog/DECISIONS.md` (Р-37, Р-89, Р-94, Р-99)
