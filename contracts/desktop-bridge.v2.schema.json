@@ -285,7 +285,8 @@
         "capture.select",
         "overlay.roster",
         "mini.state",
-        "mini.ack"
+        "mini.ack",
+        "app.ready"
       ]
     },
     "pageCall": {
