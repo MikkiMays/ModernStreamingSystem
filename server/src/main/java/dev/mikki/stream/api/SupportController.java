@@ -123,8 +123,9 @@ public class SupportController {
   }
 
   /**
-   * Ящик обращений для пульта и «Активности», новые первыми; {@code before} — время последнего на
-   * прошлой странице. Без {@code status} архив не показывается.
+   * Ящик обращений для пульта и «Активности»; без {@code status} архив не показывается. {@code
+   * before} — время последнего на прошлой странице (при {@code sort=NEW}); {@code assignee=-} — без
+   * назначения; {@code overdue=true} — только просроченные по SLA.
    */
   @GetMapping("/api/v1/admin/support")
   public List<SupportService.Entry> tickets(
@@ -135,10 +136,13 @@ public class SupportController {
       @RequestParam(required = false) @Size(max = 40) String assignee,
       @RequestParam(required = false) @Pattern(regexp = "low|normal|high|urgent") String priority,
       @RequestParam(required = false) @Size(max = 100) String q,
+      @RequestParam(required = false) Boolean overdue,
+      @RequestParam(required = false) SupportService.Sort sort,
       @RequestParam(required = false) Integer limit) {
     admin.require(token);
     return support.search(
-        new SupportService.Filter(status, topic, assignee, priority, q, before, limit));
+        new SupportService.Filter(
+            status, topic, assignee, priority, q, overdue, before, sort, limit));
   }
 
   @GetMapping("/api/v1/admin/support/counts")
@@ -146,6 +150,16 @@ public class SupportController {
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token) {
     admin.require(token);
     return support.counts();
+  }
+
+  /** Качество работы с обращениями за {@code days} дней (1–365). */
+  @GetMapping("/api/v1/admin/support/stats")
+  public SupportService.Stats stats(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @RequestParam(defaultValue = "30") int days) {
+    admin.require(token);
+    if (days < 1 || days > 365) throw new IllegalArgumentException("days");
+    return support.stats(days);
   }
 
   @GetMapping("/api/v1/admin/support/{id}")

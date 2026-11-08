@@ -8,10 +8,10 @@ import java.util.Set;
  * Тип клиента и операционная система — словами из перечислений (R210, Р-126).
  *
  * <p>Тип называет сам клиент заголовком {@code X-Cord-Client} ({@code web}, {@code desktop}, {@code
- * android}, {@code telegram}; {@code contracts/headers.md}); старый клиент заголовка не шлёт —
- * тогда тип угадывается по {@code User-Agent} ({@code Electron} → {@code desktop}, {@code Android}
- * → {@code android}), иначе {@code web}. Система — только из {@code User-Agent} и только словом:
- * строка агента целиком не хранится нигде (П8).
+ * android}, {@code telegram}; {@code contracts/headers.md}); без заголовка тип угадывается по
+ * {@code User-Agent}: {@code Electron} — приложение для Windows, иначе браузер ({@code web}, в том
+ * числе браузер телефона: приложение Android заголовок шлёт). Система — только из {@code
+ * User-Agent} и только словом: строка агента целиком не хранится нигде (П8).
  */
 public record ClientKind(String client, String os) {
   public static final String HEADER = "X-Cord-Client";
@@ -41,7 +41,6 @@ public record ClientKind(String client, String os) {
 
   private static String guess(String agent) {
     if (agent.contains("Electron")) return "desktop";
-    if (agent.contains("Android")) return "android";
     return agent.isEmpty() ? "other" : "web";
   }
 

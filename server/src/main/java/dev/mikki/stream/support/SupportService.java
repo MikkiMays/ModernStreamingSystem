@@ -118,12 +118,28 @@ public class SupportService {
   /** Приоритеты обращения — слова; порядок — от спокойного к срочному. */
   public static final List<String> PRIORITIES = List.of("low", "normal", "high", "urgent");
 
-  /** Виды записей ленты: заметка себе, что ответили человеку, смена статуса, назначение. */
-  public static final List<String> NOTE_KINDS = List.of("note", "reply", "status", "assign");
+  /**
+   * Виды записей ленты: заметка себе, что ответили человеку, смена статуса, назначения, приоритета
+   * и меток.
+   */
+  public static final List<String> NOTE_KINDS =
+      List.of("note", "reply", "status", "assign", "priority", "tags");
+
+  /** Как сортировать ящик: новые первыми, старые первыми, срочные первыми. */
+  public enum Sort {
+    NEW,
+    OLD,
+    PRIORITY
+  }
 
   /**
-   * Обращение для пульта и «Активности». {@code firstResponseDueAt}/{@code resolveDueAt} — сроки
-   * SLA от создания; {@code breached} — хоть один просрочен и не закрыт.
+   * Обращение для пульта и «Активности».
+   *
+   * <p>SLA (Р-124): {@code firstResponseDueAt} — срок первой реакции (взяли в работу, ответили или
+   * решили) от создания; {@code resolveDueAt} — срок решения от создания плюс время в «ждём
+   * человека» ({@code pausedMs}: пока ждём его ответа, часы стоят). {@code breached} — открытое
+   * обращение просрочило хоть один срок; {@code slaMet} — у решённого оба срока соблюдены ({@code
+   * null}, пока не решено).
    */
   public record Entry(
       String id,
@@ -143,30 +159,72 @@ public class SupportService {
       Long firstResponseAt,
       Long resolvedAt,
       Long archivedAt,
+      long pausedMs,
       long firstResponseDueAt,
       long resolveDueAt,
-      boolean breached) {}
+      boolean breached,
+      Boolean slaMet) {}
 
-  /** Запись ленты обращения. */
+  /** Запись ленты обращения; {@code id} растёт по порядку записи. */
   public record Note(
-      String id, String ticketId, long createdAt, String author, String kind, String text) {}
+      long id, String ticketId, long createdAt, String author, String kind, String text) {}
 
   /** Обращение с лентой — для открытого в пульте. */
   public record Ticket(Entry ticket, List<Note> notes) {}
 
-  /** Сколько обращений в каждом статусе и сколько открытых просрочили SLA. */
+  /**
+   * Сколько обращений в каждом статусе; {@code breached} — открытых с просроченным SLA; {@code
+   * unassigned} — открытых без назначения. Открытые — новые и в работе.
+   */
   public record Counts(
-      long fresh, long open, long waiting, long done, long archived, long breached) {}
+      long fresh,
+      long open,
+      long waiting,
+      long done,
+      long archived,
+      long breached,
+      long unassigned) {}
 
-  /** Чем фильтровать ящик: всё необязательно; {@code query} — по тексту, контакту и номеру. */
+  /**
+   * Качество работы за {@code days} дней по обращениям, созданным в эти дни: сколько пришло и
+   * решено, медианы первой реакции и решения (минуты, без времени ожидания человека) и доля
+   * решённых в срок.
+   */
+  public record Stats(
+      int days,
+      long created,
+      long resolved,
+      Double firstResponseMedianMinutes,
+      Double resolveMedianMinutes,
+      Double withinSla,
+      Map<String, Long> topics) {}
+
+  /**
+   * Чем фильтровать ящик: всё необязательно. Без {@code status} — всё, кроме архива; {@code query}
+   * — по тексту, контакту, номеру, меткам и ленте; {@code overdue} — только просроченные; {@code
+   * assignee} {@code "-"} — без назначения.
+   */
   public record Filter(
       Status status,
       String topic,
       String assignee,
       String priority,
       String query,
+      Boolean overdue,
       Long before,
-      Integer limit) {}
+      Sort sort,
+      Integer limit) {
+    public Filter(
+        Status status,
+        String topic,
+        String assignee,
+        String priority,
+        String query,
+        Long before,
+        Integer limit) {
+      this(status, topic, assignee, priority, query, null, before, null, limit);
+    }
+  }
 
   private final JdbcClient jdbc;
   private final SupportProperties config;
@@ -293,14 +351,17 @@ public class SupportService {
   }
 
   /**
-   * Ящик: новые первыми, с фильтрами по статусу, теме, назначению, приоритету и поиском по тексту,
-   * контакту и номеру (началу идентификатора). Без статуса архив не показывается — он отдельная
-   * вкладка.
+   * Ящик с фильтрами и поиском. Страницы — {@code before} (время последнего на прошлой странице)
+   * при сортировке «новые первыми»; при другой — первые {@code limit}.
    */
   public List<Entry> search(Filter filter) {
-    var where = new StringBuilder("WHERE created_at < ?");
+    var where = new StringBuilder("WHERE 1=1");
     var params = new ArrayList<Object>();
-    params.add(filter.before() == null ? Long.MAX_VALUE : filter.before());
+    var sort = filter.sort() == null ? Sort.NEW : filter.sort();
+    if (filter.before() != null && sort == Sort.NEW) {
+      where.append(" AND created_at < ?");
+      params.add(filter.before());
+    }
     if (filter.status() != null) {
       where.append(" AND status=?");
       params.add(filter.status().word());
@@ -309,31 +370,56 @@ public class SupportService {
       where.append(" AND topic=?");
       params.add(filter.topic());
     }
-    if (filter.assignee() != null && !filter.assignee().isBlank()) {
+    var assignee = line(filter.assignee());
+    if ("-".equals(assignee)) where.append(" AND assignee IS NULL");
+    else if (assignee != null) {
       where.append(" AND assignee=?");
-      params.add(filter.assignee());
+      params.add(assignee);
     }
     if (filter.priority() != null && !filter.priority().isBlank()) {
       where.append(" AND priority=?");
       params.add(filter.priority());
     }
+    if (Boolean.TRUE.equals(filter.overdue())) {
+      where.append(" AND ").append(OVERDUE);
+      params.addAll(overdueParams());
+    }
     var query = line(filter.query());
     if (query != null) {
-      // Номер — начало идентификатора в верхнем регистре: восемь знаков, которые человек назвал.
-      where.append(
-          " AND (LOWER(message) LIKE ? OR LOWER(contact) LIKE ? OR LOWER(id) LIKE ? OR tags LIKE ?)");
+      // Номер — начало идентификатора: восемь знаков, которые человек назвал.
       var like = "%" + query.toLowerCase(Locale.ROOT).replace("%", "").replace("_", "") + "%";
-      params.add(like);
-      params.add(like);
-      params.add(query.toLowerCase(Locale.ROOT) + "%");
-      params.add(like);
+      where.append(
+          " AND (LOWER(message) LIKE ? OR LOWER(contact) LIKE ? OR id LIKE ? OR tags LIKE ? OR id IN"
+              + " (SELECT ticket_id FROM support_notes WHERE LOWER(text) LIKE ?))");
+      params.addAll(List.of(like, like, query.toLowerCase(Locale.ROOT) + "%", like, like));
     }
+    var order =
+        switch (sort) {
+          case NEW -> "created_at DESC, id DESC";
+          case OLD -> "created_at, id";
+          case PRIORITY ->
+              "CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,"
+                  + " created_at, id";
+        };
     params.add(Math.max(1, Math.min(filter.limit() == null ? 50 : filter.limit(), 200)));
-    return jdbc.sql(
-            "SELECT * FROM support_tickets " + where + " ORDER BY created_at DESC, id DESC LIMIT ?")
+    return jdbc.sql("SELECT * FROM support_tickets " + where + " ORDER BY " + order + " LIMIT ?")
         .params(params)
         .query(this::entry)
         .list();
+  }
+
+  /**
+   * Открытое (новое или в работе) обращение просрочено: нет первой реакции дольше срока или не
+   * решено дольше срока решения за вычетом ожидания человека. Параметры — {@link #overdueParams}.
+   */
+  private static final String OVERDUE =
+      "status IN ('new','open') AND ((first_response_at IS NULL AND created_at < ?) OR created_at +"
+          + " paused_ms < ?)";
+
+  private List<Object> overdueParams() {
+    var sla = config.slaOrDefault();
+    long now = clock.millis();
+    return List.of(now - sla.firstResponse().toMillis(), now - sla.resolve().toMillis());
   }
 
   public Counts counts() {
@@ -342,16 +428,64 @@ public class SupportService {
         .query((rs, n) -> byStatus.put(rs.getString(1), rs.getLong(2)))
         .list();
     long breached =
-        search(new Filter(null, null, null, null, null, null, 200)).stream()
-            .filter(Entry::breached)
-            .count();
+        jdbc.sql("SELECT COUNT(*) FROM support_tickets WHERE " + OVERDUE)
+            .params(overdueParams())
+            .query(Long.class)
+            .single();
+    long unassigned =
+        jdbc.sql(
+                "SELECT COUNT(*) FROM support_tickets WHERE status IN ('new','open') AND assignee IS"
+                    + " NULL")
+            .query(Long.class)
+            .single();
     return new Counts(
         byStatus.getOrDefault("new", 0L),
         byStatus.getOrDefault("open", 0L),
         byStatus.getOrDefault("waiting", 0L),
         byStatus.getOrDefault("done", 0L),
         byStatus.getOrDefault("archived", 0L),
-        breached);
+        breached,
+        unassigned);
+  }
+
+  /** Качество работы за последние {@code days} дней ({@link Stats}). */
+  public Stats stats(int days) {
+    long since = clock.millis() - java.time.Duration.ofDays(days).toMillis();
+    var rows =
+        jdbc.sql("SELECT * FROM support_tickets WHERE created_at >= ?")
+            .param(since)
+            .query(this::entry)
+            .list();
+    var firstResponse = new ArrayList<Long>();
+    var resolve = new ArrayList<Long>();
+    long resolved = 0, met = 0;
+    var topics = new TreeMap<String, Long>();
+    for (var e : rows) {
+      topics.merge(e.topic(), 1L, Long::sum);
+      if (e.firstResponseAt() != null) firstResponse.add(e.firstResponseAt() - e.createdAt());
+      if (e.resolvedAt() != null) {
+        resolved++;
+        resolve.add(e.resolvedAt() - e.createdAt() - e.pausedMs());
+        if (Boolean.TRUE.equals(e.slaMet())) met++;
+      }
+    }
+    return new Stats(
+        days,
+        rows.size(),
+        resolved,
+        medianMinutes(firstResponse),
+        medianMinutes(resolve),
+        resolved > 0 ? met / (double) resolved : null,
+        topics);
+  }
+
+  private static Double medianMinutes(List<Long> millis) {
+    if (millis.isEmpty()) return null;
+    Collections.sort(millis);
+    int n = millis.size();
+    double middle =
+        n % 2 == 1 ? millis.get(n / 2) : (millis.get(n / 2 - 1) + millis.get(n / 2)) / 2.0;
+    return Math.max(0, middle) / 60_000.0;
   }
 
   /** Обращение с лентой; нет такого — 404. */
@@ -361,14 +495,14 @@ public class SupportService {
             .param(id)
             .query(this::entry)
             .optional()
-            .orElseThrow(() -> new Problem(404, "SUPPORT_NOT_FOUND", "Обращение не найдено"));
+            .orElseThrow(SupportService::notFound);
     var notes =
-        jdbc.sql("SELECT * FROM support_notes WHERE ticket_id=? ORDER BY created_at, id")
+        jdbc.sql("SELECT * FROM support_notes WHERE ticket_id=? ORDER BY id")
             .param(id)
             .query(
                 (rs, n) ->
                     new Note(
-                        rs.getString("id"),
+                        rs.getLong("id"),
                         rs.getString("ticket_id"),
                         rs.getLong("created_at"),
                         rs.getString("author"),
@@ -378,19 +512,29 @@ public class SupportService {
     return new Ticket(ticket, notes);
   }
 
+  private static Problem notFound() {
+    return new Problem(404, "SUPPORT_NOT_FOUND", "Обращение не найдено");
+  }
+
   private Entry entry(java.sql.ResultSet rs, int n) throws java.sql.SQLException {
     long createdAt = rs.getLong("created_at");
     var status = Status.of(rs.getString("status"));
     var sla = config.slaOrDefault();
+    long statusAt = rs.getLong("status_at");
     Long firstResponseAt = rs.getObject("first_response_at", Long.class);
     Long resolvedAt = rs.getObject("resolved_at", Long.class);
-    long firstDue = createdAt + sla.firstResponse().toMillis();
-    long resolveDue = createdAt + sla.resolve().toMillis();
+    long paused = rs.getLong("paused_ms");
     long now = clock.millis();
-    boolean closed = status == Status.DONE || status == Status.ARCHIVED;
-    boolean breached =
-        (firstResponseAt == null && !closed && now > firstDue)
-            || (resolvedAt == null && !closed && now > resolveDue);
+    // Ждём человека сейчас — это время тоже не в счёт решения.
+    long pausedNow = status == Status.WAITING ? paused + Math.max(0, now - statusAt) : paused;
+    long firstDue = createdAt + sla.firstResponse().toMillis();
+    long resolveDue = createdAt + sla.resolve().toMillis() + pausedNow;
+    boolean open = status == Status.NEW || status == Status.OPEN;
+    boolean breached = open && ((firstResponseAt == null && now > firstDue) || now > resolveDue);
+    Boolean slaMet =
+        resolvedAt == null
+            ? null
+            : (firstResponseAt == null || firstResponseAt <= firstDue) && resolvedAt <= resolveDue;
     var tags = rs.getString("tags");
     return new Entry(
         rs.getString("id"),
@@ -402,7 +546,7 @@ public class SupportService {
         rs.getString("diagnostics"),
         issues(rs.getString("issues")),
         status,
-        rs.getLong("status_at"),
+        statusAt,
         rs.getObject("notified_at", Long.class),
         rs.getString("assignee"),
         rs.getString("priority"),
@@ -410,9 +554,11 @@ public class SupportService {
         firstResponseAt,
         resolvedAt,
         rs.getObject("archived_at", Long.class),
+        pausedNow,
         firstDue,
         resolveDue,
-        breached);
+        breached,
+        slaMet);
   }
 
   /** Владелец ведёт обращение: «в работе», «решено». Из Telegram и со старой «Активности». */
@@ -421,60 +567,81 @@ public class SupportService {
   }
 
   /**
-   * Смена статуса с записью в ленту. Взятие в работу или ответ — первый ответ для SLA; {@code done}
-   * ставит {@code resolved_at}, {@code archived} — {@code archived_at}; шаг назад их снимает.
+   * Смена статуса с записью в ленту; тот же статус — ничего. Любой шаг из «нового» и ответ — первая
+   * реакция для SLA; уход из «ждём человека» прибавляет ожидание к паузе SLA; {@code done} ставит
+   * {@code resolved_at}, {@code archived} — {@code archived_at} (и решение, если его не было); шаг
+   * назад их снимает.
    */
   public void setStatus(String id, Status status, String author) {
     long now = clock.millis();
-    var sql = new StringBuilder("UPDATE support_tickets SET status=?, status_at=?");
-    if (status == Status.OPEN || status == Status.WAITING)
-      sql.append(", first_response_at=COALESCE(first_response_at, ").append(now).append(')');
-    sql.append(
-        status == Status.DONE || status == Status.ARCHIVED
-            ? ", resolved_at=COALESCE(resolved_at, " + now + ")"
-            : ", resolved_at=NULL");
-    sql.append(status == Status.ARCHIVED ? ", archived_at=" + now : ", archived_at=NULL");
+    var current =
+        jdbc.sql("SELECT status, status_at FROM support_tickets WHERE id=?")
+            .param(id)
+            .query((rs, n) -> new Object[] {Status.of(rs.getString(1)), rs.getLong(2)})
+            .optional()
+            .orElseThrow(SupportService::notFound);
+    var was = (Status) current[0];
+    if (was == status) return;
+    long paused = was == Status.WAITING ? Math.max(0, now - (long) current[1]) : 0;
+    var sql =
+        new StringBuilder(
+            "UPDATE support_tickets SET status=?, status_at=?, paused_ms=paused_ms+?");
+    var params = new ArrayList<Object>(List.of(status.word(), now, paused));
+    if (status != Status.NEW) {
+      sql.append(", first_response_at=COALESCE(first_response_at, ?)");
+      params.add(now);
+    }
+    if (status == Status.DONE || status == Status.ARCHIVED) {
+      sql.append(", resolved_at=COALESCE(resolved_at, ?)");
+      params.add(now);
+    } else sql.append(", resolved_at=NULL");
+    if (status == Status.ARCHIVED) {
+      sql.append(", archived_at=?");
+      params.add(now);
+    } else sql.append(", archived_at=NULL");
     sql.append(" WHERE id=?");
-    if (jdbc.sql(sql.toString()).params(status.word(), now, id).update() == 0)
-      throw new Problem(404, "SUPPORT_NOT_FOUND", "Обращение не найдено");
+    params.add(id);
+    jdbc.sql(sql.toString()).params(params).update();
     note(id, author, "status", status.word(), now);
   }
 
-  /** Назначение, приоритет, метки; {@code null} — не менять, пустая строка — снять. */
+  /**
+   * Назначение, приоритет, метки; {@code null} — не менять, пустая строка — снять. Каждая перемена
+   * — строка в ленте; то же значение — ничего.
+   */
   public void update(String id, String assignee, String priority, String tags, String author) {
-    var set = new ArrayList<String>();
-    var params = new ArrayList<Object>();
+    var before = get(id).ticket();
+    long now = clock.millis();
     if (assignee != null) {
-      set.add("assignee=?");
-      params.add(line(assignee));
+      var value = line(assignee);
+      if (!Objects.equals(value, before.assignee())) {
+        jdbc.sql("UPDATE support_tickets SET assignee=? WHERE id=?").params(value, id).update();
+        note(id, author, "assign", value == null ? "—" : value, now);
+      }
     }
-    if (priority != null) {
+    if (priority != null && !priority.equals(before.priority())) {
       if (!PRIORITIES.contains(priority)) throw new IllegalArgumentException("Unknown priority");
-      set.add("priority=?");
-      params.add(priority);
+      jdbc.sql("UPDATE support_tickets SET priority=? WHERE id=?").params(priority, id).update();
+      note(id, author, "priority", priority, now);
     }
     if (tags != null) {
-      set.add("tags=?");
       var words = new TreeSet<String>();
       for (var word : text(tags).toLowerCase(Locale.ROOT).split("[\\s,]+"))
         if (!word.isBlank()) words.add(word);
       var joined = String.join(" ", words);
       if (joined.length() > 200) throw new IllegalArgumentException("Tags too long");
-      params.add(joined.isEmpty() ? null : joined);
+      if (!joined.equals(String.join(" ", before.tags()))) {
+        jdbc.sql("UPDATE support_tickets SET tags=? WHERE id=?")
+            .params(joined.isEmpty() ? null : joined, id)
+            .update();
+        note(id, author, "tags", joined.isEmpty() ? "—" : joined, now);
+      }
     }
-    if (set.isEmpty()) return;
-    params.add(id);
-    if (jdbc.sql("UPDATE support_tickets SET " + String.join(", ", set) + " WHERE id=?")
-            .params(params)
-            .update()
-        == 0) throw new Problem(404, "SUPPORT_NOT_FOUND", "Обращение не найдено");
-    if (assignee != null)
-      note(id, author, "assign", line(assignee) == null ? "—" : line(assignee), clock.millis());
   }
 
   /**
-   * Заметка себе ({@code note}) или что ответили человеку ({@code reply}). Ответ — первый ответ для
-   * SLA и переход в «ждём человека», если обращение было новым или в работе.
+   * Заметка себе ({@code note}) или что ответили человеку ({@code reply}). Ответ — первая реакция
+   * для SLA и переход в «ждём человека», если обращение было новым или в работе.
    */
   public Note addNote(String id, String kind, String text, String author) {
     if (!"note".equals(kind) && !"reply".equals(kind))
@@ -482,12 +649,13 @@ public class SupportService {
     var body = text(text);
     if (body.isEmpty() || body.length() > MAX_MESSAGE)
       throw new IllegalArgumentException("Note text");
-    long now = clock.millis();
     var ticket = get(id).ticket();
+    long now = clock.millis();
     var note = note(id, author, kind, body, now);
     if ("reply".equals(kind)) {
       jdbc.sql(
-              "UPDATE support_tickets SET first_response_at=COALESCE(first_response_at, ?) WHERE id=?")
+              "UPDATE support_tickets SET first_response_at=COALESCE(first_response_at, ?) WHERE"
+                  + " id=?")
           .params(now, id)
           .update();
       if (ticket.status() == Status.NEW || ticket.status() == Status.OPEN)
@@ -497,20 +665,12 @@ public class SupportService {
   }
 
   private Note note(String ticketId, String author, String kind, String text, long now) {
-    var note =
-        new Note(
-            UUID.randomUUID().toString(),
-            ticketId,
-            now,
-            author == null ? "owner" : author,
-            kind,
-            text);
-    jdbc.sql(
-            "INSERT INTO support_notes(id,ticket_id,created_at,author,kind,text) VALUES (?,?,?,?,?,?)")
-        .params(
-            note.id(), note.ticketId(), note.createdAt(), note.author(), note.kind(), note.text())
-        .update();
-    return note;
+    var who = author == null ? "owner" : author;
+    var keys = new org.springframework.jdbc.support.GeneratedKeyHolder();
+    jdbc.sql("INSERT INTO support_notes(ticket_id,created_at,author,kind,text) VALUES (?,?,?,?,?)")
+        .params(ticketId, now, who, kind, text)
+        .update(keys, "id");
+    return new Note(keys.getKeyAs(Long.class), ticketId, now, who, kind, text);
   }
 
   /** Обращение после кнопки в Telegram: номер и новый статус. */
@@ -533,10 +693,26 @@ public class SupportService {
   public int forgetOld() {
     long before = clock.millis() - config.retention().toMillis();
     jdbc.sql(
-            "DELETE FROM support_notes WHERE ticket_id IN (SELECT id FROM support_tickets WHERE created_at < ?)")
+            "DELETE FROM support_notes WHERE ticket_id IN (SELECT id FROM support_tickets WHERE"
+                + " created_at < ?)")
         .param(before)
         .update();
     return jdbc.sql("DELETE FROM support_tickets WHERE created_at < ?").param(before).update();
+  }
+
+  /**
+   * Решённое дольше {@code stream.support.auto-archive} уходит в архив само — ящик остаётся рабочим
+   * списком; сколько убрано.
+   */
+  public int archiveResolved() {
+    long now = clock.millis();
+    var ids =
+        jdbc.sql("SELECT id FROM support_tickets WHERE status='done' AND resolved_at < ?")
+            .param(now - config.autoArchiveOrDefault().toMillis())
+            .query(String.class)
+            .list();
+    for (var id : ids) setStatus(id, Status.ARCHIVED, "system");
+    return ids.size();
   }
 
   /** Номер для человека и для владельца — начало идентификатора, восемь знаков. */

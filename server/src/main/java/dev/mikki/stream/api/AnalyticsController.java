@@ -10,7 +10,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,8 +21,9 @@ import org.springframework.web.bind.annotation.*;
  *
  * <p>{@code POST /visit} открыт до пароля сервера ({@code RequestGuard.OPEN}): открытие сайта —
  * первый контакт, он раньше любого входа. Тело — только шаг ({@code open}, {@code prejoin}); кто —
- * из {@code X-Cord-Profile}, чем — из {@code X-Cord-Client}. Не больше {@link #PER_MINUTE} в минуту
- * с адреса: клиент шлёт два события на сессию, а за одним адресом бывает офис.
+ * из {@code X-Cord-Profile}, чем — из {@code X-Cord-Client}. Без профиля запрос принимается и
+ * ничего не меняет: адрес в аналитику не попадает (Р-121). Не больше {@link #PER_MINUTE} в минуту с
+ * адреса: клиент шлёт два события на сессию, а за одним адресом бывает офис.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -51,27 +54,36 @@ public class AnalyticsController {
   @PostMapping("/visit")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void visit(@Valid @RequestBody Visit body, HttpServletRequest http) {
-    var key = address.of(http);
-    limits.check("visit-ip:" + key, PER_MINUTE);
+    limits.check("visit-ip:" + address.of(http), PER_MINUTE);
     analytics.visit(
-        Identity.profileHash(http.getHeader(Identity.PROFILE)),
-        key,
-        ClientKind.of(http),
-        body.stage());
+        Identity.profileHash(http.getHeader(Identity.PROFILE)), ClientKind.of(http), body.stage());
   }
 
-  /** Отчёт за период в режиме {@code actual} (всё за период) или {@code ltv} (когорта периода). */
+  /**
+   * Отчёт за дни {@code from…to} включительно ({@code 2026-11-01}), по поясу аналитики, в режиме
+   * {@code actual} (всё за период) или {@code ltv} (когорта периода и вся её жизнь).
+   */
   @GetMapping("/admin/analytics")
   public AnalyticsReport.Report analytics(
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
-      @RequestParam long from,
-      @RequestParam long to,
+      @RequestParam String from,
+      @RequestParam String to,
       @RequestParam(defaultValue = AnalyticsReport.ACTUAL) String mode) {
     admin.require(token);
-    if (to <= from || to - from > Duration.ofDays(400).toMillis())
+    var first = date(from);
+    var last = date(to);
+    if (last.isBefore(first) || ChronoUnit.DAYS.between(first, last) >= AnalyticsReport.MAX_DAYS)
       throw new IllegalArgumentException("period");
     if (!AnalyticsReport.ACTUAL.equals(mode) && !AnalyticsReport.LTV.equals(mode))
       throw new IllegalArgumentException("mode");
-    return report.report(from, to, mode);
+    return report.report(first, last, mode);
+  }
+
+  private static LocalDate date(String value) {
+    try {
+      return LocalDate.parse(value);
+    } catch (DateTimeParseException e) {
+      throw new IllegalArgumentException("date", e);
+    }
   }
 }

@@ -26,8 +26,9 @@ public record SupportProperties(
     @NotNull Rate perIp,
     @NotNull Rate perServer,
     @NotNull Duration retention,
-    Sla sla) {
-  /** Сроки SLA (R215): первый ответ и решение; пусто — умолчания. */
+    Sla sla,
+    Duration autoArchive) {
+  /** Сроки SLA (R215): первая реакция и решение; пусто — умолчания. */
   public record Sla(Duration firstResponse, Duration resolve) {}
 
   public Sla slaOrDefault() {
@@ -36,6 +37,11 @@ public record SupportProperties(
         : new Sla(
             sla.firstResponse() == null ? Duration.ofHours(4) : sla.firstResponse(),
             sla.resolve() == null ? Duration.ofHours(48) : sla.resolve());
+  }
+
+  /** Решённое уходит в архив через две недели, если не задано иное. */
+  public Duration autoArchiveOrDefault() {
+    return autoArchive == null ? Duration.ofDays(14) : autoArchive;
   }
 
   /** Чат владельца, если задан. */

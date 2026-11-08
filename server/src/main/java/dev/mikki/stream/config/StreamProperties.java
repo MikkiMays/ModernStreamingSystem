@@ -255,9 +255,7 @@ public record StreamProperties(
       // Строки встреч для «Активности» за период: длительность, пик, человеко-минуты.
       @NotNull Duration meetingStats,
       // Итоги дня — только числа, без людей.
-      @NotNull Duration activityDaily,
-      // Аналитика (R210): строки посетителя и его дней — HMAC-ключ профиля и счётчики (Р-121).
-      @NotNull Duration analytics) {}
+      @NotNull Duration activityDaily) {}
 
   @AssertTrue(message = "File quota must not exceed room quota, which must not exceed total quota")
   public boolean isQuotaOrderValid() {

@@ -15,9 +15,8 @@ import dev.mikki.stream.room.RoomState;
 import dev.mikki.stream.shared.Json;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,22 +31,27 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Аналитика продукта (R210): визиты и входы ложатся строками посетителя и дня без адресов и имён;
- * отчёт отвечает в двух измерениях — ЛТВ и АКТУАЛ — и считает удержание по когорте первого дня.
+ * Аналитика продукта (R210): визиты, входы, присутствие и ошибки ложатся строками посетителя и дня
+ * — без адресов, имён и времени точнее дня; отчёт отвечает в двух измерениях (ЛТВ и АКТУАЛ) и
+ * считает удержание D1/D3/D7/D30.
  */
 @SpringBootTest(
     properties = {
       "spring.datasource.url=jdbc:h2:mem:analytics;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
       "stream.scheduling-enabled=false",
-      "stream.retention.analytics=100 days",
+      "stream.analytics.retention=100 days",
+      "stream.analytics.zone=Europe/Moscow",
       "stream.admin-password=пароль владельца"
     })
 @ActiveProfiles("local")
 class AnalyticsTest {
+  static final ZoneId MSK = ZoneId.of("Europe/Moscow");
   static final String PROFILE_A = "a".repeat(43);
   static final String PROFILE_B = "b".repeat(43);
+  static final String PROFILE_D = "d".repeat(43);
   static final ClientKind WEB = new ClientKind("web", "windows");
   static final ClientKind DESKTOP = new ClientKind("desktop", "windows");
+  static final ClientKind PHONE = new ClientKind("android", "android");
 
   @Autowired WebApplicationContext web;
   @Autowired Analytics analytics;
@@ -56,27 +60,24 @@ class AnalyticsTest {
   @Autowired Secrets secrets;
   @MockitoBean Clock clock;
   AtomicLong now = new AtomicLong();
-  long day1;
   MockMvc mvc;
+
+  static final LocalDate DAY1 = LocalDate.of(2026, 11, 2);
 
   @BeforeEach
   void setUp() {
+    analytics.flush();
     jdbc.sql("DELETE FROM visitor_days").update();
     jdbc.sql("DELETE FROM visitors").update();
     jdbc.sql("DELETE FROM meeting_stats").update();
-    // Полдень первого дня по UTC — чтобы сдвиги на сутки не пересекали полуночь случайно.
-    day1 = LocalDate.of(2026, 11, 2).atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
-    now.set(day1);
+    // Полдень первого дня по Москве — чтобы сдвиги на сутки не пересекали полночь случайно.
+    now.set(at(DAY1, 12, 0));
     when(clock.millis()).thenAnswer(_ -> now.get());
     mvc = MockMvcBuilders.webAppContextSetup(web).build();
   }
 
-  static long ms(LocalDate day) {
-    return day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
-  }
-
-  LocalDate today() {
-    return LocalDate.ofInstant(Instant.ofEpochMilli(now.get()), ZoneOffset.UTC);
+  static long at(LocalDate day, int hour, int minute) {
+    return day.atTime(hour, minute).atZone(MSK).toInstant().toEpochMilli();
   }
 
   String adminToken() throws Exception {
@@ -89,6 +90,10 @@ class AnalyticsTest {
             .getResponse()
             .getContentAsString();
     return Json.tree(session).path("token").asText();
+  }
+
+  String key(String profile) {
+    return secrets.derive("analytics:" + Secrets.hash(profile));
   }
 
   @Test
@@ -108,7 +113,7 @@ class AnalyticsTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"stage\":\"prejoin\"}"))
         .andExpect(status().isNoContent());
-    // Без профиля — суточный отпечаток адреса: посетитель дня, но не когорты.
+    // Без профиля — принято, но не записано: адрес в аналитику не попадает даже отпечатком.
     mvc.perform(
             post("/api/v1/visit")
                 .header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) Firefox/140")
@@ -120,38 +125,43 @@ class AnalyticsTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"stage\":\"later\"}"))
         .andExpect(status().isBadRequest());
+    // До прохода буфера в базе ничего нет: запрос человека в базу не пишет.
+    assertThat(jdbc.sql("SELECT COUNT(*) FROM visitors").query(Long.class).single()).isZero();
+    assertThat(analytics.flush()).isEqualTo(1);
 
-    var keys =
-        jdbc.sql("SELECT visitor_key FROM visitors ORDER BY anonymous").query(String.class).list();
-    assertThat(keys).hasSize(2);
+    var keys = jdbc.sql("SELECT visitor_key FROM visitors").query(String.class).list();
     // Ключ — HMAC, а не хэш профиля и не сам секрет: по таблице нельзя найти ни избранное, ни
-    // адрес.
-    assertThat(keys.getFirst())
-        .isEqualTo(secrets.derive("analytics:" + Secrets.hash(PROFILE_A)))
-        .isNotEqualTo(Secrets.hash(PROFILE_A))
-        .doesNotContain(PROFILE_A);
-    assertThat(
-            jdbc.sql("SELECT first_client FROM visitors WHERE anonymous=FALSE")
-                .query(String.class)
-                .single())
-        .isEqualTo("desktop");
-    assertThat(
-            jdbc.sql("SELECT first_os FROM visitors WHERE anonymous=TRUE")
-                .query(String.class)
-                .single())
-        .isEqualTo("linux");
-    var days =
+    // журнал.
+    assertThat(keys)
+        .containsExactly(key(PROFILE_A))
+        .doesNotContain(Secrets.hash(PROFILE_A), PROFILE_A);
+    var visitor =
+        jdbc.sql("SELECT first_day, first_client, first_os, first_called_day FROM visitors")
+            .query(
+                (rs, n) ->
+                    new Object[] {
+                      rs.getObject(1, LocalDate.class),
+                      rs.getString(2),
+                      rs.getString(3),
+                      rs.getObject(4, LocalDate.class)
+                    })
+            .single();
+    assertThat(visitor).containsExactly(DAY1, "desktop", "windows", null);
+    var day =
         jdbc.sql("SELECT visits, prejoins FROM visitor_days WHERE visitor_key=?")
-            .param(keys.getFirst())
+            .param(key(PROFILE_A))
             .query((rs, n) -> new int[] {rs.getInt(1), rs.getInt(2)})
             .single();
-    assertThat(days).containsExactly(1, 1);
-    // Все строки — только числа и слова из перечислений.
+    assertThat(day).containsExactly(1, 1);
+    // Только даты, счётчики и слова: ни одной колонки со временем точнее дня или адресом.
     var columns =
-        jdbc.sql("SELECT * FROM visitor_days")
-            .query((rs, n) -> rs.getMetaData().getColumnCount())
+        jdbc.sql(
+                "SELECT column_name FROM information_schema.columns WHERE table_name IN"
+                    + " ('visitors','visitor_days')")
+            .query(String.class)
             .list();
-    assertThat(columns).isNotEmpty();
+    assertThat(columns)
+        .doesNotContain("ip", "ip_hash", "address", "first_seen_at", "profile_hash", "room_id");
   }
 
   @Test
@@ -179,8 +189,13 @@ class AnalyticsTest {
         .andExpect(status().isTooManyRequests());
   }
 
+  /**
+   * Присутствие — тому, кто на связи и с профилем: отрезок засчитывается при уходе со связи и при
+   * каждом проходе буфера, через полночь режется по дням; интеграция засчитывается каждому, кто её
+   * застал, один раз на вид.
+   */
   @Test
-  void presenceIsCreditedToTheProfileWhenItLeavesTheCall() {
+  void presenceIsCreditedPerDayAndIntegrationsOncePerKind() {
     var room = new RoomState();
     room.id = "room-1";
     room.startedAt = now.get();
@@ -192,78 +207,105 @@ class AnalyticsTest {
     room.members.put(b.id, b);
     room.members.put(bot.id, bot);
     room.profiles.put(a.id, Secrets.hash(PROFILE_A));
-    // У b профиля нет (старый клиент) — его минуты никому не приписываются.
+    // У b профиля нет (служба) — его минуты никому не приписываются.
     analytics.entered(Secrets.hash(PROFILE_A), "198.18.0.1", WEB, "create", true);
+    now.set(at(DAY1, 23, 58));
     analytics.changed(room, "room.changed", now.get());
 
-    now.addAndGet(90_000);
+    // Две минуты до полуночи и полторы после: 120 с в первый день, 90 — во второй.
+    now.addAndGet(210_000);
     a.status = RoomState.Status.RECOVERING;
     analytics.changed(room, "room.changed", now.get());
-    var keyA = secrets.derive("analytics:" + Secrets.hash(PROFILE_A));
-    assertThat(
-            jdbc.sql("SELECT presence_seconds FROM visitor_days WHERE visitor_key=?")
-                .param(keyA)
-                .query(Long.class)
-                .single())
-        .isEqualTo(90);
+    analytics.flush();
+    assertThat(presence(DAY1)).isEqualTo(120);
+    assertThat(presence(DAY1.plusDays(1))).isEqualTo(90);
 
-    // Вернулся, во встрече появилась музыка — открытие интеграции засчитано тому, кто был на связи.
+    // Музыка (бот занял место) шла с начала — засчитана в первый день, один раз.
     a.status = RoomState.Status.CONNECTED;
     analytics.changed(room, "room.changed", now.get());
+    analytics.changed(room, "message.created", now.get());
+    // Идущая встреча: проход буфера досчитывает отрезок до «сейчас», не дожидаясь ухода.
     now.addAndGet(30_000);
+    analytics.flush();
+    assertThat(presence(DAY1.plusDays(1))).isEqualTo(120);
+    now.addAndGet(10_500);
     analytics.closed(room, "empty", now.get());
+    analytics.flush();
+    var row =
+        jdbc.sql(
+                "SELECT presence_seconds, integrations, client FROM visitor_days WHERE visitor_key=?"
+                    + " AND local_day=?")
+            .params(key(PROFILE_A), DAY1.plusDays(1))
+            .query((rs, n) -> new Object[] {rs.getLong(1), rs.getLong(2), rs.getString(3)})
+            .single();
+    // Музыку он уже застал вчера — сегодня не засчитана снова. Клиент строки дня без входа в этот
+    // день — тот, с которым человек входил.
+    assertThat(row).containsExactly(130L, 0L, "web");
     assertThat(
-            jdbc.sql("SELECT presence_seconds, integrations FROM visitor_days WHERE visitor_key=?")
-                .param(keyA)
-                .query((rs, n) -> new long[] {rs.getLong(1), rs.getLong(2)})
+            jdbc.sql("SELECT integrations FROM visitor_days WHERE visitor_key=? AND local_day=?")
+                .params(key(PROFILE_A), DAY1)
+                .query(Long.class)
                 .single())
-        .containsExactly(120, 1);
-    assertThat(jdbc.sql("SELECT COUNT(*) FROM visitor_days").query(Long.class).single())
         .isEqualTo(1);
+    assertThat(jdbc.sql("SELECT COUNT(*) FROM visitors").query(Long.class).single()).isEqualTo(1);
+  }
+
+  private long presence(LocalDate day) {
+    return jdbc.sql("SELECT presence_seconds FROM visitor_days WHERE visitor_key=? AND local_day=?")
+        .params(key(PROFILE_A), day)
+        .query(Long.class)
+        .single();
   }
 
   /**
-   * Два измерения на одной картине. День 1: A открыл и создал встречу, B открыл, безымянный C
-   * открыл. День 2: A вернулся и вошёл; D — новый, только открыл. АКТУАЛ за дни 1–2 видит всех; ЛТВ
-   * за день 1 — когорту A и B и всё, что они сделали дальше; удержание D1 когорты дня 1 — половина.
+   * Два измерения на одной картине. День 1: A открыл, дошёл до предвхода и создал встречу; B открыл
+   * с компьютера и увидел две ошибки. День 2: A вернулся и вошёл по ссылке (и ещё раз — возврат
+   * после обрыва, не вход), один отказ; D — новый, с телефона, только открыл. АКТУАЛ за дни 1–2
+   * видит всех троих; ЛТВ за день 1 — когорту A и B и всё, что они сделали дальше; удержание D1 —
+   * половина.
    */
   @Test
   void theReportAnswersInBothDimensions() throws Exception {
     var hashA = Secrets.hash(PROFILE_A);
     var hashB = Secrets.hash(PROFILE_B);
-    analytics.visit(hashA, "198.18.1.1", WEB, "open");
-    analytics.visit(hashA, "198.18.1.1", WEB, "prejoin");
+    analytics.visit(hashA, WEB, "open");
+    analytics.visit(hashA, WEB, "prejoin");
     analytics.entered(hashA, "198.18.1.1", WEB, "create", true);
-    analytics.visit(hashB, "198.18.1.2", DESKTOP, "open");
-    analytics.visit(null, "198.18.1.3", WEB, "open");
+    analytics.visit(hashB, DESKTOP, "open");
     analytics.errors(hashB, DESKTOP, 2);
+    // Служба без профиля и без актора — не посетитель.
+    analytics.entered(null, null, WEB, "link", true);
     jdbc.sql(
             "INSERT INTO meeting_stats(room_id,started_at,ended_at,end_reason,peak_humans,human_seconds,"
                 + "humans_since,integrations,expires_at) VALUES('r1',?,?,'empty',3,5400,?,'music',?)")
         .params(now.get(), now.get() + 1_800_000, now.get(), now.get() + 1_000_000_000L)
         .update();
+    jdbc.sql(
+            "INSERT INTO meeting_stats(room_id,started_at,ended_at,end_reason,peak_humans,human_seconds,"
+                + "humans_since,integrations,expires_at) VALUES('r2',?,?,'empty',2,1200,?,'',?)")
+        .params(now.get() + 600_000, now.get() + 1_200_000, now.get(), now.get() + 1_000_000_000L)
+        .update();
+    analytics.flush();
 
     now.addAndGet(Duration.ofDays(1).toMillis());
-    analytics.visit(hashA, "198.18.1.1", WEB, "open");
+    analytics.visit(hashA, WEB, "open");
     analytics.entered(hashA, "198.18.1.1", WEB, "link", true);
     analytics.entered(hashA, "198.18.1.1", WEB, "rejoin", true);
     analytics.entered(hashA, "198.18.1.1", WEB, "code", false);
-    var hashD = Secrets.hash("d".repeat(43));
-    analytics.visit(hashD, "198.18.1.4", new ClientKind("android", "android"), "open");
+    analytics.visit(Secrets.hash(PROFILE_D), PHONE, "open");
+    analytics.flush();
 
-    // Отчёт — на третий день, чтобы D1 когорты первого дня уже можно было посчитать.
+    // Отчёт — на третий день, чтобы D1 когорты первого дня было уже можно посчитать.
     now.addAndGet(Duration.ofDays(1).toMillis());
     var token = adminToken();
-    long from = ms(LocalDate.of(2026, 11, 2));
-    long to = ms(LocalDate.of(2026, 11, 4));
 
     var actual =
         Json.read(
             mvc.perform(
                     get("/api/v1/admin/analytics")
                         .header(AdminAccess.HEADER, token)
-                        .param("from", Long.toString(from))
-                        .param("to", Long.toString(to))
+                        .param("from", "2026-11-02")
+                        .param("to", "2026-11-03")
                         .param("mode", "actual"))
                 .andExpect(status().isOk())
                 .andReturn()
@@ -271,86 +313,165 @@ class AnalyticsTest {
                 .getContentAsString(),
             AnalyticsReport.Report.class);
     assertThat(actual.mode()).isEqualTo("actual");
-    assertThat(actual.visitors().total()).isEqualTo(4);
-    assertThat(actual.visitors().fresh()).isEqualTo(4);
-    assertThat(actual.visitors().returning()).isEqualTo(0);
-    assertThat(actual.visitors().callers()).isEqualTo(1);
-    assertThat(actual.visitors().newCallers()).isEqualTo(1);
-    assertThat(actual.rates().er()).isEqualTo(0.25);
+    assertThat(actual.zone()).isEqualTo("Europe/Moscow");
+    assertThat(actual.today()).isEqualTo("2026-11-04");
+    var people = actual.visitors();
+    assertThat(people.total()).isEqualTo(3);
+    assertThat(people.fresh()).isEqualTo(3);
+    assertThat(people.returning()).isZero();
+    assertThat(people.callers()).isEqualTo(1);
+    assertThat(people.newCallers()).isEqualTo(1);
+    assertThat(people.sameDayCallers()).isEqualTo(1);
+    assertThat(actual.rates().er()).isEqualTo(1 / 3.0);
+    // Четыре строки дня (A — два дня, B и D — по одному) на троих.
+    assertThat(actual.rates().activeDays()).isEqualTo(4 / 3.0);
+    // Средний день — 2 активных из 3 различных.
+    assertThat(actual.rates().stickiness()).isEqualTo(2 / 3.0);
+    assertThat(actual.rates().errorsPerVisit()).isEqualTo(2 / 4.0);
     // Входов: create + link; rejoin не считается; отказ — отдельно.
-    assertThat(actual.calls().entries()).isEqualTo(2);
-    assertThat(actual.calls().joinFailures()).isEqualTo(1);
-    assertThat(actual.calls().meetings()).isEqualTo(1);
-    assertThat(actual.calls().meetingHours()).isEqualTo(1.5);
-    assertThat(actual.calls().medianMinutes()).isEqualTo(30.0);
-    assertThat(actual.calls().peakMeetings()).isEqualTo(1);
-    assertThat(actual.calls().peakHumans()).isEqualTo(3);
-    assertThat(actual.funnel().opened()).isEqualTo(4);
-    assertThat(actual.funnel().prejoined()).isEqualTo(1);
-    assertThat(actual.funnel().joined()).isEqualTo(1);
-    assertThat(actual.rates().errorsPerVisit()).isEqualTo(2 / 5.0);
+    var calls = actual.calls();
+    assertThat(calls.entries()).isEqualTo(2);
+    assertThat(calls.created()).isEqualTo(1);
+    assertThat(calls.joinFailures()).isEqualTo(1);
+    assertThat(actual.rates().joinFailureRate()).isEqualTo(1 / 3.0);
+    assertThat(calls.meetings()).isEqualTo(2);
+    assertThat(calls.meetingHours()).isEqualTo(6600 / 3600.0);
+    assertThat(calls.avgMinutes()).isEqualTo(20.0);
+    assertThat(calls.medianMinutes()).isEqualTo(20.0);
+    assertThat(calls.longestMinutes()).isEqualTo(30.0);
+    // Вторая встреча шла внутри первой — пик две одновременно; самая большая — трое.
+    assertThat(calls.peakMeetings()).isEqualTo(2);
+    assertThat(calls.largestMeeting()).isEqualTo(3);
+    // Шаги воронки вложены: открыли трое, до предвхода дошёл один (A), вошёл он же.
+    assertThat(actual.funnel()).isEqualTo(new AnalyticsReport.Funnel(3, 1, 1));
     assertThat(actual.clients())
         .extracting(AnalyticsReport.Share::kind, AnalyticsReport.Share::count)
-        .containsExactly(tuple("android", 1L), tuple("desktop", 1L), tuple("web", 2L));
-    assertThat(actual.integrations())
+        .containsExactly(tuple("android", 1L), tuple("desktop", 1L), tuple("web", 1L));
+    assertThat(actual.integrations().meetings())
         .extracting(AnalyticsReport.Share::kind, AnalyticsReport.Share::count)
-        .contains(tuple("music", 1L));
-    assertThat(actual.days()).hasSize(2);
-    assertThat(actual.days().getFirst().visitors()).isEqualTo(3);
-    assertThat(actual.days().getFirst().fresh()).isEqualTo(3);
-    assertThat(actual.days().get(1).visitors()).isEqualTo(2);
-    assertThat(actual.days().get(1).fresh()).isEqualTo(1);
-    // Удержание — по когорте первого дня внутри периода (A и B; безымянный C в когорту не входит):
-    // A вернулся на следующий день, B — нет. D3 и дальше считать ещё рано.
-    assertThat(actual.retention()).hasSize(2);
-    var cohort = actual.retention().getFirst();
-    assertThat(cohort.since()).isEqualTo("2026-11-02");
-    assertThat(cohort.size()).isEqualTo(2);
-    assertThat(cohort.d1()).isEqualTo(0.5);
-    assertThat(cohort.d3()).isNull();
-    assertThat(actual.retention().get(1).d1()).isEqualTo(0.0);
+        .containsExactly(tuple("music", 1L));
+    assertThat(actual.integrations().meetingsWithAny()).isEqualTo(1);
+    assertThat(actual.days())
+        .extracting(
+            AnalyticsReport.Day::day, AnalyticsReport.Day::visitors, AnalyticsReport.Day::fresh)
+        .containsExactly(tuple("2026-11-02", 2L, 2L), tuple("2026-11-03", 2L, 1L));
+    assertThat(actual.days().getFirst().meetings()).isEqualTo(2);
+    // Удержание АКТУАЛА — от первого дня каждого в периоде: A вернулся на следующий день, B — нет;
+    // D пришёл вчера, его D1 ещё не известен. D3 и дальше считать рано.
+    var retention = actual.retention();
+    assertThat(retention.anchor()).isEqualTo("period");
+    assertThat(retention.step()).isEqualTo("day");
+    assertThat(retention.cohorts())
+        .extracting(
+            AnalyticsReport.Cohort::since, AnalyticsReport.Cohort::size, AnalyticsReport.Cohort::d1)
+        .containsExactly(tuple("2026-11-02", 2L, 0.5), tuple("2026-11-03", 1L, null));
+    assertThat(retention.cohorts().getFirst().d3()).isNull();
+    assertThat(retention.total().d1()).isEqualTo(0.5);
 
     // ЛТВ за первый день: когорта A и B и вся их жизнь — включая второй день A.
-    var ltv = report.report(from, ms(LocalDate.of(2026, 11, 3)), AnalyticsReport.LTV);
+    var ltv = report.report(DAY1, DAY1, AnalyticsReport.LTV);
     assertThat(ltv.mode()).isEqualTo("ltv");
     assertThat(ltv.visitors().total()).isEqualTo(2);
+    assertThat(ltv.visitors().returning()).isEqualTo(1);
     assertThat(ltv.visitors().callers()).isEqualTo(1);
     assertThat(ltv.rates().er()).isEqualTo(0.5);
+    assertThat(ltv.rates().stickiness()).isNull();
     assertThat(ltv.calls().entries()).isEqualTo(2);
-    assertThat(ltv.calls().meetings()).isEqualTo(0);
+    assertThat(ltv.calls().meetings()).isNull();
+    assertThat(ltv.calls().peakMeetings()).isNull();
     assertThat(ltv.funnel().opened()).isEqualTo(2);
     assertThat(ltv.clients())
         .extracting(AnalyticsReport.Share::kind, AnalyticsReport.Share::count)
         .containsExactly(tuple("desktop", 1L), tuple("web", 1L));
+    // Ряд ЛТВ — от первого дня до сегодня.
     assertThat(ltv.days())
-        .extracting(AnalyticsReport.Day::day)
-        .containsExactly("2026-11-02", "2026-11-03");
-    assertThat(ltv.retention()).hasSize(1);
-    assertThat(ltv.retention().getFirst().d1()).isEqualTo(0.5);
+        .extracting(AnalyticsReport.Day::day, AnalyticsReport.Day::visitors)
+        .containsExactly(tuple("2026-11-02", 2L), tuple("2026-11-03", 1L), tuple("2026-11-04", 0L));
+    assertThat(ltv.days().getFirst().meetings()).isNull();
+    assertThat(ltv.retention().anchor()).isEqualTo("first");
+    assertThat(ltv.retention().cohorts()).hasSize(1);
+    assertThat(ltv.retention().cohorts().getFirst().d1()).isEqualTo(0.5);
 
-    // В ответе нет ни ключей, ни адресов.
+    // АКТУАЛ за второй день: A — вернувшийся (пришёл до периода), D — новый.
+    var second = report.report(DAY1.plusDays(1), DAY1.plusDays(1), AnalyticsReport.ACTUAL);
+    assertThat(second.visitors().total()).isEqualTo(2);
+    assertThat(second.visitors().returning()).isEqualTo(1);
+    assertThat(second.visitors().callers()).isEqualTo(1);
+    assertThat(second.visitors().newCallers()).isZero();
+    assertThat(second.calls().meetings()).isZero();
+
+    // В ответе нет ни ключей, ни хэшей профиля.
     var body =
         mvc.perform(
                 get("/api/v1/admin/analytics")
                     .header(AdminAccess.HEADER, token)
-                    .param("from", Long.toString(from))
-                    .param("to", Long.toString(to))
+                    .param("from", "2026-11-02")
+                    .param("to", "2026-11-03")
                     .param("mode", "ltv"))
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertThat(body).doesNotContain("198.18.").doesNotContain(hashA).doesNotContain("visitor_key");
-    mvc.perform(get("/api/v1/admin/analytics").param("from", "1").param("to", "2"))
+    assertThat(body).doesNotContain(hashA).doesNotContain(key(PROFILE_A)).doesNotContain("198.18.");
+    mvc.perform(
+            get("/api/v1/admin/analytics").param("from", "2026-11-01").param("to", "2026-11-02"))
         .andExpect(status().isUnauthorized());
+    mvc.perform(
+            get("/api/v1/admin/analytics")
+                .header(AdminAccess.HEADER, token)
+                .param("from", "2026-11-03")
+                .param("to", "2026-11-01"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(
+            get("/api/v1/admin/analytics")
+                .header(AdminAccess.HEADER, token)
+                .param("from", "ноябрь")
+                .param("to", "2026-11-01"))
+        .andExpect(status().isBadRequest());
+  }
+
+  /** Telegram без профиля — посетитель по ключу актора (уже HMAC номера); клиент — Telegram. */
+  @Test
+  void aTelegramActorIsAVisitorWithoutAProfile() {
+    analytics.entered(
+        null, "actor:tg:0123456789abcdef", ClientKind.UNKNOWN.telegram(), "create", true);
+    analytics.flush();
+    assertThat(
+            jdbc.sql("SELECT first_client, first_called_day FROM visitors")
+                .query((rs, n) -> rs.getString(1) + " " + rs.getObject(2, LocalDate.class))
+                .single())
+        .isEqualTo("telegram " + DAY1);
   }
 
   @Test
   void oldRowsAreForgottenBySweep() {
-    analytics.visit(Secrets.hash(PROFILE_A), null, WEB, "open");
-    assertThat(analytics.sweep(now.get())).isEqualTo(0);
+    analytics.visit(Secrets.hash(PROFILE_A), WEB, "open");
+    analytics.flush();
+    assertThat(analytics.sweep(now.get())).isZero();
     now.addAndGet(Duration.ofDays(101).toMillis());
     assertThat(analytics.sweep(now.get())).isEqualTo(2);
     assertThat(jdbc.sql("SELECT COUNT(*) FROM visitors").query(Long.class).single()).isZero();
+  }
+
+  /**
+   * Сбой базы не теряет события: не записанное возвращается в буфер и ложится следующим проходом.
+   */
+  @Test
+  void aFailedWriteIsRetriedOnTheNextPass() {
+    analytics.visit(Secrets.hash(PROFILE_A), WEB, "open");
+    jdbc.sql("ALTER TABLE visitor_days RENAME TO visitor_days_away").update();
+    try {
+      assertThat(analytics.flush()).isZero();
+    } finally {
+      jdbc.sql("ALTER TABLE visitor_days_away RENAME TO visitor_days").update();
+    }
+    analytics.visit(Secrets.hash(PROFILE_A), WEB, "open");
+    assertThat(analytics.flush()).isEqualTo(1);
+    assertThat(
+            jdbc.sql("SELECT visits FROM visitor_days WHERE visitor_key=?")
+                .param(key(PROFILE_A))
+                .query(Integer.class)
+                .single())
+        .isEqualTo(2);
   }
 
   @Test
@@ -359,7 +480,10 @@ class AnalyticsTest {
         .isEqualTo(new ClientKind("telegram", "ios"));
     assertThat(ClientKind.of(null, "Cord/1.2 Chrome/140 Electron/38 (Windows NT 10.0)"))
         .isEqualTo(new ClientKind("desktop", "windows"));
-    assertThat(ClientKind.of("fridge", "Mozilla/5.0 (Linux; Android 15; wv)"))
+    // Браузер телефона — веб; приложение Android называет себя заголовком.
+    assertThat(ClientKind.of("fridge", "Mozilla/5.0 (Linux; Android 15) Chrome/140"))
+        .isEqualTo(new ClientKind("web", "android"));
+    assertThat(ClientKind.of("android", "Mozilla/5.0 (Linux; Android 15; wv)"))
         .isEqualTo(new ClientKind("android", "android"));
     assertThat(ClientKind.of("web", "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_1)"))
         .isEqualTo(new ClientKind("web", "macos"));

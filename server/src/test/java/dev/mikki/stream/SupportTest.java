@@ -67,6 +67,7 @@ class SupportTest {
 
   @BeforeEach
   void setUp() {
+    jdbc.sql("DELETE FROM support_notes").update();
     jdbc.sql("DELETE FROM support_tickets").update();
     // Общий предел сервера живёт в памяти процесса дольше теста — у каждого теста он свой.
     limits.reset("support:server", config.perServer());
@@ -321,40 +322,56 @@ class SupportTest {
         .containsExactly(fresher);
   }
 
-  /**
-   * Проработка обращения в пульте (R215): статусы new → open → waiting → done → archived,
-   * назначение и приоритет, заметки и ответы в ленте, SLA, поиск и счётчики; архив не показывается
-   * в ящике.
-   */
-  @Test
-  void theConsoleWorksATicketThroughItsStatusesWithNotesAndSla() throws Exception {
-    var id = submit(fresh(), "Не слышно собеседника в наушниках");
-    var other = submit(fresh(), "Хочу тёмную тему по умолчанию");
+  String adminToken() throws Exception {
     var session =
         mvc.perform(
-                post("/api/v1/admin/session")
+                from(post("/api/v1/admin/session"), fresh())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"password\":\"пароль владельца\"}"))
             .andReturn()
             .getResponse()
             .getContentAsString();
-    var token = Json.tree(session).path("token").asText();
+    return Json.tree(session).path("token").asText();
+  }
 
-    // Свежее обращение: сроки SLA от создания, ничего не просрочено.
+  static SupportService.Filter overdue() {
+    return new SupportService.Filter(null, null, null, null, null, true, null, null, null);
+  }
+
+  static SupportService.Filter query(Status status, String q) {
+    return new SupportService.Filter(status, null, null, null, q, null, null);
+  }
+
+  /**
+   * Проработка обращения в пульте (R215, Р-124): статусы new → open → waiting → done → archived и
+   * шаг назад; назначение, приоритет и метки — строками ленты; заметки и ответ человеку; SLA первой
+   * реакции и решения, который стоит, пока ждём человека; поиск по тексту, номеру, меткам и ленте;
+   * счётчики, качество работы и архив.
+   */
+  @Test
+  void theConsoleWorksATicketThroughItsStatusesWithNotesAndSla() throws Exception {
+    var id = submit(fresh(), "Не слышно собеседника в наушниках");
+    var other = submit(fresh(), "Хочу тёмную тему по умолчанию");
+    var token = adminToken();
+    long created = now.get();
+
+    // Свежее обращение: сроки SLA от создания, ничего не просрочено, никому не назначено.
     var fresh = support.get(id).ticket();
     assertThat(fresh.priority()).isEqualTo("normal");
-    assertThat(fresh.firstResponseDueAt())
-        .isEqualTo(fresh.createdAt() + Duration.ofHours(4).toMillis());
-    assertThat(fresh.resolveDueAt()).isEqualTo(fresh.createdAt() + Duration.ofHours(48).toMillis());
+    assertThat(fresh.firstResponseDueAt()).isEqualTo(created + Duration.ofHours(4).toMillis());
+    assertThat(fresh.resolveDueAt()).isEqualTo(created + Duration.ofHours(48).toMillis());
     assertThat(fresh.breached()).isFalse();
+    assertThat(fresh.slaMet()).isNull();
+    assertThat(support.counts().unassigned()).isEqualTo(2);
 
-    // Через пять часов без ответа — просрочен первый ответ; счётчик это видит.
+    // Через пять часов без реакции — просрочена первая реакция; счётчик и фильтр это видят.
     now.addAndGet(Duration.ofHours(5).toMillis());
     assertThat(support.get(id).ticket().breached()).isTrue();
     assertThat(support.counts().breached()).isEqualTo(2);
     assertThat(support.counts().fresh()).isEqualTo(2);
+    assertThat(support.search(overdue())).hasSize(2);
 
-    // Назначили, подняли приоритет, пометили — в ленте запись о назначении.
+    // Назначили, подняли приоритет, пометили — по строке ленты на каждую перемену, от агента.
     mvc.perform(
             put("/api/v1/admin/support/" + id)
                 .header(AdminAccess.HEADER, token)
@@ -367,10 +384,27 @@ class SupportTest {
     assertThat(assigned.ticket().assignee()).isEqualTo("owner");
     assertThat(assigned.ticket().priority()).isEqualTo("high");
     assertThat(assigned.ticket().tags()).containsExactly("звук", "наушники");
-    assertThat(assigned.notes()).extracting(SupportService.Note::kind).containsExactly("assign");
-    assertThat(assigned.notes().getFirst().author()).isEqualTo("agent");
+    assertThat(assigned.notes())
+        .extracting(SupportService.Note::kind, SupportService.Note::text)
+        .containsExactly(
+            tuple("assign", "owner"), tuple("priority", "high"), tuple("tags", "звук наушники"));
+    assertThat(assigned.notes()).allMatch(note -> note.author().equals("agent"));
+    assertThat(support.counts().unassigned()).isEqualTo(1);
+    // То же самое ещё раз — ленту не засоряет.
+    support.update(id, "owner", "high", "наушники звук", "owner");
+    assertThat(support.get(id).notes()).hasSize(3);
+    // Срочные — первыми, без назначения — отдельным фильтром.
+    assertThat(
+            support.search(
+                new SupportService.Filter(
+                    null, null, null, null, null, null, null, SupportService.Sort.PRIORITY, null)))
+        .extracting(SupportService.Entry::id)
+        .containsExactly(id, other);
+    assertThat(support.search(new SupportService.Filter(null, null, "-", null, null, null, null)))
+        .extracting(SupportService.Entry::id)
+        .containsExactly(other);
 
-    // Взяли в работу — первый ответ состоялся, SLA первого ответа больше не горит.
+    // Взяли в работу — первая реакция состоялась, SLA первой реакции больше не горит.
     mvc.perform(
             put("/api/v1/admin/support/" + id + "/status")
                 .header(AdminAccess.HEADER, token)
@@ -381,6 +415,9 @@ class SupportTest {
     assertThat(open.status()).isEqualTo(Status.OPEN);
     assertThat(open.firstResponseAt()).isEqualTo(now.get());
     assertThat(open.breached()).isFalse();
+    assertThat(support.search(overdue()))
+        .extracting(SupportService.Entry::id)
+        .containsExactly(other);
 
     // Заметка себе и ответ человеку: ответ переводит в «ждём человека».
     mvc.perform(
@@ -401,60 +438,76 @@ class SupportTest {
     assertThat(waiting.ticket().status()).isEqualTo(Status.WAITING);
     assertThat(waiting.notes())
         .extracting(SupportService.Note::kind)
-        .containsExactly("assign", "status", "note", "reply", "status");
+        .containsExactly("assign", "priority", "tags", "status", "note", "reply", "status");
 
-    // Решено, затем в архив: архив из ящика уходит, но находится поиском и по статусу.
-    support.setStatus(id, Status.DONE, "owner");
-    assertThat(support.get(id).ticket().resolvedAt()).isEqualTo(now.get());
+    // Трое суток ждём человека: срок решения (48 ч) вышел бы, но часы SLA стоят.
     now.addAndGet(Duration.ofDays(3).toMillis());
+    var paused = support.get(id).ticket();
+    assertThat(paused.breached()).isFalse();
+    assertThat(paused.resolveDueAt()).isEqualTo(created + Duration.ofHours(48 + 72).toMillis());
+    // Человек ответил — снова в работе; ожидание осталось в паузе.
+    support.setStatus(id, Status.OPEN, "owner");
+    assertThat(support.get(id).ticket().pausedMs()).isEqualTo(Duration.ofDays(3).toMillis());
     assertThat(support.get(id).ticket().breached()).isFalse();
+
+    // Решено: первая реакция опоздала на час — SLA не соблюдён.
+    support.setStatus(id, Status.DONE, "owner");
+    var done = support.get(id).ticket();
+    assertThat(done.resolvedAt()).isEqualTo(now.get());
+    assertThat(done.slaMet()).isFalse();
+    var stats = support.stats(30);
+    assertThat(stats.created()).isEqualTo(2);
+    assertThat(stats.resolved()).isEqualTo(1);
+    assertThat(stats.firstResponseMedianMinutes()).isEqualTo(300.0);
+    // Решали 77 ч, из них 72 ждали человека.
+    assertThat(stats.resolveMedianMinutes()).isEqualTo(300.0);
+    assertThat(stats.withinSla()).isEqualTo(0.0);
+    assertThat(stats.topics()).containsEntry("camera", 2L);
+
+    // В архив: из ящика уходит, но находится по статусу, номеру, метке и тексту ленты.
     support.setStatus(id, Status.ARCHIVED, "owner");
     assertThat(support.get(id).ticket().archivedAt()).isEqualTo(now.get());
+    assertThat(support.get(id).ticket().resolvedAt()).isEqualTo(done.resolvedAt());
     assertThat(support.search(new SupportService.Filter(null, null, null, null, null, null, null)))
         .extracting(SupportService.Entry::id)
         .containsExactly(other);
-    assertThat(
-            support.search(
-                new SupportService.Filter(Status.ARCHIVED, null, null, null, null, null, null)))
+    assertThat(support.search(query(Status.ARCHIVED, null)))
         .extracting(SupportService.Entry::id)
         .containsExactly(id);
+    assertThat(support.search(query(Status.ARCHIVED, id.substring(0, 8).toUpperCase(Locale.ROOT))))
+        .hasSize(1);
+    assertThat(support.search(query(Status.ARCHIVED, "наушники"))).hasSize(1);
+    assertThat(support.search(query(Status.ARCHIVED, "bluetooth"))).hasSize(1);
+    assertThat(
+            support.search(new SupportService.Filter(null, "sound", null, null, null, null, null)))
+        .isEmpty();
     assertThat(support.counts().archived()).isEqualTo(1);
 
-    // Поиск: по словам текста, по номеру, по метке; фильтр по теме.
     mvc.perform(get("/api/v1/admin/support").header(AdminAccess.HEADER, token).param("q", "тёмную"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].id").value(other));
-    assertThat(
-            support.search(
-                new SupportService.Filter(
-                    Status.ARCHIVED,
-                    null,
-                    null,
-                    null,
-                    id.substring(0, 8).toUpperCase(Locale.ROOT),
-                    null,
-                    null)))
-        .hasSize(1);
-    assertThat(
-            support.search(
-                new SupportService.Filter(
-                    Status.ARCHIVED, null, null, null, "наушники", null, null)))
-        .hasSize(1);
-    assertThat(
-            support.search(new SupportService.Filter(null, "sound", null, null, null, null, null)))
-        .isEmpty();
+    mvc.perform(
+            get("/api/v1/admin/support")
+                .header(AdminAccess.HEADER, token)
+                .param("overdue", "true")
+                .param("sort", "OLD"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(other));
     mvc.perform(get("/api/v1/admin/support/counts").header(AdminAccess.HEADER, token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.fresh").value(1))
         .andExpect(jsonPath("$.archived").value(1));
+    mvc.perform(get("/api/v1/admin/support/stats").header(AdminAccess.HEADER, token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.created").value(2));
     mvc.perform(get("/api/v1/admin/support/" + id).header(AdminAccess.HEADER, token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.ticket.status").value("ARCHIVED"))
-        .andExpect(jsonPath("$.notes.length()").value(7));
+        .andExpect(jsonPath("$.notes.length()").value(10));
     mvc.perform(get("/api/v1/admin/support/" + id)).andExpect(status().isUnauthorized());
 
-    // Шаг назад разрешён: из архива в работу — сроки решения снимаются.
+    // Шаг назад разрешён: из архива в работу — решение и архив снимаются.
     support.setStatus(id, Status.OPEN, "owner");
     assertThat(support.get(id).ticket().resolvedAt()).isNull();
     assertThat(support.get(id).ticket().archivedAt()).isNull();
@@ -463,6 +516,23 @@ class SupportTest {
     now.addAndGet(Duration.ofDays(31).toMillis());
     assertThat(support.forgetOld()).isEqualTo(2);
     assertThat(jdbc.sql("SELECT COUNT(*) FROM support_notes").query(Long.class).single()).isZero();
+  }
+
+  /** Решённое через две недели само уходит в архив — с записью в ленте от системы. */
+  @Test
+  void resolvedTicketsMoveToTheArchiveByThemselves() throws Exception {
+    var done = submit(fresh(), "Спасибо, всё заработало после обновления");
+    var open = submit(fresh(), "Ещё не решено, но в работе");
+    support.setStatus(done, Status.DONE, "owner");
+    support.setStatus(open, Status.OPEN, "owner");
+    now.addAndGet(Duration.ofDays(13).toMillis());
+    assertThat(support.archiveResolved()).isZero();
+    now.addAndGet(Duration.ofDays(2).toMillis());
+    assertThat(support.archiveResolved()).isEqualTo(1);
+    var archived = support.get(done);
+    assertThat(archived.ticket().status()).isEqualTo(Status.ARCHIVED);
+    assertThat(archived.notes().getLast().author()).isEqualTo("system");
+    assertThat(support.get(open).ticket().status()).isEqualTo(Status.OPEN);
   }
 
   /**

@@ -1,6 +1,6 @@
--- Проработка обращений (R215, docs/architecture/admin-analytics.md §4): статусы new → open → waiting →
--- done → archived (все слова помещаются в прежний VARCHAR(8)), назначение, приоритет, метки, сроки для SLA и
--- лента заметок.
+-- Проработка обращений (R215, docs/architecture/admin-analytics.md §4): статусы new → open (в работе) →
+-- waiting (ждём человека) → done (решено) → archived (архив) — все слова помещаются в прежний VARCHAR(8);
+-- назначение, приоритет, метки, сроки SLA и лента заметок.
 --
 -- Кому назначено — слово (`owner`, `gpt`, имя): учётных записей операторов нет.
 ALTER TABLE support_tickets ADD COLUMN assignee VARCHAR(40);
@@ -8,21 +8,23 @@ ALTER TABLE support_tickets ADD COLUMN assignee VARCHAR(40);
 ALTER TABLE support_tickets ADD COLUMN priority VARCHAR(8) NOT NULL DEFAULT 'normal';
 -- Метки словами через пробел.
 ALTER TABLE support_tickets ADD COLUMN tags VARCHAR(200);
--- Когда впервые ответили или взяли в работу — для SLA первого ответа.
+-- Первая реакция (взяли в работу, ответили, решили) — для SLA первого ответа.
 ALTER TABLE support_tickets ADD COLUMN first_response_at BIGINT;
 ALTER TABLE support_tickets ADD COLUMN resolved_at BIGINT;
 ALTER TABLE support_tickets ADD COLUMN archived_at BIGINT;
+-- Сколько обращение провело в «ждём человека»: часы SLA решения в это время стоят.
+ALTER TABLE support_tickets ADD COLUMN paused_ms BIGINT NOT NULL DEFAULT 0;
 CREATE INDEX support_tickets_status ON support_tickets(status, created_at);
 
--- Лента обращения: заметки владельца, что ответили человеку, смены статуса и назначения.
+-- Лента обращения: заметки себе, что ответили человеку, смены статуса и назначения — по порядку записи.
 CREATE TABLE support_notes (
-  id VARCHAR(36) PRIMARY KEY,
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   ticket_id VARCHAR(36) NOT NULL,
   created_at BIGINT NOT NULL,
   -- Кто написал: `owner`, `agent`, `telegram`, `system`.
   author VARCHAR(40) NOT NULL,
-  -- note | reply | status | assign
+  -- note | reply | status | assign | priority | tags
   kind VARCHAR(8) NOT NULL,
   text VARCHAR(4000) NOT NULL
 );
-CREATE INDEX support_notes_ticket ON support_notes(ticket_id, created_at);
+CREATE INDEX support_notes_ticket ON support_notes(ticket_id, id);
