@@ -194,7 +194,8 @@ test('two synthetic screen sources traverse the real SFU; a third is refused up 
     await expect(busy).toHaveAttribute('aria-disabled', 'true');
     await busy.hover();
     await expect(third!.locator('.ui-hint__popup')).toContainText('Сейчас экран показывает');
-    await busy.click();
+    // Нажатие на недоступную кнопку ничего не начинает и не ругается (Playwright `click` такую не нажимает).
+    await busy.dispatchEvent('click');
     await expect(third!.getByRole('alert')).toHaveCount(0);
     await third!.mouse.move(700, 300);
     await third!.getByRole('button', { name: 'Закрепить показ: Экран 1' }).click();

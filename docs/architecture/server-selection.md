@@ -588,27 +588,19 @@ AAAA не публикуем (правило `docs/deployment.md`). CAA: `0 issu
 
 ### 7.4 Зоны `callcord.ru` и `nikg.tech`
 
-**`callcord.ru`** (продукт там не жил; записи указывают на B — неверно):
+Владелец 08.11.2026: «callcord никак не будет фигурировать, все на cordcam. все домены мои, поэтому все лишнее можно
+удалять».
 
-| Действие | Имя | Содержимое | Облако |
+**`callcord.ru`** — удалить обе записи (`callcord.ru`, `www`), затем зону: Overview → справа внизу «Remove site from
+Cloudflare». Продукт там не жил, ни один клиент на это имя не смотрит.
+
+**`nikg.tech`**:
+
+| Когда | Действие | Имя | Почему так |
 |---|---|---|---|
-| Изменить | `@` | 192.0.2.1 (адрес-заглушка; трафик обрабатывает Cloudflare) | **оранжевое** |
-| Изменить | `www` | 192.0.2.1 | **оранжевое** |
-| Rules → Redirect Rules → Create: «callcord → cordcam» | условие: Hostname `contains` `callcord.ru`; действие: Dynamic redirect, выражение `concat("https://cordcam.ru", http.request.uri.path)`, код **301**, Preserve query string — да | | |
-
-Проверка: `curl -sI https://callcord.ru/r/abc | grep -i location` → `https://cordcam.ru/r/abc`. Если домен не нужен
-совсем — вместо этого не продлевать и после истечения «Remove site» в Cloudflare.
-
-**`nikg.tech`** — менять **в порядке** §7.5, не сразу:
-
-| Когда | Действие | Имя | Примечание |
-|---|---|---|---|
-| сейчас | ничего | `nikg.tech` (апекс, оранжевое, 1 тыс. посетителей) | это, похоже, сайт владельца — **не трогать без подтверждения** |
-| шаг 4 (переезд) | оставить как есть | `cord`, `rtc.cord`, `turn.cord` → 108.165.32.75 | A отвечает редиректом с переносом настроек 30 дней |
-| шаг 4 + 30 дней | **удалить** | `cord`, `rtc.cord`, `turn.cord` | и убрать имена из edge A |
-| шаг 6 (вывод meet) | оставить `meet` | `meet` → 108.165.32.23 | машина отвечает 301 на `cordcam.ru` |
-| шаг 6 | **удалить**, если владелец подтвердит, что не нужны | `app`, `media`, `rtc`, `turn`, `remote` → 108.165.32.23 | треугольники ⚠ исчезнут |
-| шаг 6 + 30 дней | **удалить** | `meet` | затем машина → узел `fra2` |
+| в день переезда (шаг 4) | **удалить** | `meet`, `app`, `media`, `remote`, `rtc`, `turn` (все → 108.165.32.23) | старая установка meet; сервер становится узлом `fra2` |
+| шаг 4 + 7 дней | **удалить** | `cord`, `rtc.cord`, `turn.cord` (→ 108.165.32.75) | неделю старое имя отвечает 301 на `cordcam.ru`, пока выходят клиенты с новым адресом |
+| — | решает владелец | апекс `nikg.tech` (оранжевое) | к Cord не относится |
 
 ### 7.5 Порядок шагов и проверка каждого
 
@@ -619,9 +611,8 @@ AAAA не публикуем (правило `docs/deployment.md`). CAA: `0 issu
 | 3 | сессия | A обслуживает `cordcam.ru`, `fra.*`, `rtc-fra.*`, `turn-fra.*` **рядом** с `cord.nikg.tech` (код фазы 2: два продуктовых имени + редирект) | `curl -k --resolve cordcam.ru:443:108.165.32.75 https://cordcam.ru/api/v1/ping` → 200 (ещё до смены DNS) |
 | 4 | владелец, ночью, без встреч | `cordcam.ru`: пп. 1–2 — адрес → 108.165.32.75 | через 2 мин `dig +short A cordcam.ru` → `108.165.32.75`; браузер открывает `https://cordcam.ru` с зелёным замком; `https://cord.nikg.tech/r/XYZ` → переходит на `cordcam.ru/r/XYZ`. Через сутки TTL → Auto. DNSSEC включить |
 | 5 | GPT | сервер cordcam → узел `msk` (`rollout-cordcam.md` §5); владелец добавляет пп. 9–11; после — удалить пп. 13–14 | `dig +short A rtc-msk.cordcam.ru` → `157.22.241.114`; `node.sh msk check`; в `capabilities.nodes` — `msk` |
-| 6 | GPT | meet: 301 → `cordcam.ru`; затем узел `fra2` (`rollout-cordcam.md` §6); владелец — п. 12 и удаления §7.4 | `curl -sI https://meet.nikg.tech/ \| grep -i location` → `https://cordcam.ru/` |
-| 7 | владелец | `callcord.ru` — §7.4 | `curl -sI https://callcord.ru/` → 301 |
-| 8 | владелец, +30 дней | удалить `cord.*`, `meet` из `nikg.tech` | `dig +short A cord.nikg.tech` — пусто |
+| 6 | GPT | meet → узел `fra2` (`rollout-cordcam.md` §6); владелец заранее удалил имена meet из `nikg.tech` (§7.4) | `node.sh fra2 check` |
+| 7 | владелец, +7 дней | удалить `cord`, `rtc.cord`, `turn.cord` из `nikg.tech` | `dig +short A cord.nikg.tech` — пусто |
 
 Откат любого DNS-шага — вернуть прежний адрес (TTL 60 с = минута).
 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { notifyDesktop } from '../../core/desktop';
 import { dismissBoot } from './boot';
 
 /**
@@ -9,7 +10,12 @@ import { dismissBoot } from './boot';
  */
 export function BootGate() {
   useEffect(() => {
-    const frame = requestAnimationFrame(() => void dismissBoot());
+    const frame = requestAnimationFrame(() => {
+      void dismissBoot();
+      // Клиент Windows держит заставку, пока интерфейс не нарисован, и показывает окно ровно сейчас (R203):
+      // без этого заставка пропадала, а окно ещё секунды грузилось.
+      notifyDesktop('app.ready');
+    });
     return () => cancelAnimationFrame(frame);
   }, []);
   return null;
