@@ -140,16 +140,24 @@ public class RoomService {
           room.createdFrom = origin;
           room.createdBy = entrant.profileHash();
           // Узел медиа — по замеру пути создателя (R195); ядро проверяет его по реестру и живости.
-          var choice = nodes.choose(request.preferredNode(), measures(request.measurements()));
+          var manual = Boolean.TRUE.equals(request.manual()) && request.preferredNode() != null;
+          var choice =
+              nodes.choose(request.preferredNode(), measures(request.measurements()), manual);
           room.mediaNode = choice.node().id();
           if (request.preferredNode() != null || request.measurements() != null)
             log.info(
-                "room {} on node {} ({}; asked {}; measured {})",
+                "room {} on node {} ({}{}; asked {}; measured {})",
                 room.id,
                 room.mediaNode,
                 choice.reason(),
+                manual ? ", manual" : "",
                 request.preferredNode(),
                 request.measurements());
+          // Просили узел руками, а дали другой — человеку скажут словами (Р-101), не откажут.
+          var fallback =
+              manual && !room.mediaNode.equals(request.preferredNode())
+                  ? new NodeFallback(request.preferredNode(), room.mediaNode)
+                  : null;
           var member = newMember(room, request.name(), true, request.commandId(), entrant);
           var url = invite(room);
           rooms.insert(room, now());
@@ -158,7 +166,17 @@ public class RoomService {
           if (address != null) limits.hit("rooms:ip:" + address, hour.perIp().roomsCreated());
           if (entrant.profileHash() != null)
             limits.hit("rooms:profile:" + entrant.profileHash(), hour.perProfile().roomsCreated());
-          return admission(room, member, request.commandId(), url);
+          var admission = admission(room, member, request.commandId(), url);
+          return fallback == null
+              ? admission
+              : new Admission(
+                  admission.roomId(),
+                  admission.participantId(),
+                  admission.credential(),
+                  admission.inviteUrl(),
+                  admission.recoverySeconds(),
+                  admission.snapshot(),
+                  fallback);
         });
   }
 

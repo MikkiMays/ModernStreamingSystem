@@ -237,6 +237,8 @@ export const publicApi = {
       /** Узел медиа по замеру пути (R195, `media/node-probe.ts`) и сами замеры — для журнала ядра. */
       preferredNode?: string;
       measurements?: { node: string; tcpMs: number | null; udpMs: number | null; udpOpen: boolean }[];
+      /** Узел назван человеком в настройках, а не замером (R200): ядро скажет, если даст другой. */
+      manual?: boolean;
     },
     leave?: string,
   ) => human<Admission>('create', '/rooms', entry(data, leave)),
@@ -293,6 +295,12 @@ export class RoomApi {
       { method: 'PUT', body: JSON.stringify({ enabled }) },
       this.credential,
     );
+  /**
+   * Перевести встречу на другой медиаузел (R200 §3.5) — только создатель (`you.can` `media.move`).
+   * Пока это переназначение с восстановлением у всех: пара секунд без звука, затем все на новом узле.
+   */
+  moveMedia = (to: string, commandId: string) =>
+    request<Ack>(`${this.base}/media/move`, post({ commandId, to }), this.credential);
   token = () =>
     request<{ url: string; token: string; expiresAt: number }>(
       `${this.base}/media/token`,

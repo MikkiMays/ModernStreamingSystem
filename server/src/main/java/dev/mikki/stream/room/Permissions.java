@@ -129,6 +129,13 @@ public final class Permissions {
     PARTICIPANT_MUTE("participant.mute", Rule.CREATOR),
     /** Привязка беседы Telegram открывает ей встречу — это решение создателя, а не гостя (T30). */
     TELEGRAM_LINK("telegram.link", Rule.CREATOR),
+    /**
+     * Перевести встречу на другой медиаузел (R200, Р-104: создатель, как смена региона в серверах
+     * Discord). Решение владельца ещё не подтверждено — «все» или «ведущий» меняются здесь одной
+     * строкой ({@code Rule.PARTICIPANT} / {@code Rule.CREATOR}), и клиент узнаёт из {@code
+     * you.can}.
+     */
+    MEDIA_MOVE("media.move", Rule.CREATOR),
     /** «Может ли трогать интеграции вообще» — для интерфейса, у которого нет одной команды. */
     INTEGRATIONS_USE("integrations.use", Rule.INTEGRATIONS),
     MUSIC_VIEW("music.view", Rule.PARTICIPANT),

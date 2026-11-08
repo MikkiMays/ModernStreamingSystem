@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { publicApi } from '../api/client';
 import { Prejoin } from './Prejoin';
+import { MANUAL_NODE_KEY, setManualNode } from '../core/node-choice';
+import { nodeProbe } from '../media/node-probe';
 
 vi.mock('../api/client', async (load) => ({
   ...(await load<typeof import('../api/client')>()),
@@ -31,6 +33,7 @@ class FakeStream {
 beforeEach(() => {
   vi.stubGlobal('MediaStream', FakeStream);
   localStorage.clear();
+  setManualNode(null);
   localStorage.setItem('cord:name', 'Ника');
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
@@ -101,6 +104,46 @@ describe('предвход', () => {
       undefined,
     );
     expect(onJoin).toHaveBeenCalledWith({ roomId: 'r' }, expect.objectContaining({ micOn: false }));
+  });
+
+  it('узел, выбранный руками в настройках, виден до создания, уходит с manual: true и сбрасывается в «Авто» (R200)', async () => {
+    vi.spyOn(nodeProbe, 'refresh').mockResolvedValue({ at: 1, node: 'fra', measures: [] });
+    nodeProbe.schedule([
+      {
+        id: 'fra',
+        title: { ru: 'Франкфурт' },
+        rtcUrl: 'wss://fra',
+        probeUrl: 'https://fra',
+        control: true,
+        country: 'DE',
+      },
+      {
+        id: 'hel',
+        title: { ru: 'Хельсинки' },
+        rtcUrl: 'wss://hel',
+        probeUrl: 'https://hel',
+        control: false,
+        country: 'FI',
+      },
+    ]);
+    vi.spyOn(nodeProbe, 'preferred').mockResolvedValue({ node: 'fra', measures: [] });
+    vi.mocked(publicApi.create).mockResolvedValue({ roomId: 'r' } as never);
+    setManualNode('hel');
+    show();
+    const note = screen.getByTestId('prejoin-server');
+    expect(note).toHaveTextContent('Сервер: Хельсинки · выбран вручную');
+    expect(note.querySelector('.ui-flag[data-country="FI"]')).not.toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Начать встречу' }));
+    });
+    expect(publicApi.create).toHaveBeenCalledWith(
+      expect.objectContaining({ preferredNode: 'hel', manual: true }),
+      undefined,
+    );
+    fireEvent.click(within(note).getByRole('button', { name: 'Авто' }));
+    expect(screen.queryByTestId('prejoin-server')).not.toBeInTheDocument();
+    expect(localStorage.getItem(MANUAL_NODE_KEY)).toBeNull();
+    nodeProbe.schedule([]);
   });
 
   it('вход по коду — только имя: ни названия, ни доступа, ни интеграций', () => {

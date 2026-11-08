@@ -113,6 +113,13 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public Integer mediaMoves;
 
+  /**
+   * Когда создатель последний раз переводил встречу руками ({@code MediaService.move}, R200): не
+   * чаще раза в минуту — гистерезис от «а давайте попробуем ещё». null — не переводил.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Long mediaMovedAt;
+
   public boolean mediaDrained;
   public boolean approvalRequired;
   public boolean integrationsAllowed = true;

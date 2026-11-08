@@ -703,6 +703,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{id}/media/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["moveMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/{id}/media/screen": {
         parameters: {
             query?: never;
@@ -898,6 +914,7 @@ export interface components {
         Admission: {
             credential: string;
             inviteUrl: string | null;
+            nodeFallback?: components["schemas"]["NodeFallback"];
             participantId: string;
             /** Format: int32 */
             recoverySeconds: number;
@@ -1096,6 +1113,7 @@ export interface components {
             /** Format: uuid */
             commandId: string;
             integrationsAllowed?: boolean;
+            manual?: boolean;
             measurements?: components["schemas"]["NodeMeasure"][];
             name: string;
             preferredNode?: string;
@@ -1602,6 +1620,11 @@ export interface components {
             startedAt?: string;
             startsAt?: string;
         };
+        MediaMove: {
+            /** Format: uuid */
+            commandId: string;
+            to: string;
+        };
         MediaNodeInfo: {
             control: boolean;
             country?: string;
@@ -1634,6 +1657,10 @@ export interface components {
             number?: string;
             /** @enum {string} */
             status?: "NEW" | "OPEN" | "DONE";
+        };
+        NodeFallback: {
+            asked: string;
+            got: string;
         };
         NodeLoad: {
             control: boolean;
@@ -3441,6 +3468,34 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Admission"];
+                };
+            };
+        };
+    };
+    moveMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaMove"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Ack"];
                 };
             };
         };

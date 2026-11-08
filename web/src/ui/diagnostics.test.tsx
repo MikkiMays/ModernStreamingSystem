@@ -58,6 +58,7 @@ vi.mock('../media/diagnostics', () => ({
 }));
 
 import Diagnostics from './Diagnostics';
+import { nodeProbe } from '../media/node-probe';
 
 afterEach(cleanup);
 
@@ -114,6 +115,27 @@ function fakeMeeting(tracks: unknown[] = []) {
 }
 
 describe('«Диагностика»', () => {
+  it('узел встречи и флаг — в заголовке карточки «Сеть», невзначай сверху (R200)', () => {
+    nodeProbe.schedule([
+      {
+        id: 'main',
+        title: { ru: 'Хельсинки' },
+        rtcUrl: 'wss://x',
+        probeUrl: 'https://x',
+        control: true,
+        country: 'FI',
+      },
+    ]);
+    vi.spyOn(nodeProbe, 'latency').mockReturnValue(12);
+    render(<Diagnostics meeting={fakeMeeting()} onClose={vi.fn()} onHelp={vi.fn()} onReport={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: 'Сеть' })).toBeInTheDocument();
+    const node = screen.getByTestId('diagnostics-node');
+    expect(node).toHaveTextContent('Хельсинки · 12 мс');
+    expect(node.querySelector('.ui-flag[data-country="FI"]')).not.toBeNull();
+    vi.restoreAllMocks();
+    nodeProbe.schedule([]);
+  });
+
   it('без подзаголовка (R47): сразу проверка устройств, сеть и подробности', () => {
     render(<Diagnostics meeting={fakeMeeting()} onClose={vi.fn()} onHelp={vi.fn()} onReport={vi.fn()} />);
     const dialog = screen.getByRole('dialog', { name: 'Диагностика' });

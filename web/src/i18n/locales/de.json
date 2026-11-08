@@ -2,7 +2,8 @@
   "locale": "de",
   "common": {
     "close": "Schließen",
-    "guestInitial": "G"
+    "guestInitial": "G",
+    "cancel": "Abbrechen"
   },
   "language": {
     "label": "Sprache",
@@ -208,8 +209,8 @@
       },
       "server-node": {
         "label": "Meeting-Knoten",
-        "hint": "Gemessener Pfad von diesem Gerät zu jedem Medienknoten",
-        "keywords": "medienknoten latenz pfad server"
+        "hint": "Auto – nächster nach gemessenem Pfad, oder selbst wählen",
+        "keywords": "medienknoten latenz pfad server region flagge auto manuell verlegen"
       },
       "server-password": {
         "label": "Gespeichertes Passwort",
@@ -454,10 +455,22 @@
       "connection": "Verbindung",
       "leaveFirst": "Verlasse zuerst das Meeting",
       "forget": "Passwort vergessen",
-      "shared": "Cord ist eine Adresse. Ein Meeting läuft auf dem nächsten Medienknoten, den das System anhand des von Ihrem Gerät gemessenen Pfads wählt — ein Serverwechsel ist nicht nötig.",
       "nodeMs": "{{node}} · {{ms}} ms",
       "nodeClosed": "{{node}} · antwortet nicht",
-      "nodeUnknown": "Der Pfad zu den Knoten wurde noch nicht gemessen"
+      "nodeUnknown": "Der Pfad zu den Knoten wurde noch nicht gemessen",
+      "auto": "Auto",
+      "autoHint": "Der nächste Knoten nach dem von diesem Gerät gemessenen Pfad, unter Berücksichtigung der Last",
+      "autoCreated": "Der Knoten wurde beim Erstellen des Meetings gewählt und bleibt für das ganze Meeting. Wähle einen anderen, um das Meeting zu verlegen.",
+      "manualHint": "Das nächste Meeting, das du erstellst, läuft auf diesem Knoten. Wer per Link beitritt, landet auf dem Knoten dieses Meetings.",
+      "thisMeeting": "Knoten dieses Meetings",
+      "creatorOnly": "Nur wer das Meeting erstellt hat, kann es auf einen anderen Knoten verlegen",
+      "moveAsk": "Meeting nach {{node}} verlegen?",
+      "moveNote": "Das dauert ein paar Sekunden: Ton und Bild brechen bei allen kurz ab und kommen auf dem neuen Knoten zurück.",
+      "move": "Verlegen",
+      "moving": "Meeting wird nach {{node}} verlegt …",
+      "nodeDown": "antwortet nicht",
+      "nodeDrained": "in Wartung",
+      "nodeMsShort": "{{ms}} ms"
     },
     "sounds": {
       "cues": "Signale",
@@ -573,7 +586,8 @@
       "ended": "Beendet",
       "waiting": "Warten auf Einlass",
       "recovering": "Verbindung wird wiederhergestellt…",
-      "connecting": "Verbinden…"
+      "connecting": "Verbinden…",
+      "node": "Meeting-Knoten"
     },
     "settings": {
       "saveFailed": "Speichern fehlgeschlagen",
@@ -659,7 +673,9 @@
       "done": "Link zum Meeting kopiert",
       "failed": "Link zum Meeting konnte nicht kopiert werden",
       "copy": "Kopieren"
-    }
+    },
+    "nodeFallback": "{{asked}} ist ausgelastet – das Meeting wurde auf {{got}} erstellt",
+    "nodeMoved": "Das Meeting läuft jetzt auf {{node}}"
   },
   "chess": {
     "title": "Schach",
@@ -2751,7 +2767,9 @@
       },
       "default": "Standard",
       "numbered": "Gerät {{n}}"
-    }
+    },
+    "serverManual": "Server: {{node}} · manuell gewählt",
+    "serverReset": "Auto"
   },
   "loader": {
     "slow": "Langsames Netzwerk",
@@ -3332,11 +3350,14 @@
     "MAINTENANCE_WINDOW_EXISTS": "Es gibt bereits ein Wartungsfenster. Schließe es zuerst",
     "MAINTENANCE_WINDOW_INVALID": "Prüfe die Zeiten des Fensters: ISO-8601 mit Zeitversatz, Beginn in der Zukunft, Ende nach dem Beginn und innerhalb der Grenze",
     "MAINTENANCE_WINDOW_NONE": "Gerade gibt es kein Wartungsfenster",
+    "MEDIA_MOVE_BUSY": "Das Meeting stellt die Verbindung wieder her – versuch es in einer Minute noch einmal",
+    "MEDIA_MOVE_RATE": "Ein Meeting kann höchstens einmal pro Minute verlegt werden",
     "MEDIA_UNAVAILABLE": "Anrufe sind vorübergehend nicht verfügbar. Versuch es in einer Minute noch einmal",
     "MUSIC_TIMEOUT": "Die Plattform hat nicht rechtzeitig geantwortet – versuch es noch einmal",
     "MUSIC_UNREACHABLE": "Diese Plattform ist von diesem Server aus nicht erreichbar",
     "NAME_INVALID": "Gib einen Namen ein",
     "NAME_RESERVED": "Dieser Name ist reserviert: So darf kein Teilnehmer heißen",
+    "NODE_UNAVAILABLE": "Dieser Knoten nimmt gerade keine Meetings an",
     "OPEN_ROOMS": "Aus deinem Netzwerk laufen bereits mehrere Meetings. Beende eines davon",
     "PASSWORD_MISSES": "Zu viele falsche Passwörter. Versuch es später erneut",
     "PLATFORM_BUSY": "Die Plattformen sind mit anderen Anfragen beschäftigt – versuchen Sie es in ein paar Sekunden erneut",

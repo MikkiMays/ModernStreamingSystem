@@ -183,10 +183,21 @@ public class MediaNodes {
   }
 
   public Choice choose(String preferred, List<Measure> measures) {
+    return choose(preferred, measures, false);
+  }
+
+  /** {@code manual} — узел просил человек в настройках, а не замер (Р-101): видно в метрике. */
+  public Choice choose(String preferred, List<Measure> measures, boolean manual) {
     var choice = decide(preferred, measures == null ? List.of() : measures);
     Counter.builder("cord.node.choice")
         .description("Выбор узла для новой встречи: узел и причина")
-        .tags("node", choice.node().id(), "reason", choice.reason())
+        .tags(
+            "node",
+            choice.node().id(),
+            "reason",
+            choice.reason(),
+            "manual",
+            Boolean.toString(manual))
         .register(registry)
         .increment();
     return choice;

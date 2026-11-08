@@ -2,7 +2,8 @@
   "locale": "es",
   "common": {
     "close": "Cerrar",
-    "guestInitial": "I"
+    "guestInitial": "I",
+    "cancel": "Cancelar"
   },
   "language": {
     "label": "Idioma",
@@ -208,8 +209,8 @@
       },
       "server-node": {
         "label": "Nodo de la reunión",
-        "hint": "Ruta medida desde este dispositivo hasta cada nodo multimedia",
-        "keywords": "nodo multimedia latencia ruta servidor"
+        "hint": "Automático: el más cercano por ruta medida, o elige uno",
+        "keywords": "nodo multimedia latencia ruta servidor región bandera automático manual trasladar"
       },
       "server-password": {
         "label": "Contraseña guardada",
@@ -454,10 +455,22 @@
       "connection": "Conexión",
       "leaveFirst": "Primero sal de la reunión",
       "forget": "Olvidar contraseña",
-      "shared": "Cord es una sola dirección. La reunión vive en el nodo multimedia más cercano, que el sistema elige según la ruta medida desde su dispositivo; no hay servidor que cambiar.",
       "nodeMs": "{{node}} · {{ms}} ms",
       "nodeClosed": "{{node}} · no responde",
-      "nodeUnknown": "La ruta hasta los nodos aún no se ha medido"
+      "nodeUnknown": "La ruta hasta los nodos aún no se ha medido",
+      "auto": "Automático",
+      "autoHint": "El nodo más cercano según la ruta medida desde este dispositivo, teniendo en cuenta la carga",
+      "autoCreated": "El nodo se eligió al crear la reunión y se mantiene durante toda la reunión. Elige otro para trasladarla.",
+      "manualHint": "La próxima reunión que crees estará en este nodo. Quien entre por enlace va al nodo de esa reunión.",
+      "thisMeeting": "Nodo de esta reunión",
+      "creatorOnly": "Solo quien creó la reunión puede trasladarla a otro nodo",
+      "moveAsk": "¿Trasladar la reunión a {{node}}?",
+      "moveNote": "Tarda un par de segundos: el audio y el vídeo se cortan para todos y vuelven ya en el nuevo nodo.",
+      "move": "Trasladar",
+      "moving": "Trasladando la reunión a {{node}}…",
+      "nodeDown": "no responde",
+      "nodeDrained": "en mantenimiento",
+      "nodeMsShort": "{{ms}} ms"
     },
     "sounds": {
       "cues": "Avisos",
@@ -574,7 +587,8 @@
       "ended": "Finalizada",
       "waiting": "Esperando para entrar",
       "recovering": "Restableciendo la conexión…",
-      "connecting": "Conectando…"
+      "connecting": "Conectando…",
+      "node": "Nodo de la reunión"
     },
     "settings": {
       "saveFailed": "No se pudo guardar",
@@ -660,7 +674,9 @@
       "done": "Enlace de la reunión copiado",
       "failed": "No se pudo copiar el enlace de la reunión",
       "copy": "Copiar"
-    }
+    },
+    "nodeFallback": "{{asked}} está ocupado: la reunión se creó en {{got}}",
+    "nodeMoved": "La reunión ahora está en {{node}}"
   },
   "chess": {
     "title": "Ajedrez",
@@ -2781,7 +2797,9 @@
       },
       "default": "Predeterminado",
       "numbered": "Dispositivo {{n}}"
-    }
+    },
+    "serverManual": "Servidor: {{node}} · elegido manualmente",
+    "serverReset": "Automático"
   },
   "loader": {
     "slow": "Red lenta",
@@ -3365,11 +3383,14 @@
     "MAINTENANCE_WINDOW_EXISTS": "Ya hay una ventana de mantenimiento. Ciérrala primero",
     "MAINTENANCE_WINDOW_INVALID": "Revisa las horas de la ventana: ISO-8601 con desplazamiento, inicio en el futuro, fin posterior al inicio y dentro del límite",
     "MAINTENANCE_WINDOW_NONE": "Ahora no hay ninguna ventana de mantenimiento",
+    "MEDIA_MOVE_BUSY": "La reunión está restableciendo la conexión; inténtalo dentro de un minuto",
+    "MEDIA_MOVE_RATE": "Una reunión solo se puede trasladar una vez por minuto",
     "MEDIA_UNAVAILABLE": "Las llamadas no están disponibles por ahora. Inténtalo dentro de un minuto",
     "MUSIC_TIMEOUT": "La plataforma no respondió a tiempo: inténtalo de nuevo",
     "MUSIC_UNREACHABLE": "Esta plataforma no está disponible desde este servidor",
     "NAME_INVALID": "Escribe un nombre",
     "NAME_RESERVED": "Ese nombre está reservado: no se puede usar en una reunión",
+    "NODE_UNAVAILABLE": "Este nodo no acepta reuniones ahora mismo",
     "OPEN_ROOMS": "Ya hay varias reuniones en curso desde tu red. Finaliza alguna",
     "PASSWORD_MISSES": "Demasiadas contraseñas incorrectas. Inténtalo más tarde",
     "PLATFORM_BUSY": "Las plataformas están ocupadas con otras solicitudes: inténtalo de nuevo en unos segundos",

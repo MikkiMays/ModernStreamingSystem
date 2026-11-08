@@ -22,9 +22,15 @@ public final class Contracts {
        */
       @Pattern(regexp = "[a-z][a-z0-9-]{0,15}") String preferredNode,
       /** Что намерил создатель — для журнала и метрик, на выбор не влияет. */
-      @Size(max = 20) List<@Valid NodeMeasure> measurements) {
+      @Size(max = 20) List<@Valid NodeMeasure> measurements,
+      /**
+       * {@code preferredNode} выбран человеком в настройках, а не замером (R200, Р-101): ядро всё
+       * равно проверяет узел, а если взяло другой — говорит об этом в {@code
+       * Admission.nodeFallback}.
+       */
+      Boolean manual) {
     public Create(UUID commandId, String title, String name, boolean approvalRequired) {
-      this(commandId, title, name, approvalRequired, null, null, null);
+      this(commandId, title, name, approvalRequired, null, null, null, null);
     }
 
     public Create(
@@ -33,9 +39,35 @@ public final class Contracts {
         String name,
         boolean approvalRequired,
         Boolean integrationsAllowed) {
-      this(commandId, title, name, approvalRequired, integrationsAllowed, null, null);
+      this(commandId, title, name, approvalRequired, integrationsAllowed, null, null, null);
+    }
+
+    public Create(
+        UUID commandId,
+        String title,
+        String name,
+        boolean approvalRequired,
+        Boolean integrationsAllowed,
+        String preferredNode,
+        List<NodeMeasure> measurements) {
+      this(
+          commandId,
+          title,
+          name,
+          approvalRequired,
+          integrationsAllowed,
+          preferredNode,
+          measurements,
+          null);
     }
   }
+
+  /**
+   * Перевести идущую встречу на узел {@code to} (R200 §3.5). Пока — через переназначение комнаты с
+   * восстановлением у всех (разрыв в пару секунд); тёплый переезд без разрыва — §4 проекта.
+   */
+  public record MediaMove(
+      @NotNull UUID commandId, @NotBlank @Pattern(regexp = "[a-z][a-z0-9-]{0,15}") String to) {}
 
   /**
    * Замер пути до одного узла с устройства: TCP по {@code /api/v1/ping}, UDP — STUN к TURN узла.
@@ -420,7 +452,27 @@ public final class Contracts {
       String credential,
       String inviteUrl,
       int recoverySeconds,
-      Snapshot snapshot) {}
+      Snapshot snapshot,
+      /**
+       * Создатель просил узел руками, а ядро поставило встречу на другой (узел полон, мёртв или на
+       * дренаже) — клиент говорит об этом словами (R200, Р-101). Обычно поля нет.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          NodeFallback nodeFallback) {
+    public Admission(
+        String roomId,
+        String participantId,
+        String credential,
+        String inviteUrl,
+        int recoverySeconds,
+        Snapshot snapshot) {
+      this(roomId, participantId, credential, inviteUrl, recoverySeconds, snapshot, null);
+    }
+  }
+
+  /** Какой узел просили и какой дали. */
+  public record NodeFallback(String asked, String got) {}
 
   public record Resume(@Min(-1) long after) {}
 

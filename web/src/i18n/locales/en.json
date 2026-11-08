@@ -2,7 +2,8 @@
   "locale": "en",
   "common": {
     "close": "Close",
-    "guestInitial": "G"
+    "guestInitial": "G",
+    "cancel": "Cancel"
   },
   "language": {
     "label": "Language",
@@ -208,8 +209,8 @@
       },
       "server-node": {
         "label": "Meeting node",
-        "hint": "Measured path from this device to every media node",
-        "keywords": "media node latency path server"
+        "hint": "Auto — the nearest by measured path, or pick one",
+        "keywords": "media node latency path server region flag auto manual move"
       },
       "server-password": {
         "label": "Saved password",
@@ -454,10 +455,22 @@
       "connection": "Connection",
       "leaveFirst": "Leave the meeting first",
       "forget": "Forget password",
-      "shared": "Cord is one address. A meeting lives on the nearest media node, which the system picks from the path measured from your device — there is no server to change.",
       "nodeMs": "{{node}} · {{ms}} ms",
       "nodeClosed": "{{node}} · not answering",
-      "nodeUnknown": "The path to the nodes has not been measured yet"
+      "nodeUnknown": "The path to the nodes has not been measured yet",
+      "auto": "Auto",
+      "autoHint": "The nearest node by the path measured from this device, with load in mind",
+      "autoCreated": "The node was chosen when the meeting was created and stays for the whole meeting. Pick another one to move the meeting.",
+      "manualHint": "The next meeting you create will be on this node. People joining by link land on that meeting’s node.",
+      "thisMeeting": "This meeting’s node",
+      "creatorOnly": "Only the meeting’s creator can move it to another node",
+      "moveAsk": "Move the meeting to {{node}}?",
+      "moveNote": "This takes a couple of seconds: audio and video drop for everyone and come back on the new node.",
+      "move": "Move",
+      "moving": "Moving the meeting to {{node}}…",
+      "nodeDown": "not answering",
+      "nodeDrained": "under maintenance",
+      "nodeMsShort": "{{ms}} ms"
     },
     "sounds": {
       "cues": "Alerts",
@@ -573,7 +586,8 @@
       "ended": "Ended",
       "waiting": "Waiting to join",
       "recovering": "Reconnecting…",
-      "connecting": "Connecting…"
+      "connecting": "Connecting…",
+      "node": "Meeting node"
     },
     "settings": {
       "saveFailed": "Couldn't save",
@@ -659,7 +673,9 @@
       "done": "Meeting link copied",
       "failed": "Couldn't copy the meeting link",
       "copy": "Copy"
-    }
+    },
+    "nodeFallback": "{{asked}} is busy — the meeting was created on {{got}}",
+    "nodeMoved": "The meeting is now on {{node}}"
   },
   "chess": {
     "title": "Chess",
@@ -2751,7 +2767,9 @@
       },
       "default": "Default",
       "numbered": "Device {{n}}"
-    }
+    },
+    "serverManual": "Server: {{node}} · chosen manually",
+    "serverReset": "Auto"
   },
   "loader": {
     "slow": "Slow network",
@@ -3332,11 +3350,14 @@
     "MAINTENANCE_WINDOW_EXISTS": "A maintenance window already exists. Close it first",
     "MAINTENANCE_WINDOW_INVALID": "Check the window times: ISO-8601 with an offset, a start in the future, an end after the start and within the limit",
     "MAINTENANCE_WINDOW_NONE": "There is no maintenance window right now",
+    "MEDIA_MOVE_BUSY": "The meeting is restoring its connection — try again in a minute",
+    "MEDIA_MOVE_RATE": "A meeting can be moved no more than once a minute",
     "MEDIA_UNAVAILABLE": "Calls are temporarily unavailable. Try again in a minute",
     "MUSIC_TIMEOUT": "The platform didn't respond in time — try again",
     "MUSIC_UNREACHABLE": "This platform can't be reached from this server",
     "NAME_INVALID": "Enter a name",
     "NAME_RESERVED": "This name is reserved: meeting participants can't use it",
+    "NODE_UNAVAILABLE": "This node is not accepting meetings right now",
     "OPEN_ROOMS": "Several meetings are already running from your network. End one of them",
     "PASSWORD_MISSES": "Too many wrong passwords. Try again later",
     "PLATFORM_BUSY": "The platforms are busy with other requests — try again in a couple of seconds",

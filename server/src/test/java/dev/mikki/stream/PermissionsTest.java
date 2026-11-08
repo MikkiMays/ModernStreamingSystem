@@ -105,7 +105,7 @@ class PermissionsTest {
     assertThat(Arrays.stream(Action.values()).map(Action::wire))
         .doesNotHaveDuplicates()
         .allSatisfy(name -> assertThat(name).matches("[a-z]+\\.[a-z]+"))
-        .hasSize(38);
+        .hasSize(39);
   }
 
   /**

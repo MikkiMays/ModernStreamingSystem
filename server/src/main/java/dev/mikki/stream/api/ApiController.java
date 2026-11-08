@@ -360,6 +360,15 @@ public class ApiController {
     return media.token(id.toString(), credential);
   }
 
+  /** Перевести встречу на другой узел — создатель, из «Настройки → Сервер» (R200 §3.5). */
+  @PostMapping("/rooms/{id}/media/move")
+  public Contracts.Ack moveMedia(
+      @PathVariable UUID id,
+      @RequestHeader("Authorization") String credential,
+      @Valid @RequestBody Contracts.MediaMove move) {
+    return media.move(id.toString(), credential, move.commandId(), move.to());
+  }
+
   @PostMapping("/rooms/{id}/media/screen")
   public Contracts.Ack screen(
       @PathVariable UUID id,

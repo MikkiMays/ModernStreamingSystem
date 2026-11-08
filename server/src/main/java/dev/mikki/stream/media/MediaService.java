@@ -129,6 +129,15 @@ public class MediaService {
   public void moveRoom(String roomId, String from, String to) {
     var room = rooms.lock(roomId);
     if (room.closedAt != null || !nodes.resolve(room.mediaNode).id().equals(from)) return;
+    reassign(room, from, to, "dead node");
+  }
+
+  /**
+   * Переназначить комнату на узел {@code to}: люди на связи — в {@code RECOVERING}, клиенты по
+   * росту {@code mediaMoves} берут новый токен и приходят на новый узел ({@code session.ts
+   * relocate}).
+   */
+  private void reassign(RoomState room, String from, String to, String why) {
     room.mediaNode = to;
     room.mediaMoves = (room.mediaMoves == null ? 0 : room.mediaMoves) + 1;
     long deadline = rooms.now() + config.recoverySeconds() * 1000L;
@@ -138,9 +147,50 @@ public class MediaService {
         member.recoveryDeadline = deadline;
         member.mediaSid = null;
       }
-    log.warn("room {} moved from dead node {} to {}", roomId, from, to);
+    log.warn("room {} moved from {} {} to {}", room.id, why, from, to);
     rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
     repository.save(room, rooms.now());
+  }
+
+  /** Не чаще раза в столько — ручной перевод встречи ({@code server-selection.md} §3.5). */
+  public static final long MOVE_INTERVAL_MS = 60_000;
+
+  /**
+   * Создатель переводит встречу на другой узел руками (R200 §3.5, Р-104 — право {@code
+   * Permissions.Action.MEDIA_MOVE}). Пока это тот же путь, что при смерти узла: переназначение и
+   * восстановление у всех (разрыв в пару секунд, клиент говорит об этом честно); тёплый переезд без
+   * разрыва — §4 проекта, он заменит {@link #reassign} при фазе {@code switch}. Проверки: узел
+   * известен, принимает встречи, не полон; никто не в восстановлении; не чаще раза в минуту. Тот же
+   * узел — ничего не делать, ответ успешный.
+   */
+  @Transactional
+  public Contracts.Ack move(String id, String credential, UUID commandId, String to) {
+    var room = rooms.lock(id);
+    var member = rooms.authenticate(room, credential);
+    rooms.requireActive(room, member);
+    Permissions.require(room, member, Permissions.Action.MEDIA_MOVE);
+    return rooms.receipt(
+        "media-move:" + id + ":" + member.id,
+        commandId,
+        to,
+        Contracts.Ack.class,
+        () -> {
+          var from = nodes.resolve(room.mediaNode).id();
+          if (from.equals(to)) return new Contracts.Ack(commandId, true, room.sequence, to);
+          var target = nodes.available().stream().filter(n -> n.id().equals(to)).findFirst();
+          if (target.isEmpty() || nodes.levelOf(target.get()).state().equals("full"))
+            throw Problem.conflict("NODE_UNAVAILABLE", "Этот узел сейчас не принимает встречи");
+          if (room.members.values().stream().anyMatch(m -> m.status == RECOVERING))
+            throw Problem.conflict(
+                "MEDIA_MOVE_BUSY", "Встреча восстанавливает связь — попробуйте через минуту");
+          var now = rooms.now();
+          if (room.mediaMovedAt != null && now - room.mediaMovedAt < MOVE_INTERVAL_MS)
+            throw new Problem(
+                429, "MEDIA_MOVE_RATE", "Переводить встречу можно не чаще раза в минуту");
+          room.mediaMovedAt = now;
+          reassign(room, from, to, "by creator");
+          return new Contracts.Ack(commandId, true, room.sequence, to);
+        });
   }
 
   @Transactional

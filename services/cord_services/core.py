@@ -18,6 +18,7 @@ INTEGRATIONS = "integrations"
 PARTICIPANT = "participant"
 ACTIONS = {
     "telegram.link": CREATOR,
+    "media.move": CREATOR,
     "music.view": PARTICIPANT,
     "music.enable": INTEGRATIONS,
     "music.control": INTEGRATIONS,
