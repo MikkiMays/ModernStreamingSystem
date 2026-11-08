@@ -120,6 +120,21 @@ node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn
 
 Старую установку cordcam (157.22.241.114) **не останавливать** до шага «узел msk»: её база — для переноса избранного.
 
+**2.8. YouTube на meet (по просьбе владельца 08.11).** Кинозал качает YouTube с машины ядра — то есть с meet:
+```bash
+cd /opt/meet/ModernStreamingSystem
+docker compose exec -T services python -m yt_dlp -f 'bv*[height<=1080]' --newline -o /dev/null 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' 2>&1 | tail -5
+```
+Скорость > 1 МиБ/с и без «Sign in to confirm you're not a bot» — ничего не делать. Иначе — запасной выход через Хельсинки
+(адрес meet на B разрешён): на meet `PSK='<содержимое /opt/cord/youtube-proxy/tunnel.psk на B — взять у главной сессии>'
+sudo -E bash infra/youtube-proxy/client.sh 152.234.227.199`, в `.env` — `CINEMA_PROXY_YOUTUBE=http://cord:<пароль из
+/opt/cord/youtube-proxy/.password на B>@127.0.0.1:3128`, `docker compose up -d --no-deps --force-recreate services`, замер
+ещё раз. Ключ и пароль — от главной сессии, не в отчёт.
+
+**2.9. Пропуски, найденные при первом прогоне (08.11, GPT):** после смены имён обновить в `.env` прежний `LIVEKIT_URL`
+(на `wss://rtc-fra.cordcam.ru`) и пересоздать службу интеграций (`docker compose up -d --no-deps --force-recreate
+services`), чтобы она приняла новый Origin.
+
 
 ---
 
