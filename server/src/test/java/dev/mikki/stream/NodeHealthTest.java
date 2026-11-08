@@ -188,6 +188,21 @@ class NodeHealthTest {
   }
 
   @Test
+  void ruleCReadsTheRoomsOnlyWhenTwoMarksAreOldEnoughToDecide() {
+    when(media.onNode("hel")).thenReturn(people(Set.of("c", "d"), Set.of("a", "b")));
+    answer(0);
+    // Один в беде долго, второй — недавно: правилу C решать нечего, снимки комнат не читаются.
+    losses.lost("hel", "a", 1000);
+    losses.lost("hel", "b", 12000);
+    for (long at = 2000; at <= 30000; at += 2000) answer(at);
+    verify(media, never()).onNode("hel");
+    // Оба в беде дольше 20 с — читается и решается.
+    answer(32000);
+    verify(media).onNode("hel");
+    verify(nodes).down("hel", true);
+  }
+
+  @Test
   void complaintsAloneAreSomeonesWifiNotTheNode() {
     when(media.onNode("hel")).thenReturn(people(Set.of("d"), Set.of("a", "b", "c")));
     answer(0);

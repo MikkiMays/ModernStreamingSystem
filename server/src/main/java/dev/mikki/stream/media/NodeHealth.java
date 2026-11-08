@@ -235,9 +235,11 @@ public class NodeHealth {
     state.failures = 0;
     state.up.set(1);
     if (state.reachable.compareAndSet(0, 1)) nodes.unreachable(node.id(), false);
-    // Правило C: магистраль отвечает, а люди узла давно без медиа. Снимки комнат читаются только
-    // когда на узле есть хоть одна отметка — в спокойном состоянии опрос базу не трогает.
-    if (losses.reported(node.id()) == 0) return;
+    // Правило C: магистраль отвечает, а люди узла давно без медиа. Снимки комнат (все комнаты базы)
+    // читаются только когда на узле хотя бы двое в беде дольше порога — без этого правилу нечего
+    // решать. Чей-то Wi-Fi мигает постоянно, и раньше одна такая отметка заставляла опрос читать
+    // базу каждые 2 с, пока не забудется.
+    if (losses.stuck(node.id(), null, LossReports.STUCK_MS, now) < COMPLAINERS) return;
     var people = media.onNode(node.id());
     if (people.size() < PEOPLE_FOR_C) return;
     var stuck = losses.stuck(node.id(), people.recovering(), LossReports.STUCK_MS, now);
