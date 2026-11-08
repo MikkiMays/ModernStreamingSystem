@@ -1,42 +1,65 @@
 import { useServerLoad } from '../../core/server-load';
 import { LoadBars } from '../kit/LoadBars';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plug } from 'lucide-react';
-import { notifyDesktop, isDesktop } from '../../core/desktop';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../../core/servers';
 import { session } from '../../core/session';
+import { locale } from '../../i18n';
+import { nodeProbe, type ProbeResult } from '../../media/node-probe';
 import { useStore } from '../primitives';
 import { Button, Switch } from '../kit';
-import { ServerMenu } from '../ServerMenu';
 import { SettingGroup, SettingRow } from './Row';
 import { rowText } from './sections';
 
 /**
- * С каким сервером говорит этот клиент — другой вопрос, чем «кто вы на нём», поэтому не в
- * «Профиле». Настройки общие для всех серверов (R146, Р-39): имя, язык, устройства, звук,
- * сочетания, качество — с человеком и при смене сервера; комнаты, избранное и недавние у каждого
- * сервера свои — это и сказано под заголовком. Адреса руками здесь нет и не будет (П4).
+ * С чем говорит этот клиент — другой вопрос, чем «кто вы на нём», поэтому не в «Профиле».
  *
- * В приложении список серверов — родной (`servers.open`), и там же выбор, подключаться ли само при
- * запуске. В браузере сервер — это сайт: «Сменить сервер» показывает серверы из каталога установки
- * и переходит на сайт выбранного (R136), а подключение к своему серверу всегда само (R135) —
- * ни выключателя, ни «Отключиться», после которого страница тут же подключилась бы снова.
+ * Сервера здесь не выбирают (R195, владелец: «убрать возможность выбора сервера»): продукт — один адрес,
+ * а встреча живёт на том медиаузле, до которого у её создателя лучший путь, — это меряет и решает система
+ * (`media/node-probe.ts`). Человеку остаётся видеть, что она намерила: «Хельсинки · 12 мс, Франкфурт ·
+ * 41 мс». Пароль сервера и PING — как прежде. Строки «Подключаться автоматически» нет ни в браузере
+ * (R135), ни в приложении: сервер один, подключение к нему всегда само.
  */
 export function ServerSection({
   showPing,
   changePing,
-  inCall,
+  /** Узел идущей встречи — первым в строке узлов; вне встречи — null. */
+  mediaNode = null,
 }: {
   showPing: boolean;
   changePing: (showPing: boolean) => void;
-  inCall: boolean;
+  mediaNode?: string | null;
 }) {
   const { t } = useTranslation();
-  const desktop = isDesktop();
   const current = useStore(session);
   const [saved, setSaved] = useState(thisServer);
   const load = useServerLoad();
+  const language = locale(t);
+  const [probe, setProbe] = useState<ProbeResult | null>(nodeProbe.last());
+  useEffect(() => {
+    // Открыли настройки — замер освежается, если устарел; один узел — мерить нечего.
+    if (nodeProbe.known().length <= 1) return;
+    let active = true;
+    void nodeProbe.refresh().then((result) => {
+      if (active) setProbe(result);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const nodes = nodeProbe.known();
+  const ordered = [...nodes].sort((a, b) => Number(b.id === mediaNode) - Number(a.id === mediaNode));
+  const line = ordered
+    .map((node) => {
+      const title = nodeProbe.title(node.id, language);
+      const measure = probe?.measures.find((m) => m.node === node.id);
+      if (!measure) return title;
+      const ms = measure.udpOpen ? measure.udpMs : measure.tcpMs;
+      return ms === null
+        ? t(($) => $.settings.server.nodeClosed, { node: title })
+        : t(($) => $.settings.server.nodeMs, { node: title, ms });
+    })
+    .join(', ');
   return (
     <SettingGroup title={t(($) => $.settings.server.connection)} note={t(($) => $.settings.server.shared)}>
       <SettingRow
@@ -53,39 +76,9 @@ export function ServerSection({
             )}
           </>
         }
-      >
-        {desktop ? (
-          <Button
-            size="sm"
-            icon={<Plug />}
-            disabled={inCall}
-            title={inCall ? t(($) => $.settings.server.leaveFirst) : undefined}
-            onClick={() => notifyDesktop('servers.open')}
-          >
-            {t(($) => $.settings.server.change)}
-          </Button>
-        ) : (
-          <ServerMenu
-            label={t(($) => $.settings.server.change)}
-            icon={<Plug />}
-            disabled={inCall}
-            title={inCall ? t(($) => $.settings.server.leaveFirst) : undefined}
-          />
-        )}
-      </SettingRow>
-      {desktop && (
-        <SettingRow id="server-autoconnect">
-          <Switch
-            checked={saved.autoConnect}
-            ariaLabel={rowText(t, 'server-autoconnect').label}
-            onCheckedChange={(autoConnect) => {
-              setSaved(rememberServer({ autoConnect }));
-              // Список адресов — родной, и выключатель правдив, только если оболочка о нём узнала;
-              // иначе это флажок, который ничего не делает.
-              notifyDesktop('server.autoconnect', { autoConnect });
-            }}
-          />
-        </SettingRow>
+      />
+      {nodes.length > 0 && (
+        <SettingRow id="server-node" hint={line || t(($) => $.settings.server.nodeUnknown)} />
       )}
       {!!saved.password && (
         <SettingRow id="server-password">

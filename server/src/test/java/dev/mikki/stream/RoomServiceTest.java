@@ -43,6 +43,7 @@ class RoomServiceTest {
   @Autowired StreamProperties config;
   @Autowired JdbcClient jdbc;
   @Autowired dev.mikki.stream.board.BoardStore boardStore;
+  @Autowired dev.mikki.stream.nodes.MediaNodes nodes;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
@@ -583,7 +584,9 @@ class RoomServiceTest {
     var host = host();
     var oldRoom = rooms.read(host.roomId());
     var oldToken =
-        new MediaGateway(config).token(oldRoom, oldRoom.members.get(host.participantId())).token();
+        new MediaGateway(config, nodes, repository)
+            .token(oldRoom, oldRoom.members.get(host.participantId()))
+            .token();
     rooms.command(
         host.roomId(),
         host.credential(),
@@ -693,7 +696,9 @@ class RoomServiceTest {
     var guest = guest(host);
     var room = rooms.read(host.roomId());
     var token =
-        new MediaGateway(config).token(room, room.members.get(guest.participantId())).token();
+        new MediaGateway(config, nodes, repository)
+            .token(room, room.members.get(guest.participantId()))
+            .token();
     media.authorizeSignaling(token);
     command(host, "participant.remove", guest.participantId(), 0);
     assertThatThrownBy(() -> media.authorizeSignaling(token)).isInstanceOf(Problem.class);
@@ -779,7 +784,7 @@ class RoomServiceTest {
     var host = host();
     doThrow(new Problem(503, "MEDIA_UNAVAILABLE", "Offline"))
         .when(gateway)
-        .permissions(anyString(), anyString(), eq(true));
+        .permissions(any(RoomState.class), anyString(), eq(true));
     assertThatThrownBy(
             () -> media.screen(host.roomId(), host.credential(), UUID.randomUUID(), true))
         .isInstanceOf(Problem.class);

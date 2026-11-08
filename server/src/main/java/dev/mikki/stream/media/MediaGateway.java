@@ -1,28 +1,54 @@
 package dev.mikki.stream.media;
 
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.nodes.MediaNode;
+import dev.mikki.stream.nodes.MediaNodes;
 import dev.mikki.stream.room.Contracts.MediaToken;
+import dev.mikki.stream.room.RoomRepository;
 import dev.mikki.stream.room.RoomState;
 import dev.mikki.stream.shared.Problem;
 import io.livekit.server.*;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import livekit.LivekitModels;
 import org.springframework.stereotype.Component;
 
+/**
+ * Разговор ядра с SFU — с тем узлом, на котором живёт комната (R195).
+ *
+ * <p>Узел комнаты — {@code RoomState.mediaNode}, узлы — {@link MediaNodes}; у каждого узла свой
+ * Twirp-клиент по его {@code internalUrl} (на узле управления — {@code 127.0.0.1:7880}, на других —
+ * локальный порт магистрали). Токен участника несёт {@code rtcUrl} узла комнаты: сигнал и медиа
+ * идут прямо туда, ядро между ними не стоит.
+ */
 @Component
 public class MediaGateway {
   private final StreamProperties config;
-  private final RoomServiceClient client;
+  private final MediaNodes nodes;
+  private final RoomRepository rooms;
+  private final Map<String, RoomServiceClient> clients = new ConcurrentHashMap<>();
 
-  public MediaGateway(StreamProperties config) {
+  public MediaGateway(StreamProperties config, MediaNodes nodes, RoomRepository rooms) {
     this.config = config;
-    client =
-        RoomServiceClient.createClient(
-            config.livekitInternalUrl(),
-            config.livekitKey(),
-            config.livekitSecret(),
-            () -> new okhttp3.OkHttpClient.Builder().callTimeout(Duration.ofSeconds(3)).build());
+    this.nodes = nodes;
+    this.rooms = rooms;
+  }
+
+  private RoomServiceClient client(MediaNode node) {
+    return clients.computeIfAbsent(
+        node.internalUrl(),
+        url ->
+            RoomServiceClient.createClient(
+                url,
+                config.livekitKey(),
+                config.livekitSecret(),
+                () ->
+                    new okhttp3.OkHttpClient.Builder().callTimeout(Duration.ofSeconds(3)).build()));
+  }
+
+  private MediaNode nodeOf(String roomId) {
+    return nodes.resolve(rooms.get(roomId, false).mediaNode);
   }
 
   public MediaToken token(RoomState room, RoomState.Member member) {
@@ -38,7 +64,8 @@ public class MediaGateway {
         new CanPublishData(false),
         new CanUpdateOwnMetadata(false),
         new CanPublishSources(sources(member.screen)));
-    return new MediaToken(config.livekitUrl(), token.toJwt(), System.currentTimeMillis() + 60000);
+    return new MediaToken(
+        nodes.resolve(room.mediaNode).rtcUrl(), token.toJwt(), System.currentTimeMillis() + 60000);
   }
 
   public static List<String> sources(boolean screen) {
@@ -47,7 +74,7 @@ public class MediaGateway {
         : List.of("camera", "microphone");
   }
 
-  public void permissions(String roomId, String participantId, boolean screen) {
+  public void permissions(RoomState room, String participantId, boolean screen) {
     var permission =
         LivekitModels.ParticipantPermission.newBuilder()
             .setCanSubscribe(true)
@@ -60,15 +87,23 @@ public class MediaGateway {
       permission
           .addCanPublishSources(LivekitModels.TrackSource.SCREEN_SHARE)
           .addCanPublishSources(LivekitModels.TrackSource.SCREEN_SHARE_AUDIO);
-    execute(client.updateParticipant(roomId, participantId, null, null, permission.build()));
+    execute(
+        client(nodes.resolve(room.mediaNode))
+            .updateParticipant(room.id, participantId, null, null, permission.build()));
   }
 
+  public List<LivekitModels.ParticipantInfo> participants(RoomState room) {
+    return execute(client(nodes.resolve(room.mediaNode)).listParticipants(room.id));
+  }
+
+  /** То же по имени комнаты — для вызовов, у которых самой комнаты под рукой нет (команды). */
   public List<LivekitModels.ParticipantInfo> participants(String roomId) {
-    return execute(client.listParticipants(roomId));
+    return execute(client(nodeOf(roomId)).listParticipants(roomId));
   }
 
   public void muteMicrophone(String roomId, String participantId) {
-    for (var participant : participants(roomId)) {
+    var client = client(nodeOf(roomId));
+    for (var participant : execute(client.listParticipants(roomId))) {
       if (!participant.getIdentity().equals(participantId)) continue;
       for (var track : participant.getTracksList())
         if (track.getSource() == LivekitModels.TrackSource.MICROPHONE)
@@ -76,17 +111,31 @@ public class MediaGateway {
     }
   }
 
+  public void remove(RoomState room, String participantId) {
+    execute(client(nodes.resolve(room.mediaNode)).removeParticipant(room.id, participantId));
+  }
+
   public void remove(String roomId, String participantId) {
-    execute(client.removeParticipant(roomId, participantId));
+    execute(client(nodeOf(roomId)).removeParticipant(roomId, participantId));
   }
 
   /**
    * Распустить комнату SFU (R97). Все участники получают {@code Disconnected(ROOM_DELETED)} по
    * сигнальному сокету одновременно со снимком ядра — встреча закрывается у всех сразу, какой бы из
-   * двух путей ни пришёл первым.
+   * двух путей ни пришёл первым. {@code nodeId} — узел комнаты на момент закрытия: сама комната к
+   * этому моменту уже закрыта, и перечитывать её незачем.
    */
-  public void close(String roomId) {
-    execute(client.deleteRoom(roomId));
+  public void close(String nodeId, String roomId) {
+    execute(client(nodes.resolve(nodeId)).deleteRoom(roomId));
+  }
+
+  /**
+   * Жив ли узел и сколько комнат он держит — опрос {@link NodeHealth}. Отказ — {@link Problem}
+   * {@code MEDIA_UNAVAILABLE}, как у любого вызова SFU.
+   */
+  public int rooms(MediaNode node) {
+    var list = execute(client(node).listRooms(List.of()));
+    return list == null ? 0 : list.size();
   }
 
   private <T> T execute(retrofit2.Call<T> call) {

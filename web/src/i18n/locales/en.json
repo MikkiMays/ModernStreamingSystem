@@ -206,10 +206,10 @@
         "hint": "",
         "keywords": "address disconnect change"
       },
-      "server-autoconnect": {
-        "label": "Connect on startup",
-        "hint": "",
-        "keywords": "auto connect"
+      "server-node": {
+        "label": "Meeting node",
+        "hint": "Measured path from this device to every media node",
+        "keywords": "media node latency path server"
       },
       "server-password": {
         "label": "Saved password",
@@ -453,10 +453,11 @@
     "server": {
       "connection": "Connection",
       "leaveFirst": "Leave the meeting first",
-      "change": "Change server",
       "forget": "Forget password",
-      "here": "You’re here",
-      "shared": "Settings are shared by all servers. Rooms, Favorites and recent meetings are separate on each server."
+      "shared": "Cord is one address. A meeting lives on the nearest media node, which the system picks from the path measured from your device — there is no server to change.",
+      "nodeMs": "{{node}} · {{ms}} ms",
+      "nodeClosed": "{{node}} · not answering",
+      "nodeUnknown": "The path to the nodes has not been measured yet"
     },
     "sounds": {
       "cues": "Alerts",
@@ -2486,10 +2487,8 @@
     "searching": "Looking for the server…",
     "password": "Server password",
     "passwordPlaceholder": "Ask the person who invited you",
-    "autoConnect": "Connect automatically on startup",
     "connecting": "Connecting…",
     "connect": "Connect",
-    "otherServer": "Another server…",
     "connected": "Connected!",
     "notConnected": "Not connected"
   },
@@ -3138,7 +3137,9 @@
       "silent": "Silence — the sender is paused or falling behind",
       "sound": "Flowing"
     },
-    "concealment": "Audio gaps per second"
+    "concealment": "Audio gaps per second",
+    "node": "Meeting node",
+    "nodeMs": "{{node}} · {{ms}} ms"
   },
   "download": {
     "home": "Cord — home",

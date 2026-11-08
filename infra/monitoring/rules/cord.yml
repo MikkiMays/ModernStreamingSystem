@@ -169,3 +169,37 @@ groups:
         expr: increase(cord_errors_total{code="CODE_INVALID"}[5m]) > 1000
         labels: { severity: info }
         annotations: { summary: 'Перебор кодов встреч: включён «щит», вход по коду идёт через ведущего' }
+
+  # ── Медиаузлы (R195, docs/architecture/distributed-media.md) ────────────────────────────────────
+  - name: cord-nodes
+    interval: 30s
+    rules:
+      # Ядро не достучалось до узла три опроса подряд (≈ 15 с): его встречи уже переехали; алерт — о том,
+      # что узла нет и ёмкость меньше. Две минуты, чтобы перезапуск контейнера узла не кричал.
+      - alert: NodeDown
+        expr: cord_node_up == 0
+        for: 2m
+        labels: { severity: page }
+        annotations: { summary: 'Медиаузел {{ $labels.node }} не отвечает ядру: встречи с него переехали, новых на него нет' }
+
+      # Магистраль до узла: VictoriaMetrics не видит SFU узла через туннель, хотя ядро видит (или нет) —
+      # либо backbone на A/узле упал, либо 7443 закрыт.
+      - alert: NodeScrapeDown
+        expr: max_over_time(up{job="nodes",role="livekit"}[5m]) == 0
+        for: 5m
+        labels: { severity: warn }
+        annotations: { summary: 'Метрики SFU узла {{ $labels.node }} не собираются десять минут: магистраль или сам SFU' }
+
+      # Остался один живой узел — не авария, но резерва для переезда нет.
+      - alert: NodeSingle
+        expr: count(cord_node_up == 1) == 1 and count(cord_node_up) > 1
+        for: 10m
+        labels: { severity: info }
+        annotations: { summary: 'Жив только один медиаузел: отказ ещё одного оставит встречи без узла' }
+
+      # Хост узла: steal гипервизора — звонки на нём будут замирать (как HostStalled у A).
+      - alert: NodeHostStalled
+        expr: avg by (node) (rate(node_cpu_seconds_total{job="nodes",mode="steal"}[5m])) > 0.3
+        for: 10m
+        labels: { severity: warn }
+        annotations: { summary: 'Хост узла {{ $labels.node }} тормозит: steal {{ $value | humanizePercentage }}' }

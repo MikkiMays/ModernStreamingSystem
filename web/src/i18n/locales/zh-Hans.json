@@ -206,10 +206,10 @@
         "hint": "",
         "keywords": "地址 断开 更换"
       },
-      "server-autoconnect": {
-        "label": "启动时连接",
-        "hint": "",
-        "keywords": "自动连接"
+      "server-node": {
+        "label": "会议节点",
+        "hint": "从本设备到每个媒体节点的测量路径",
+        "keywords": "媒体节点 延迟 路径 服务器"
       },
       "server-password": {
         "label": "已保存的密码",
@@ -453,10 +453,11 @@
     "server": {
       "connection": "连接",
       "leaveFirst": "请先离开会议",
-      "change": "更换服务器",
       "forget": "忘记密码",
-      "here": "当前所在",
-      "shared": "设置在所有服务器上通用。房间、收藏和最近的会议在每台服务器上各自独立。"
+      "shared": "Cord 只有一个地址。会议运行在最近的媒体节点上，由系统根据从您的设备测得的路径选择，无需更换服务器。",
+      "nodeMs": "{{node}} · {{ms}} 毫秒",
+      "nodeClosed": "{{node}} · 无响应",
+      "nodeUnknown": "尚未测量到各节点的路径"
     },
     "sounds": {
       "cues": "提示音",
@@ -2458,10 +2459,8 @@
     "searching": "正在查找服务器…",
     "password": "服务器密码",
     "passwordPlaceholder": "向邀请你的人索取",
-    "autoConnect": "启动时自动连接",
     "connecting": "正在连接…",
     "connect": "连接",
-    "otherServer": "其他服务器…",
     "connected": "已连接！",
     "notConnected": "未连接"
   },
@@ -3105,7 +3104,9 @@
       "silent": "静音——发送方已暂停或跟不上",
       "sound": "正常"
     },
-    "concealment": "每秒音频空缺"
+    "concealment": "每秒音频空缺",
+    "node": "会议节点",
+    "nodeMs": "{{node}} · {{ms}} 毫秒"
   },
   "download": {
     "home": "Cord——返回首页",

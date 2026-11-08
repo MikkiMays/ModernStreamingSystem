@@ -5,6 +5,7 @@ import static dev.mikki.stream.room.RoomState.Status.*;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.nodes.MediaNodes;
 import dev.mikki.stream.room.*;
 import dev.mikki.stream.shared.Problem;
 import java.util.*;
@@ -17,9 +18,16 @@ public class MediaService {
   private final RoomRepository repository;
   private final MediaGateway gateway;
   private final StreamProperties config;
+  private final MediaNodes nodes;
+  private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MediaService.class);
 
   public MediaService(
-      RoomService rooms, RoomRepository repository, MediaGateway gateway, StreamProperties config) {
+      RoomService rooms,
+      RoomRepository repository,
+      MediaGateway gateway,
+      StreamProperties config,
+      MediaNodes nodes) {
+    this.nodes = nodes;
     this.rooms = rooms;
     this.repository = repository;
     this.gateway = gateway;
@@ -49,7 +57,7 @@ public class MediaService {
                 && room.members.values().stream().filter(m -> m.screen && m.mediaAllowed()).count()
                     >= config.maxScreens())
               throw Problem.conflict("SCREEN_LIMIT", "Уже транслируются два экрана");
-            gateway.permissions(id, member.id, enabled);
+            gateway.permissions(room, member.id, enabled);
             member.screen = enabled;
             member.screenId = enabled ? UUID.randomUUID().toString() : null;
             member.screenStarted = false;
@@ -63,6 +71,15 @@ public class MediaService {
 
   /** Called only by Caddy on the private network for each external signaling handshake. */
   public void authorizeSignaling(String rawToken) {
+    authorizeSignaling(rawToken, null);
+  }
+
+  /**
+   * {@code node} — узел, принявший сокет ({@code X-Media-Node} от его шлюза, R195): токен комнаты
+   * открывает сигналинг только на узле этой комнаты. Пусто — шлюз старый или узел управления: тогда
+   * проверяется, что комната и правда на узле управления.
+   */
+  public void authorizeSignaling(String rawToken, String node) {
     try {
       var jwt =
           JWT.require(Algorithm.HMAC256(config.livekitSecret()))
@@ -75,6 +92,9 @@ public class MediaService {
       var member = room.members.get(jwt.getSubject());
       if (member == null) throw Problem.forbidden();
       rooms.requireActive(room, member);
+      var expected = nodes.resolve(room.mediaNode).id();
+      var actual = node == null || node.isBlank() ? nodes.control().id() : node;
+      if (!expected.equals(actual)) throw Problem.forbidden();
       var sources = grants.get("canPublishSources");
       if (!(sources instanceof List<?> requested)
           || !MediaGateway.sources(member.screen).containsAll(requested)) throw Problem.forbidden();
@@ -83,6 +103,43 @@ public class MediaService {
     } catch (Exception e) {
       throw Problem.forbidden();
     }
+  }
+
+  /**
+   * Узел умер (R195, {@code NodeHealth}): каждая открытая встреча этого узла переезжает на лучший
+   * живой. Люди на связи помечаются {@code RECOVERING} с обычным окном восстановления — их медиа
+   * пропало вместе с узлом, и клиенты в этом окне берут новый токен ({@code /token}) с адресом
+   * нового узла. Ссылка, чат, права — не меняются. Мёртвый узел уже исключён из выбора, поэтому
+   * {@code choose(null)} даст другой; если живых нет вовсе — комнаты остаются на месте.
+   */
+  public void evacuate(String nodeId) {
+    for (var candidate : repository.all()) {
+      if (candidate.closedAt != null || !nodes.resolve(candidate.mediaNode).id().equals(nodeId))
+        continue;
+      var target = nodes.choose(null).node();
+      if (target.id().equals(nodeId)) {
+        log.warn("room {} stays on dead node {}: no other node is alive", candidate.id, nodeId);
+        continue;
+      }
+      moveRoom(candidate.id, nodeId, target.id());
+    }
+  }
+
+  @Transactional
+  public void moveRoom(String roomId, String from, String to) {
+    var room = rooms.lock(roomId);
+    if (room.closedAt != null || !nodes.resolve(room.mediaNode).id().equals(from)) return;
+    room.mediaNode = to;
+    long deadline = rooms.now() + config.recoverySeconds() * 1000L;
+    for (var member : room.members.values())
+      if (member.status == CONNECTED) {
+        member.status = RECOVERING;
+        member.recoveryDeadline = deadline;
+        member.mediaSid = null;
+      }
+    log.warn("room {} moved from dead node {} to {}", roomId, from, to);
+    rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
+    repository.save(room, rooms.now());
   }
 
   @Transactional

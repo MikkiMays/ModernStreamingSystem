@@ -144,7 +144,7 @@ class MaintenanceWindowTest {
     assertThat(closed.members.values()).noneMatch(RoomState.Member::occupiesSeat);
     assertThat(api.capabilities().maintenanceWindow().phase()).isEqualTo("active");
     // Тем же путём, что «Завершить для всех»: комната SFU распускается после фиксации.
-    verify(gateway, timeout(5000)).close(live.roomId());
+    verify(gateway, timeout(5000)).close(any(), eq(live.roomId()));
   }
 
   @Test

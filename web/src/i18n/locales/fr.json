@@ -206,10 +206,10 @@
         "hint": "",
         "keywords": "adresse déconnecter changer"
       },
-      "server-autoconnect": {
-        "label": "Se connecter au démarrage",
-        "hint": "",
-        "keywords": "connexion automatique"
+      "server-node": {
+        "label": "Nœud de la réunion",
+        "hint": "Chemin mesuré depuis cet appareil vers chaque nœud média",
+        "keywords": "nœud média latence chemin serveur"
       },
       "server-password": {
         "label": "Mot de passe enregistré",
@@ -453,10 +453,11 @@
     "server": {
       "connection": "Connexion",
       "leaveFirst": "Quittez d'abord la réunion",
-      "change": "Changer de serveur",
       "forget": "Oublier le mot de passe",
-      "here": "Vous êtes ici",
-      "shared": "Les paramètres sont communs à tous les serveurs. Les salles, les favoris et les réunions récentes sont propres à chaque serveur."
+      "shared": "Cord est une seule adresse. La réunion vit sur le nœud média le plus proche, choisi par le système d’après le chemin mesuré depuis votre appareil : il n’y a pas de serveur à changer.",
+      "nodeMs": "{{node}} · {{ms}} ms",
+      "nodeClosed": "{{node}} · ne répond pas",
+      "nodeUnknown": "Le chemin vers les nœuds n’a pas encore été mesuré"
     },
     "sounds": {
       "cues": "Signaux",
@@ -2514,10 +2515,8 @@
     "searching": "Recherche du serveur…",
     "password": "Mot de passe du serveur",
     "passwordPlaceholder": "Demandez-le à la personne qui vous a invité",
-    "autoConnect": "Se connecter automatiquement au démarrage",
     "connecting": "Connexion…",
     "connect": "Se connecter",
-    "otherServer": "Autre serveur…",
     "connected": "Connecté !",
     "notConnected": "Non connecté"
   },
@@ -3171,7 +3170,9 @@
       "silent": "Silence — l’émetteur est en pause ou prend du retard",
       "sound": "Arrive"
     },
-    "concealment": "Trous audio par seconde"
+    "concealment": "Trous audio par seconde",
+    "node": "Nœud de la réunion",
+    "nodeMs": "{{node}} · {{ms}} ms"
   },
   "download": {
     "home": "Cord — accueil",

@@ -47,7 +47,8 @@ public class MediaRoomCloser implements RoomObserver {
   @Override
   public void closed(RoomState room, String reason, long now) {
     var roomId = room.id;
-    Runnable close = () -> executor.execute(() -> delete(roomId));
+    var nodeId = room.mediaNode;
+    Runnable close = () -> executor.execute(() -> delete(nodeId, roomId));
     if (TransactionSynchronizationManager.isSynchronizationActive())
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
@@ -59,9 +60,9 @@ public class MediaRoomCloser implements RoomObserver {
     else close.run();
   }
 
-  private void delete(String roomId) {
+  private void delete(String nodeId, String roomId) {
     try {
-      gateway.close(roomId);
+      gateway.close(nodeId, roomId);
     } catch (Problem e) {
       log.warn("SFU room {} was not deleted after the meeting ended: {}", roomId, e.getMessage());
     } catch (RuntimeException e) {

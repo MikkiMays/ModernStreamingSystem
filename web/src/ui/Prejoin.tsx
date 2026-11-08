@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { nodeProbe } from '../media/node-probe';
 import { prepareHuman, publicApi, RoomApi } from '../api/client';
 import type { Admission } from '../api/types';
 import type { DeviceChoice } from '../media/session';
@@ -163,15 +164,20 @@ export function Prejoin({
                   { commandId: commandId.current, invite: destination.invite, name: displayName },
                   leave,
                 )
-              : publicApi.create(
-                  {
-                    commandId: commandId.current,
-                    title: title.trim(),
-                    name: displayName,
-                    approvalRequired,
-                    integrationsAllowed,
-                  },
-                  leave,
+              : // Узел медиа — по замеру пути с этого устройства (R195): результат обычно уже есть; идущий
+                // замер ждём не дольше бюджета, чтобы не задерживать вход.
+                nodeProbe.preferred().then(({ node, measures }) =>
+                  publicApi.create(
+                    {
+                      commandId: commandId.current,
+                      title: title.trim(),
+                      name: displayName,
+                      approvalRequired,
+                      integrationsAllowed,
+                      ...(node ? { preferredNode: node, measurements: measures } : {}),
+                    },
+                    leave,
+                  ),
                 );
   /** Отказ входа: «вы уже во встрече» — окно выбора, всё остальное — строка ошибки в форме. */
   const refused = (e: unknown) => {

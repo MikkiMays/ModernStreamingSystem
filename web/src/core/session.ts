@@ -5,6 +5,7 @@ import { rememberServer, thisServer } from './servers';
 import { notifyDesktop, hasFeature } from './desktop';
 import { signal } from './sounds';
 import { rememberQuality } from '../media/capabilities';
+import { nodeProbe } from '../media/node-probe';
 import { t } from '../i18n';
 import { classify, noteFailure } from './failure';
 
@@ -104,6 +105,8 @@ export function disconnect() {
 export function serverInfo(): Promise<Capabilities> {
   return publicApi.capabilities().then((capabilities) => {
     rememberQuality(capabilities);
+    // Медиаузлы (R195): замер пути до каждого — в фоне, сразу; к «Создать встречу» он уже готов.
+    nodeProbe.schedule(capabilities.nodes ?? []);
     return capabilities;
   });
 }
@@ -179,8 +182,8 @@ export function renew(): Promise<boolean> {
 }
 
 /** Remembers a working password so the next launch can connect without asking. */
-export function rememberConnection(password: string, autoConnect: boolean) {
-  rememberServer({ password, autoConnect });
+export function rememberConnection(password: string) {
+  rememberServer({ password });
 }
 
 /**

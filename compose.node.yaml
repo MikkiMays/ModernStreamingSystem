@@ -1,0 +1,93 @@
+name: cord-node
+
+# Медиаузел Cord (R195, docs/architecture/distributed-media.md, поправка 08.11.2026): SFU + TURN + edge +
+# gateway-lite + магистраль. Ядра, базы, Redis и служб здесь нет — они на узле управления, к которому
+# этот узел ходит через `backbone` (mTLS по TCP). Все файлы рядом с этим compose кладёт
+# `backlog/bin/node.sh <id> deploy` из `infra/generated/nodes/<id>/` узла управления:
+#   .env (= node.env), edge.json, livekit.json, backbone.json, Caddyfile, pki/, tls/
+# Сборок на узле нет: образы — только публичные, закреплённые по digest как в compose.yaml.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+services:
+  # 443 узла: TLS по SNI — `turn-<id>` на TURN/TLS 5349, `<id>` и `rtc-<id>` на gateway-lite. Тот же
+  # генератор, что у стенда (`scripts/edge-config.mjs`).
+  edge:
+    logging: *default-logging
+    image: livekit/caddyl4:v2.11.3@sha256:9dd090159a6042a907dbff0ce9dda27a21d2a559dc7b03b60a8e6b1b60b8348e
+    network_mode: host
+    command: run --config /etc/edge.json
+    restart: unless-stopped
+    volumes:
+      - ./edge.json:/etc/edge.json:ro
+      - ./tls:/etc/tls:ro
+      - certificates:/data
+    depends_on: [gateway]
+  # Шлюз-лайт (infra/Caddyfile.node): только `/rtc*` с forward_auth в ядро A через магистраль и
+  # `/api/v1/ping` для замера пути; всё остальное — редирект на адрес продукта.
+  gateway:
+    logging: *default-logging
+    image: caddy:2.11.3-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
+    network_mode: host
+    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    env_file: .env
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/config, /data, /tmp]
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro]
+    depends_on: [backbone]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:2019/metrics']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  # SFU + TURN этого узла. Без Redis: узел независим, комнаты на него назначает ядро.
+  livekit:
+    logging: *default-logging
+    image: livekit/livekit-server:v1.13.6@sha256:e37d68f172556d02aa77968b9fc55ef481468c0315fa38e4fa6c56ce72e3a815
+    network_mode: host
+    command: --config /etc/livekit.json
+    volumes: [./livekit.json:/etc/livekit.json:ro]
+    # Как на стенде (MEDIA-DIAGNOSIS §6): первым на процессор, последним под ООМ, без swap.
+    cpu_shares: 4096
+    oom_score_adj: -500
+    mem_limit: 1g
+    memswap_limit: 1g
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
+    restart: unless-stopped
+    depends_on: [backbone]
+    stop_grace_period: 2m
+  # Магистраль (scripts/backbone-config.mjs): `:7443` принимает узел управления по клиентскому
+  # сертификату и отдаёт ему SFU и метрики; `127.0.0.1:18080/18090` ведут к ядру и крюкам A.
+  backbone:
+    logging: *default-logging
+    image: livekit/caddyl4:v2.11.3@sha256:9dd090159a6042a907dbff0ce9dda27a21d2a559dc7b03b60a8e6b1b60b8348e
+    network_mode: host
+    command: run --config /etc/backbone.json
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/config, /data, /root, /tmp]
+    volumes:
+      - ./backbone.json:/etc/backbone.json:ro
+      - ./pki:/pki:ro
+    mem_limit: 128m
+  # Машина: ЦП, steal, память, сеть — скрапит VictoriaMetrics узла управления через магистраль.
+  node-exporter:
+    logging: *default-logging
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=127.0.0.1:9100
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|run|sys|var/lib/docker/.+)($$|/)
+    volumes: ['/:/host:ro,rslave']
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 64m
+    restart: unless-stopped
+volumes:
+  certificates:

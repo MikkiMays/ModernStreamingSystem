@@ -52,7 +52,20 @@ public class ApiController {
       // данные, пока нигде не показаны. Окна нет — поля нет.
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          MaintenanceWindows.MaintenanceNotice maintenanceWindow) {}
+          MaintenanceWindows.MaintenanceNotice maintenanceWindow,
+      // Медиаузлы, принимающие встречи (R195), узел управления — первым: клиент меряет путь до
+      // каждого
+      // (`probeUrl/api/v1/ping`, STUN к `stun`) и присылает лучший в `preferredNode`. Один узел —
+      // мерить нечего.
+      List<MediaNodeInfo> nodes) {}
+
+  public record MediaNodeInfo(
+      String id,
+      Map<String, String> title,
+      String rtcUrl,
+      String probeUrl,
+      String stun,
+      boolean control) {}
 
   public record QualityRules(
       @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
@@ -81,6 +94,7 @@ public class ApiController {
   private final dev.mikki.stream.access.UploadQuota uploads;
   private final dev.mikki.stream.activity.ClientQuality quality;
   private final dev.mikki.stream.room.Maintenance maintenance;
+  private final dev.mikki.stream.nodes.MediaNodes nodes;
 
   /** Итог звонка — один на вход во встречу: второй с того же входа — отказ «слишком часто». */
   private static final dev.mikki.stream.config.Rate ONE_REPORT =
@@ -102,7 +116,9 @@ public class ApiController {
       dev.mikki.stream.activity.Audit audit,
       dev.mikki.stream.access.UploadQuota uploads,
       dev.mikki.stream.activity.ClientQuality quality,
-      dev.mikki.stream.room.Maintenance maintenance) {
+      dev.mikki.stream.room.Maintenance maintenance,
+      dev.mikki.stream.nodes.MediaNodes nodes) {
+    this.nodes = nodes;
     this.maintenance = maintenance;
     this.rooms = rooms;
     this.media = media;
@@ -149,7 +165,13 @@ public class ApiController {
             quality.cameraYieldsToScreen()),
         config.favorites().maxSaved(),
         maintenance.on(),
-        maintenance.notice());
+        maintenance.notice(),
+        nodes.available().stream()
+            .map(
+                n ->
+                    new MediaNodeInfo(
+                        n.id(), n.title(), n.rtcUrl(), n.probeUrl(), n.stun(), n.control()))
+            .toList());
   }
 
   /*

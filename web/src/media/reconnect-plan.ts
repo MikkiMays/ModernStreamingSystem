@@ -31,7 +31,11 @@
  * окно восстановления кончается (живой замер 25.10: связь умирала через 27 с при живом ICE). Когда
  * сменился адрес, пакеты не приходят вовсе — тогда толчок, как и раньше.
  */
-export type ReconnectTrigger = 'online' | 'ice-disconnected' | 'visible' | 'woke';
+/**
+ * `silence` — входящих пакетов нет несколько секунд при живом по мнению SDK соединении (R195, §6.3):
+ * так выглядит смена адреса без события — VPN включили посреди встречи. Ответ тот же, что на `online`.
+ */
+export type ReconnectTrigger = 'online' | 'ice-disconnected' | 'visible' | 'woke' | 'silence';
 export type ReconnectAction = 'resume' | 'connect' | 'none';
 
 export interface ReconnectSignals {

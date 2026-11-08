@@ -14,6 +14,10 @@ public record StreamProperties(
     @NotBlank String publicUrl,
     @NotBlank String livekitUrl,
     @NotBlank String livekitInternalUrl,
+    // Имя этого узла медиа (R195): узел управления и узел комнат без `mediaNode`. Реестр узлов —
+    // `nodes-file`; файла нет — один неявный узел с этим именем из `livekit-url`.
+    @NotBlank @Pattern(regexp = "[a-z][a-z0-9-]{0,15}") String nodeId,
+    @NotBlank String nodesFile,
     @NotBlank String tusdInternalUrl,
     @NotBlank String livekitKey,
     @NotBlank @Size(min = 32) String livekitSecret,

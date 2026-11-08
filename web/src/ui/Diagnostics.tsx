@@ -11,6 +11,7 @@ import type { CameraEvent } from '../media/camera-log';
 import { StatsSampler, type Sample } from '../media/diagnostics';
 import type { CodecInfo, PublishSource } from '../media/codec-planner';
 import { gradeName, pathName } from '../media/link-quality';
+import { nodeProbe } from '../media/node-probe';
 import { useStore } from './primitives';
 import { Button, Dialog } from './kit';
 import { DeviceCheck } from './DeviceCheck';
@@ -128,6 +129,7 @@ export default function Diagnostics({
   const media = useStore(meeting.media.state);
   const link = useStore(meeting.media.link);
   const control = useStore(meeting.control.state);
+  const snapshot = useStore(meeting.snapshot);
   // Паузы видео от SFU (R117): их причина — всегда наш собственный канал приёма, поэтому и сказать
   // о них место здесь, в «Сети», а не у собеседника.
   const pausedNow = useStore(meeting.media.videoPaused);
@@ -208,6 +210,7 @@ export default function Diagnostics({
         return info ? [codecLine(source, info)] : [];
       }),
       ...(board ? [`board latency: p50 ${board.p50} ms, p95 ${board.p95} ms (${board.count})`] : []),
+      `media node: ${snapshot.mediaNode}`,
       ...samples.map(sampleLine),
       ...(meeting.media.cameraLog?.lines() ?? []),
       ...(meeting.media.micLog?.lines() ?? []),
@@ -267,6 +270,15 @@ export default function Diagnostics({
             </Metric>
             <Metric label={t(($) => $.diagnostics.path)}>
               {pathName(t, link.path)} · {gradeName(t, link.grade)}
+            </Metric>
+            {/* Узел медиа встречи (R195) и измеренный до него путь с этого устройства. */}
+            <Metric label={t(($) => $.diagnostics.node)}>
+              {nodeProbe.latency(snapshot.mediaNode) === null
+                ? nodeProbe.title(snapshot.mediaNode, locale(t))
+                : t(($) => $.diagnostics.nodeMs, {
+                    node: nodeProbe.title(snapshot.mediaNode, locale(t)),
+                    ms: nodeProbe.latency(snapshot.mediaNode),
+                  })}
             </Metric>
             <Metric label={t(($) => $.diagnostics.jitter.label)}>
               {link.jitterMs === null

@@ -57,7 +57,9 @@ services:
     tmpfs: [/tmp]
     # Каталог серверов — файл этой установки (`scripts/sign-catalog.mjs sign` → `.local/catalog/servers.jws`),
     # не часть образа: нет файла — `/api/v1/catalog` отвечает 404, клиент остаётся на своём сервере.
-    volumes: [uploads:/data/uploads, ./.local/catalog:/catalog:ro]
+    # Реестр медиаузлов (R195, `scripts/node-config.mjs` → `infra/generated/nodes/registry.json`): ядро
+    # перечитывает его раз в 10 с. Каталога нет или пуст — один неявный узел из LIVEKIT_URL, как раньше.
+    volumes: [uploads:/data/uploads, ./.local/catalog:/catalog:ro, ./infra/generated/nodes:/nodes:ro]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -204,6 +206,24 @@ services:
     depends_on:
       redis: { condition: service_healthy }
     stop_grace_period: 2m
+  # ── Профиль `nodes` (R195, docs/architecture/distributed-media.md §5.5′) ─────────────────────────────
+  # Магистраль к медиаузлам: mTLS по TCP на том же образе, что edge. `:7443` принимает узлы по клиентскому
+  # сертификату и отдаёт им ядро (8080, forward_auth сигналинга) и крюки (8090, вебхуки LiveKit);
+  # `127.0.0.1:2N000+` ведут к Twirp и метрикам узла N. Конфигурацию и сертификаты пишет
+  # `scripts/node-config.mjs`; профиль включает `--write-env`. Брандмауэр: 7443/tcp — только с адресов узлов.
+  backbone:
+    profiles: [nodes]
+    logging: *default-logging
+    image: livekit/caddyl4:v2.11.3@sha256:9dd090159a6042a907dbff0ce9dda27a21d2a559dc7b03b60a8e6b1b60b8348e
+    network_mode: host
+    command: run --config /etc/backbone.json
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/config, /data, /root, /tmp]
+    volumes:
+      - ./infra/generated/backbone.json:/etc/backbone.json:ro
+      - ./infra/generated/backbone-pki:/pki:ro
+    mem_limit: 128m
   volume-init:
     logging: *default-logging
     image: alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
@@ -251,6 +271,8 @@ services:
     volumes:
       - metrics:/storage
       - ./infra/monitoring/scrape.yml:/etc/vm/scrape.yml:ro
+      # Цели медиаузлов через магистраль (R195): по файлу на узел, пишет `scripts/node-config.mjs`.
+      - ./infra/generated/scrape-nodes:/etc/vm/nodes:ro
     read_only: true
     tmpfs: [/tmp]
     mem_limit: 256m

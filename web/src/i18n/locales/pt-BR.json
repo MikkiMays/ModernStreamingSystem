@@ -206,10 +206,10 @@
         "hint": "",
         "keywords": "endereço desconectar trocar"
       },
-      "server-autoconnect": {
-        "label": "Conectar ao iniciar",
-        "hint": "",
-        "keywords": "conexão automática"
+      "server-node": {
+        "label": "Nó da reunião",
+        "hint": "Caminho medido deste dispositivo até cada nó de mídia",
+        "keywords": "nó de mídia latência caminho servidor"
       },
       "server-password": {
         "label": "Senha salva",
@@ -453,10 +453,11 @@
     "server": {
       "connection": "Conexão",
       "leaveFirst": "Saia da reunião primeiro",
-      "change": "Trocar de servidor",
       "forget": "Esquecer senha",
-      "here": "Você está aqui",
-      "shared": "As configurações valem para todos os servidores. Salas, favoritos e reuniões recentes são separados em cada servidor."
+      "shared": "O Cord é um único endereço. A reunião vive no nó de mídia mais próximo, escolhido pelo sistema pelo caminho medido a partir do seu dispositivo — não há servidor para trocar.",
+      "nodeMs": "{{node}} · {{ms}} ms",
+      "nodeClosed": "{{node}} · não responde",
+      "nodeUnknown": "O caminho até os nós ainda não foi medido"
     },
     "sounds": {
       "cues": "Alertas",
@@ -2514,10 +2515,8 @@
     "searching": "Procurando o servidor…",
     "password": "Senha do servidor",
     "passwordPlaceholder": "Peça a quem convidou você",
-    "autoConnect": "Conectar automaticamente ao iniciar",
     "connecting": "Conectando…",
     "connect": "Conectar",
-    "otherServer": "Outro servidor…",
     "connected": "Conectado!",
     "notConnected": "Não conectado"
   },
@@ -3171,7 +3170,9 @@
       "silent": "Silêncio — o remetente está pausado ou atrasado",
       "sound": "Chegando"
     },
-    "concealment": "Falhas de áudio por segundo"
+    "concealment": "Falhas de áudio por segundo",
+    "node": "Nó da reunião",
+    "nodeMs": "{{node}} · {{ms}} ms"
   },
   "download": {
     "home": "Cord — ir para o Início",

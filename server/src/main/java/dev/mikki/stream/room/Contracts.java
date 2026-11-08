@@ -14,11 +14,37 @@ public final class Contracts {
       @NotBlank @Size(max = 80) String title,
       @NotBlank @Size(max = 40) String name,
       boolean approvalRequired,
-      Boolean integrationsAllowed) {
+      Boolean integrationsAllowed,
+      /**
+       * Узел медиа, до которого устройство создателя измерило лучший путь (R195, {@code
+       * web/src/media/node-probe.ts}); null — не мерили, ядро возьмёт узел управления. Ядро
+       * проверяет узел по реестру и живости и может выбрать другой.
+       */
+      @Pattern(regexp = "[a-z][a-z0-9-]{0,15}") String preferredNode,
+      /** Что намерил создатель — для журнала и метрик, на выбор не влияет. */
+      @Size(max = 20) List<@Valid NodeMeasure> measurements) {
     public Create(UUID commandId, String title, String name, boolean approvalRequired) {
-      this(commandId, title, name, approvalRequired, null);
+      this(commandId, title, name, approvalRequired, null, null, null);
+    }
+
+    public Create(
+        UUID commandId,
+        String title,
+        String name,
+        boolean approvalRequired,
+        Boolean integrationsAllowed) {
+      this(commandId, title, name, approvalRequired, integrationsAllowed, null, null);
     }
   }
+
+  /**
+   * Замер пути до одного узла с устройства: TCP по {@code /api/v1/ping}, UDP — STUN к TURN узла.
+   */
+  public record NodeMeasure(
+      @NotBlank @Pattern(regexp = "[a-z][a-z0-9-]{0,15}") String node,
+      @Min(0) @Max(60000) Integer tcpMs,
+      @Min(0) @Max(60000) Integer udpMs,
+      Boolean udpOpen) {}
 
   public record Join(
       @NotNull UUID commandId,
@@ -355,7 +381,12 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          String endReason) {}
+          String endReason,
+      /**
+       * Узел медиа встречи (R195): по нему клиент называет узел в диагностике и видит, что встреча
+       * переехала. Задан всегда — у комнат без узла это узел управления.
+       */
+      String mediaNode) {}
 
   /**
    * Открытая доска глазами участника: кто открыл, когда и кому рисовать ({@code all}/{@code host}).

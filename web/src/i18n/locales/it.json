@@ -206,10 +206,10 @@
         "hint": "",
         "keywords": "indirizzo disconnetti cambia"
       },
-      "server-autoconnect": {
-        "label": "Connetti all'avvio",
-        "hint": "",
-        "keywords": "connessione automatica"
+      "server-node": {
+        "label": "Nodo della riunione",
+        "hint": "Percorso misurato da questo dispositivo a ogni nodo multimediale",
+        "keywords": "nodo multimediale latenza percorso server"
       },
       "server-password": {
         "label": "Password salvata",
@@ -453,10 +453,11 @@
     "server": {
       "connection": "Connessione",
       "leaveFirst": "Prima esci dalla riunione",
-      "change": "Cambia server",
       "forget": "Dimentica la password",
-      "here": "Sei qui",
-      "shared": "Le impostazioni sono comuni a tutti i server. Stanze, preferiti e riunioni recenti sono separati per ogni server."
+      "shared": "Cord è un solo indirizzo. La riunione vive sul nodo multimediale più vicino, scelto dal sistema in base al percorso misurato dal tuo dispositivo: non c’è nessun server da cambiare.",
+      "nodeMs": "{{node}} · {{ms}} ms",
+      "nodeClosed": "{{node}} · non risponde",
+      "nodeUnknown": "Il percorso verso i nodi non è ancora stato misurato"
     },
     "sounds": {
       "cues": "Segnali",
@@ -2514,10 +2515,8 @@
     "searching": "Cerchiamo il server…",
     "password": "Password del server",
     "passwordPlaceholder": "Chiedila a chi ti ha invitato",
-    "autoConnect": "Connetti automaticamente all'avvio",
     "connecting": "Connessione…",
     "connect": "Connetti",
-    "otherServer": "Altro server…",
     "connected": "Connesso!",
     "notConnected": "Non connesso"
   },
@@ -3171,7 +3170,9 @@
       "silent": "Silenzio: il mittente è in pausa o non sta al passo",
       "sound": "Arriva"
     },
-    "concealment": "Buchi audio al secondo"
+    "concealment": "Buchi audio al secondo",
+    "node": "Nodo della riunione",
+    "nodeMs": "{{node}} · {{ms}} ms"
   },
   "download": {
     "home": "Cord — torna alla Home",

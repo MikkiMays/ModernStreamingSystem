@@ -13,7 +13,6 @@ function fakeDesktop(features: string[] = ['hotkeys', 'overlay', 'update']) {
       theme: 'system',
       showPing: false,
       notificationSounds: true,
-      autoConnect: true,
     },
     send: vi.fn(),
     invoke: vi.fn(async (method: string) =>

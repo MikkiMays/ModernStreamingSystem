@@ -53,6 +53,8 @@ public class OpenApiConfig {
               "Watch",
               "RoomYou",
               "Capabilities",
+              "MediaNodeInfo",
+              "NodeMeasure",
               "MaintenanceNotice",
               "QualityRules",
               "Level",

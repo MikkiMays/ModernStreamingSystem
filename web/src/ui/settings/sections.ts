@@ -220,7 +220,7 @@ export const ROWS = {
   'account-telegram': { section: 'accounts' },
   'server-current': { section: 'server' },
   // Только в приложении (R135): в браузере подключение к своему серверу всегда само.
-  'server-autoconnect': { section: 'server', only: 'desktop' },
+  'server-node': { section: 'server' },
   'server-password': { section: 'server' },
   'server-ping': { section: 'server' },
   'about-version': { section: 'about' },

@@ -19,10 +19,12 @@
 # Одна политика на все страницы; меняется только то, кому можно показать страницу в рамке
 # (`frame-ancestors`, аргумент снипета).
 (csp) {
+	# `CSP_NODES` — имена медиаузлов (R195, `scripts/node-config.mjs --write-env`): к ним браузер ходит за
+	# сигналингом (`wss://rtc-<узел>`) и замером пути (`https://<узел>/api/v1/ping`). Пусто — один узел.
 	# Совместный просмотр ничего здесь не просит, и это следствие того, как он устроен:
 	# видео достаёт сервер и отдаёт его со своего адреса, а страница играет обычный
 	# `<video>`. Чужих скриптов и рамок нет — значит, и послаблений не нужно.
-	Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors {args[0]}"
+	Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST} {$CSP_NODES}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors {args[0]}"
 }
 
 (headers) {
@@ -62,6 +64,9 @@
 			# Предел подключений сигналинга считается по адресу клиента (A12 docs/abuse-model.md).
 			header_up X-Real-IP {remote_host}
 			header_up X-Media-Token {query.access_token}
+			# Узел, принявший сокет (R195): ядро сверяет его с узлом комнаты. На узле управления — NODE_ID
+			# из .env; пусто — ядро считает узел управляющим.
+			header_up X-Media-Node {$NODE_ID}
 			header_up -X-Forwarded-Uri
 		}
 		reverse_proxy 127.0.0.1:7880

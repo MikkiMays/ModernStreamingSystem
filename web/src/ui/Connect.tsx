@@ -3,42 +3,31 @@ import { ArrowRight, Check, Server, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Capabilities } from '../api/types';
 import { DownloadLink, Logo } from './primitives';
-import { Button, Field, Input, Switch } from './kit';
+import { Button, Field, Input } from './kit';
 import './shell.css';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { describeFailure, openConnection, serverInfo, type Attempt } from '../core/session';
 import { ensureNotificationAudio } from '../core/sounds';
-import { notifyDesktop, isDesktop } from '../core/desktop';
 import { HelpButton } from './support/HelpButton';
-import { ServerMenu } from './ServerMenu';
 
 /**
  * The first screen, and until the handshake succeeds the only one. Nothing about meetings is
  * shown before the server has answered: favourites belong to a server, and a client has no
  * business displaying one server's rooms while connected to another.
  *
- * There is exactly one server here, because in a browser there can be only one: the core
- * refuses a foreign `Origin`, so this page can talk to the server that served it and to
- * nothing else. Other servers of the installation (its catalog) are other sites: «Другой
- * сервер…» simply goes there (R136). The real list belongs to the Windows client, which has
- * none of those limits; from inside it this screen asks the shell to open it.
- *
- * In a browser connecting is always automatic (R135): the switch lives only in the Windows
- * client, whose shell remembers it and starts on this screen when it is off.
+ * There is exactly one server here — Cord is one address (R195): the core refuses a foreign
+ * `Origin`, and the meeting itself lives on whichever media node the system measures as nearest,
+ * which is not a choice a person makes. Connecting is always automatic (R135, R195): the switch
+ * and «Другой сервер…» are gone in the browser and in the Windows client alike.
  */
 /** Паузы между повторами, когда сервер не ответил: дальше — раз в полминуты, пока экран открыт. */
 const RETRY_MS = [2_000, 4_000, 8_000, 15_000, 30_000];
 
 export function Connect({ onConnected }: { onConnected: () => void }) {
   const { t } = useTranslation();
-  const desktop = isDesktop();
   const here = currentServerUrl();
   const saved = thisServer();
   const [password, setPassword] = useState(saved.password);
-  // Подключаться ли само (R135) — выбор только в приложении: у него список серверов свой, и с
-  // выключенным автоподключением он открывает этот экран, а не встречи. В браузере сервер один —
-  // тот, что отдал страницу, — и подключение к нему всегда само.
-  const [autoConnect, setAutoConnect] = useState(desktop ? saved.autoConnect : true);
   const [info, setInfo] = useState<Capabilities | null>(null);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,7 +40,7 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
     setAttempt(result);
     setBusy(false);
     if (result.ok) {
-      rememberServer({ password: secret, autoConnect });
+      rememberServer({ password: secret });
       onConnected();
     }
     return result.ok;
@@ -61,7 +50,8 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
-    const automatic = () => thisServer().autoConnect || !desktop;
+    // Подключение всегда само (R135, R195): сервер один, выбирать и «не подключаться» нечего.
+    const automatic = () => true;
     /*
       Сервер не ответил — сбой сети, замирание машины сервера, — а подключение само: пробуем ещё,
       пока экран открыт, с паузой всё длиннее и сразу, как вернулась сеть. Раньше «Не подключено»
@@ -159,20 +149,6 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
                 />
               </Field>
             )}
-            {desktop && (
-              <Switch
-                label={t(($) => $.connect.autoConnect)}
-                checked={autoConnect}
-                onCheckedChange={(checked) => {
-                  setAutoConnect(checked);
-                  rememberServer({ autoConnect: checked });
-                  // Помнит выбор оболочка: при следующем запуске она кладёт своё значение поверх
-                  // страничного. Без этого сообщения выключатель здесь откатывался на каждом запуске,
-                  // а в настройках стояло другое (R135).
-                  notifyDesktop('server.autoconnect', { autoConnect: checked });
-                }}
-              />
-            )}
             <Button
               type="submit"
               variant="primary"
@@ -187,14 +163,6 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
           </form>
           <div className="connect-card__status">
             <ConnectionStatus attempt={busy ? null : attempt} />
-            {desktop ? (
-              <Button variant="quiet" size="sm" onClick={() => notifyDesktop('servers.open')}>
-                {t(($) => $.connect.otherServer)}
-              </Button>
-            ) : (
-              // Сервер молчит или пароля нет — можно уйти на другой сайт Cord из каталога (R136).
-              <ServerMenu label={t(($) => $.connect.otherServer)} variant="quiet" />
-            )}
           </div>
         </section>
       </main>
