@@ -908,6 +908,28 @@ input.home-inline-name:focus-visible {
 .home-bar__help {
   margin-left: auto;
 }
+/*
+  Узкое окно клиента Windows (R206, владелец: «окно адаптируется как телефон/планшет… невозможным передвигать
+  окно»): сверху здесь шапка с меню, а не панель, и тащить окно было не за что — полоса `home-stage__drag` уходила
+  под шапку. Теперь окно тащат за пустое место шапки, как за шапку встречи; кнопки нажимаются; правое поле — не
+  меньше кнопок «— ⧉ ×», высота — не меньше их полосы.
+*/
+:root[data-desktop='true'] .home-bar {
+  height: max(56px, var(--titlebar-h, 0px));
+  padding-right: max(var(--space-3), calc(var(--titlebar-end, 0px) + var(--space-2)));
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+:root[data-desktop='true'] .home-bar :is(button, a, input, [role='button'], [tabindex]) {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+/* Под шапкой полоса перетаскивания легла бы на содержимое и съедала бы нажатия. */
+@media (max-width: 959px) {
+  .home-stage__drag {
+    display: none;
+  }
+}
 /* Выдвижная панель — под меню (40), иначе меню комнаты открывалось бы под ней, и под диалогами
    (50), чтобы подтверждение «Убрать» вставало поверх. */
 .home-drawer__backdrop {

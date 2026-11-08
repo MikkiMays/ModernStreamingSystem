@@ -85,3 +85,25 @@ test('шапки предвхода и встречи не уходят под �
   await page.setViewportSize({ width: 820, height: 700 });
   await headerClear(page);
 });
+
+test('узкое окно (R206): главная как на планшете — окно тащат за шапку с меню, кнопки нажимаются и не под «— ⧉ ×»', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 760, height: 600 });
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-desktop', 'true');
+  await overlay(page);
+  const bar = page.locator('.home-bar');
+  await expect(bar).toBeVisible();
+  const region = (selector: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((el) => getComputedStyle(el).getPropertyValue('-webkit-app-region'));
+  expect(await region('.home-bar')).toBe('drag');
+  expect(await region('.home-bar button')).toBe('no-drag');
+  expect(await rightEdge(page, '.home-bar__help')).toBeLessThanOrEqual(760 - WCO.end - 8 + 1);
+  expect((await bar.boundingBox())!.height).toBeGreaterThanOrEqual(WCO.height);
+  // Полоса перетаскивания главной в узком окне не лежит на содержимом.
+  await expect(page.locator('.home-stage__drag')).toBeHidden();
+});
