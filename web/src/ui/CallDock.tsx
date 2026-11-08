@@ -20,12 +20,14 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react';
+import { Tooltip } from '@base-ui/react/tooltip';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { desktopCaptureAudio, desktopPicker, selectCaptureSource } from '../core/desktop-capture';
 import type { Meeting } from '../core/meeting';
 import { CapturePicker, type CaptureChoice } from './CapturePicker';
 import { deviceCapture } from '../media/capture';
+import { screenLimit } from '../media/capabilities';
 import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from './kit';
 import { useMediaQuery, useStore } from './primitives';
 import { CameraFlip } from './CameraMenu';
@@ -116,6 +118,17 @@ export function CallDock({
   /** Касание: третья кнопка слева — переворот камеры, а показ экрана — в «ещё». */
   const coarse = useMediaQuery('(pointer: coarse)');
   const live = !ended && media.status === 'connected';
+  /*
+    Показ один на встречу (R202): пока предел занят чужими показами, кнопка недоступна и говорит, кто показывает
+    (наведение — подсказка, касание в «ещё» — подпись пункта), а не отказывает после нажатия. Ядро держит тот же
+    предел (`SCREEN_LIMIT`) — на случай гонки двух нажатий.
+  */
+  const limit = useStore(screenLimit);
+  const snapshot = useStore(meeting.snapshot);
+  const me = meeting.admission.participantId;
+  const presenters = snapshot.participants.filter((person) => person.screen && person.id !== me);
+  const shareBusy = !media.screen && presenters.length >= limit;
+  const presenterNames = presenters.map((person) => person.name).join(', ');
   /** Есть ли пункты над группами «ещё» — переворот, показ, «свернуть в окно». */
   const leading = coarse || pip.available || pip.active;
   /** Непрочитанные в чате (R87) — кружком на кнопке чата, на телефоне — на «ещё». */
@@ -224,6 +237,38 @@ export function CallDock({
             >
               <MonitorX size={24} />
             </IconButton>
+          ) : shareBusy ? (
+            /* `aria-disabled`, а не `disabled`: недоступная кнопка не получает наведения, а подсказка нужна именно на нём. */
+            <Tooltip.Root>
+              <Tooltip.Trigger
+                delay={150}
+                render={
+                  <IconButton
+                    tone="stage"
+                    size="lg"
+                    className="dock-button dock-toggle dock-busy"
+                    label={t(($) => $.dock.share)}
+                    title=""
+                    pressed={false}
+                    aria-disabled="true"
+                    aria-describedby="dock-share-busy"
+                    onClick={(event) => event.preventDefault()}
+                  >
+                    <MonitorUp size={24} />
+                  </IconButton>
+                }
+              />
+              <Tooltip.Portal>
+                <Tooltip.Positioner className="ui-hint__layer" side="top" sideOffset={8}>
+                  <Tooltip.Popup className="ui-hint__popup">
+                    {t(($) => $.dock.shareBusy, { names: presenterNames })}
+                  </Tooltip.Popup>
+                </Tooltip.Positioner>
+              </Tooltip.Portal>
+              <span id="dock-share-busy" hidden>
+                {t(($) => $.dock.shareBusy, { names: presenterNames })}
+              </span>
+            </Tooltip.Root>
           ) : (
             <IconButton
               tone="stage"
@@ -261,8 +306,12 @@ export function CallDock({
                 </MenuItem>
               )}
               {coarse && (
-                <MenuItem icon={<MonitorUp />} disabled={!live} onClick={share}>
-                  {media.screen ? t(($) => $.dock.unshare) : t(($) => $.dock.share)}
+                <MenuItem icon={<MonitorUp />} disabled={!live || shareBusy} onClick={share}>
+                  {media.screen
+                    ? t(($) => $.dock.unshare)
+                    : shareBusy
+                      ? t(($) => $.dock.shareBusyShort, { names: presenterNames })
+                      : t(($) => $.dock.share)}
                 </MenuItem>
               )}
               {(pip.available || pip.active) && (

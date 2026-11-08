@@ -87,6 +87,8 @@ jobs:
       - name: Verify contracts and browser scenarios with a managed local stack
         env:
           PLAYWRIGHT_CHANNEL: msedge
+          # В продукте показ один (R202); стенд проверяет два через настоящий SFU и недоступную кнопку у третьего.
+          MAX_SCREENS: '2'
         run: |
           try {
             .\scripts\start-local.ps1 -JavaHome $env:JAVA_HOME -SkipBuild -SkipWeb

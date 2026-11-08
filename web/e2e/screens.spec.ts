@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('two synthetic screen sources traverse the real SFU; a third is rejected', async ({ browser }) => {
+test('two synthetic screen sources traverse the real SFU; a third is refused up front', async ({
+  browser,
+}) => {
   test.setTimeout(90000);
   const contexts = await Promise.all(
     [0, 1, 2].map(() => browser.newContext({ viewport: { width: 1366, height: 900 } })),
@@ -186,9 +188,15 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await guest!.getByRole('button', { name: 'Открепить: Экран 1' }).click();
     await expect(guest!.locator('.person-tile[data-pinned="true"]')).toHaveCount(0);
     await expect(guest!.locator('.people-grid .person-tile:not(.presentation-tile)')).toHaveCount(3);
-    await dock(third!).getByRole('button', { name: 'Показать экран', exact: true }).click();
-    await expect(third!.getByRole('alert')).toContainText('Уже транслируются два экрана');
-    await third!.getByRole('button', { name: 'Скрыть уведомление' }).click();
+    // Предел занят (стенд CI — два показа, продукт — один, R202): кнопка недоступна заранее и по наведению
+    // говорит, кто показывает, а не отказывает после нажатия.
+    const busy = dock(third!).getByRole('button', { name: 'Показать экран', exact: true });
+    await expect(busy).toHaveAttribute('aria-disabled', 'true');
+    await busy.hover();
+    await expect(third!.locator('.ui-hint__popup')).toContainText('Сейчас экран показывает');
+    await busy.click();
+    await expect(third!.getByRole('alert')).toHaveCount(0);
+    await third!.mouse.move(700, 300);
     await third!.getByRole('button', { name: 'Закрепить показ: Экран 1' }).click();
     // Идёт показ — кнопка в пульте красная, с крестиком (R77).
     await expect(dock(host!).getByRole('button', { name: 'Остановить показ', exact: true })).toHaveClass(

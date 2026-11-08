@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
+import { screenLimit } from '../media/capabilities';
 import { CallDock, type CallDockProps } from './CallDock';
 
 /*
@@ -9,9 +10,13 @@ import { CallDock, type CallDockProps } from './CallDock';
   числом непрочитанных (R87). На телефоне чат живёт в «ещё» — кружок на «ещё» и число у пункта.
 */
 
-function fakeMeeting({ screen = false, unread = 0 } = {}) {
+function fakeMeeting({ screen = false, unread = 0, presenter = '' } = {}) {
+  const person = (id: string, name: string, sharing: boolean) => ({ id, name, screen: sharing });
   return {
     admission: { roomId: 'room', participantId: 'me', credential: 'token' },
+    snapshot: new Store({
+      participants: [person('me', 'Я', screen), person('ann', 'Аня', presenter === 'ann')],
+    }),
     unread: new Store(unread),
     media: {
       state: new Store({ status: 'connected', microphone: false, camera: false, screen }),
@@ -65,6 +70,37 @@ describe('показ экрана (R77)', () => {
     expect(stop).not.toHaveAttribute('aria-pressed');
     expect(stop.querySelector('svg.lucide-monitor-x')).not.toBeNull();
     fireEvent.click(stop);
+    expect(meeting.media.share).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('показ один на встречу (R202)', () => {
+  afterEach(() => screenLimit.set(1));
+
+  it('показывает другой — кнопка недоступна, нажатие ничего не делает, описание говорит, кто показывает', () => {
+    const meeting = fakeMeeting({ presenter: 'ann' });
+    dock(meeting);
+    const share = screen.getByRole('button', { name: 'Показать экран' });
+    expect(share).toHaveAttribute('aria-disabled', 'true');
+    expect(share).toHaveAccessibleDescription(/Сейчас экран показывает Аня/);
+    fireEvent.click(share);
+    expect(meeting.media.share).not.toHaveBeenCalled();
+  });
+
+  it('предел сервера два — второй показ можно начать', () => {
+    screenLimit.set(2);
+    const meeting = fakeMeeting({ presenter: 'ann' });
+    dock(meeting);
+    const share = screen.getByRole('button', { name: 'Показать экран' });
+    expect(share).not.toHaveAttribute('aria-disabled');
+    fireEvent.click(share);
+    expect(meeting.media.share).toHaveBeenCalledTimes(1);
+  });
+
+  it('свой показ остановить можно всегда', () => {
+    const meeting = fakeMeeting({ screen: true, presenter: 'ann' });
+    dock(meeting);
+    fireEvent.click(screen.getByRole('button', { name: 'Остановить показ' }));
     expect(meeting.media.share).toHaveBeenCalledTimes(1);
   });
 });

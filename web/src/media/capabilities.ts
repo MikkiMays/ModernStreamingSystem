@@ -1,4 +1,5 @@
 import { isDesktop } from '../core/desktop';
+import { Store } from '../core/store';
 import type { FrameRate, Resolution, ScreenProfile } from './profiles';
 
 /**
@@ -211,4 +212,14 @@ export function cameraLevel(
 
 export function settleMs(rules = qualityRules()) {
   return rules.settleMs;
+}
+
+/**
+ * Сколько экранов встреча показывает одновременно (`capabilities.maxScreens`, R202): у продукта — один. Пока
+ * предел занят чужими показами, кнопка показа недоступна и говорит, кто показывает, а не ошибается после нажатия.
+ */
+export const screenLimit = new Store<number>(1);
+export function rememberScreens(capabilities: unknown) {
+  const value = (capabilities as { maxScreens?: unknown } | null | undefined)?.maxScreens;
+  screenLimit.set(typeof value === 'number' && value >= 1 ? Math.floor(value) : 1);
 }

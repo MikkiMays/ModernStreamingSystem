@@ -181,9 +181,16 @@
   background: var(--surface-active);
   transform: scale(0.96);
 }
-.ui-icon-button:disabled {
+.ui-icon-button:disabled,
+.ui-icon-button[aria-disabled='true'] {
   opacity: 0.45;
   cursor: default;
+}
+/* Недоступная, но с подсказкой по наведению (`aria-disabled`, R202): ни подсветки, ни нажатия. */
+.ui-icon-button[aria-disabled='true']:hover,
+.ui-icon-button[aria-disabled='true']:active {
+  background: transparent;
+  transform: none;
 }
 .ui-icon-button--solid {
   background: var(--surface-2);

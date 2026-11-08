@@ -56,7 +56,7 @@ public class MediaService {
             if (enabled
                 && room.members.values().stream().filter(m -> m.screen && m.mediaAllowed()).count()
                     >= config.maxScreens())
-              throw Problem.conflict("SCREEN_LIMIT", "Уже транслируются два экрана");
+              throw Problem.conflict("SCREEN_LIMIT", "Экран уже показывает другой участник");
             gateway.permissions(room, member.id, enabled);
             member.screen = enabled;
             member.screenId = enabled ? UUID.randomUUID().toString() : null;

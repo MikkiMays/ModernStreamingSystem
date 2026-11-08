@@ -4,7 +4,7 @@ import { Store } from './store';
 import { rememberServer, thisServer } from './servers';
 import { notifyDesktop, hasFeature } from './desktop';
 import { signal } from './sounds';
-import { rememberQuality } from '../media/capabilities';
+import { rememberQuality, rememberScreens } from '../media/capabilities';
 import { nodeProbe } from '../media/node-probe';
 import { t } from '../i18n';
 import { classify, noteFailure } from './failure';
@@ -105,6 +105,7 @@ export function disconnect() {
 export function serverInfo(): Promise<Capabilities> {
   return publicApi.capabilities().then((capabilities) => {
     rememberQuality(capabilities);
+    rememberScreens(capabilities);
     // Медиаузлы (R195): замер пути до каждого — в фоне, сразу; к «Создать встречу» он уже готов.
     nodeProbe.schedule(capabilities.nodes ?? []);
     return capabilities;
