@@ -594,7 +594,7 @@ describe('«Горячие клавиши» (T27)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Esc — отмена записи сочетания' }));
     expect(screen.queryByText('Нажмите сочетание…')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Изменить сочетание микрофона' })).toBeInTheDocument();
-    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'F7', ctrl: true, shift: false });
   });
 
   it('одна кнопка «Сбросить» вместо «По умолчанию» и «Отключить» (R25)', () => {
@@ -607,7 +607,7 @@ describe('«Горячие клавиши» (T27)', () => {
     const reset = screen.getByRole('button', { name: 'Сбросить сочетание микрофона' });
     expect(reset).toHaveTextContent('Сбросить');
     fireEvent.click(reset);
-    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'F7', ctrl: true, shift: false });
     expect(screen.queryByRole('button', { name: 'Сбросить сочетание микрофона' })).not.toBeInTheDocument();
     // Кнопка исчезла — фокус не падает в никуда, а остаётся у сочетания.
     expect(screen.getByRole('button', { name: 'Изменить сочетание микрофона' })).toHaveFocus();
@@ -617,14 +617,14 @@ describe('«Горячие клавиши» (T27)', () => {
     render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Назначить сочетание микрофона' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить сочетание микрофона' }));
-    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'F7', ctrl: true, shift: false });
   });
 
   it('не даёт назначить то, что забирает браузер, и предупреждает о плеере кинозала', () => {
     render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
     record({ code: 'KeyW', key: 'w', ctrlKey: true });
     expect(screen.getByRole('alert')).toHaveTextContent('браузер оставляет себе');
-    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'F7', ctrl: true, shift: false });
     record({ code: 'Space', key: ' ' });
     expect(readPreferences().micHotkey).toMatchObject({ code: 'Space', ctrl: false });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -633,7 +633,7 @@ describe('«Горячие клавиши» (T27)', () => {
     record({ code: 'KeyT', key: 't', ctrlKey: true });
     expect(screen.getByRole('alert')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить сочетание микрофона' }));
-    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'F7', ctrl: true, shift: false });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -643,7 +643,7 @@ describe('«Горячие клавиши» (T27)', () => {
     expect(screen.getByText('Ctrl + …')).toBeInTheDocument();
     fireEvent.keyDown(document.querySelector('[data-hotkey-recorder]')!, { code: 'Escape', key: 'Escape' });
     expect(screen.getByRole('button', { name: 'Изменить сочетание микрофона' })).toBeInTheDocument();
-    expect(readPreferences().micHotkey?.code).toBe('KeyM');
+    expect(readPreferences().micHotkey?.code).toBe('F7');
   });
 
   it('в приложении честно говорит, где сочетание не сработает, и отпускает его на время записи', async () => {
@@ -749,7 +749,7 @@ describe('«Нажми и говори» и кнопки мыши (E01-B3, фл�
     fireEvent.click(change());
     fireEvent.mouseDown(document.body, { button: 3 });
     await act(async () => {});
-    expect(readPreferences().micHotkey?.code).toBe('KeyM');
+    expect(readPreferences().micHotkey?.code).toBe('F7');
   });
 });
 

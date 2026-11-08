@@ -7,9 +7,13 @@ export interface Hotkey {
   shift: boolean;
   meta: boolean;
 }
-export const defaultMicHotkey: Hotkey = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
+/** Прежние умолчания (до 1.2.2): у тех, кто их не менял, сочетание переезжает на новое (R199). */
+export const legacyMicHotkey: Hotkey = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
+export const legacyDeafenHotkey: Hotkey = { code: 'KeyD', ctrl: true, alt: false, shift: true, meta: false };
+/** Умолчания (R199, владелец: «микрофона на Ctrl+F7, а звук встречи на Ctrl+F8 по дефолту»). */
+export const defaultMicHotkey: Hotkey = { code: 'F7', ctrl: true, alt: false, shift: false, meta: false };
 /** «Звук встречи» (R156): `Ctrl + Shift + D`, как «Отключить звук» у Discord. */
-export const defaultDeafenHotkey: Hotkey = { code: 'KeyD', ctrl: true, alt: false, shift: true, meta: false };
+export const defaultDeafenHotkey: Hotkey = { code: 'F8', ctrl: true, alt: false, shift: false, meta: false };
 /**
  * Разблокировать оверлей в игре (R63): `Shift + \``, как у Discord. Клавиша «`» (`Backquote`) уходит
  * оболочке только при флаге `overlay.widget` — прежняя оболочка такой клавиши не знает и отбросила бы

@@ -13,6 +13,8 @@ import type { DeviceChoice } from '../media/session';
 import {
   defaultDeafenHotkey,
   defaultMicHotkey,
+  legacyDeafenHotkey,
+  legacyMicHotkey,
   defaultOverlayLockHotkey,
   validHotkey,
   type Hotkey,
@@ -184,7 +186,7 @@ export interface Preferences {
     Р-54) — каждая встреча начинается со звуком, как с выключенными микрофоном и камерой. Живёт в
     `MediaSession.deafened`; поле `deafened` в старых записях просто не читается.
   */
-  /** Сочетание «звука встречи» — по умолчанию `Ctrl + Shift + D`, как у Discord. */
+  /** Сочетание «звука встречи» — по умолчанию `Ctrl + F8` (R199; до 1.2.2 — `Ctrl + Shift + D`). */
   deafenHotkey: Hotkey | null;
   /**
    * Что показывать за карточным столом помимо самой игры.
@@ -313,7 +315,11 @@ export function parsePreferences(source: unknown, storedName: string | null = nu
         ? data.avatar
         : '',
     micHotkey:
-      data.micHotkey === null ? null : validHotkey(data.micHotkey) ? data.micHotkey : { ...defaultMicHotkey },
+      data.micHotkey === null
+        ? null
+        : validHotkey(data.micHotkey) && !sameHotkey(data.micHotkey, legacyMicHotkey)
+          ? data.micHotkey
+          : { ...defaultMicHotkey },
     micHotkeyMode: data.micHotkeyMode === 'hold' ? 'hold' : 'toggle',
     overlayHotkey: validHotkey(data.overlayHotkey) ? data.overlayHotkey : null,
     overlayLockHotkey:
@@ -325,10 +331,16 @@ export function parsePreferences(source: unknown, storedName: string | null = nu
     deafenHotkey:
       data.deafenHotkey === null
         ? null
-        : validHotkey(data.deafenHotkey)
+        : validHotkey(data.deafenHotkey) && !sameHotkey(data.deafenHotkey, legacyDeafenHotkey)
           ? data.deafenHotkey
           : { ...defaultDeafenHotkey },
   };
+}
+/** То же сочетание: прежнее умолчание, которое человек не менял, уступает новому (R199). */
+function sameHotkey(a: Hotkey, b: Hotkey) {
+  return (
+    a.code === b.code && a.ctrl === b.ctrl && a.alt === b.alt && a.shift === b.shift && a.meta === b.meta
+  );
 }
 /**
  * Кто ещё узнаёт о сохранённом: общие для всех серверов настройки клиента Windows (R146,

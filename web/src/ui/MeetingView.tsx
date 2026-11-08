@@ -251,12 +251,17 @@ export function MeetingView({
     const deafen = () => {
       if (!meeting.ended.get()) void meeting.media.setDeafened(!meeting.media.deafened.get());
     };
+    // Та же сверка, что у микрофона (R199): в окне Cord одно нажатие приходит и от страницы, и от
+    // оболочки, а удержание — автоповтором; переключение должно сработать ровно один раз.
+    const deafenPress = new MicHotkey('toggle', { toggle: deafen, set: () => {} });
     let held = false;
+    let deafenHeld = false;
     const keyboard = (event: KeyboardEvent) => {
       if (event.repeat || isTyping(event.target) || modalOpen()) return;
       if (matchesHotkey(event, deafenKey)) {
         event.preventDefault();
-        deafen();
+        deafenHeld = true;
+        deafenPress.press('page', 'down');
       } else if (matchesHotkey(event, micKey)) {
         event.preventDefault();
         held = true;
@@ -269,6 +274,10 @@ export function MeetingView({
       }
     };
     const release = (event: KeyboardEvent) => {
+      if (deafenHeld && releasesHotkey(event, deafenKey)) {
+        deafenHeld = false;
+        deafenPress.press('page', 'up');
+      }
       if (!held || !releasesHotkey(event, micKey)) return;
       held = false;
       mic.press('page', 'up');
@@ -300,9 +309,17 @@ export function MeetingView({
       window.addEventListener('mouseup', mouseUp);
     }
     const unsubscribe = onDesktopCommand((command) => {
-      if (command.type === 'microphone.toggle') mic.press('shell', 'down');
+      if (command.type === 'microphone.toggle') {
+        // Без фазы — не сочетание, а целое нажатие (старый протокол оболочки): «нажал» и сразу «отпустил».
+        mic.press('shell', command.phase ?? 'down');
+        if (!command.phase) mic.press('shell', 'up');
+      }
       if (command.type === 'microphone.hold' && command.phase) mic.press('shell', command.phase);
-      if (command.type === 'deafen.toggle') deafen();
+      // Сочетание оболочки — с фазой и через сверку; без фазы — пункт трея или мини-окна, это одно нажатие.
+      if (command.type === 'deafen.toggle') {
+        if (command.phase) deafenPress.press('shell', command.phase);
+        else deafen();
+      }
       // Кнопки на миниатюре в панели задач (T53): микрофон, камера, завершить.
       if (command.type === 'thumbar') {
         if (command.action === 'mic') toggle();

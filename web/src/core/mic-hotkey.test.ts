@@ -66,14 +66,44 @@ describe('включать и выключать', () => {
     expect(actions.set).not.toHaveBeenCalled();
   });
 
-  it('частые нажатия из одного источника — каждое; из разных, но далеко по времени — каждое', () => {
+  it('частые нажатия с отпусканием — каждое; из разных источников, но далеко по времени — каждое', () => {
     const { mic, actions, at } = setup('toggle');
     at(0);
     mic.press('shell', 'down');
+    mic.press('shell', 'up');
     at(100);
     mic.press('shell', 'down');
+    mic.press('shell', 'up');
     at(1000);
     mic.press('page', 'down');
     expect(actions.toggle).toHaveBeenCalledTimes(3);
+  });
+
+  it('удержанная клавиша (R199): автоповтор оболочки без отпускания — одно переключение, после отпускания — снова', () => {
+    const { mic, actions, at } = setup('toggle');
+    at(0);
+    mic.press('page', 'down');
+    at(5);
+    mic.press('shell', 'down'); // то же нажатие из оболочки — пара
+    for (let t = 500; t <= 3000; t += 33) {
+      at(t);
+      mic.press('shell', 'down'); // автоповтор Raw Input или globalShortcut
+    }
+    expect(actions.toggle).toHaveBeenCalledTimes(1);
+    at(3010);
+    mic.press('shell', 'up');
+    mic.press('page', 'up');
+    at(3200);
+    mic.press('shell', 'down');
+    expect(actions.toggle).toHaveBeenCalledTimes(2);
+  });
+
+  it('источник без отпускания (globalShortcut): новое нажатие — после паузы больше задержки автоповтора', () => {
+    const { mic, actions, at } = setup('toggle');
+    at(0);
+    mic.press('shell', 'down');
+    at(2500);
+    mic.press('shell', 'down');
+    expect(actions.toggle).toHaveBeenCalledTimes(2);
   });
 });

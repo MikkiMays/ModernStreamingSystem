@@ -81,7 +81,7 @@ export function HotkeysSection({
 }: {
   value: Hotkey | null;
   change: (key: Hotkey | null) => void;
-  /** Сочетание «звука встречи» (R156): по умолчанию `Ctrl + Shift + D`. */
+  /** Сочетание «звука встречи» (R156): по умолчанию `Ctrl + F8` (R199). */
   deafen?: Hotkey | null;
   changeDeafen?: (key: Hotkey | null) => void;
   /** Сочетание оверлея (клиент на Electron): то же назначить микрофону нельзя. */

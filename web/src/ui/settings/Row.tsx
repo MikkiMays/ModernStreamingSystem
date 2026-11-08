@@ -153,7 +153,7 @@ export function SettingGroup({
   );
 }
 
-/** Значение справа от подписи: «Подключено», «Ctrl + Shift + M», «45 %». */
+/** Значение справа от подписи: «Подключено», «Ctrl + F7», «45 %». */
 export function SettingValue({ children, tone }: { children: ReactNode; tone?: 'success' | 'muted' }) {
   return (
     <span className="setting-value" data-tone={tone}>

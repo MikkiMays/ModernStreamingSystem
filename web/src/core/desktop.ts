@@ -352,10 +352,13 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
       listener({ version: 1, ...command } as DesktopCommand);
     const stops = [
       api.on('hotkey', (data) => {
-        if (data.action === 'mic.toggle' && data.phase !== 'up') relay({ type: 'microphone.toggle' });
+        // Обе фазы: отпускание отличает новое нажатие от автоповтора удержанной клавиши (R199).
+        if (data.action === 'mic.toggle')
+          relay({ type: 'microphone.toggle', phase: data.phase === 'up' ? 'up' : 'down' });
         if (data.action === 'ptt' && (data.phase === 'down' || data.phase === 'up'))
           relay({ type: 'microphone.hold', phase: data.phase });
-        if (data.action === 'deafen' && data.phase !== 'up') relay({ type: 'deafen.toggle' });
+        if (data.action === 'deafen')
+          relay({ type: 'deafen.toggle', phase: data.phase === 'up' ? 'up' : 'down' });
       }),
       api.on('hotkeys.status', (data) => {
         // В наборе микрофон — одним из двух действий: переключение или «нажми и говори».

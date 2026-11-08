@@ -222,7 +222,9 @@ describe('мост v2 — адаптер', () => {
     api.emit('navigate', { page: 'create' });
     api.emit('update.status', { status: 'Доступно обновление приложения.', available: true });
     expect(seen).toEqual([
-      { version: 1, type: 'microphone.toggle' },
+      // Обе фазы: отпускание отличает новое нажатие от автоповтора (R199).
+      { version: 1, type: 'microphone.toggle', phase: 'down' },
+      { version: 1, type: 'microphone.toggle', phase: 'up' },
       { version: 1, type: 'hotkey.status', detail: 'duplicate' },
       { version: 1, type: 'deeplink', code: '123456789' },
       { version: 1, type: 'thumbar', action: 'camera' },
@@ -243,7 +245,7 @@ describe('мост v2 — адаптер', () => {
     });
     stop();
     api.emit('navigate', { page: 'home' });
-    expect(seen).toHaveLength(6);
+    expect(seen).toHaveLength(7);
   });
 
   it('«Чат · N» в меню трея (R103): chat.open доходит до встречи прежним путём команд', async () => {

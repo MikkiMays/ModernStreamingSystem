@@ -6,6 +6,13 @@ export type HotkeyPhase = 'down' | 'up';
 
 /** Окно, в котором то же нажатие из другого источника считается тем же самым. */
 const PAIR_MS = 300;
+/**
+ * Удержанная клавиша: оболочка шлёт её автоповтор тем же «нажал» (Raw Input — фазу `down` на каждый
+ * повтор, `globalShortcut` — событие без отпускания). Пока от источника идут нажатия чаще этого и он не
+ * сказал «отпустил», это одно нажатие, а не новые переключения (R199: «сразу несколько включений и
+ * выключений»). Больше задержки автоповтора Windows (до 1 с).
+ */
+const REPEAT_MS = 1100;
 
 /**
  * Сочетание микрофона во встрече (T27, E01-B3): «включать и выключать» или «нажми и говори».
@@ -22,6 +29,8 @@ const PAIR_MS = 300;
  */
 export class MicHotkey {
   private readonly last = new Map<HotkeyPhase, { origin: HotkeyOrigin; at: number; paired: boolean }>();
+  /** Когда источник последний раз сказал «нажал» и ещё не сказал «отпустил». */
+  private readonly held = new Map<HotkeyOrigin, number>();
 
   constructor(
     private readonly mode: MicHotkeyMode,
@@ -30,11 +39,23 @@ export class MicHotkey {
   ) {}
 
   press(origin: HotkeyOrigin, phase: HotkeyPhase): void {
+    if (this.mode === 'toggle' && this.repeats(origin, phase)) return;
     if (this.pairs(origin, phase)) return;
     if (this.mode === 'hold') this.actions.set(phase === 'down');
     else if (phase === 'down') this.actions.toggle();
   }
 
+  /** Автоповтор удержанной клавиши того же источника? Отпускание снимает удержание сразу. */
+  private repeats(origin: HotkeyOrigin, phase: HotkeyPhase): boolean {
+    if (phase === 'up') {
+      this.held.delete(origin);
+      return false;
+    }
+    const at = this.now();
+    const since = this.held.get(origin);
+    this.held.set(origin, at);
+    return since !== undefined && at - since < REPEAT_MS;
+  }
   /** Это вторая половина уже отработанного нажатия? Тогда запомнить, что пара сложилась. */
   private pairs(origin: HotkeyOrigin, phase: HotkeyPhase): boolean {
     const at = this.now();

@@ -92,7 +92,7 @@ it('migrates the display name and validates stored audio and hotkeys', () => {
     }),
   );
   expect(readPreferences().audio).toMatchObject({ gain: 0, suppression: 'browser', echoCancellation: true });
-  expect(readPreferences().micHotkey?.code).toBe('KeyM');
+  expect(readPreferences().micHotkey).toMatchObject({ code: 'F7', ctrl: true, shift: false });
   expect(readPreferences().showIntegrationPanel).toBe(true);
   expect(readPreferences().yandexMusicToken).toBe('');
   savePreferences({ name: 'New name', micHotkey: null });
@@ -378,14 +378,28 @@ describe('шумоподавление по умолчанию — «Усиле�
   });
 });
 
-it('«звук встречи»: сочетание — Ctrl+Shift+D, снятое сочетание помнится (R156)', () => {
+it('«звук встречи»: сочетание — Ctrl+F8 (R199), снятое сочетание помнится (R156)', () => {
   expect(readPreferences()).toMatchObject({
-    deafenHotkey: { code: 'KeyD', ctrl: true, shift: true, alt: false, meta: false },
+    deafenHotkey: { code: 'F8', ctrl: true, shift: false, alt: false, meta: false },
   });
   savePreferences({ deafenHotkey: null });
   expect(readPreferences()).toMatchObject({ deafenHotkey: null });
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ deafenHotkey: { code: 'Escape' } }));
-  expect(readPreferences()).toMatchObject({ deafenHotkey: { code: 'KeyD' } });
+  expect(readPreferences()).toMatchObject({ deafenHotkey: { code: 'F8' } });
+});
+
+it('прежние умолчания, которые человек не менял, переезжают на Ctrl+F7 и Ctrl+F8; своё сочетание остаётся (R199)', () => {
+  const was = (code: string) => ({ code, ctrl: true, alt: false, shift: true, meta: false });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ micHotkey: was('KeyM'), deafenHotkey: was('KeyD') }),
+  );
+  expect(readPreferences()).toMatchObject({ micHotkey: { code: 'F7' }, deafenHotkey: { code: 'F8' } });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ micHotkey: was('KeyK'), deafenHotkey: was('KeyJ') }),
+  );
+  expect(readPreferences()).toMatchObject({ micHotkey: { code: 'KeyK' }, deafenHotkey: { code: 'KeyJ' } });
 });
 
 it('«звук встречи» — не настройка (R161): выключенный в прошлой встрече в настройки не попадает', () => {

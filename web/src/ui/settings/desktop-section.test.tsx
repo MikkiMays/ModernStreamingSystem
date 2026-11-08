@@ -117,7 +117,7 @@ describe('«Windows» в настройках', () => {
       fireEvent.click(screen.getByRole('button', { name: /сочетание оверлея/ }));
       fireEvent.keyDown(document.querySelector('[data-hotkey-recorder]')!, init);
     };
-    record({ code: 'KeyM', key: 'm', ctrlKey: true, shiftKey: true });
+    record({ code: 'F7', key: 'F7', ctrlKey: true });
     expect(screen.getByRole('alert')).toHaveTextContent('уже у микрофона');
     expect(readPreferences().overlayHotkey).toBeNull();
     record({ code: 'KeyO', key: 'o', ctrlKey: true, shiftKey: true });
