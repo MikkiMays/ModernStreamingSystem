@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.mikki.stream.config.StreamProperties;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +59,14 @@ public class MediaNodes {
   private final Clock clock;
   private final MeterRegistry registry;
   private final MediaNode implicit;
+  private final String nodeId;
+
+  /**
+   * 1 — реестр есть, но проигнорирован (его узел управления — не этот сервер): алерт
+   * `NodeRegistryIgnored`.
+   */
+  private final AtomicInteger ignored = new AtomicInteger();
+
   private volatile List<MediaNode> nodes;
   private volatile boolean checked;
   private volatile long checkedAt;
@@ -73,6 +83,10 @@ public class MediaNodes {
     this.file = file;
     this.clock = clock;
     this.registry = registry;
+    this.nodeId = config.nodeId();
+    Gauge.builder("cord.node.registry.ignored", ignored, AtomicInteger::get)
+        .description("Реестр узлов проигнорирован: его узел управления — не NODE_ID этого сервера")
+        .register(registry);
     this.implicit =
         new MediaNode(
             config.nodeId(),
@@ -134,7 +148,10 @@ public class MediaNodes {
     if (preferred != null)
       for (var node : candidates)
         if (node.id().equals(preferred))
-          return new Choice(node, full(node) ? "preferred-full" : "preferred");
+          // Полный узел по предпочтению не берётся: встреча идёт на запасной (ревью R195).
+          return full(node)
+              ? fallback(candidates, control(), "preferred-full")
+              : new Choice(node, "preferred");
     var control = control();
     if (preferred != null && !knows(preferred)) return fallback(candidates, control, "unknown");
     if (preferred != null)
@@ -181,6 +198,7 @@ public class MediaNodes {
         if (modifiedAt != -1)
           log.warn("Media node registry {} disappeared; using the single implicit node", file);
         modifiedAt = -1;
+        ignored.set(0);
         nodes = List.of(implicit);
         return;
       }
@@ -188,6 +206,21 @@ public class MediaNodes {
       if (modified == modifiedAt) return;
       var parsed = parse(Files.readString(file));
       modifiedAt = modified;
+      var control = parsed.stream().filter(MediaNode::control).findFirst().orElseThrow();
+      // Файл не про этот сервер (или NODE_ID не задан): работать по нему — отдавать токены на чужие
+      // узлы.
+      // Прод от этого не падает: остаёмся с одним неявным узлом, кричим в журнал и метрику.
+      if (!control.id().equals(nodeId)) {
+        log.error(
+            "Media node registry {} names control node '{}' but this server is NODE_ID='{}' — registry IGNORED, single implicit node stays",
+            file,
+            control.id(),
+            nodeId);
+        ignored.set(1);
+        nodes = List.of(implicit);
+        return;
+      }
+      ignored.set(0);
       nodes = parsed;
       log.info(
           "Media nodes: {}",

@@ -34,7 +34,7 @@ class MediaNodesTest {
 
   StreamProperties config() {
     var config = mock(StreamProperties.class);
-    when(config.nodeId()).thenReturn("main");
+    when(config.nodeId()).thenReturn("fra");
     when(config.livekitUrl()).thenReturn("wss://one.example");
     when(config.livekitInternalUrl()).thenReturn("http://127.0.0.1:7880");
     when(config.publicUrl()).thenReturn("https://one.example");
@@ -52,7 +52,7 @@ class MediaNodesTest {
     var nodes = nodes(dir.resolve("missing.json"));
     assertThat(nodes.all()).hasSize(1);
     var only = nodes.control();
-    assertThat(only.id()).isEqualTo("main");
+    assertThat(only.id()).isEqualTo("fra");
     assertThat(only.rtcUrl()).isEqualTo("wss://one.example");
     assertThat(nodes.resolve(null)).isEqualTo(only);
     assertThat(nodes.resolve("hel")).isEqualTo(only);
@@ -111,7 +111,9 @@ class MediaNodesTest {
 
     // Полный узел не берётся по предпочтению; полный узел управления уступает первому живому.
     nodes.rooms("hel", 2);
-    assertThat(nodes.choose("hel").reason()).isEqualTo("preferred-full");
+    assertThat(nodes.choose("hel"))
+        .extracting(c -> c.node().id(), MediaNodes.Choice::reason)
+        .containsExactly("fra", "preferred-full-control");
     nodes.rooms("hel", 1);
     nodes.rooms("fra", 8);
     assertThat(nodes.choose(null))
@@ -124,6 +126,28 @@ class MediaNodesTest {
     assertThat(nodes.choose("hel"))
         .extracting(c -> c.node().id(), MediaNodes.Choice::reason)
         .containsExactly("fra", "down-all-down");
+  }
+
+  @Test
+  void registryWhoseControlNodeIsNotThisServerIsIgnoredLoudly() throws Exception {
+    var file = dir.resolve("registry.json");
+    Files.writeString(
+        file,
+        REGISTRY.replace("\"id\":\"fra\",\"control\":true", "\"id\":\"ams\",\"control\":true"));
+    var meters = new SimpleMeterRegistry();
+    var nodes = new MediaNodes(config(), file, clock, meters);
+    // Реестр не про этот сервер (NODE_ID=fra, в файле управление — ams): ядро живёт одним неявным
+    // узлом.
+    assertThat(nodes.all()).extracting(MediaNode::id).containsExactly("fra");
+    assertThat(nodes.control().rtcUrl()).isEqualTo("wss://one.example");
+    assertThat(nodes.resolve("hel").id()).isEqualTo("fra");
+    assertThat(meters.get("cord.node.registry.ignored").gauge().value()).isEqualTo(1);
+    // Файл поправили — подхватывается на следующем перечитывании, метрика гаснет.
+    Files.writeString(file, REGISTRY);
+    Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(2_000_000_000L));
+    now.addAndGet(MediaNodes.RELOAD_MS);
+    assertThat(nodes.all()).extracting(MediaNode::id).containsExactly("fra", "hel");
+    assertThat(meters.get("cord.node.registry.ignored").gauge().value()).isEqualTo(0);
   }
 
   @Test
