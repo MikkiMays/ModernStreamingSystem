@@ -311,11 +311,12 @@ export class Meeting {
     if (this.disposed) return;
     this.tellTime(snapshot.serverTime, roundTrip);
     if (snapshot.sequence < this.snapshot.get().sequence) return;
-    const previousNode = this.snapshot.get().mediaNode;
+    const previousMoves = this.snapshot.get().mediaMoves ?? 0;
     this.listen(snapshot);
     this.snapshot.set(snapshot);
-    // Узел медиа сменился (R195): узел умер, ядро переселило встречу — переходим туда сразу.
-    if (previousNode && snapshot.mediaNode && previousNode !== snapshot.mediaNode) void this.media.relocate();
+    // Встречу переселили на другой узел (R195): счётчик переездов вырос — переходим туда сразу. Смена
+    // одного лишь имени узла (ярлык `main` ↔ `fra`) никого не переподключает.
+    if ((snapshot.mediaMoves ?? 0) > previousMoves) void this.media.relocate();
     this.settleStage();
     // Музыкальный бот публикует свой трек как обычный микрофон — иначе комната не услышала
     // бы стерео. Значит, отличить музыку от речи по самой дорожке нельзя, и единственный,

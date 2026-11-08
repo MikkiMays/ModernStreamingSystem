@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import dev.mikki.stream.media.MediaGateway;
 import dev.mikki.stream.media.MediaService;
@@ -13,6 +14,7 @@ import dev.mikki.stream.nodes.MediaNode;
 import dev.mikki.stream.nodes.MediaNodes;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -44,17 +46,24 @@ class NodeHealthTest {
     assertThat(registry.get("cord.node.up").tag("node", "hel").gauge().value()).isEqualTo(1);
     health.observe(hel, null, 16000);
     verify(nodes).down("hel", true);
-    verify(media).evacuate("hel");
     assertThat(registry.get("cord.node.up").tag("node", "hel").gauge().value()).isEqualTo(0);
-    // Четвёртый промах — узел уже мёртв, переселять второй раз нечего.
-    health.observe(hel, null, 21000);
+    // Переселяет проход `sweep` — и на каждом проходе, пока узел мёртв: опоздавшие комнаты не
+    // застрянут.
+    when(nodes.all()).thenReturn(List.of(hel));
+    when(nodes.isDown("hel")).thenReturn(true);
+    health.sweep();
     verify(media, times(1)).evacuate("hel");
-    // Ожил — снова в выборе, комнаты назад не ездят (evacuate не зовётся).
+    health.observe(hel, null, 21000);
+    health.sweep();
+    verify(media, times(2)).evacuate("hel");
+    // Ожил — снова в выборе, комнаты назад не ездят: `sweep` живой узел не трогает.
     health.observe(hel, 0, 26000);
     verify(nodes).down("hel", false);
+    when(nodes.isDown("hel")).thenReturn(false);
+    health.sweep();
     assertThat(registry.get("cord.node.up").tag("node", "hel").gauge().value()).isEqualTo(1);
     assertThat(registry.get("cord.node.rooms").tag("node", "hel").gauge().value()).isEqualTo(0);
-    verify(media, times(1)).evacuate("hel");
+    verify(media, times(2)).evacuate("hel");
   }
 
   @Test

@@ -264,13 +264,19 @@ export class NodeProbe {
   }
 
   /**
-   * Узел для новой встречи и замеры для ядра. Готовый свежий результат — сразу; идущий замер — ждём не
-   * дольше `budgetMs`; иначе — запомненный выбор или ничего (ядро возьмёт узел управления).
+   * Узел для новой встречи и замеры для ядра. Свежий результат — сразу; устаревший или запомненный выбор —
+   * тоже сразу, а замер освежается в фоне (вход не ждёт сеть); ждём идущий замер не дольше `budgetMs`
+   * только когда выбора нет вовсе; иначе — ничего (ядро возьмёт узел управления).
    */
   async preferred(budgetMs = JOIN_BUDGET_MS): Promise<{ node: string | null; measures: NodeMeasure[] }> {
     if (this.nodes.length <= 1) return { node: this.nodes[0]?.id ?? null, measures: [] };
     const fresh = this.current();
     if (fresh) return { node: fresh.node, measures: fresh.measures };
+    const known = this.result?.node ?? this.remembered();
+    if (known) {
+      void this.refresh().catch(() => {});
+      return { node: known, measures: this.result?.measures ?? [] };
+    }
     const pending = this.running ?? this.refresh();
     const result = await Promise.race([
       pending,

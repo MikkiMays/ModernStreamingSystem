@@ -92,6 +92,7 @@ beforeEach(() => {
   snapshot = {
     id: 'room',
     mediaNode: 'main',
+    mediaMoves: 0,
     title: 'Admission',
     code: '123456789',
     sequence: 1,

@@ -37,6 +37,7 @@ public class NodeHealth {
   private static final Logger log = LoggerFactory.getLogger(NodeHealth.class);
   static final long PERIOD_MS = 5000;
   static final int DEAD_AFTER = 3;
+  // Вызов узла — 1 с (`MediaGateway.rooms`): три молчания — ≈ 3 × (1 + 5) с.
 
   private final MediaNodes nodes;
   private final MediaGateway gateway;
@@ -76,6 +77,22 @@ public class NodeHealth {
       }
       observe(node, rooms, clock.millis());
     }
+    sweep();
+  }
+
+  /**
+   * Переселить всё, что ещё стоит на мёртвых узлах, — на каждом проходе, пока узел мёртв: комнаты,
+   * созданные с опозданием, не дошедшие в прошлый раз из-за ошибки, и те, кому не хватало живого
+   * узла, пока он не вернулся. {@code evacuate} идемпотентен и дёшев (проход по открытым комнатам).
+   */
+  public void sweep() {
+    for (var node : nodes.all())
+      if (nodes.isDown(node.id()))
+        try {
+          media.evacuate(node.id());
+        } catch (RuntimeException e) {
+          log.warn("Evacuating rooms from {} failed; next tick retries", node.id(), e);
+        }
   }
 
   /** Один ответ узла: {@code rooms} — сколько комнат он держит, {@code null} — не ответил. */
@@ -101,13 +118,6 @@ public class NodeHealth {
           DEAD_AFTER);
       state.up.set(0);
       nodes.down(node.id(), true);
-      try {
-        media.evacuate(node.id());
-      } catch (RuntimeException e) {
-        log.warn("Evacuating rooms from {} failed; next tick retries", node.id(), e);
-        // Не дошли до конца — пусть следующий проход попробует снова.
-        state.failures = DEAD_AFTER - 1;
-      }
     }
   }
 

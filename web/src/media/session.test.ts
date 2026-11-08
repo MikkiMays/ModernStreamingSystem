@@ -2277,3 +2277,51 @@ describe('зум и перезапуск камеры на телефоне', ()
     }
   });
 });
+
+describe('переезд встречи на другой узел (R195)', () => {
+  it('relocate посреди start: вход на старый узел брошен, новый start идёт на новый адрес', async () => {
+    const { api, media, room } = fixture();
+    const fake = room as unknown as {
+      state: string;
+      connect: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    };
+    fake.state = 'disconnected';
+    let release!: (value: { url: string; token: string }) => void;
+    const tokens = [
+      new Promise<{ url: string; token: string }>((resolve) => (release = resolve)),
+      Promise.resolve({ url: 'ws://new-node', token: 't2' }),
+      Promise.resolve({ url: 'ws://new-node', token: 't3' }),
+    ];
+    (api.token as ReturnType<typeof vi.fn>).mockImplementation(() => tokens.shift()!);
+    const first = media.start();
+    const moved = media.relocate();
+    // Старый токен приходит уже после смены поколения: тот start выходит, но finally запускает новый.
+    release({ url: 'ws://old-node', token: 't1' });
+    await first;
+    await moved;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(fake.connect).toHaveBeenCalledTimes(1);
+    expect(fake.connect.mock.calls[0]![0]).toBe('ws://new-node');
+    // Дорожки не останавливаются: показ экрана переживает переезд.
+    expect(fake.disconnect).toHaveBeenCalledWith(false);
+    media.dispose();
+  });
+
+  it('тот же адрес у подключённой комнаты — переезда нет', async () => {
+    const { api, media, room } = fixture();
+    const fake = room as unknown as {
+      state: string;
+      connect: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    };
+    fake.state = 'disconnected';
+    await media.start();
+    fake.state = 'connected';
+    (api.token as ReturnType<typeof vi.fn>).mockResolvedValue({ url: 'ws://localhost', token: 'same' });
+    await media.relocate();
+    expect(fake.disconnect).not.toHaveBeenCalled();
+    expect(fake.connect).toHaveBeenCalledTimes(1);
+    media.dispose();
+  });
+});

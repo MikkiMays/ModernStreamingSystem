@@ -130,6 +130,7 @@ public class MediaService {
     var room = rooms.lock(roomId);
     if (room.closedAt != null || !nodes.resolve(room.mediaNode).id().equals(from)) return;
     room.mediaNode = to;
+    room.mediaMoves = (room.mediaMoves == null ? 0 : room.mediaMoves) + 1;
     long deadline = rooms.now() + config.recoverySeconds() * 1000L;
     for (var member : room.members.values())
       if (member.status == CONNECTED) {

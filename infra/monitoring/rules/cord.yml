@@ -190,6 +190,14 @@ groups:
         labels: { severity: warn }
         annotations: { summary: 'Метрики SFU узла {{ $labels.node }} не собираются десять минут: магистраль или сам SFU' }
 
+      # Реестр узлов есть, но его узел управления — не NODE_ID этого сервера: ядро его игнорирует и живёт одним
+      # узлом (прод не падает), а файл или .env — поправить.
+      - alert: NodeRegistryIgnored
+        expr: cord_node_registry_ignored == 1
+        for: 5m
+        labels: { severity: warn }
+        annotations: { summary: 'Реестр медиаузлов проигнорирован: control в registry.json ≠ NODE_ID в .env — узлы не работают, встречи идут на одном узле' }
+
       # Остался один живой узел — не авария, но резерва для переезда нет.
       - alert: NodeSingle
         expr: count(cord_node_up == 1) == 1 and count(cord_node_up) > 1

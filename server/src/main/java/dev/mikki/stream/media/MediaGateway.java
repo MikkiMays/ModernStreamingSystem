@@ -29,6 +29,12 @@ public class MediaGateway {
   private final RoomRepository rooms;
   private final Map<String, RoomServiceClient> clients = new ConcurrentHashMap<>();
 
+  /**
+   * Клиенты опроса здоровья: таймаут 1 с, чтобы молчащий узел был замечен за ≈ 3 × (1 с + 5 с), а
+   * не за 19–24 с.
+   */
+  private final Map<String, RoomServiceClient> healthClients = new ConcurrentHashMap<>();
+
   public MediaGateway(StreamProperties config, MediaNodes nodes, RoomRepository rooms) {
     this.config = config;
     this.nodes = nodes;
@@ -134,7 +140,19 @@ public class MediaGateway {
    * {@code MEDIA_UNAVAILABLE}, как у любого вызова SFU.
    */
   public int rooms(MediaNode node) {
-    var list = execute(client(node).listRooms(List.of()));
+    var client =
+        healthClients.computeIfAbsent(
+            node.internalUrl(),
+            url ->
+                RoomServiceClient.createClient(
+                    url,
+                    config.livekitKey(),
+                    config.livekitSecret(),
+                    () ->
+                        new okhttp3.OkHttpClient.Builder()
+                            .callTimeout(Duration.ofSeconds(1))
+                            .build()));
+    var list = execute(client.listRooms(List.of()));
     return list == null ? 0 : list.size();
   }
 
