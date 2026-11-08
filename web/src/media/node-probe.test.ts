@@ -216,8 +216,10 @@ describe('NodeProbe', () => {
     store.set(STORAGE_KEY, JSON.stringify({ node: 'hel', at: 1_000_000 - 60_000 }));
     const { probe: p, advance } = probe({ fra: 40, hel: 300 }, { storage: store, hang: true });
     p.schedule(NODES);
-    // Замер идёт (UDP молчит — ждём таймаута), бюджет входа кончается раньше: отдаём запомненный узел.
-    const quick = await p.preferred(5);
+    // Запомненный выбор отдаётся сразу, без ожидания замера (замер идёт в фоне).
+    const started = performance.now();
+    const quick = await p.preferred();
+    expect(performance.now() - started).toBeLessThan(100);
     expect(quick.node).toBe('hel');
     expect(quick.measures).toEqual([]);
     const result = await p.refresh();
