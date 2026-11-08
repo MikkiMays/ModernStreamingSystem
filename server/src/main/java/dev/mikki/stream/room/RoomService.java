@@ -785,7 +785,8 @@ public class RoomService {
             current.cinemaTraffic(),
             current.board(),
             current.endReason(),
-            current.mediaNode());
+            current.mediaNode(),
+            current.mediaMoves());
     return new Admission(
         room.id,
         member.id,
@@ -968,7 +969,8 @@ public class RoomService {
         room.cinemaTraffic,
         boardView(room),
         room.closedFor,
-        nodes.resolve(room.mediaNode).id());
+        nodes.resolve(room.mediaNode).id(),
+        room.mediaMoves == null ? 0 : room.mediaMoves);
   }
 
   /**
@@ -1099,7 +1101,8 @@ public class RoomService {
         null,
         // А почему встреча кончилась — видно: и у двери человек ждёт напрасно.
         current.endReason(),
-        current.mediaNode());
+        current.mediaNode(),
+        current.mediaMoves());
   }
 
   @Transactional

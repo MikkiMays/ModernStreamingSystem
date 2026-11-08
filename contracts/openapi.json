@@ -3984,6 +3984,10 @@
           "integrationsAllowed": {
             "type": "boolean"
           },
+          "mediaMoves": {
+            "format": "int64",
+            "type": "integer"
+          },
           "mediaNode": {
             "type": "string"
           },
@@ -4061,6 +4065,7 @@
           "durakGamesAt",
           "id",
           "integrationsAllowed",
+          "mediaMoves",
           "mediaNode",
           "messages",
           "participants",

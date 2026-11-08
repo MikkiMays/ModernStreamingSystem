@@ -134,11 +134,20 @@ backlog/bin/node.sh hel deploy
 
 ### 5.1 Магистраль и реестр
 
+Реестр `infra/generated/nodes/registry.json` на A **убран в сторону** до появления DNS и сертификатов узла (главная
+сессия, 08.11): ядро без файла живёт одним неявным узлом. Защита ядра: если в реестре узел управления (`control`) не
+совпадает с `NODE_ID` из `.env` (или `NODE_ID` не задан), реестр **игнорируется** с ошибкой в журнале
+(`registry IGNORED`), метрикой `cord_node_registry_ignored=1` и алертом `NodeRegistryIgnored`; ядро не падает и
+продолжает одним узлом. Поэтому порядок: сначала `NODE_ID` в `.env`, потом файл реестра.
+
 ```bash
 cd /opt/ModernStreamingSystem && git status -sb        # ветка main, чистое дерево, HEAD содержит R195
 backlog/bin/active-meetings.sh                          # код 0
-node scripts/node-config.mjs --write-env                # NODE_ID=fra, CSP_NODES=…, COMPOSE_PROFILES=…,nodes в .env
+# Реестр вернуть на место или создать заново (это же и записывает NODE_ID=fra, CSP_NODES, профиль nodes в .env):
+node scripts/node-config.mjs --node=hel --refresh --write-env   # если файлы hel уже есть (убраны в сторону — вернуть сначала их)
+#   либо, с нуля, после DNS: node scripts/node-config.mjs --node=hel --ip=152.234.227.199 --app=hel.callcord.ru --rtc=rtc-hel.callcord.ru --turn=turn-hel.callcord.ru --write-env
 grep -E '^(NODE_ID|CSP_NODES|COMPOSE_PROFILES)=' .env   # три строки; значений CSP_NODES — имена узлов, без секретов
+python3 -c "import json;print(json.load(open('infra/generated/nodes/registry.json'))['nodes'][0]['id'])"   # fra — совпадает с NODE_ID
 sudo ufw allow from 152.234.227.199 to any port 7443 proto tcp comment 'cord backbone hel'
 sudo ufw status | grep 7443                             # ровно одна строка с адресом B
 docker compose up -d backbone                           # контейнер modern-streaming-backbone-1
@@ -155,7 +164,7 @@ curl -fsS -m 5 -o /dev/null -w '%{http_code}\n' http://127.0.0.1:21000/   # 200 
 backlog/bin/active-meetings.sh                          # код 0 (иначе --drain)
 TAG=cord-rollback-$(date +%Y%m%d-%H%M%S); for s in core gateway; do docker tag modern-streaming-$s:latest $TAG-$s:latest; done
 backlog/bin/deploy.sh core gateway                      # сборка и подъём; ядро читает /nodes/registry.json
-docker compose logs --since 2m core | grep 'Media nodes' # ожидаемо: Media nodes: [fra*, hel]
+docker compose logs --since 2m core | grep -E 'Media nodes|registry IGNORED' # ожидаемо: Media nodes: [fra*, hel]; строки IGNORED быть не должно
 curl -s http://127.0.0.1:8080/actuator/prometheus | grep '^cord_node_up'   # cord_node_up{node="fra"} 1, {node="hel"} 1
 curl -s https://cord.nikg.tech/api/v1/capabilities | python3 -c 'import json,sys; print([n["id"] for n in json.load(sys.stdin)["nodes"]])'  # ['fra', 'hel']
 docker compose up -d victoriametrics vmalert            # профиль monitoring: цели узлов и алерты NodeDown…

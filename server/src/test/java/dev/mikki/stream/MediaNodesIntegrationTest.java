@@ -168,6 +168,10 @@ class MediaNodesIntegrationTest {
 
     var moved = rooms.read(host.roomId());
     assertThat(moved.mediaNode).isEqualTo("fra");
+    assertThat(moved.mediaMoves).isEqualTo(1);
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).mediaMoves()).isEqualTo(1);
+    assertThat(rooms.snapshot(untouched.roomId(), untouched.credential()).mediaMoves())
+        .isEqualTo(0);
     assertThat(moved.members.values()).allMatch(m -> m.status == RoomState.Status.RECOVERING);
     assertThat(moved.members.get(guest.participantId()).recoveryDeadline)
         .isEqualTo(now.get() + config.recoverySeconds() * 1000L);

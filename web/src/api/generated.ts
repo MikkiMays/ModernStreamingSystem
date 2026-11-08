@@ -2010,6 +2010,8 @@ export interface components {
             gartic?: components["schemas"]["GarticView"] | null;
             id: string;
             integrationsAllowed: boolean;
+            /** Format: int64 */
+            mediaMoves: number;
             mediaNode: string;
             messages: components["schemas"]["Message"][];
             participants: components["schemas"]["Participant"][];

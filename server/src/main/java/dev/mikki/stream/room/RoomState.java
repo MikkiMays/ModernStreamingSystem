@@ -105,6 +105,14 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String mediaNode;
 
+  /**
+   * Сколько раз встреча переезжала на другой узел ({@code MediaService.moveRoom}). Клиент
+   * переподключается по росту этого счётчика, а не по имени узла: ярлык может смениться без
+   * переезда. null — ни разу.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Integer mediaMoves;
+
   public boolean mediaDrained;
   public boolean approvalRequired;
   public boolean integrationsAllowed = true;
