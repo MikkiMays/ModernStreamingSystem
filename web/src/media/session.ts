@@ -329,6 +329,17 @@ export const HOLD_CAMERA_MS = 6000;
 /** Пауза между «отписаться» и «подписаться» у дорожки, которая так и не пришла: SFU должен успеть первое. */
 const SUBSCRIPTION_TOGGLE_MS = 250;
 
+/**
+ * Тёплая камера на iPhone (R201, владелец: «при частом включении видео… включаются с задержкой, а также бывает часто
+ * переспрашивает даже при включении видео камеры»). LiveKit на выключение останавливает камеру, а на включение
+ * захватывает заново (`getUserMedia`); Safari на iOS при этом бывает, что спрашивает разрешение снова (WebKit 228317,
+ * 210104), а новый захват видео перестраивает аудиосессию и на мгновение глушит микрофон (`mic-slow` с `wake`).
+ * Поэтому на iOS выключение мягкое: дорожка остаётся захваченной, кадров не шлёт, SFU знает «камера выключена»;
+ * включение в этот срок — мгновенное, без захвата и без вопроса. Через срок камера отдаётся системе по-настоящему —
+ * индикатор гаснет, как и раньше.
+ */
+const CAMERA_WARM_MS = 15_000;
+
 export class MediaSession {
   readonly preferences = new Store(readPreferences());
   readonly state = new Store<MediaState>({
@@ -627,6 +638,8 @@ export class MediaSession {
   /** Последний замер отдачи камеры — сторожу: кодируются ли кадры при живом подписчике. */
   private cameraStats: { frames: number | null; watched: boolean; at: number } | null = null;
   private cameraTimer?: ReturnType<typeof setInterval>;
+  /** Когда тёплая камера отдаётся системе (R201). */
+  private cameraWarmTimer?: ReturnType<typeof setTimeout>;
   /** Сторож камеры (R189, И4) — то же, что `micSentinel` для микрофона, но лечит и публикацию. */
   private readonly cameraGuard = new CameraGuard({
     look: () => {
@@ -2563,42 +2576,47 @@ export class MediaSession {
       } else {
         // Нажатие — слово человека: эпизод лечения закрыт, запрет после отказа в разрешении снят.
         this.cameraGuard.reset();
-        // Кодек выбирается до публикации: поменять его потом — это переговоры и перерыв в
-        // картинке, а ответ платформы от момента вопроса не зависит. Выключение забывает решение
-        // (И2): следующее включение — естественный старт, где действует память машины.
-        if (!this.state.get().camera) {
-          await this.ensureCameraCodec();
-        } else {
-          this.cameraPlanned = undefined;
-          this.codecs.stop('camera');
-        }
-        // Первое включение на телефоне — фронтальная камера, а не та, что запомнилась (владелец,
-        // 27.10.2026): после «перевернуть» в прошлой встрече следующая начиналась с задней. Дальше
-        // во встрече — какую выбрали (`cameraChosen`).
-        const front = !this.cameraChosen.get() && !brought && touchFirst();
-        // LiveKit дописывает к захвату `deviceId` из умолчаний комнаты и делает его точным
-        // требованием (`{ exact }`): запомненная задняя перебивала `facingMode`, и встреча
-        // начиналась с неё — даже после фронтальной на предвходе. У фронтальной запомненного нет.
-        if (front)
-          this.room.options.videoCaptureDefaults = {
-            ...this.room.options.videoCaptureDefaults,
-            deviceId: undefined,
-          };
-        await this.room.localParticipant.setCameraEnabled(
-          !this.state.get().camera,
-          front
-            ? { facingMode: 'user', ...this.cameraCaptureNow() }
-            : { deviceId, ...this.cameraCaptureNow() },
-          this.cameraOptionsNow(),
-        );
-        this.videoChangedAt.camera = performance.now();
-        if (this.room.localParticipant.isCameraEnabled) {
-          // Подсказка, частота и фон — только включённой камере: после выключения это была работа
-          // впустую, и главный поток после нажатия был занят ещё секунду (R163, профиль на стенде).
-          this.applyCameraHint();
-          this.cameraChosen.set(true);
-          this.forgetZoom();
-          if (front) this.rememberCamera();
+        // Мягко (R201): ни кодека, ни захвата — только флаг дорожки и слово SFU.
+        const warm = this.warmCamera();
+        const soft = warm !== null && this.softCameraToggle(warm, !this.state.get().camera);
+        if (!soft) {
+          // Кодек выбирается до публикации: поменять его потом — это переговоры и перерыв в
+          // картинке, а ответ платформы от момента вопроса не зависит. Выключение забывает решение
+          // (И2): следующее включение — естественный старт, где действует память машины.
+          if (!this.state.get().camera) {
+            await this.ensureCameraCodec();
+          } else {
+            this.cameraPlanned = undefined;
+            this.codecs.stop('camera');
+          }
+          // Первое включение на телефоне — фронтальная камера, а не та, что запомнилась (владелец,
+          // 27.10.2026): после «перевернуть» в прошлой встрече следующая начиналась с задней. Дальше
+          // во встрече — какую выбрали (`cameraChosen`).
+          const front = !this.cameraChosen.get() && !brought && touchFirst();
+          // LiveKit дописывает к захвату `deviceId` из умолчаний комнаты и делает его точным
+          // требованием (`{ exact }`): запомненная задняя перебивала `facingMode`, и встреча
+          // начиналась с неё — даже после фронтальной на предвходе. У фронтальной запомненного нет.
+          if (front)
+            this.room.options.videoCaptureDefaults = {
+              ...this.room.options.videoCaptureDefaults,
+              deviceId: undefined,
+            };
+          await this.room.localParticipant.setCameraEnabled(
+            !this.state.get().camera,
+            front
+              ? { facingMode: 'user', ...this.cameraCaptureNow() }
+              : { deviceId, ...this.cameraCaptureNow() },
+            this.cameraOptionsNow(),
+          );
+          this.videoChangedAt.camera = performance.now();
+          if (this.room.localParticipant.isCameraEnabled) {
+            // Подсказка, частота и фон — только включённой камере: после выключения это была работа
+            // впустую, и главный поток после нажатия был занят ещё секунду (R163, профиль на стенде).
+            this.applyCameraHint();
+            this.cameraChosen.set(true);
+            this.forgetZoom();
+            if (front) this.rememberCamera();
+          }
         }
       }
       this.wanted[kind] =
@@ -2620,6 +2638,40 @@ export class MediaSession {
       this.deviceBusy.delete(kind);
       this.applyQueuedToggle(kind, announce, failed);
     }
+  }
+  /** Дорожка камеры, которую можно выключать мягко (R201): только iOS. */
+  private warmCamera(): LocalVideoTrack | null {
+    if (currentPlatform().os !== 'ios') return null;
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    return track instanceof LocalVideoTrack ? track : null;
+  }
+  /**
+   * Мягко выключить или включить камеру (R201). `setTrackMuted` — то, чем LiveKit сам глушит дорожку после остановки
+   * камеры: флаг, `enabled` и событие, по которому участник шлёт SFU «выключена». Включить мягко можно, только пока
+   * захват жив; иначе — обычный путь с новым захватом. @returns сделано ли мягко.
+   */
+  private softCameraToggle(track: LocalVideoTrack, on: boolean): boolean {
+    const mute = (track as unknown as { setTrackMuted?: (muted: boolean) => void }).setTrackMuted;
+    if (typeof mute !== 'function') return false;
+    if (on) {
+      if (!track.isMuted || track.mediaStreamTrack.readyState !== 'live') return false;
+      clearTimeout(this.cameraWarmTimer);
+      mute.call(track, false);
+      return true;
+    }
+    if (track.isMuted) return false;
+    mute.call(track, true);
+    clearTimeout(this.cameraWarmTimer);
+    this.cameraWarmTimer = setTimeout(() => this.releaseWarmCamera(track), CAMERA_WARM_MS);
+    return true;
+  }
+  /** Срок вышел: камера отдаётся системе — индикатор гаснет, следующее включение — новый захват. */
+  private releaseWarmCamera(track: LocalVideoTrack) {
+    if (this.disposed || !track.isMuted) return;
+    if (this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track !== track) return;
+    track.mediaStreamTrack.stop();
+    this.cameraPlanned = undefined;
+    this.codecs.stop('camera');
   }
   /** Устройство больше не занято: применить нажатие, которое его дожидалось (R191). */
   private deviceFree(kind: 'microphone' | 'camera') {
@@ -3510,6 +3562,7 @@ export class MediaSession {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    clearTimeout(this.cameraWarmTimer);
     // Встреча кончилась — и её «звук встречи» с ней (R161): сигналы на главной и в следующей звучат.
     setMeetingDeafened(false);
     this.dropHandedMicrophone();

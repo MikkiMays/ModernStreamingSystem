@@ -2325,3 +2325,93 @@ describe('переезд встречи на другой узел (R195)', () =
     media.dispose();
   });
 });
+
+describe('тёплая камера на iPhone (R201)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const IPHONE =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1';
+
+  function warmFixture(ios: boolean) {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    if (ios) vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
+    const { media, room } = fixture();
+    const local = (room as unknown as { localParticipant: Record<string, unknown> }).localParticipant;
+    const raw = {
+      readyState: 'live',
+      enabled: true,
+      stop: vi.fn(function (this: { readyState: string }) {
+        this.readyState = 'ended';
+      }),
+      getConstraints: () => ({}),
+      getSettings: () => ({}),
+      getCapabilities: () => ({}),
+      applyConstraints: vi.fn(async () => {}),
+    };
+    const video = Object.create(LocalVideoTrack.prototype) as LocalVideoTrack & { isMuted: boolean };
+    Object.defineProperty(video, 'mediaStreamTrack', { value: raw });
+    Object.defineProperty(video, 'isMuted', { value: false, writable: true });
+    Object.defineProperty(video, 'constraints', { value: {} });
+    Object.defineProperty(video, 'stop', { value: vi.fn() });
+    const setTrackMuted = vi.fn((muted: boolean) => {
+      video.isMuted = muted;
+      raw.enabled = !muted;
+    });
+    Object.defineProperty(video, 'setTrackMuted', { value: setTrackMuted });
+    (local.trackPublications as Map<Track.Source, unknown>).set(Track.Source.Camera, {
+      track: video,
+      source: Track.Source.Camera,
+    });
+    Object.defineProperty(local, 'isCameraEnabled', { get: () => !video.isMuted, configurable: true });
+    const setCameraEnabled = vi.fn(async (_enabled: boolean) => {});
+    local.setCameraEnabled = setCameraEnabled;
+    media.state.set({ ...media.state.get(), camera: true });
+    return { media, raw, setTrackMuted, setCameraEnabled };
+  }
+
+  it('выключить и снова включить в срок — без нового захвата и без вопроса Safari: только флаг дорожки', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { media, raw, setTrackMuted, setCameraEnabled } = warmFixture(true);
+    try {
+      await media.toggle('camera');
+      expect(setTrackMuted).toHaveBeenLastCalledWith(true);
+      expect(media.state.get().camera).toBe(false);
+      vi.advanceTimersByTime(5_000);
+      await media.toggle('camera');
+      expect(setTrackMuted).toHaveBeenLastCalledWith(false);
+      expect(media.state.get().camera).toBe(true);
+      expect(setCameraEnabled).not.toHaveBeenCalled();
+      expect(raw.stop).not.toHaveBeenCalled();
+      // Включена — срок отдачи снят.
+      vi.advanceTimersByTime(30_000);
+      expect(raw.stop).not.toHaveBeenCalled();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('выключена дольше срока — камера отдаётся системе (индикатор гаснет), включение — обычным захватом', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { media, raw, setCameraEnabled } = warmFixture(true);
+    try {
+      await media.toggle('camera');
+      vi.advanceTimersByTime(15_000);
+      expect(raw.stop).toHaveBeenCalledTimes(1);
+      await media.toggle('camera');
+      expect(setCameraEnabled).toHaveBeenCalledTimes(1);
+      expect(setCameraEnabled.mock.calls[0]![0]).toBe(true);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('не iPhone — как раньше: LiveKit останавливает камеру сразу', async () => {
+    const { media, setTrackMuted, setCameraEnabled } = warmFixture(false);
+    try {
+      await media.toggle('camera');
+      expect(setTrackMuted).not.toHaveBeenCalled();
+      expect(setCameraEnabled.mock.calls[0]![0]).toBe(false);
+    } finally {
+      media.dispose();
+    }
+  });
+});
