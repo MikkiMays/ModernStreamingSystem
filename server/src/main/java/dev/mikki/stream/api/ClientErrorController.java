@@ -1,7 +1,10 @@
 package dev.mikki.stream.api;
 
+import dev.mikki.stream.access.Identity;
 import dev.mikki.stream.access.RateLimits;
+import dev.mikki.stream.activity.Analytics;
 import dev.mikki.stream.activity.ClientErrors;
+import dev.mikki.stream.activity.ClientKind;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -21,11 +24,14 @@ public class ClientErrorController {
   private final RateLimits limits;
   private final ClientAddress address;
   private final ClientErrors errors;
+  private final Analytics analytics;
 
-  public ClientErrorController(RateLimits limits, ClientAddress address, ClientErrors errors) {
+  public ClientErrorController(
+      RateLimits limits, ClientAddress address, ClientErrors errors, Analytics analytics) {
     this.limits = limits;
     this.address = address;
     this.errors = errors;
+    this.analytics = analytics;
   }
 
   @PostMapping("/client-errors")
@@ -34,5 +40,10 @@ public class ClientErrorController {
       @Valid @RequestBody ClientErrors.ErrorSummary batch, HttpServletRequest http) {
     limits.check("client-errors-ip:" + address.of(http), PER_MINUTE);
     errors.record(batch);
+    // Ошибки на сессию в аналитике (R210): только число, без мест и кодов.
+    analytics.errors(
+        Identity.profileHash(http.getHeader(Identity.PROFILE)),
+        ClientKind.of(http),
+        batch.errors().stream().mapToInt(ClientErrors.ErrorCount::count).sum());
   }
 }

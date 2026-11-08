@@ -3,7 +3,9 @@ package dev.mikki.stream.api;
 import dev.mikki.stream.access.Identity;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
+import dev.mikki.stream.activity.Analytics;
 import dev.mikki.stream.activity.Audit;
+import dev.mikki.stream.activity.ClientKind;
 import dev.mikki.stream.activity.MeetingStats;
 import dev.mikki.stream.activity.Metrics;
 import dev.mikki.stream.config.Rate;
@@ -30,6 +32,7 @@ public class Entries {
   private static final Rate DENIALS = Rate.perMinute(1);
 
   private final Audit audit;
+  private final Analytics analytics;
   private final Metrics metrics;
   private final MeetingStats stats;
   private final Secrets secrets;
@@ -38,12 +41,14 @@ public class Entries {
 
   public Entries(
       Audit audit,
+      Analytics analytics,
       Metrics metrics,
       MeetingStats stats,
       Secrets secrets,
       RateLimits limits,
       ClientAddress address) {
     this.audit = audit;
+    this.analytics = analytics;
     this.metrics = metrics;
     this.stats = stats;
     this.secrets = secrets;
@@ -59,11 +64,13 @@ public class Entries {
     var profile = Identity.profileHash(http.getHeader(Identity.PROFILE));
     var action = door.equals("create") ? "room.created" : "participant.joined";
     var client = key != null && key.startsWith("actor:") ? "telegram" : null;
+    var kind = client != null ? ClientKind.of(http).telegram() : ClientKind.of(http);
     Contracts.Admission admission;
     try {
       admission = enter.get();
     } catch (Problem refused) {
       metrics.joined(door, refused.code().toLowerCase(Locale.ROOT));
+      analytics.entered(profile, key, kind, door, false);
       if (!limits.exceeded("audit-denied:" + ip + ":" + refused.code(), DENIALS))
         audit.record(
             Audit.Entry.of(action)
@@ -76,6 +83,7 @@ public class Entries {
     }
     metrics.joined(door, "ok");
     stats.device(profile != null ? profile : ip);
+    analytics.entered(profile, key, kind, door, true);
     var snapshot = admission.snapshot();
     var name =
         snapshot.participants().stream()

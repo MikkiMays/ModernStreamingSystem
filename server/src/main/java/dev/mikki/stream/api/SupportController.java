@@ -37,8 +37,25 @@ public class SupportController {
       boolean consent,
       @Size(max = 8) List<String> issues) {}
 
-  /** Новый статус обращения: «в работе», «решено» — или обратно в «новые». */
+  /** Новый статус обращения: «в работе», «ждём человека», «решено», «архив» — или назад. */
   public record StatusChange(@NotNull SupportService.Status status) {}
+
+  /** Назначение, приоритет, метки (R215); {@code null} — не менять. */
+  public record Update(
+      @Size(max = 40) @Pattern(regexp = "[\\p{L}\\p{N}@._ -]*") String assignee,
+      @Pattern(regexp = "low|normal|high|urgent") String priority,
+      @Size(max = 400) String tags) {}
+
+  /** Запись в ленту: заметка себе или что ответили человеку. */
+  public record NoteRequest(
+      @NotNull @Pattern(regexp = "note|reply") String kind,
+      @NotNull @Size(min = 1, max = SupportService.MAX_MESSAGE) String text) {}
+
+  /**
+   * Кто действует от имени владельца: пульт флота подписывает запросы {@code owner} или {@code
+   * agent} ({@code X-Cord-Admin-Actor}); без заголовка — {@code owner}.
+   */
+  public static final String ACTOR = "X-Cord-Admin-Actor";
 
   private final SupportService support;
   private final ProofOfWork proofs;
@@ -106,24 +123,73 @@ public class SupportController {
   }
 
   /**
-   * Обращения для «Активности», новые первыми; {@code before} — время последнего на прошлой
-   * странице.
+   * Ящик обращений для пульта и «Активности», новые первыми; {@code before} — время последнего на
+   * прошлой странице. Без {@code status} архив не показывается.
    */
   @GetMapping("/api/v1/admin/support")
   public List<SupportService.Entry> tickets(
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
-      @RequestParam(value = "before", required = false) Long before) {
+      @RequestParam(value = "before", required = false) Long before,
+      @RequestParam(required = false) SupportService.Status status,
+      @RequestParam(required = false) @Pattern(regexp = "[a-z]{2,16}") String topic,
+      @RequestParam(required = false) @Size(max = 40) String assignee,
+      @RequestParam(required = false) @Pattern(regexp = "low|normal|high|urgent") String priority,
+      @RequestParam(required = false) @Size(max = 100) String q,
+      @RequestParam(required = false) Integer limit) {
     admin.require(token);
-    return support.recent(50, before);
+    return support.search(
+        new SupportService.Filter(status, topic, assignee, priority, q, before, limit));
+  }
+
+  @GetMapping("/api/v1/admin/support/counts")
+  public SupportService.Counts counts(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token) {
+    admin.require(token);
+    return support.counts();
+  }
+
+  @GetMapping("/api/v1/admin/support/{id}")
+  public SupportService.Ticket ticket(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @PathVariable java.util.UUID id) {
+    admin.require(token);
+    return support.get(id.toString());
   }
 
   @PutMapping("/api/v1/admin/support/{id}/status")
   public ResponseEntity<Void> status(
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @RequestHeader(value = ACTOR, required = false) String actor,
       @PathVariable java.util.UUID id,
       @Valid @RequestBody StatusChange change) {
     admin.require(token);
-    support.setStatus(id.toString(), change.status());
+    support.setStatus(id.toString(), change.status(), actor(actor));
     return ResponseEntity.noContent().build();
+  }
+
+  @PutMapping("/api/v1/admin/support/{id}")
+  public ResponseEntity<Void> update(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @RequestHeader(value = ACTOR, required = false) String actor,
+      @PathVariable java.util.UUID id,
+      @Valid @RequestBody Update change) {
+    admin.require(token);
+    support.update(
+        id.toString(), change.assignee(), change.priority(), change.tags(), actor(actor));
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/api/v1/admin/support/{id}/notes")
+  public SupportService.Note note(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @RequestHeader(value = ACTOR, required = false) String actor,
+      @PathVariable java.util.UUID id,
+      @Valid @RequestBody NoteRequest note) {
+    admin.require(token);
+    return support.addNote(id.toString(), note.kind(), note.text(), actor(actor));
+  }
+
+  private static String actor(String header) {
+    return "agent".equals(header) ? "agent" : "owner";
   }
 }

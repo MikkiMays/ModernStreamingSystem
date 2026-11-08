@@ -25,7 +25,19 @@ public record SupportProperties(
     String notifyTelegramChat,
     @NotNull Rate perIp,
     @NotNull Rate perServer,
-    @NotNull Duration retention) {
+    @NotNull Duration retention,
+    Sla sla) {
+  /** Сроки SLA (R215): первый ответ и решение; пусто — умолчания. */
+  public record Sla(Duration firstResponse, Duration resolve) {}
+
+  public Sla slaOrDefault() {
+    return sla == null
+        ? new Sla(Duration.ofHours(4), Duration.ofHours(48))
+        : new Sla(
+            sla.firstResponse() == null ? Duration.ofHours(4) : sla.firstResponse(),
+            sla.resolve() == null ? Duration.ofHours(48) : sla.resolve());
+  }
+
   /** Чат владельца, если задан. */
   public String chat() {
     return notifyTelegramChat == null ? "" : notifyTelegramChat.trim();
