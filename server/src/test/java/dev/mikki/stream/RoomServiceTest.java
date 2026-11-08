@@ -728,7 +728,7 @@ class RoomServiceTest {
     // LossReports — один на контекст, поэтому смотрим только на этого человека.
     var marked =
         (java.util.function.Supplier<Integer>)
-            () -> losses.lostAmong(node, Set.of(host.participantId()), now.get(), 0);
+            () -> losses.since(node, Set.of(host.participantId()), Long.MIN_VALUE, now.get());
     var ack = command(host, "media.stall", null, member.generation);
     assertThat(ack.ok()).isTrue();
     assertThat(read.get().members.get(host.participantId()).status)
@@ -753,6 +753,40 @@ class RoomServiceTest {
     assertThat(marked.get()).isEqualTo(0);
     command(host, "media.stall", null, read.get().members.get(host.participantId()).generation);
     assertThat(marked.get()).isEqualTo(1);
+  }
+
+  /**
+   * Отметку беды снимает и возврат, который видит SFU (Р-105): {@code media.restored} клиент шлёт
+   * без повторов, и без этого отметка висела бы до двух минут — а с ней и ложный повод для правил
+   * отказа узла.
+   */
+  @Test
+  void aReconnectSeenBySfuClearsTheLossMarkEvenWithoutMediaRestored() {
+    var host = host();
+    connected(host);
+    var read = (java.util.function.Supplier<RoomState>) () -> rooms.read(host.roomId());
+    var node = nodes.resolve(read.get().mediaNode).id();
+    var marked =
+        (java.util.function.Supplier<Integer>)
+            () -> losses.since(node, Set.of(host.participantId()), Long.MIN_VALUE, now.get());
+    command(host, "media.stall", null, read.get().members.get(host.participantId()).generation);
+    assertThat(marked.get()).isEqualTo(1);
+    // SDK переподключился заново (новый вход в SFU), а media.restored потерялся.
+    media.webhook(
+        host.roomId(), host.participantId(), "PA_second", "participant_joined", now.addAndGet(10));
+    assertThat(marked.get()).isEqualTo(0);
+    // Потеря с переподключением; клиент молчит, а SFU видит человека на месте дольше половины окна
+    // —
+    // сверка возвращает его в CONNECTED и снимает отметку.
+    command(host, "media.lost", null, read.get().members.get(host.participantId()).generation);
+    assertThat(read.get().members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.RECOVERING);
+    assertThat(marked.get()).isEqualTo(1);
+    now.addAndGet(config.recoverySeconds() * 500L + 100);
+    media.observe(host.roomId(), Map.of(host.participantId(), "PA_second"), now.incrementAndGet());
+    assertThat(read.get().members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.CONNECTED);
+    assertThat(marked.get()).isEqualTo(0);
   }
 
   @Test

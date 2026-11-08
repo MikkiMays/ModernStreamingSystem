@@ -29,18 +29,24 @@ import org.springframework.stereotype.Component;
  * знает {@link MediaNodes}: не ставить встречи на полный узел, считать ступень нагрузки).
  *
  * <p>Промахи опроса сами по себе — ещё не смерть: хост узла замирает на 2–4 с (steal), магистраль
- * через фильтр A рвётся, а люди при этом на связи — переезд им только навредил бы. Поэтому узел
- * признаётся мёртвым, когда выполнено одно из правил:
+ * через фильтр A рвётся, а люди при этом на связи — переезд им только навредил бы. Жалоба одного
+ * человека — тоже не смерть: у него мог лечь домашний Wi-Fi, а подсказку {@code media.stall} может
+ * прислать кто угодно (§5.5: «не переезжаем по одному жалобщику»). Поэтому решают жалобы не меньше
+ * чем {@link #COMPLAINERS} разных участников, и узел признаётся мёртвым, когда выполнено одно из
+ * правил:
  *
  * <ul>
- *   <li><b>A</b> — ≥ {@link #MISSES_WITH_PEOPLE} промахов подряд <b>и</b> ≥ половины подключённых к
- *       узлу людей пожаловались ядру ({@code media.stall}/{@code media.lost}, {@link LossReports}).
- *       Проверяется и по опросу, и сразу по каждой жалобе: ≈ 4–6 с от остановки SFU.
- *   <li><b>B</b> — ≥ {@link #MISSES_WITHOUT_PEOPLE} промахов подряд, а людей на узле нет: ломать
- *       нечего, узел просто выводится из выбора надёжнее (≈ 8–10 с).
- *   <li><b>C</b> — опрос отвечает, но ≥ половины людей узла в беде дольше {@link
+ *   <li><b>A</b> — ≥ {@link #MISSES_WITH_PEOPLE} промахов подряд <b>и</b> пожаловались ядру ({@code
+ *       media.stall}/{@code media.lost}, {@link LossReports}) хотя бы двое и не меньше половины
+ *       людей узла. Проверяется и по опросу, и сразу по каждой жалобе: ≈ 4–6 с от остановки SFU.
+ *   <li><b>B</b> — ≥ {@link #MISSES_WITHOUT_PEOPLE} промахов подряд, а судить некому: людей на узле
+ *       нет (ломать нечего, ≈ 8–10 с) или человек на узле один и тоже пожаловался — двоих
+ *       жалобщиков тут не набрать, а переезд никого, кроме него самого, не задевает.
+ *   <li><b>C</b> — опрос отвечает, но на узле ≥ {@link #PEOPLE_FOR_C} человек, и хотя бы двое и не
+ *       меньше половины из них в {@code RECOVERING} (SDK переподключается) дольше {@link
  *       LossReports#STUCK_MS}: путь к узлу мёртв для людей, а не для магистрали (UDP/443 к узлу
- *       режут у провайдера). Медленный порог — против массового «мигания» VPN.
+ *       режут у провайдера). Подсказка {@code media.stall} без переподключения здесь не считается;
+ *       медленный порог — против массового «мигания» VPN.
  * </ul>
  *
  * <p>Промахи без жалоб ({@code ≥ MISSES_WITH_PEOPLE}) — узел {@code unreachable}: новые встречи на
@@ -80,9 +86,19 @@ public class NodeHealth {
   /** Сглаживание долей ЦП и канала между опросами — как у {@code LoadMeter}. */
   private static final double EWMA = 0.35;
 
-  /** Доли людей узла, которых достаточно для решения: половина. */
-  static boolean quorum(int lost, int people) {
-    return people > 0 && lost * 2 >= people;
+  /**
+   * Правила A и C: столько разных участников должны пожаловаться — один жалобщик ничего не решает.
+   */
+  static final int COMPLAINERS = 2;
+
+  /**
+   * Правило C: столько людей должно быть на узле (в звонке вдвоём один выпавший — уже половина).
+   */
+  static final int PEOPLE_FOR_C = 3;
+
+  /** Жалоб достаточно для решения: хотя бы двое разных и не меньше половины людей узла. */
+  static boolean quorum(int complainers, int people) {
+    return complainers >= COMPLAINERS && complainers * 2 >= people;
   }
 
   private final MediaNodes nodes;
@@ -197,13 +213,14 @@ public class NodeHealth {
       // когда на узле есть хоть одна отметка — в спокойном состоянии опрос базу не трогает.
       if (losses.reported(node.id()) == 0) return;
       var people = media.onNode(node.id());
-      var stuck = losses.lostAmong(node.id(), people, now, LossReports.STUCK_MS);
+      if (people.size() < PEOPLE_FOR_C) return;
+      var stuck = losses.stuck(node.id(), people.recovering(), LossReports.STUCK_MS, now);
       if (quorum(stuck, people.size()))
         die(
             node,
             state,
             now,
-            "%d of %d people lost media for %d s while the node answers"
+            "%d of %d people have been reconnecting for %d s while the node answers"
                 .formatted(stuck, people.size(), LossReports.STUCK_MS / 1000));
       return;
     }
@@ -248,7 +265,7 @@ public class NodeHealth {
         die(node, state, now, "%d misses in a row, nobody connected".formatted(failures));
       return;
     }
-    var lost = losses.lostAmong(node.id(), people, now, 0);
+    var lost = losses.since(node.id(), people.all(), Long.MIN_VALUE, now);
     if (quorum(lost, people.size()))
       die(
           node,
@@ -256,6 +273,12 @@ public class NodeHealth {
           now,
           "%d misses in a row and %d of %d people lost media"
               .formatted(failures, lost, people.size()));
+    else if (people.size() == 1 && lost == 1 && failures >= MISSES_WITHOUT_PEOPLE)
+      die(
+          node,
+          state,
+          now,
+          "%d misses in a row and the only person on the node lost media".formatted(failures));
   }
 
   private void die(MediaNode node, State state, long now, String why) {

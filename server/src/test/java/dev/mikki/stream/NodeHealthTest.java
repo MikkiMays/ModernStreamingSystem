@@ -51,7 +51,11 @@ class NodeHealthTest {
   }
 
   final MediaGateway.NodeStats ok = new MediaGateway.NodeStats(1, 4);
-  final Set<String> four = Set.of("a", "b", "c", "d");
+  final MediaService.People four = people(Set.of("a", "b", "c", "d"), Set.of());
+
+  static MediaService.People people(Set<String> connected, Set<String> recovering) {
+    return new MediaService.People(connected, recovering);
+  }
 
   /** Промах опроса в момент {@code at}: начался за секунду до — таймаут вызова. */
   void miss(long at) {
@@ -148,7 +152,7 @@ class NodeHealthTest {
 
   @Test
   void ruleB_fourMissesWithNobodyConnectedRetireTheNode() {
-    when(media.onNode("hel")).thenReturn(Set.of());
+    when(media.onNode("hel")).thenReturn(MediaService.People.NONE);
     answer(0);
     miss(3000);
     miss(5000);
@@ -162,8 +166,9 @@ class NodeHealthTest {
 
   @Test
   void ruleC_peopleStuckWithoutMediaForTwentySecondsWhileTheNodeAnswersMoveAway() {
-    // UDP и 443 к узлу режут у провайдера: магистраль отвечает, люди без медиа и не возвращаются.
-    when(media.onNode("hel")).thenReturn(four);
+    // UDP и 443 к узлу режут у провайдера: магистраль отвечает, люди без медиа и не возвращаются —
+    // SDK троих из четырёх переподключается (RECOVERING).
+    when(media.onNode("hel")).thenReturn(people(Set.of("d"), Set.of("a", "b", "c")));
     answer(0);
     losses.lost("hel", "a", 1000);
     losses.lost("hel", "b", 1500);
@@ -178,7 +183,7 @@ class NodeHealthTest {
 
   @Test
   void complaintsAloneAreSomeonesWifiNotTheNode() {
-    when(media.onNode("hel")).thenReturn(four);
+    when(media.onNode("hel")).thenReturn(people(Set.of("d"), Set.of("a", "b", "c")));
     answer(0);
     losses.lost("hel", "a", 1000);
     losses.lost("hel", "b", 1200);
@@ -189,6 +194,7 @@ class NodeHealthTest {
     // Вернулись раньше 20 с — никакого правила C.
     losses.restored("a");
     losses.restored("b");
+    when(media.onNode("hel")).thenReturn(people(Set.of("a", "b", "d"), Set.of("c")));
     answer(22000);
     answer(40000);
     verify(media, never()).evacuate("hel");
@@ -198,7 +204,7 @@ class NodeHealthTest {
   @Test
   void peopleWhoLeftTheRoomDoNotCountAsComplaints() {
     // Жаловались трое, но двое уже вышли: из оставшихся троих в беде один — не половина.
-    when(media.onNode("hel")).thenReturn(Set.of("c", "d", "e"));
+    when(media.onNode("hel")).thenReturn(people(Set.of("c", "d", "e"), Set.of()));
     answer(0);
     losses.lost("hel", "a", 500);
     losses.lost("hel", "b", 600);
@@ -209,6 +215,155 @@ class NodeHealthTest {
     losses.lost("hel", "d", 5100);
     health.reassess(hel, 5100);
     verify(media).evacuate("hel");
+  }
+
+  // ——— Один жалобщик узел не двигает (§5.5) ———
+
+  @Test
+  void oneOfOne_theOnlyPersonLeftWithBrokenHomeInternetMovesNothing() {
+    // Звонок вдвоём, собеседник ушёл; у оставшегося лёг домашний интернет — SDK переподключается.
+    when(media.onNode("hel")).thenReturn(people(Set.of(), Set.of("a")));
+    answer(0);
+    losses.stall("hel", "a", 500);
+    losses.lost("hel", "a", 4000);
+    // Узел отвечает: правилу C нужны трое на узле.
+    for (long at = 2000; at <= 60000; at += 2000) answer(at);
+    verify(media, never()).evacuate("hel");
+    // Магистраль заодно мигнула на два опроса — только «недоступен»: двоих жалобщиков нет.
+    miss(63000);
+    miss(65000);
+    health.reassess(hel, 65100);
+    verify(nodes).unreachable("hel", true);
+    verify(nodes, never()).down("hel", true);
+    verify(media, never()).evacuate("hel");
+  }
+
+  @Test
+  void aLonePersonOnASilentNodeMovesOnlyWithFourMissesAndTheirOwnComplaint() {
+    // Человек один на узле и на связи; магистраль молчит дольше, чем терпит правило B, — люди на
+    // месте, их не трогают.
+    when(media.onNode("hel")).thenReturn(people(Set.of("a"), Set.of()));
+    answer(0);
+    for (long at = 3000; at <= 31000; at += 2000) miss(at);
+    verify(nodes, never()).down("hel", true);
+    // Он и сам потерял медиа: судить по двоим нельзя, задеть, кроме него, некого — как пустой узел.
+    losses.stall("hel", "a", 31500);
+    health.reassess(hel, 31500);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+  }
+
+  @Test
+  void aLonePersonsComplaintNeedsTheFourMissesOfRuleB() {
+    when(media.onNode("hel")).thenReturn(people(Set.of("a"), Set.of()));
+    answer(0);
+    miss(3000);
+    miss(5000);
+    losses.stall("hel", "a", 5500);
+    health.reassess(hel, 5500);
+    miss(7000);
+    verify(media, never()).evacuate("hel");
+    miss(9000);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+  }
+
+  @Test
+  void oneOfTwo_inACallForTwoOnePersonsTroubleMovesNothingWhileBothMoveTheRoom() {
+    when(media.onNode("hel")).thenReturn(people(Set.of("b"), Set.of("a")));
+    answer(0);
+    miss(3000);
+    miss(5000);
+    losses.stall("hel", "a", 5200);
+    health.reassess(hel, 5200);
+    miss(7000);
+    miss(9000);
+    losses.lost("hel", "a", 9400);
+    health.reassess(hel, 9400);
+    miss(11000);
+    miss(13000);
+    verify(nodes, never()).down("hel", true);
+    // Узел снова отвечает, а «a» так и не вернулся: вдвоём правила C нет.
+    for (long at = 15000; at <= 30000; at += 2000) answer(at);
+    verify(media, never()).evacuate("hel");
+    // «a» вернулся; потом узел умер по-настоящему: промахи и жалобы обоих — переезд.
+    losses.restored("a");
+    when(media.onNode("hel")).thenReturn(people(Set.of("a", "b"), Set.of()));
+    miss(63000);
+    miss(65000);
+    losses.stall("hel", "a", 65500);
+    health.reassess(hel, 65500);
+    verify(nodes, never()).down("hel", true);
+    losses.stall("hel", "b", 66000);
+    health.reassess(hel, 66000);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+  }
+
+  @Test
+  void twoOfThree_ruleAMovesTheRoomsWhenTwoOfThreeComplainDuringTheMisses() {
+    when(media.onNode("hel")).thenReturn(people(Set.of("a", "b", "c"), Set.of()));
+    answer(0);
+    miss(3000);
+    miss(5000);
+    losses.stall("hel", "a", 5200);
+    health.reassess(hel, 5200);
+    verify(media, never()).evacuate("hel");
+    losses.stall("hel", "b", 6100);
+    health.reassess(hel, 6100);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+  }
+
+  @Test
+  void twoOfThree_ruleCMovesTheRoomsWhenTwoOfThreeAreStuckReconnecting() {
+    when(media.onNode("hel")).thenReturn(people(Set.of("c"), Set.of("a", "b")));
+    answer(0);
+    losses.stall("hel", "a", 1000);
+    losses.lost("hel", "a", 5000);
+    losses.lost("hel", "b", 1500);
+    for (long at = 2000; at <= 20000; at += 2000) answer(at);
+    verify(media, never()).evacuate("hel");
+    // «a» в беде с подсказки в 1 с (переподключение — тот же эпизод), «b» — с 1,5 с.
+    answer(21500);
+    verify(nodes).down("hel", true);
+    verify(media).evacuate("hel");
+  }
+
+  @Test
+  void ruleCCountsOnlyPeopleReconnectingNotMarksOfPeopleBackOnline() {
+    // Трое вернулись на связь, а их media.restored потерялся (клиент шлёт его без повторов):
+    // отметки висят, но люди CONNECTED — это не «в беде».
+    when(media.onNode("hel")).thenReturn(people(Set.of("a", "b", "c"), Set.of()));
+    answer(0);
+    losses.lost("hel", "a", 1000);
+    losses.lost("hel", "b", 1000);
+    losses.lost("hel", "c", 1000);
+    for (long at = 2000; at <= 60000; at += 2000) answer(at);
+    verify(nodes, never()).down("hel", true);
+    verify(media, never()).evacuate("hel");
+  }
+
+  @Test
+  void aForgedStallIsForgottenAndNeverAddsUpToTwoComplainers() {
+    // Участник шлёт media.stall и никогда — media.restored.
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    losses.stall("hel", "a", 1000);
+    for (long at = 2000; at <= 30000; at += 2000) answer(at);
+    // Магистраль замолчала надолго, а «a» шлёт подсказку снова и снова — это всё равно один
+    // жалобщик.
+    for (long at = 33000; at <= 61000; at += 2000) {
+      miss(at);
+      losses.stall("hel", "a", at + 100);
+      health.reassess(hel, at + 100);
+    }
+    // Настоящая жалоба второго — когда последняя подсказка «a» уже отжила (10 с): снова один.
+    for (long at = 63000; at <= 73000; at += 2000) miss(at);
+    losses.stall("hel", "b", 72000);
+    health.reassess(hel, 72000);
+    verify(nodes, never()).down("hel", true);
+    verify(media, never()).evacuate("hel");
   }
 
   @Test
