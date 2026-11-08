@@ -30,6 +30,10 @@ public record StreamProperties(
     // Пароль владельца сервера — страница «Активность» и рычаги (E10-B, {@code AdminAccess}). Пусто
     // — страница выключена: ни входа, ни ответа о том, что она есть.
     @Size(max = 200) String adminPassword,
+    // Ключ пульта флота (R207, Р-115): токен {@code fleet.<ключ>} в {@code X-Cord-Admin} открывает
+    // админ-API так же, как сессия владельца, — для службы {@code fleet} на A по туннелю или
+    // магистрали. Пусто — пульта нет.
+    @Size(max = 200) String fleetKey,
     @Size(max = 60) String serverName,
     boolean redisEnabled,
     // Сколько людей во встрече; боты (музыка) не считаются (T06, П3). Выше пятидесяти не пускаем:
