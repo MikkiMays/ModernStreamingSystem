@@ -722,7 +722,9 @@ class ActivityTest {
             "version",
             "path",
             // Узел медиа (R195): имена из реестра узлов, их единицы.
-            "node");
+            "node",
+            // Выбор узла руками или замером (R200, Р-101): true/false.
+            "manual");
     var cord =
         registry.getMeters().stream().filter(m -> m.getId().getName().startsWith("cord.")).toList();
     assertThat(cord).isNotEmpty();
