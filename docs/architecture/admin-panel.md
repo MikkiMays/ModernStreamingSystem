@@ -114,8 +114,9 @@ Cloudflare Access недоступен (записи серые, Р-109). Кли
 
 Сейчас: **пароль пульта + код TOTP (RFC 6238, 30 с, 6 цифр, окно ±1 шаг)**. Пароль хранится как `scrypt` (stdlib,
 `n=2^15, r=8, p=1`, соль 16 байт) в `FLEET_PASSWORD_HASH`; секрет кода — `FLEET_TOTP_SECRET` (base32, 20 байт). Оба —
-в `.local/fleet.env`; выпуск — `node scripts/fleet-setup.mjs` печатает QR-код для приложения-аутентификатора в терминал
-(ASCII) и пишет файл; повторный запуск меняет пароль/секрет и гасит все сессии. Один аккаунт — владелец; второго не
+в `.local/fleet.env`; выпуск — `node scripts/fleet-setup.mjs --password` печатает секрет и ссылку `otpauth://` для
+приложения-аутентификатора и пишет файл; `--rotate-totp` меняет секрет кода, повторный `--password` — пароль; смена
+любого из них гасит все сессии при перезапуске службы. Один аккаунт — владелец; второго не
 предусмотрено (нет учётных записей в Cord — Р-… «владелец — тот, кто знает пароль»).
 
 Ошибка входа одна для всех причин («Неверный пароль или код») — не говорим, что именно не так. Попытки: 5 в минуту с
@@ -242,7 +243,8 @@ DELETE /auth/sessions/{id} | /auth/sessions               → 204
 GET    /overview                → {machines:[…], meetings:{live,humans}, maintenance:{phase,window}, nodes:[…],
                                    alerts:[…], jobs:[последние 10], executor:{mode, sshMachines}}
 GET    /machines                → [{id, role, host, nodeId, reachable, lastStatus}]
-PUT    /machines                → (владелец) заменить список      POST /machines/{id}/status → Job(status)
+PUT    /machines                → (план, B8′) заменить список; сейчас список — только из FLEET_MACHINES
+POST   /jobs {kind: status, …}  → состояние машины (`git rev-parse`, `docker compose ps`, `uptime`, `df`)
 
 GET    /core/{machine}/now | /meetings?from&to | /quality | /audit?… | /server | /blocks | /support
 POST   /core/{machine}/rooms/{id}/close {blockCreator, term}   DELETE /core/{machine}/blocks/{id}
@@ -261,14 +263,15 @@ POST   /jobs/{id}/cancel                     → 204
 GET    /metrics/machines        → по машине: cpu, steal, mem, disk, uplink за 5 мин (VictoriaMetrics instant)
 GET    /metrics/alerts          → vmalert /api/v1/alerts (горящие)
 GET    /audit?from&to&actor&action&outcome&limit&cursor      GET /audit/export?from&to → JSONL
-GET    /flags/{machine}         → *_ENABLED из .env машины без значений секретов (операция `env-flags`)
-GET    /releases                → зеркало Windows (/releases на A), выпуски GitHub (gh api, кэш 5 мин), статус CI
+GET    /operations              → каталог операций (вид, группа, поля, предусловия, таймаут)
+(план B13) операция `env-flags` → *_ENABLED из .env машины без значений секретов
+(план B14) GET /releases        → зеркало Windows (/releases на A), выпуски GitHub (gh api, кэш 5 мин), статус CI
 ```
 
 Отказы — RFC 7807, как у ядра (`{status, code, detail}`), коды — в `contracts/errors.json` не входят (служба A, не
-продукт); перечень — `services/fleet/fleet/errors.py`. Контракт пульта — `services/fleet/openapi.json` из FastAPI
-(`fleet openapi` в тестах сверяет с закоммиченным); типы фронта — руками, как у «Активности» (`core/activity.ts`), пока
-`gen-contracts.sh` знает только ядро.
+продукт); перечень — `services/fleet/fleet/errors.py`. Типы ответов во фронте — руками (`web/src/admin/api.ts`), как у
+«Активности» (`core/activity.ts`): `gen-contracts.sh` знает только ядро, а контракт службы A продукту не нужен.
+Поведение API закреплено тестами `services/fleet/tests/test_api.py` против подменённого ядра.
 
 ## 7. Информационная архитектура
 
@@ -495,17 +498,17 @@ steal `avg(rate(node_cpu_seconds_total{mode="steal"}[5m]))`, память `1-Mem
 
 | № | Что | Размер | Зависит от | Критерий приёмки |
 | --- | --- | --- | --- | --- |
-| B1 | Проект (этот документ), Р-111…Р-120 | S | — | документ в репе, решения записаны |
-| B2 | Служба `fleet`: каркас, SQLite, вход пароль+TOTP, сессии, allowlist, журнал, `fleet-setup.mjs` | M | B1 | `unittest`: вход/отказ/запирание/истечение/CSRF; журнал пишет вход и выход; `docker compose --profile admin config` валиден |
-| B3 | Шлюз: блок `@admin`, `ADMIN_HOST` в `configure.mjs`; вход `admin.html`, каркас фронта (навигация, вход, плашка исполнителя) | M | B2 | `caddy validate`; `csp-check.sh` проходит; vitest: вход, навигация, 404 без имени |
-| B4 | Обзор: машины, `now`, окно, алерты, задачи; `CoreLink` к стенду A; метрики VictoriaMetrics | M | B3 | против локального ядра и фейков: плашки, пусто/ошибка по источнику |
-| B5 | Ключ пульта `FLEET_KEY` в ядре (`AdminAccess`) | S | — | тест ядра: `fleet.<ключ>` принимается, чужой — нет, пусто — выключено |
-| B6 | Тех. работы (R194) и дренаж; Встречи (сейчас, завершить, за период, качество) | M | B4 | vitest на диалоги; unittest на проксирование и журнал |
-| B7 | Каталог операций, `DryRunExecutor`, `FakeExecutor`, задачи и их экран | M | B2 | `test_catalog.py`: argv без оболочки, предусловия; опрос `after=N` |
-| B8 | Узлы: таблица, дренаж/снять, проверить, журнал; «Добавить сервер» → план и DNS | L | B7 | план совпадает с эталоном в тесте; DNS-проверка на A; занятость `id` |
-| B9 | Выкатки/откаты: экран, CI-статус, история, `deploy`/`rollback` в сухом прогоне | M | B7 | план выкатки; отказ при встречах показан |
+| B1 ✔ | Проект (этот документ), Р-111…Р-120 | S | — | документ в репе, решения записаны |
+| B2 ✔ | Служба `fleet`: каркас, SQLite, вход пароль+TOTP, сессии, allowlist, журнал, `fleet-setup.mjs` | M | B1 | `unittest`: вход/отказ/запирание/истечение/CSRF; журнал пишет вход и выход; `docker compose --profile admin config` валиден |
+| B3 ✔ | Шлюз: блок `@admin`, `ADMIN_HOST` в `configure.mjs`; вход `admin.html`, каркас фронта (навигация, вход, плашка исполнителя) | M | B2 | `caddy validate`; `csp-check.sh` проходит; vitest: вход, навигация, 404 без имени |
+| B4 ✔ | Обзор: машины, `now`, окно, алерты, задачи; `CoreLink` к стенду A; метрики VictoriaMetrics | M | B3 | против локального ядра и фейков: плашки, пусто/ошибка по источнику |
+| B5 ✔ | Ключ пульта `FLEET_KEY` в ядре (`AdminAccess`) | S | — | тест ядра: `fleet.<ключ>` принимается, чужой — нет, пусто — выключено |
+| B6 ✔ | Тех. работы (R194) и дренаж; Встречи (сейчас, завершить, за период, качество) | M | B4 | vitest на диалоги; unittest на проксирование и журнал |
+| B7 ✔ | Каталог операций, `DryRunExecutor`, `FakeExecutor`, задачи и их экран | M | B2 | `test_catalog.py`: argv без оболочки, предусловия; опрос `after=N` |
+| B8 ✔ (без DNS-проверки с A) | Узлы: таблица, дренаж/снять, проверить, журнал; «Добавить сервер» → план и DNS | L | B7 | план совпадает с эталоном в тесте; DNS-проверка на A; занятость `id` |
+| B9 ✔ (без CI-статуса) | Выкатки/откаты: экран, CI-статус, история, `deploy`/`rollback` в сухом прогоне | M | B7 | план выкатки; отказ при встречах показан |
 | B10 | `SshExecutor` за флагом + туннель SSH к ядру meet (`CoreLink` продукта) | M | B7, решение владельца | против своего же A по ssh на 127.0.0.1 в тесте; выключен по умолчанию |
-| B11 | Безопасность, Ошибки/обращения, Журнал (пульт + ядро + сессии), экспорт JSONL | M | B6 | фильтры; экспорт; «выйти везде» гасит сессии |
+| B11 (журнал ✔; безопасность и ошибки — нет) | Безопасность, Ошибки/обращения, Журнал (пульт + ядро + сессии), экспорт JSONL | M | B6 | фильтры; экспорт; «выйти везде» гасит сессии |
 | B12 | Метрики и журналы: ряды, хвост журнала, алерты | M | B4, B7 | без профиля `monitoring` — честные плашки |
 | B13 | Флаги: показ `*_ENABLED`, план переключения; (ядро) флаги в базе без перезапуска | M + L | B7 | план; флаг ядра без рестарта — отдельный R |
 | B14 | Выпуски клиента: зеркало, GitHub, CI, `publish-windows` | M | B7 | список; кнопка → задача |
@@ -513,6 +516,24 @@ steal `avg(rate(node_cpu_seconds_total{mode="steal"}[5m]))`, память `1-Mem
 | B16 | Клиентский сертификат на edge для `admin.` (вариант) | M | решение владельца | — |
 
 Порядок разработки: B1 → B2 → B3 → B4 (+B5) → B6 → B7 → B8 → B9 → остальное по ценности. Каждый шаг — зелёный CI.
+Отметка ✔ — сделано в ветке `release/r207-admin` (08.11.2026); `SshExecutor` (B10) написан, но включается только
+решением владельца (§13, п. 1), и против настоящих машин не проверялся — только `FakeExecutor` и сухой прогон.
+
+### 11.1. Как попробовать на A, ничего не трогая
+
+1. Настройки пульта в отдельном каталоге (не в установке): `mkdir /tmp/fleet && cd /tmp/fleet &&
+   FLEET_SETUP_PASSWORD='…' node /opt/ModernStreamingSystem/scripts/fleet-setup.mjs --password` — печатает секрет TOTP.
+   В `.local/fleet.env` дописать `FLEET_INSECURE_DEV=1`, `FLEET_CORE_A=password:<ADMIN_PASSWORD стенда>` и
+   `FLEET_MACHINES=[{"id":"a","role":"dev+admin","host":"127.0.0.1","installDir":"/opt/ModernStreamingSystem",
+   "core":{"url":"http://127.0.0.1:8080"},"registry":"/nodes/registry.json"}]`.
+2. Служба: `docker build -f services/fleet/Dockerfile --target fleet -t cord-fleet . && docker run -d --network host
+   --env-file /tmp/fleet/.local/fleet.env -e FLEET_DATA=/data -e FLEET_LISTEN=127.0.0.1:18200 -v fleet-try:/data
+   -v /opt/ModernStreamingSystem/infra/generated/nodes:/nodes:ro --read-only --tmpfs /tmp cord-fleet`.
+3. Фронт: `cd web && CORD_DEV_API=… npm run dev` не нужен — у dev-сервера нет прокси `/api/fleet`; проще
+   `npm run build` и открыть `dist/admin.html` через шлюз с `ADMIN_HOST`, либо проверять API `curl`-ом (шаги в
+   `services/fleet/tests/test_api.py`). На стенде A по-настоящему: `node scripts/configure.mjs --refresh
+   --admin=admin.callcord.ru`, `COMPOSE_PROFILES=…,admin`, `docker compose up -d edge gateway fleet` — это выкатка,
+   её делает владелец или главная сессия.
 
 ## 12. Решения (Р-111…Р-120)
 
