@@ -73,6 +73,9 @@ public class NodeHealth {
   /** Правило B: столько промахов подряд без людей на узле — узел мёртв. */
   static final int MISSES_WITHOUT_PEOPLE = 4;
 
+  /** Узел молчит, люди есть, жалоб нет: снимки комнат перечитываются не чаще этого (правило B). */
+  static final long RECHECK_MS = 10_000;
+
   /** Сглаживание долей ЦП и канала между опросами — как у {@code LoadMeter}. */
   private static final double EWMA = 0.35;
 
@@ -99,6 +102,7 @@ public class NodeHealth {
     final AtomicInteger participants = new AtomicInteger();
     volatile int failures;
     volatile long since;
+    volatile long peopleAt;
     NodeExporter.Sample sample;
     double cpu = Double.NaN;
     double steal = Double.NaN;
@@ -188,7 +192,9 @@ public class NodeHealth {
       state.failures = 0;
       state.up.set(1);
       if (state.reachable.compareAndSet(0, 1)) nodes.unreachable(node.id(), false);
-      // Правило C: магистраль отвечает, а люди узла давно без медиа.
+      // Правило C: магистраль отвечает, а люди узла давно без медиа. Снимки комнат читаются только
+      // когда на узле есть хоть одна отметка — в спокойном состоянии опрос базу не трогает.
+      if (losses.reported(node.id()) == 0) return;
       var people = media.onNode(node.id());
       var stuck = losses.lostAmong(node.id(), people, now, LossReports.STUCK_MS);
       if (quorum(stuck, people.size()))
@@ -228,7 +234,14 @@ public class NodeHealth {
     if (state.up.get() == 0) return;
     int failures = state.failures;
     if (failures < MISSES_WITH_PEOPLE) return;
+    // Снимки комнат — только когда они могут что-то решить: есть жалобы (правило A), промахов стало
+    // ровно столько, сколько нужно правилу B, или узел давно молчит и люди могли разойтись (раз в
+    // RECHECK_MS). Длинный обрыв магистрали без жалоб не читает базу каждые 2 с.
+    boolean reports = losses.reported(node.id()) > 0;
+    boolean recheck = failures > MISSES_WITHOUT_PEOPLE && now - state.peopleAt >= RECHECK_MS;
+    if (!reports && failures != MISSES_WITHOUT_PEOPLE && !recheck) return;
     var people = media.onNode(node.id());
+    state.peopleAt = now;
     if (people.isEmpty()) {
       if (failures >= MISSES_WITHOUT_PEOPLE)
         die(node, state, now, "%d misses in a row, nobody connected".formatted(failures));
