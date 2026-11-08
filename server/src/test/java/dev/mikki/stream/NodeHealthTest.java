@@ -1,6 +1,9 @@
 package dev.mikki.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -15,10 +18,13 @@ import dev.mikki.stream.nodes.MediaNode;
 import dev.mikki.stream.nodes.MediaNodes;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -424,6 +430,53 @@ class NodeHealthTest {
     losses.lost("hel", "b", 11200);
     health.reassess(hel, 11200);
     verify(nodes).down("hel", true);
+  }
+
+  // ——— Опрос и оценка по жалобе — в разных потоках ———
+
+  @Test
+  void anAnswerRacingADeathNeverLeavesTheNodeOutOfTheChoiceWhileItIsUp() throws Exception {
+    // Оценка по жалобе уже решила «мёртв», но ещё не дописала nodes.down(true) — и в этот миг
+    // соседний поток опроса получил ответ узла. Без замка ответ возвращал узел первым, смерть
+    // дописывала «вне выбора» после: cord.node.up 1, а встреч на узел нет до перезапуска ядра.
+    var down = new AtomicBoolean();
+    var racer = new AtomicReference<Thread>();
+    doAnswer(
+            call -> {
+              boolean isDown = call.getArgument(1);
+              if (isDown) {
+                var poll = Thread.ofVirtual().start(() -> health.observe(hel, ok, 6000));
+                racer.set(poll);
+                // С замком ответ ждёт конца смерти; без него он успел бы целиком.
+                poll.join(Duration.ofMillis(500));
+              }
+              down.set(isDown);
+              return null;
+            })
+        .when(nodes)
+        .down(eq("hel"), anyBoolean());
+    when(nodes.isDown("hel")).thenAnswer(_ -> down.get());
+    when(media.onNode("hel")).thenReturn(four);
+    answer(0);
+    miss(3000);
+    miss(5000);
+    losses.stall("hel", "a", 5200);
+    losses.stall("hel", "b", 5600);
+    health.reassess(hel, 5600);
+    racer.get().join();
+    verify(media).evacuate("hel");
+    // Смерть дописана целиком, ответ пришёл после неё — узел снова в выборе, и метрика согласна.
+    assertThat(gauge("cord.node.up")).isEqualTo(1);
+    assertThat(down.get()).isFalse();
+  }
+
+  @Test
+  void aNodeThatAnswersIsBackInTheChoiceWhateverTheChoiceThought() {
+    // Что бы ни разошлось между состоянием опроса и выбором узлов — ответивший узел в выборе.
+    when(nodes.isDown("hel")).thenReturn(true);
+    answer(1000);
+    verify(nodes).down("hel", false);
+    assertThat(gauge("cord.node.up")).isEqualTo(1);
   }
 
   @Test

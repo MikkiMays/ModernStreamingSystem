@@ -201,37 +201,56 @@ public class NodeHealth {
     }
   }
 
-  /** Один ответ узла: комнаты и люди, {@code null} — не ответил. */
+  /**
+   * Один ответ узла: комнаты и люди, {@code null} — не ответил.
+   *
+   * <p>ОДИН ЗАМОК НА УЗЕЛ. Опрос идёт в потоке планировщика, оценка по жалобе — в своём ({@link
+   * #onReport}), и оба меняют одно и то же: «жив», «мёртв», {@code nodes.down}. Без замка ответ
+   * узла вклинивался между «мёртв» и {@code nodes.down(id, true)}: ответ возвращал узел, а смерть
+   * дописывала «вне выбора» уже после — {@code cord.node.up} 1, алерта {@code NodeDown} нет, а
+   * новых встреч на узел нет до перезапуска ядра, и {@link #sweep} читает комнаты каждые 2 с. Под
+   * замком переходы идут по одному, а ответ ещё и сверяет {@link MediaNodes#isDown}: что бы ни
+   * разошлось, ответивший узел снова в выборе.
+   */
   public void observe(MediaNode node, MediaGateway.NodeStats stats, long now) {
     var state = states.computeIfAbsent(node.id(), this::track);
-    if (stats != null) {
-      state.rooms.set(stats.rooms());
-      state.participants.set(stats.participants());
-      nodes.load(
-          node.id(), stats.rooms(), stats.participants(), state.cpu, state.steal, state.mbps);
-      if (state.up.get() == 0) {
-        log.info("Media node {} is back after {} s", node.id(), (now - state.since) / 1000);
-        nodes.down(node.id(), false);
-      } else if (state.reachable.get() == 0)
-        log.info("Media node {} answers again after {} s", node.id(), (now - state.since) / 1000);
-      state.failures = 0;
-      state.up.set(1);
-      if (state.reachable.compareAndSet(0, 1)) nodes.unreachable(node.id(), false);
-      // Правило C: магистраль отвечает, а люди узла давно без медиа. Снимки комнат читаются только
-      // когда на узле есть хоть одна отметка — в спокойном состоянии опрос базу не трогает.
-      if (losses.reported(node.id()) == 0) return;
-      var people = media.onNode(node.id());
-      if (people.size() < PEOPLE_FOR_C) return;
-      var stuck = losses.stuck(node.id(), people.recovering(), LossReports.STUCK_MS, now);
-      if (quorum(stuck, people.size()))
-        die(
-            node,
-            state,
-            now,
-            "%d of %d people have been reconnecting for %d s while the node answers"
-                .formatted(stuck, people.size(), LossReports.STUCK_MS / 1000));
-      return;
+    synchronized (state) {
+      if (stats != null) answered(node, state, stats, now);
+      else missed(node, state, now);
     }
+  }
+
+  private void answered(MediaNode node, State state, MediaGateway.NodeStats stats, long now) {
+    state.rooms.set(stats.rooms());
+    state.participants.set(stats.participants());
+    nodes.load(node.id(), stats.rooms(), stats.participants(), state.cpu, state.steal, state.mbps);
+    if (state.up.get() == 0) {
+      log.info("Media node {} is back after {} s", node.id(), (now - state.since) / 1000);
+      nodes.down(node.id(), false);
+    } else if (nodes.isDown(node.id())) {
+      log.warn("Media node {} answers but was still out of the choice — back in", node.id());
+      nodes.down(node.id(), false);
+    } else if (state.reachable.get() == 0)
+      log.info("Media node {} answers again after {} s", node.id(), (now - state.since) / 1000);
+    state.failures = 0;
+    state.up.set(1);
+    if (state.reachable.compareAndSet(0, 1)) nodes.unreachable(node.id(), false);
+    // Правило C: магистраль отвечает, а люди узла давно без медиа. Снимки комнат читаются только
+    // когда на узле есть хоть одна отметка — в спокойном состоянии опрос базу не трогает.
+    if (losses.reported(node.id()) == 0) return;
+    var people = media.onNode(node.id());
+    if (people.size() < PEOPLE_FOR_C) return;
+    var stuck = losses.stuck(node.id(), people.recovering(), LossReports.STUCK_MS, now);
+    if (quorum(stuck, people.size()))
+      die(
+          node,
+          state,
+          now,
+          "%d of %d people have been reconnecting for %d s while the node answers"
+              .formatted(stuck, people.size(), LossReports.STUCK_MS / 1000));
+  }
+
+  private void missed(MediaNode node, State state, long now) {
     if (state.failures == 0) state.since = now;
     state.failures++;
     if (state.failures >= MISSES_WITH_PEOPLE && state.reachable.compareAndSet(1, 0)) {
@@ -252,10 +271,14 @@ public class NodeHealth {
   /** Оценить узел по текущим промахам и жалобам (тесты зовут напрямую со своим временем). */
   public void reassess(MediaNode node, long now) {
     var state = states.get(node.id());
-    if (state == null || state.up.get() == 0 || state.failures == 0) return;
-    assess(node, state, now);
+    if (state == null) return;
+    synchronized (state) {
+      if (state.up.get() == 0 || state.failures == 0) return;
+      assess(node, state, now);
+    }
   }
 
+  /** Под замком узла ({@link #observe}, {@link #reassess}). */
   private void assess(MediaNode node, State state, long now) {
     if (state.up.get() == 0) return;
     int failures = state.failures;
@@ -291,6 +314,10 @@ public class NodeHealth {
           "%d misses in a row and the only person on the node lost media".formatted(failures));
   }
 
+  /**
+   * Под замком узла: решение, {@code nodes.down} и эвакуация — одним куском, ответ узла ждёт их
+   * конца и уже потом возвращает узел.
+   */
   private void die(MediaNode node, State state, long now, String why) {
     if (!state.up.compareAndSet(1, 0)) return;
     log.warn(
