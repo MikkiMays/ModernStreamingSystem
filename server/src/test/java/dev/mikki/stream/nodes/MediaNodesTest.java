@@ -131,6 +131,26 @@ class MediaNodesTest {
   }
 
   @Test
+  void anUnreachableNodeTakesNoNewRoomsButIsNotDead() throws Exception {
+    // Магистраль до узла молчит, его люди на связи (NodeHealth, Р-105): новые встречи — мимо него,
+    // идущие остаются; для настроек он «недоступен», для эвакуации — нет.
+    var file = dir.resolve("registry.json");
+    Files.writeString(file, REGISTRY);
+    var nodes = nodes(file);
+    nodes.unreachable("hel", true);
+    assertThat(nodes.isUnreachable("hel")).isTrue();
+    assertThat(nodes.isDown("hel")).isFalse();
+    assertThat(nodes.available()).extracting(MediaNode::id).containsExactly("fra");
+    assertThat(nodes.choose("hel"))
+        .extracting(c -> c.node().id(), MediaNodes.Choice::reason)
+        .containsExactly("fra", "unreachable-control");
+    assertThat(nodes.levelOf(nodes.resolve("hel")).state()).isEqualTo("down");
+    nodes.unreachable("hel", false);
+    assertThat(nodes.available()).extracting(MediaNode::id).containsExactly("fra", "hel");
+    assertThat(nodes.choose("hel").reason()).isEqualTo("preferred");
+  }
+
+  @Test
   void capacityFieldsAreReadWithDefaultsForRegistriesWrittenBeforeR200() throws Exception {
     var file = dir.resolve("registry.json");
     Files.writeString(file, REGISTRY);

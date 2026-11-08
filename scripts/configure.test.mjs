@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, relative, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -131,6 +131,67 @@ test('monitoring adds its secrets once, guards SFU metrics with a password and n
     // Повтор ничего не вращает и не дописывает дважды.
     assert.equal(run('--refresh', '--monitoring').status, 0);
     assert.equal(await readFile(join(directory, '.env'), 'utf8'), env);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
+
+test('перевыпуск с новыми именами переписывает адресные ключи .env, не трогая секреты и правки владельца (R200 §8.6)', async () => {
+  // meet → cordcam.ru (08.11.2026): после `--refresh --app=cordcam.ru …` в `.env` оставались прежние
+  // PUBLIC_URL и LIVEKIT_URL — ядро и служба интеграций отказывали по Origin, правилось руками.
+  const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
+  try {
+    const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+    const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
+    assert.equal(run('--app=meet.example.test', '--rtc=rtc.example.test', '--turn=turn.example.test', '--ip=192.0.2.1').status, 0);
+    const before = await readFile(join(directory, '.env'), 'utf8');
+    const secrets = Object.fromEntries(
+      before.split('\n').filter((l) => /^(LIVEKIT_API_SECRET|SESSION_SECRET|INTERNAL_SECRET|DATABASE_PASSWORD|REDIS_PASSWORD)=/.test(l)).map((l) => l.split('=')),
+    );
+    // Владелец правил .env руками: эти строки должны пережить перевыпуск байт в байт.
+    const edited = before.replace(/^ACCESS_PASSWORD=$/m, 'ACCESS_PASSWORD=secret word').replace(/^ADMIN_PASSWORD=$/m, 'ADMIN_PASSWORD=owner') + 'STREAM_MAX_PARTICIPANTS=12\n';
+    await writeFile(join(directory, '.env'), edited);
+
+    // Тот же адрес — .env не меняется вовсе.
+    assert.equal(run('--refresh').status, 0);
+    assert.equal(await readFile(join(directory, '.env'), 'utf8'), edited);
+
+    const moved = run('--refresh', '--app=cordcam.example.test', '--rtc=rtc-fra.example.test', '--turn=turn-fra.example.test', '--ip=192.0.2.1');
+    assert.equal(moved.status, 0, moved.stderr);
+    assert.match(moved.stdout, /\.env retargeted/);
+    assert.match(moved.stdout, /docker compose up -d edge gateway core services livekit/);
+    const after = await readFile(join(directory, '.env'), 'utf8');
+    for (const [key, value] of Object.entries({
+      DEPLOY_MODE: 'strict',
+      APP_HOST: 'cordcam.example.test',
+      RTC_HOST: 'rtc-fra.example.test',
+      TURN_HOST: 'turn-fra.example.test',
+      PUBLIC_URL: 'https://cordcam.example.test',
+      LIVEKIT_URL: 'wss://cordcam.example.test',
+      SERVER_NAME: 'cordcam.example.test',
+      ACCESS_PASSWORD: 'secret word',
+      ADMIN_PASSWORD: 'owner',
+      STREAM_MAX_PARTICIPANTS: '12',
+      ...secrets,
+    }))
+      assert.match(after, new RegExp(`^${key}=${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), key);
+    assert.equal(after.split('\n').length, edited.split('\n').length, 'строки не дописываются и не теряются');
+    assert.doesNotMatch(after, /meet\.example\.test/);
+    const sfu = JSON.parse(await readFile(join(directory, 'infra/generated/livekit.json'), 'utf8'));
+    assert.equal(sfu.turn.domain, 'turn-fra.example.test');
+
+    // Свое имя сервера владелец задал сам — оно остаётся при любом переезде.
+    await writeFile(join(directory, '.env'), after.replace(/^SERVER_NAME=.*$/m, 'SERVER_NAME=Cord'));
+    const renamed = run('--refresh', '--app=third.example.test', '--rtc=rtc-third.example.test', '--turn=turn-third.example.test', '--ip=192.0.2.1');
+    assert.equal(renamed.status, 0, renamed.stderr);
+    const third = await readFile(join(directory, '.env'), 'utf8');
+    assert.match(third, /^SERVER_NAME=Cord$/m);
+    assert.match(third, /^LIVEKIT_URL=wss:\/\/third\.example\.test$/m);
+
+    // .env, выправленный руками не до конца (как на meet), чинится и обычным `--refresh` по topology.json.
+    await writeFile(join(directory, '.env'), third.replace(/^LIVEKIT_URL=.*$/m, 'LIVEKIT_URL=wss://meet.example.test'));
+    assert.equal(run('--refresh').status, 0);
+    assert.match(await readFile(join(directory, '.env'), 'utf8'), /^LIVEKIT_URL=wss:\/\/third\.example\.test$/m);
   } finally {
     await rm(directory, { recursive: true });
   }

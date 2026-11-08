@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SILENCE_MS, SilenceWatch, transportKeepalives } from './silence-watch';
+import { SILENCE_MS, STALL_MS, SilenceWatch, transportKeepalives } from './silence-watch';
 
 const sample = (
   now: number,
@@ -70,6 +70,81 @@ describe('SilenceWatch', () => {
     expect(watch.observe(sample(1000, 20, 2))).toBe(false);
     expect(watch.observe(sample(3000, 20, 3))).toBe(false);
     expect(watch.observe(sample(1000 + SILENCE_MS + 1, 20, 3))).toBe(false);
+  });
+});
+
+describe('SilenceWatch.stall — подсказка ядру о молчании (R200 §5.3, Р-105)', () => {
+  /** Опрос раз в 2 с до `until`, как в session.ts; возвращает, что сказал бы ядру каждый опрос. */
+  const run = (watch: SilenceWatch, from: number, until: number, rtp: number, keepalives: number) => {
+    const said: Array<[number, ReturnType<SilenceWatch['stall']>]> = [];
+    for (let t = from; t <= until; t += 2000) {
+      watch.observe(sample(t, rtp, keepalives));
+      said.push([t, watch.stall()]);
+    }
+    return said.filter(([, what]) => what !== null);
+  };
+
+  it('SFU умер: `begin` ровно один раз через STALL_MS, раньше толчка SILENCE_MS; жизнь вернулась — `end`', () => {
+    const watch = new SilenceWatch();
+    watch.observe(sample(0, 100, 5));
+    expect(watch.stall()).toBeNull();
+    expect(run(watch, 2000, 20_000, 100, 5)).toEqual([[STALL_MS + 1000, 'begin']]);
+    expect(STALL_MS).toBeLessThan(SILENCE_MS);
+    // Жизнь (счётчики пошли) — одно `end`, и дальше тишина.
+    watch.observe(sample(22_000, 100, 6));
+    expect(watch.stall()).toBe('end');
+    watch.observe(sample(24_000, 100, 7));
+    expect(watch.stall()).toBeNull();
+    // Новая смерть — новый эпизод.
+    expect(run(watch, 26_000, 40_000, 100, 7)).toEqual([[24_000 + STALL_MS + 1000, 'begin']]);
+  });
+
+  it('тихая встреча с consent раз в 2,5 с — ни одной подсказки за минуту', () => {
+    const watch = new SilenceWatch();
+    let keepalives = 10;
+    for (let t = 0; t <= 60_000; t += 2000) {
+      if (t % 4000 === 0) keepalives++;
+      watch.observe(sample(t, 1000, keepalives));
+      expect(watch.stall(), `t=${t}`).toBeNull();
+    }
+  });
+
+  it('замирание хоста на 2–4 с не даёт подсказки: счётчики пошли раньше порога', () => {
+    const watch = new SilenceWatch();
+    watch.observe(sample(0, 100, 5));
+    watch.observe(sample(2000, 100, 5));
+    expect(watch.stall()).toBeNull();
+    watch.observe(sample(4000, 100, 5));
+    expect(watch.stall()).toBeNull();
+    watch.observe(sample(6000, 100, 6));
+    expect(watch.stall()).toBeNull();
+  });
+
+  it('скрытая вкладка, нет подписок, ICE или SDK не подключены, STUN не отдаётся — не повод', () => {
+    const dead = (patch: Record<string, boolean>, keepalives = 1) => {
+      const watch = new SilenceWatch();
+      watch.observe(sample(0, 1, keepalives));
+      watch.observe(sample(STALL_MS + 1, 1, keepalives, patch));
+      return watch.stall();
+    };
+    expect(dead({ hidden: true })).toBeNull();
+    expect(dead({ subscribed: false })).toBeNull();
+    expect(dead({ iceConnected: false })).toBeNull();
+    expect(dead({ connected: false })).toBeNull();
+    expect(dead({}, 0)).toBeNull();
+    expect(dead({})).toBe('begin');
+  });
+
+  it('переподключение сбрасывает эпизод: ни `end` без `begin`, ни старого отсчёта', () => {
+    const watch = new SilenceWatch();
+    watch.observe(sample(0, 100, 5));
+    watch.observe(sample(STALL_MS + 1000, 100, 5));
+    expect(watch.stall()).toBe('begin');
+    watch.reset(10_000);
+    watch.observe(sample(10_000, 0, 0));
+    expect(watch.stall()).toBeNull();
+    watch.observe(sample(12_000, 0, 1));
+    expect(watch.stall()).toBeNull();
   });
 });
 

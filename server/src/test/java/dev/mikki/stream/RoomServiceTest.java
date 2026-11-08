@@ -7,6 +7,7 @@ import dev.mikki.stream.attachment.AttachmentService;
 import dev.mikki.stream.attachment.TusGateway;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.media.*;
+import dev.mikki.stream.nodes.LossReports;
 import dev.mikki.stream.room.*;
 import dev.mikki.stream.room.Contracts.*;
 import dev.mikki.stream.shared.Problem;
@@ -44,6 +45,7 @@ class RoomServiceTest {
   @Autowired JdbcClient jdbc;
   @Autowired dev.mikki.stream.board.BoardStore boardStore;
   @Autowired dev.mikki.stream.nodes.MediaNodes nodes;
+  @Autowired LossReports losses;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
@@ -708,6 +710,49 @@ class RoomServiceTest {
     assertThatThrownBy(() -> guest(host))
         .isInstanceOf(Problem.class)
         .hasMessageContaining("отозвано");
+  }
+
+  /**
+   * Второй признак отказа узла (R200 §5, Р-105): {@code media.stall} — подсказка ядру без смены
+   * состояния и без события, {@code media.lost}/{@code media.restored} ставят и снимают отметку в
+   * {@link LossReports}; чужое поколение отметки не оставляет.
+   */
+  @Test
+  void mediaStallIsAHintForNodeHealthWhileLostAndRestoredKeepTheMarksInStep() {
+    var host = host();
+    connected(host);
+    var read = (java.util.function.Supplier<RoomState>) () -> rooms.read(host.roomId());
+    var member = read.get().members.get(host.participantId());
+    long sequence = read.get().sequence;
+    var node = nodes.resolve(read.get().mediaNode).id();
+    // LossReports — один на контекст, поэтому смотрим только на этого человека.
+    var marked =
+        (java.util.function.Supplier<Integer>)
+            () -> losses.lostAmong(node, Set.of(host.participantId()), now.get(), 0);
+    var ack = command(host, "media.stall", null, member.generation);
+    assertThat(ack.ok()).isTrue();
+    assertThat(read.get().members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.CONNECTED);
+    assertThat(read.get().sequence).as("подсказка не рождает room.changed").isEqualTo(sequence);
+    assertThat(marked.get()).isEqualTo(1);
+    // Путь ожил сам: клиент говорит media.restored, оставаясь CONNECTED, — отметка снята, статус
+    // тот же.
+    command(host, "media.restored", null, member.generation);
+    assertThat(marked.get()).isEqualTo(0);
+    assertThat(read.get().members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.CONNECTED);
+    // Настоящая потеря и возврат.
+    command(host, "media.lost", null, member.generation);
+    assertThat(read.get().members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.RECOVERING);
+    assertThat(marked.get()).isEqualTo(1);
+    command(host, "media.restored", null, member.generation);
+    assertThat(marked.get()).isEqualTo(0);
+    // Устаревшее поколение — не отметка.
+    command(host, "media.stall", null, member.generation);
+    assertThat(marked.get()).isEqualTo(0);
+    command(host, "media.stall", null, read.get().members.get(host.participantId()).generation);
+    assertThat(marked.get()).isEqualTo(1);
   }
 
   @Test

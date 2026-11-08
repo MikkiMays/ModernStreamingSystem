@@ -393,10 +393,12 @@ Telegram, принять звонок GSM, переключить Bluetooth-га
 клиента Windows и приложения одна версия (Р-46).
 
 **Как устроено.**
-- `capacitor.config.json` → `server.url` — адрес установки, параметр сборки, а не код: в репозитории
-  заглушка `https://cord.example.com`, `scripts/set-server.mjs` пишет `CORD_SERVER_URL` туда и в кнопку
-  «Повторить» `www/offline.html`; CI без переменной не собирает. Интерфейс грузится с сервера: правка веба
-  не требует новой сборки APK. `appendUserAgent: CordApp/0.1` — признак приложения для страницы.
+- `capacitor.config.json` → `server.url` — адрес продукта `https://cordcam.ru` (R200, Р-110: продукт один,
+  стенд `cord.nikg.tech` людям не отдаётся); тот же адрес — в кнопке «Повторить» `www/offline.html`.
+  `scripts/set-server.mjs` без аргументов сверяет, что оба файла называют один адрес (так CI и собирает);
+  другая установка задаёт свой `CORD_ANDROID_SERVER=https://…` — скрипт пишет его в оба файла. Интерфейс
+  грузится с сервера: правка веба не требует новой сборки APK. `appendUserAgent: CordApp/0.1` — признак
+  приложения для страницы.
 - `CordCallPlugin` (`window.Capacitor` → `CordCall`): `start({title, microphone})` поднимает или
   обновляет `CallService`, `stop()` гасит, событие `command` (`hangup`/`microphone`) — нажатия в
   уведомлении. Страница зовёт его из `ui/useCallInBackground.ts`, пока медиа подключено или
@@ -417,8 +419,8 @@ Telegram, принять звонок GSM, переключить Bluetooth-га
   `MANAGE_OWN_CALLS`, экран звонка ОС), входящих (FCM, П2), подписи релиза.
 
 **Сборка в CI.** `.github/workflows/android.yml` — на изменение `mobile/**` и вручную
-(`workflow_dispatch`): `ubuntu-24.04`, JDK 21, Node 24, `npm ci` → `set-server.mjs` (переменная
-репозитория `CORD_SERVER_URL`) → `npx cap sync android` →
+(`workflow_dispatch`): `ubuntu-24.04`, JDK 21, Node 24, `npm ci` → `set-server.mjs` (адрес продукта из
+репозитория; другая установка — переменная `CORD_ANDROID_SERVER`) → `npx cap sync android` →
 `./gradlew assembleDebug` → артефакт `cord-android-debug` (`app-debug.apk`, 14 дней). Скачать:
 Actions → «Android app» → прогон → Artifacts, или `gh run download <id> -n cord-android-debug`.
 
@@ -428,7 +430,7 @@ Actions → «Android app» → прогон → Artifacts, или `gh run downl
 ```bash
 cd mobile
 npm ci
-CORD_SERVER_URL=https://cord.example.com node scripts/set-server.mjs   # адрес своей установки
+node scripts/set-server.mjs                                   # продукт cordcam.ru; своя установка — CORD_ANDROID_SERVER=https://…
 npx cap sync android        # копирует www и конфиг, пишет подключение плагинов
 cd android
 ./gradlew assembleDebug     # → app/build/outputs/apk/debug/app-debug.apk

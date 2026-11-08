@@ -1033,6 +1033,16 @@ export class MediaSession {
         console.info('[cord] path is silent on a live connection (no RTP, no STUN) - asking for resume');
         this.nudge('silence');
       }
+      // Подсказка ядру о молчании (R200 §5.3, Р-105) — без действий здесь: решает ядро, сложив её с
+      // промахами своего опроса узла. Жизнь вернулась сама — говорим и об этом, чтобы отметка не висела.
+      switch (this.silence.stall()) {
+        case 'begin':
+          this.reportConnection('media.stall', () => this.room.state === ConnectionState.Connected);
+          break;
+        case 'end':
+          this.reportConnection('media.restored', () => this.room.state === ConnectionState.Connected);
+          break;
+      }
     } catch {
       // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
     } finally {
@@ -2265,7 +2275,7 @@ export class MediaSession {
   };
   /** `option: 'ice-failed'` — потеря особая: сеть не пропускает звонок, ядро считает такой вход (R149). */
   private reportConnection(
-    type: 'media.lost' | 'media.restored',
+    type: 'media.lost' | 'media.restored' | 'media.stall',
     current: () => boolean,
     option?: 'ice-failed',
   ) {

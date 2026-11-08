@@ -103,6 +103,13 @@ public class MediaNodes {
   private volatile long checkedAt;
   private volatile long modifiedAt = -1;
   private final Set<String> down = ConcurrentHashMap.newKeySet();
+
+  /**
+   * Узел молчит по магистрали, но его люди на связи ({@code NodeHealth}, Р-105): новые встречи туда
+   * не ставятся, идущие не трогаются. В отличие от {@link #down} — не повод для эвакуации.
+   */
+  private final Set<String> unreachable = ConcurrentHashMap.newKeySet();
+
   private final Map<String, Load> loads = new ConcurrentHashMap<>();
 
   /** Что известно о нагрузке узла по последнему опросу. */
@@ -175,7 +182,9 @@ public class MediaNodes {
    * Живые узлы, которые принимают встречи, — для списка в {@code capabilities}: эти и стоит мерить.
    */
   public List<MediaNode> available() {
-    return all().stream().filter(n -> n.enabled() && !down.contains(n.id())).toList();
+    return all().stream()
+        .filter(n -> n.enabled() && !down.contains(n.id()) && !unreachable.contains(n.id()))
+        .toList();
   }
 
   public Choice choose(String preferred) {
@@ -236,7 +245,12 @@ public class MediaNodes {
       return fallback(candidates, control, measures, "unknown");
     if (preferred != null)
       return fallback(
-          candidates, control, measures, down.contains(preferred) ? "down" : "disabled");
+          candidates,
+          control,
+          measures,
+          down.contains(preferred)
+              ? "down"
+              : unreachable.contains(preferred) ? "unreachable" : "disabled");
     return fallback(candidates, control, measures, "default");
   }
 
@@ -289,6 +303,18 @@ public class MediaNodes {
   }
 
   /**
+   * Опрос узлов сообщает, кто молчит по магистрали при живых людях; такие в выборе не участвуют.
+   */
+  public void unreachable(String id, boolean is) {
+    if (is) unreachable.add(id);
+    else unreachable.remove(id);
+  }
+
+  public boolean isUnreachable(String id) {
+    return unreachable.contains(id);
+  }
+
+  /**
    * Сколько комнат SFU узел держит сейчас — по ответу {@code ListRooms}; полный узел не выбирается.
    * Короткая форма {@link #load} для тех, кто знает только комнаты.
    */
@@ -335,7 +361,7 @@ public class MediaNodes {
   /** Ступень и состояние узла словами — для {@code GET /api/v1/nodes} и настроек. */
   public Level levelOf(MediaNode node) {
     String state;
-    if (down.contains(node.id())) state = "down";
+    if (down.contains(node.id()) || unreachable.contains(node.id())) state = "down";
     else if (!node.enabled()) state = "drained";
     else if (full(node) || level(node.id()) >= 4) state = "full";
     else if (level(node.id()) >= 3) state = "busy";
