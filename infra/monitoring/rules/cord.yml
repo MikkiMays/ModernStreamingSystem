@@ -20,11 +20,11 @@ groups:
         annotations: { summary: 'Мониторинг Cord жив' }
 
       - alert: HostStalled
-        expr: avg(rate(node_cpu_seconds_total{mode="steal"}[5m])) > 0.3
+        expr: avg by (machine) (rate(node_cpu_seconds_total{mode="steal"}[5m])) > 0.3
         for: 10m
         labels: { severity: warn }
         annotations:
-          summary: 'Хост тормозит: ЦП отнимает гипервизор (steal {{ $value | humanizePercentage }}). Звонки могут замирать'
+          summary: '{{ $labels.machine }}: хост тормозит — ЦП отнимает гипервизор (steal {{ $value | humanizePercentage }}). Звонки могут замирать'
 
       - alert: CoreDown
         expr: max_over_time(up{job="core"}[5m]) == 0
@@ -78,13 +78,13 @@ groups:
         expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 0.15
         for: 15m
         labels: { severity: warn }
-        annotations: { summary: 'На диске свободно меньше 15 %' }
+        annotations: { summary: '{{ $labels.machine }}: на диске свободно меньше 15 %' }
 
       - alert: MemoryLow
         expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
         for: 10m
         labels: { severity: warn }
-        annotations: { summary: 'Свободной памяти меньше 10 % десять минут' }
+        annotations: { summary: '{{ $labels.machine }}: свободной памяти меньше 10 % десять минут' }
 
       # Доля неудачных входов во встречу — при живом трафике, а не на двух попытках ночью.
       # Дверь `media` (`ice_failed`, R149) — не отказ ядра, а сеть человека после пропущенного входа:
@@ -229,3 +229,37 @@ groups:
         for: 10m
         labels: { severity: warn }
         annotations: { summary: 'Хост узла {{ $labels.node }} тормозит: steal {{ $value | humanizePercentage }}' }
+
+  # Флот (R208): рабочие машины через туннели пульта (метка machine: fra — продукт cordcam.ru, msk, hel). Правила
+  # машины выше (HostStalled, DiskAlmostFull, MemoryLow) уже по каждой машине; здесь — то, чего у стенда нет.
+  - name: cord-fleet
+    interval: 30s
+    rules:
+      - alert: ProductCoreDown
+        expr: max_over_time(up{machine="fra", kind="core"}[3m]) == 0
+        labels: { severity: page }
+        annotations: { summary: 'Ядро продукта cordcam.ru не отвечает пульту три минуты (через туннель)' }
+
+      - alert: FleetMachineUnreachable
+        expr: max_over_time(up{job="nodes", kind="node"}[5m]) == 0
+        labels: { severity: warn }
+        annotations:
+          summary: '{{ $labels.machine }}: машина не отвечает пульту пять минут — туннель или сама машина (systemctl status cord-fleet-tunnel@{{ $labels.machine }})'
+
+      - alert: FleetAgentDown
+        expr: max_over_time(up{job="nodes", kind=~"containers|gateway"}[10m]) == 0
+        labels: { severity: info }
+        annotations: { summary: '{{ $labels.machine }}: агент {{ $labels.kind }} не отвечает десять минут (infra/fleet/install-agents.sh)' }
+
+      - alert: FleetCpuSaturated
+        expr: (1 - avg by (machine) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.85
+        for: 10m
+        labels: { severity: warn }
+        annotations: { summary: '{{ $labels.machine }}: ЦП занят больше 85 % десять минут — новые встречи лучше ставить на другие узлы' }
+
+      - alert: FleetUplinkHigh
+        expr: sum by (machine) (rate(node_network_transmit_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[5m])) * 8 > 600e6
+        for: 10m
+        labels: { severity: warn }
+        annotations: { summary: '{{ $labels.machine }}: исходящий канал больше 600 Мбит/с десять минут' }
+
