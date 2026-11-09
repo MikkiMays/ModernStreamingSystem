@@ -460,6 +460,8 @@
       "nodeUnknown": "Der Pfad zu den Knoten wurde noch nicht gemessen",
       "auto": "Auto",
       "autoHint": "Der nächste Knoten nach dem von diesem Gerät gemessenen Pfad, unter Berücksichtigung der Last",
+      "autoRecommended": "Auto (empfohlen)",
+      "autoNow": "Gerade am nächsten: {{node}}",
       "autoCreated": "Der Knoten wurde beim Erstellen des Meetings gewählt und bleibt für das ganze Meeting. Wähle einen anderen, um das Meeting zu verlegen.",
       "manualHint": "Das nächste Meeting, das du erstellst, läuft auf diesem Knoten. Wer per Link beitritt, landet auf dem Knoten dieses Meetings.",
       "thisMeeting": "Knoten dieses Meetings",

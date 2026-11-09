@@ -460,6 +460,8 @@
       "nodeUnknown": "Le chemin vers les nœuds n’a pas encore été mesuré",
       "auto": "Auto",
       "autoHint": "Le nœud le plus proche selon le chemin mesuré depuis cet appareil, en tenant compte de la charge",
+      "autoRecommended": "Auto (recommandé)",
+      "autoNow": "Le plus proche en ce moment : {{node}}",
       "autoCreated": "Le nœud a été choisi à la création de la réunion et reste le même toute la réunion. Choisissez-en un autre pour déplacer la réunion.",
       "manualHint": "La prochaine réunion que vous créerez sera sur ce nœud. Les personnes qui entrent par lien arrivent sur le nœud de cette réunion.",
       "thisMeeting": "Nœud de cette réunion",

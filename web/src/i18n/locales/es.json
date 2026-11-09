@@ -460,6 +460,8 @@
       "nodeUnknown": "La ruta hasta los nodos aún no se ha medido",
       "auto": "Automático",
       "autoHint": "El nodo más cercano según la ruta medida desde este dispositivo, teniendo en cuenta la carga",
+      "autoRecommended": "Automático (recomendado)",
+      "autoNow": "Ahora el más cercano: {{node}}",
       "autoCreated": "El nodo se eligió al crear la reunión y se mantiene durante toda la reunión. Elige otro para trasladarla.",
       "manualHint": "La próxima reunión que crees estará en este nodo. Quien entre por enlace va al nodo de esa reunión.",
       "thisMeeting": "Nodo de esta reunión",
