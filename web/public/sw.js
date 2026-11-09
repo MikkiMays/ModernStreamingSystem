@@ -10,8 +10,14 @@
  * Файлы под /assets/ несут хеш в имени — их содержимое не меняется никогда, и кэшировать их
  * безопасно. Всё остальное — API, медиа, загрузки — сюда не попадает: у запроса к встрече не
  * бывает правильного устаревшего ответа.
+ *
+ * НЕ HTML ПОД ИМЕНЕМ МОДУЛЯ (10.11.2026, «раздел поддержки перестал открываться»). Модуля прежней
+ * сборки на сервере нет, а шлюз до 1.3.6 отвечал на такой адрес главной страницей с кодом 200 — и
+ * кэш запоминал HTML под именем JS-модуля навсегда: часть не открывалась, пока вкладку не
+ * перезагрузят. Страница под /assets/ теперь не кэшируется и из кэша не отдаётся; v2 стирает v1 с
+ * уже запомненными подменами.
  */
-const CACHE = 'cord-shell-v1';
+const CACHE = 'cord-shell-v2';
 const SHELL = '/index.html';
 
 self.addEventListener('install', (event) => {
@@ -51,11 +57,13 @@ async function networkFirst(request, fallback) {
   }
 }
 
+const isPage = (response) => (response.headers.get('content-type') || '').includes('text/html');
+
 async function cacheFirst(request) {
   const cached = await caches.match(request);
-  if (cached) return cached;
+  if (cached && !isPage(cached)) return cached;
   const response = await fetch(request);
-  if (response.ok) {
+  if (response.ok && !isPage(response)) {
     const copy = response.clone();
     caches
       .open(CACHE)

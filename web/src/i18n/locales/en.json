@@ -2415,7 +2415,11 @@
     "opening": "Opening the room…",
     "closeNotice": "Close notification",
     "downloadTitle": "Cord for Windows",
-    "downloadLabel": "Download Cord"
+    "downloadLabel": "Download Cord",
+    "stale": {
+      "text": "Cord has been updated on the server. This part opens after you refresh the page.",
+      "reload": "Refresh page"
+    }
   },
   "api": {
     "requestFailed": "The request failed",

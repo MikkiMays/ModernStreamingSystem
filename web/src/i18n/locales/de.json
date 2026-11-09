@@ -2415,7 +2415,11 @@
     "opening": "Raum wird geöffnet…",
     "closeNotice": "Benachrichtigung schließen",
     "downloadTitle": "Cord für Windows",
-    "downloadLabel": "Cord herunterladen"
+    "downloadLabel": "Cord herunterladen",
+    "stale": {
+      "text": "Cord wurde auf dem Server aktualisiert. Dieser Teil öffnet sich, nachdem du die Seite neu lädst.",
+      "reload": "Seite neu laden"
+    }
   },
   "api": {
     "requestFailed": "Die Anfrage ist fehlgeschlagen",

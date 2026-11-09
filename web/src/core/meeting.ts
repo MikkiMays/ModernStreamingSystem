@@ -35,6 +35,7 @@ import {
   type WindowState,
 } from './desktop-notify';
 import { t } from '../i18n';
+import { meetingEnded, meetingStarted } from './live-meetings';
 
 /** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
 const CLOCK_MEMORY = 10 * 60_000;
@@ -134,6 +135,7 @@ export class Meeting {
       microphoneTrack?: MediaStreamTrack;
     } = {},
   ) {
+    meetingStarted();
     this.api = new RoomApi(admission);
     this.snapshot = new Store(admission.snapshot);
     this.cues = new RoomCues(admission.participantId);
@@ -819,6 +821,7 @@ export class Meeting {
   };
   dispose() {
     this.report();
+    if (!this.disposed) meetingEnded();
     this.disposed = true;
     clearInterval(this.syncTimer);
     clearTimeout(this.ownScreenGone);

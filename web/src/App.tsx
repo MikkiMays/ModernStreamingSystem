@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { retryCatalog } from './core/cinema/reach';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +26,7 @@ import { useMeetingBeacon } from './ui/useMeetingBeacon';
 import { findActiveMeeting, requestHandover } from './core/active-meeting';
 import { watchTitlebar } from './core/titlebar';
 import { MaintenancePage, useMaintenance } from './ui/MaintenancePage';
+import { lazyPart } from './ui/lazy-part';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -33,17 +34,17 @@ const queryClient = new QueryClient({
 // Кинозал сам не повторяет ни отказ недоступной площадки, ни вышедший срок: второе ожидание удвоило
 // бы «Спрашиваем площадку…», а у отказа есть кнопка «Повторить» (R112).
 queryClient.setQueryDefaults(['cinema'], { retry: retryCatalog });
-const MeetingView = lazy(() =>
+const MeetingView = lazyPart(() =>
   import('./ui/MeetingView').then((module) => ({ default: module.MeetingView })),
 );
 // Витрина набора примитивов (E16): без сервера, сессии и кэша — как `/download`.
-const Showcase = lazy(() => import('./ui/kit/Showcase').then((module) => ({ default: module.Showcase })));
+const Showcase = lazyPart(() => import('./ui/kit/Showcase').then((module) => ({ default: module.Showcase })));
 // «Помощь» (E13): тоже вне приложения — её открывают и тогда, когда Cord не подключается.
-const SupportPage = lazy(() =>
+const SupportPage = lazyPart(() =>
   import('./ui/support/SupportPage').then((module) => ({ default: module.SupportPage })),
 );
 // «Активность» владельца сервера (E10-B) — отдельным чанком: гостям встречи он не нужен.
-const Activity = lazy(() =>
+const Activity = lazyPart(() =>
   import('./ui/activity/Activity').then((module) => ({ default: module.Activity })),
 );
 function initialDestination() {

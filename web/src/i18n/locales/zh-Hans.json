@@ -2387,7 +2387,11 @@
     "opening": "正在打开房间…",
     "closeNotice": "关闭通知",
     "downloadTitle": "Windows 版 Cord",
-    "downloadLabel": "下载 Cord"
+    "downloadLabel": "下载 Cord",
+    "stale": {
+      "text": "Cord 已在服务器上更新。刷新页面后即可打开此部分。",
+      "reload": "刷新页面"
+    }
   },
   "api": {
     "requestFailed": "请求失败",

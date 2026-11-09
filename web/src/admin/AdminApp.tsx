@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -40,18 +39,19 @@ import { Login } from './Login';
 import { Skeleton } from './parts';
 import { dashboardUrl, NEW_TAB } from './grafana';
 import { adminTheme, setAdminTheme, type AdminTheme } from './theme';
+import { lazyPart } from '../ui/lazy-part';
 
-const Overview = lazy(() => import('./screens/Overview').then((m) => ({ default: m.Overview })));
-const Jobs = lazy(() => import('./screens/Jobs').then((m) => ({ default: m.Jobs })));
-const Maintenance = lazy(() => import('./screens/Maintenance').then((m) => ({ default: m.Maintenance })));
-const Meetings = lazy(() => import('./screens/Meetings').then((m) => ({ default: m.Meetings })));
-const Nodes = lazy(() => import('./screens/Nodes').then((m) => ({ default: m.Nodes })));
-const Deploys = lazy(() => import('./screens/Deploys').then((m) => ({ default: m.Deploys })));
-const Audit = lazy(() => import('./screens/Audit').then((m) => ({ default: m.Audit })));
-const Later = lazy(() => import('./screens/Later').then((m) => ({ default: m.Later })));
-const Live = lazy(() => import('./screens/Live').then((m) => ({ default: m.Live })));
-const Analytics = lazy(() => import('./screens/Analytics').then((m) => ({ default: m.Analytics })));
-const Support = lazy(() => import('./screens/Support').then((m) => ({ default: m.Support })));
+const Overview = lazyPart(() => import('./screens/Overview').then((m) => ({ default: m.Overview })));
+const Jobs = lazyPart(() => import('./screens/Jobs').then((m) => ({ default: m.Jobs })));
+const Maintenance = lazyPart(() => import('./screens/Maintenance').then((m) => ({ default: m.Maintenance })));
+const Meetings = lazyPart(() => import('./screens/Meetings').then((m) => ({ default: m.Meetings })));
+const Nodes = lazyPart(() => import('./screens/Nodes').then((m) => ({ default: m.Nodes })));
+const Deploys = lazyPart(() => import('./screens/Deploys').then((m) => ({ default: m.Deploys })));
+const Audit = lazyPart(() => import('./screens/Audit').then((m) => ({ default: m.Audit })));
+const Later = lazyPart(() => import('./screens/Later').then((m) => ({ default: m.Later })));
+const Live = lazyPart(() => import('./screens/Live').then((m) => ({ default: m.Live })));
+const Analytics = lazyPart(() => import('./screens/Analytics').then((m) => ({ default: m.Analytics })));
+const Support = lazyPart(() => import('./screens/Support').then((m) => ({ default: m.Support })));
 
 export type Section =
   | 'overview'

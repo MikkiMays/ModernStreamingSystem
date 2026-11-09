@@ -1,0 +1,14 @@
+/* Часть Cord не загрузилась во встрече (`lazy-part.tsx`): короткая надпись и кнопка на её месте. */
+.stale-part {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+.stale-part p {
+  margin: 0;
+  max-width: 36ch;
+}

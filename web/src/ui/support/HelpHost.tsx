@@ -1,13 +1,14 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Headset } from 'lucide-react';
 import { Dialog } from '../kit';
 import { useStore } from '../primitives';
 import { closeHelp, helpRequest } from './help';
 import './help-button.css';
+import { lazyPart } from '../lazy-part';
 
 // Окно поддержки — отдельным чанком: частые вопросы и форма не нужны, пока «Поддержку» не нажали.
-const HelpCenter = lazy(() => import('./HelpCenter').then((module) => ({ default: module.HelpCenter })));
+const HelpCenter = lazyPart(() => import('./HelpCenter').then((module) => ({ default: module.HelpCenter })));
 
 /**
  * Единственное окно «Поддержка» (S5, R49) — на корне приложения, вне дерева того, кто его открыл:

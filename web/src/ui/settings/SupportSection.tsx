@@ -1,10 +1,11 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Headset } from 'lucide-react';
 import '../support/support.css';
+import { lazyPart } from '../lazy-part';
 
 // Вопросы, проверка и формы — отдельным чанком, как и окно поддержки: не нужны, пока раздел не открыт.
-const HelpCenter = lazy(() =>
+const HelpCenter = lazyPart(() =>
   import('../support/HelpCenter').then((module) => ({ default: module.HelpCenter })),
 );
 

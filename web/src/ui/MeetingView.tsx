@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -53,8 +53,9 @@ import { useCallInBackground } from './useCallInBackground';
 import { useDesktopOverlay } from './useDesktopOverlay';
 import { useTrayChat } from './useTrayChat';
 import { MODAL_SELECTOR, modalOpen } from './modal';
+import { lazyPart } from './lazy-part';
 
-const Diagnostics = lazy(() => import('./Diagnostics'));
+const Diagnostics = lazyPart(() => import('./Diagnostics'));
 /** Окна поверх встречи — одно за раз (S5). */
 type Layer = 'invite' | 'settings' | 'diagnostics' | 'meetingSettings';
 export function MeetingView({

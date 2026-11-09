@@ -2515,7 +2515,11 @@
     "opening": "Открываем комнату…",
     "closeNotice": "Закрыть уведомление",
     "downloadTitle": "Cord для Windows",
-    "downloadLabel": "Скачать Cord"
+    "downloadLabel": "Скачать Cord",
+    "stale": {
+      "text": "Cord обновился на сервере. Эта часть откроется после обновления страницы.",
+      "reload": "Обновить страницу"
+    }
   },
   "api": {
     "requestFailed": "Не удалось выполнить запрос",

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { retryCatalog } from '../core/cinema/reach';
 import { useTranslation } from 'react-i18next';
@@ -22,8 +22,9 @@ import type { Theme } from '../ui/primitives';
 import { probeMicrophone } from './media-probe';
 import type { TelegramShell } from './sdk';
 import { failureText, FriendlyError } from '../core/failure';
+import { lazyPart } from '../ui/lazy-part';
 
-const MeetingView = lazy(() =>
+const MeetingView = lazyPart(() =>
   import('../ui/MeetingView').then((module) => ({ default: module.MeetingView })),
 );
 const queryClient = new QueryClient({

@@ -21,6 +21,7 @@ import { installScrollActivity } from './ui/scroll-activity';
 import { startFailureReports, watchFailures } from './core/failure';
 import { sendFailures } from './api/client';
 import { noteVisit } from './core/analytics';
+import { reloadForNewBuild } from './ui/lazy-part';
 unlockNotificationAudio();
 // Кольцо фокуса — только тому, кто ходит клавиатурой (S1, R26).
 installInputModality();
@@ -46,6 +47,15 @@ if ('serviceWorker' in navigator && !isDesktop() && import.meta.env.PROD)
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
+
+/*
+  Модуль не загрузился — чаще всего вкладка открыта до выкатки и просит модуль прежней сборки, которого на
+  сервере уже нет (`ui/lazy-part.tsx`). Не во встрече — одна перезагрузка за новой сборкой; во встрече —
+  ничего: часть, которая не открылась, скажет об этом сама, а разговор не оборвётся.
+*/
+window.addEventListener('vite:preloadError', () => {
+  reloadForNewBuild();
+});
 
 /*
   Общие настройки (R146) — до первой отрисовки. Фрагмент `#cord-prefs=…` («Сменить сервер» в

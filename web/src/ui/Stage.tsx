@@ -1,5 +1,4 @@
 import {
-  lazy,
   Suspense,
   useEffect,
   useLayoutEffect,
@@ -47,14 +46,15 @@ import { integrationName } from './notch-state';
 import { leaveToPeople, StageExitContext } from './stage-context';
 import { BoardBoundary } from './board/BoardBoundary';
 import './video-paused.css';
+import { lazyPart } from './lazy-part';
 
-const WatchTheater = lazy(() => import('./cinema/theater/WatchTheater'));
-const PokerTable = lazy(() => import('./PokerTable'));
-const DurakTable = lazy(() => import('./DurakTable'));
-const ChessTable = lazy(() => import('./ChessTable'));
-const GarticTable = lazy(() => import('./GarticTable'));
+const WatchTheater = lazyPart(() => import('./cinema/theater/WatchTheater'));
+const PokerTable = lazyPart(() => import('./PokerTable'));
+const DurakTable = lazyPart(() => import('./DurakTable'));
+const ChessTable = lazyPart(() => import('./ChessTable'));
+const GarticTable = lazyPart(() => import('./GarticTable'));
 /** Доска (R159) — Excalidraw, около мегабайта: грузится, только когда её открыли. */
-const BoardStage = lazy(() => import('./board/BoardStage'));
+const BoardStage = lazyPart(() => import('./board/BoardStage'));
 
 /**
  * Показывать ли себя зеркально.

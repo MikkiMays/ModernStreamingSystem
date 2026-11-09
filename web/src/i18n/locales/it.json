@@ -2443,7 +2443,11 @@
     "opening": "Apriamo la stanza…",
     "closeNotice": "Chiudi la notifica",
     "downloadTitle": "Cord per Windows",
-    "downloadLabel": "Scarica Cord"
+    "downloadLabel": "Scarica Cord",
+    "stale": {
+      "text": "Cord è stato aggiornato sul server. Questa parte si aprirà dopo aver aggiornato la pagina.",
+      "reload": "Aggiorna la pagina"
+    }
   },
   "api": {
     "requestFailed": "Richiesta non riuscita",

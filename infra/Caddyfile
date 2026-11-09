@@ -161,11 +161,28 @@ http://:{$GATEWAY_PORT:8091} {
 			# only file naming the current hashes, and a stale copy keeps requesting asset URLs
 			# that stopped existing at the last deploy. With no Cache-Control at all the browser
 			# guesses from Last-Modified and caches exactly the wrong one of the two.
-			@hashed path /assets/*
+			@hashed {
+				path /assets/*
+				file
+			}
 			header @hashed Cache-Control "public, max-age=31536000, immutable"
+			# Файла прежней сборки нет (вкладка открыта до выкатки) — честный 404 без кэша. Раньше сюда
+			# отвечала index.html с кодом 200 и «immutable»: главная страница под именем JS-модуля залипала в
+			# кэше браузера и service worker, и раздел не открывался (10.11.2026). Поэтому и не `try_files`:
+			# он переписал бы такой адрес в /index.html раньше, чем дойдёт до `respond`.
+			@stale {
+				path /assets/*
+				not file
+			}
+			header @stale Cache-Control "no-store"
+			respond @stale 404
 			@unhashed not path /assets/*
 			header @unhashed Cache-Control "no-cache"
-			try_files {path} /index.html
+			@spa {
+				not path /assets/*
+				not file
+			}
+			rewrite @spa /index.html
 			encode zstd gzip
 			file_server
 		}
@@ -237,11 +254,25 @@ http://:{$ADMIN_GATEWAY_PORT:8092} {
 	handle {
 		import headers
 		root * /srv
-		@hashed path /assets/*
+		@hashed {
+			path /assets/*
+			file
+		}
 		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		# Как у продукта выше: модуля прежней сборки нет — 404 без кэша, а не admin.html под его именем.
+		@stale {
+			path /assets/*
+			not file
+		}
+		header @stale Cache-Control "no-store"
+		respond @stale 404
 		@unhashed not path /assets/*
 		header @unhashed Cache-Control "no-cache"
-		try_files {path} /admin.html
+		@spa {
+			not path /assets/*
+			not file
+		}
+		rewrite @spa /admin.html
 		encode zstd gzip
 		file_server
 	}

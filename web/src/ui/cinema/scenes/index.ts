@@ -1,4 +1,5 @@
-import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
+import type { ComponentType, LazyExoticComponent } from 'react';
+import { lazyPart } from '../../lazy-part';
 import type { CinemaAt, ProviderId, SceneId } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 
@@ -25,9 +26,9 @@ export interface SceneProps {
  * которой нет, — это не соберётся.
  */
 export const SCENES: Record<SceneId, LazyExoticComponent<ComponentType<SceneProps>>> = {
-  switcher: lazy(() => import('./SwitcherScene')),
-  rutube: lazy(() => import('./RutubeScene')),
-  vk: lazy(() => import('./VkScene')),
-  ivi: lazy(() => import('./IviScene')),
-  link: lazy(() => import('./LinkScene')),
+  switcher: lazyPart(() => import('./SwitcherScene')),
+  rutube: lazyPart(() => import('./RutubeScene')),
+  vk: lazyPart(() => import('./VkScene')),
+  ivi: lazyPart(() => import('./IviScene')),
+  link: lazyPart(() => import('./LinkScene')),
 };
