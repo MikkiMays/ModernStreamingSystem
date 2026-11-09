@@ -7,7 +7,7 @@ description: Use when a Cord change touches media (camera, microphone, screen sh
 
 ## Где
 
-Стенд `https://cord.nikg.tech` (эта машина, свой SFU) — первый выбор; прод — после выкатки. Камере и
+Стенд `https://callcord.ru` (эта машина, свой SFU) — первый выбор; прод — после выкатки. Камере и
 микрофону нужен настоящий https по имени: по IP захват не дают.
 
 ## Как
@@ -17,7 +17,7 @@ description: Use when a Cord change touches media (camera, microphone, screen sh
 
 ```bash
 cd "$CORD_ROOT/ModernStreamingSystem/web"
-PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/meeting.spec.ts e2e/screens.spec.ts
+PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test e2e/meeting.spec.ts e2e/screens.spec.ts
 ```
 
 Конфиг уже даёт `--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream` и автоселект

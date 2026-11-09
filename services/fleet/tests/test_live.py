@@ -53,7 +53,7 @@ class FakeVictoria:
             q("load1"): vector((local, 2.0), (TUNNEL, 3.0)),
             q("netOutMbps"): vector((local, 10), (TUNNEL, 30)),
             q("uname"): vector(
-                ({**local, "release": "6.8.0", "nodename": "cord.nikg.tech", **({"machine": "x86_64"} if "machine" not in local else {"exported_machine": "x86_64"})}, 1),
+                ({**local, "release": "6.8.0", "nodename": "callcord.ru", **({"machine": "x86_64"} if "machine" not in local else {"exported_machine": "x86_64"})}, 1),
                 ({**TUNNEL, "release": "6.8.0", "nodename": "meet", "exported_machine": "aarch64"}, 1),
             ),
             q("os"): vector(({**local, "pretty_name": "Ubuntu 24.04"}, 1)),

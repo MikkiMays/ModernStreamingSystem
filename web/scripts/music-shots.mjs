@@ -1,6 +1,6 @@
 // Снимки музыки, витрины и аккаунтов для ревью 1.0.3 (W4: R31–R33, R39–R44, R112 музыки).
 //
-//   node scripts/music-shots.mjs --base https://cord.nikg.tech --tag before --out ../backlog/review-1.0.3/shots
+//   node scripts/music-shots.mjs --base https://callcord.ru --tag before --out ../backlog/review-1.0.3/shots
 //   CORD_STAND_DEV=127.0.0.1:5443 node scripts/stand-dev.mjs &        # невыкаченный веб под именем стенда
 //   node scripts/music-shots.mjs --dev 127.0.0.1:5443 --tag after --out ../backlog/review-1.0.3/shots
 //   node scripts/music-shots.mjs --scenes kit,accounts --widths 1440 --themes dark
@@ -21,7 +21,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const tag = args.tag ?? 'after';
 const widths = (args.widths ?? '1440,390').split(',').map(Number);

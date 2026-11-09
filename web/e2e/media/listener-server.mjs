@@ -7,7 +7,7 @@
 import { chromium } from '@playwright/test';
 import { lookup } from 'node:dns/promises';
 
-const stand = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech');
+const stand = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru');
 // Внутри пространства DNS нет: адрес стенда передают снаружи (CORD_STAND_IP) или берут из /etc/hosts.
 const address = process.env.CORD_STAND_IP ?? (await lookup(stand.hostname).catch(() => null))?.address;
 if (!address) throw new Error('CORD_STAND_IP не задан, а имя стенда внутри пространства не разрешается');

@@ -1,6 +1,6 @@
 ---
 name: cord-deploy
-description: Use when Cord code changes must reach a running server (stand cord.nikg.tech or another server), when "fixed but still broken" after a deploy, when the SFU config must be refreshed, or when a Windows client release has to appear on /download.
+description: Use when Cord code changes must reach a running server (stand callcord.ru or another server), when "fixed but still broken" after a deploy, when the SFU config must be refreshed, or when a Windows client release has to appear on /download.
 ---
 
 # Выкатка Cord
@@ -21,7 +21,7 @@ APK, учёт, ловушки). Здесь — только быстрая па�
 
 «Починил, а не работает» — чаще всего выкатили не ту службу (правило в `core`, а пересобран `gateway`).
 
-## Стенд cord.nikg.tech (эта машина, `strict`)
+## Стенд callcord.ru (эта машина, `strict`)
 
 ```bash
 cd /opt/ModernStreamingSystem          # только отсюда: в worktree нет .env
@@ -37,9 +37,9 @@ backlog/bin/deploy.sh core gateway     # встречи → flock → build → 
 - `deploy.sh` LiveKit не перезапускает: после `--refresh` — `backlog/bin/active-meetings.sh && docker compose restart livekit`.
 - Никогда `docker compose down -v` и голый `docker compose up -d` (поднимет профиль `monitoring`).
 
-После: `curl -s https://cord.nikg.tech/ | grep -o 'name="cord-build" content="[^"]*"'` = `git rev-parse --short HEAD`,
-`curl -fsS https://cord.nikg.tech/api/v1/ping`, `node scripts/smoke.mjs`, e2e тронутого:
-`cd web && PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/<спек>.ts` — не больше 10 новых
+После: `curl -s https://callcord.ru/ | grep -o 'name="cord-build" content="[^"]*"'` = `git rev-parse --short HEAD`,
+`curl -fsS https://callcord.ru/api/v1/ping`, `node scripts/smoke.mjs`, e2e тронутого:
+`cd web && PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test e2e/<спек>.ts` — не больше 10 новых
 встреч в час с адреса. Откат — `docker tag $TAG-<служба>:latest modern-streaming-<служба>:latest` и
 `docker compose up -d --no-deps <служба>`.
 

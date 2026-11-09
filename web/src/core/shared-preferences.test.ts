@@ -347,7 +347,7 @@ describe('клиент Windows с prefs.shared: общее у оболочки (
 
 describe('браузер: «Сменить сервер» несёт настройки во фрагменте адреса', () => {
   const catalog = async () => [
-    { id: 'a', url: 'https://cord.nikg.tech/', name: { ru: 'А' } },
+    { id: 'a', url: 'https://callcord.ru/', name: { ru: 'А' } },
     { id: 'b', url: 'https://cordcam.ru/', name: { ru: 'Б' } },
   ];
 

@@ -8,7 +8,7 @@ import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 
 const out = process.argv[2] ?? '/tmp/voice-invite.txt';
-const base = process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const browser = process.env.CORD_LISTENER_WS
   ? await chromium.connect(process.env.CORD_LISTENER_WS)
   : await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });

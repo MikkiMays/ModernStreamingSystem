@@ -77,7 +77,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? '../backlog/screens/figma');
 const WIDTHS = (args.widths ?? '360,1024,1440').split(',').map(Number);
 const THEMES = (args.themes ?? 'light,dark').split(',');
@@ -1447,7 +1447,7 @@ Object.assign(SINGLE, {
     themes: ['dark'],
     async open(page, { context }) {
       await context.addInitScript(shellStub, {});
-      await page.goto(`file://${SHELL}/offline.html?server=${encodeURIComponent('https://cord.nikg.tech/')}`);
+      await page.goto(`file://${SHELL}/offline.html?server=${encodeURIComponent('https://callcord.ru/')}`);
       await page.waitForTimeout(300);
     },
   },
@@ -1464,7 +1464,7 @@ Object.assign(SINGLE, {
           'servers.list': [
             {
               name: { ru: 'Нидерланды', en: 'Netherlands' },
-              url: 'https://cord.nikg.tech/',
+              url: 'https://callcord.ru/',
               country: 'NL',
               current: true,
             },
@@ -1489,7 +1489,7 @@ Object.assign(SINGLE, {
           ],
         },
         pings: {
-          'https://cord.nikg.tech/': 38,
+          'https://callcord.ru/': 38,
           'https://de.cord.example/': 52,
           'https://fi.cord.example/': 96,
           'https://kz.cord.example/': 214,

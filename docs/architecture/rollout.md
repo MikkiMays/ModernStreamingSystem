@@ -39,7 +39,7 @@ callcord.ru (люди) ──HTTPS/WSS──► A: Франкфурт, узел 
 
 | Сервер | Адрес | Сейчас | Становится | Кто делает |
 | --- | --- | --- | --- | --- |
-| A, `cord.nikg.tech` | 108.165.32.75 | стенд = прод Cord 1.2.x | **узел управления `fra`** + медиаузел `fra` | владелец / главная сессия (раздел 5) |
+| A, `callcord.ru` | 108.165.32.75 | стенд = прод Cord 1.2.x | **узел управления `fra`** + медиаузел `fra` | владелец / главная сессия (раздел 5) |
 | B, `hel.callcord.ru` | 152.234.227.199 | медиаузел `hel` в режиме `ip` (без DNS), прокси YouTube | медиаузел `hel` в режиме `strict` (с DNS) | эта инструкция (раздел 4) |
 | `cordcam.ru` | 157.22.241.114 | **отдельная установка** Cord (своя база, свой каталог, клиент Windows — ветка `deploy/cordcam`) | **решение владельца** (п. 17 `backlog/OWNER-ACTIONS.md`): по умолчанию — **медиаузел `msk`** единого Cord (раздел 7) | только после ответа владельца |
 | `meet.nikg.tech` | 108.165.32.23 | отдельная установка (старый прод) | **решение владельца**: по умолчанию — вывести: редирект на `callcord.ru` | только после ответа владельца |
@@ -171,7 +171,7 @@ TAG=cord-rollback-$(date +%Y%m%d-%H%M%S); for s in core gateway; do docker tag m
 backlog/bin/deploy.sh core gateway                      # сборка и подъём; ядро читает /nodes/registry.json
 docker compose logs --since 2m core | grep -E 'Media nodes|registry IGNORED' # ожидаемо: Media nodes: [fra*, hel]; строки IGNORED быть не должно
 curl -s http://127.0.0.1:8080/actuator/prometheus | grep '^cord_node_up'   # cord_node_up{node="fra"} 1, {node="hel"} 1
-curl -s https://cord.nikg.tech/api/v1/capabilities | python3 -c 'import json,sys; print([n["id"] for n in json.load(sys.stdin)["nodes"]])'  # ['fra', 'hel']
+curl -s https://callcord.ru/api/v1/capabilities | python3 -c 'import json,sys; print([n["id"] for n in json.load(sys.stdin)["nodes"]])'  # ['fra', 'hel']
 docker compose up -d victoriametrics vmalert            # профиль monitoring: цели узлов и алерты NodeDown…
 ```
 
@@ -181,15 +181,15 @@ docker compose up -d victoriametrics vmalert            # профиль monitor
 ### 5.3 Переезд продукта на `callcord.ru` **[не сделано в коде, план]**
 
 Делается отдельным шагом после 5.2 и после правильного DNS (4.2): `node scripts/configure.mjs --refresh --app=callcord.ru
---rtc=rtc-fra.callcord.ru --turn=turn-fra.callcord.ru --legacy-hosts=…` сохраняет `cord.nikg.tech` работающим рядом
+--rtc=rtc-fra.callcord.ru --turn=turn-fra.callcord.ru --legacy-hosts=…` сохраняет `callcord.ru` работающим рядом
 (переходный период), `PUBLIC_URL` меняется на `https://callcord.ru`, затем `docker compose restart edge livekit` и
-`deploy.sh gateway core` в окне без встреч. Редирект `cord.nikg.tech → callcord.ru` с переносом настроек (`#cord-prefs`) и
+`deploy.sh gateway core` в окне без встреч. Редирект `callcord.ru → callcord.ru` с переносом настроек (`#cord-prefs`) и
 новый каталог клиента Windows — в `distributed-media.md` §7.4; **кодом пока не реализованы** и в этой волне не делаются
-без решения владельца о сроках. `cord.nikg.tech` работает, пока владелец не разрешит его убрать.
+без решения владельца о сроках. `callcord.ru` работает, пока владелец не разрешит его убрать.
 
 ## 6. Проверки после включения (A + B) **[не проверено на паре A–B; проверено на B с временным ядром]**
 
-1. С домашнего компьютера владельца: `https://cord.nikg.tech` → «Новая встреча» → в «Настройки → Сервер» строка
+1. С домашнего компьютера владельца: `https://callcord.ru` → «Новая встреча» → в «Настройки → Сервер» строка
    «Узел встречи: Хельсинки · N мс, Франкфурт · M мс»; в «Диагностике» встречи — «Узел встречи».
 2. На A: `docker compose logs --since 10m core | grep 'on node'` — строка `room … on node hel (preferred; asked hel;
    measured […])` для встречи, созданной из Финляндии/Прибалтики; из Германии — `fra`.

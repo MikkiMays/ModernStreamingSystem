@@ -3,7 +3,7 @@
 // подставляет origin/host стенда. Для снимков невыкаченных экранов (E15-B) — прихожая, настройки,
 // витрины; встреча через dev-сервер живёт секунды (SFU стенда другому origin недоступен).
 //
-//   node scripts/stand-proxy.mjs [--port 18080] [--target https://cord.nikg.tech]
+//   node scripts/stand-proxy.mjs [--port 18080] [--target https://callcord.ru]
 //   CORD_DEV_API=http://127.0.0.1:18080 CORD_DEV_SERVICES=http://127.0.0.1:18080 npx vite --port 5199
 import http from 'node:http';
 import https from 'node:https';
@@ -13,7 +13,7 @@ const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
-const target = new URL(arg('target', 'https://cord.nikg.tech'));
+const target = new URL(arg('target', 'https://callcord.ru'));
 const port = Number(arg('port', 18080));
 
 const server = http.createServer((req, res) => {

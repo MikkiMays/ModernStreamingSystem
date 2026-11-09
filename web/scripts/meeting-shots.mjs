@@ -1,6 +1,6 @@
 // Снимки встречи с людьми (W3: R27 R30 R77 R83 R84 R87) — в одной комнате на весь прогон.
 //
-//   node scripts/meeting-shots.mjs --base https://cord.nikg.tech --out ../backlog/screens/R103/W3/before
+//   node scripts/meeting-shots.mjs --base https://callcord.ru --out ../backlog/screens/R103/W3/before
 //   node scripts/meeting-shots.mjs --dev 127.0.0.1:5443 --out ../backlog/screens/R103/W3/after
 //   node scripts/meeting-shots.mjs --scenes pinned,chat --widths 390,1440 --themes dark
 //
@@ -23,7 +23,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const widths = (args.widths ?? '390,768,1440').split(',').map(Number);
 const themes = (args.themes ?? 'light,dark').split(',');

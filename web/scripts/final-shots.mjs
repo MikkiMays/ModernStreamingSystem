@@ -2,7 +2,7 @@
 // (каталог и плеер), плеер музыки, приглашение, поддержка — 1440 и 390, обе темы. Одна встреча на весь
 // прогон (стенд пускает десять новых встреч в час с адреса): ширина и тема меняются у той же страницы.
 //
-//   node scripts/final-shots.mjs --base https://cord.nikg.tech --out ../backlog/review-1.0.3/shots --track /tmp/track.wav
+//   node scripts/final-shots.mjs --base https://callcord.ru --out ../backlog/review-1.0.3/shots --track /tmp/track.wav
 //   node scripts/final-shots.mjs --dev 127.0.0.1:5443 --scenes chess,gartic           # невыкаченный веб
 //
 // Код встречи, ссылка и QR приглашения — под маской; имена выдуманные; камеры — тестовая картинка
@@ -18,7 +18,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const themes = (args.themes ?? 'dark,light').split(',');
 const scenes = new Set((args.scenes ?? 'invite,chess,gartic,durak,poker,music,cinema,support').split(','));

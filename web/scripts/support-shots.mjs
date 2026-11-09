@@ -1,6 +1,6 @@
 // Снимки поддержки, диагностики и чата (W6: R37 R38 R51 R79 R94 R116) — одна встреча на весь прогон.
 //
-//   node scripts/support-shots.mjs --base https://cord.nikg.tech --out ../backlog/review-1.0.3/shots --phase before
+//   node scripts/support-shots.mjs --base https://callcord.ru --out ../backlog/review-1.0.3/shots --phase before
 //   node scripts/support-shots.mjs --dev 127.0.0.1:5463 --out ../backlog/review-1.0.3/shots --phase after
 //   node scripts/support-shots.mjs --scenes settings,help --widths 1440 --themes dark
 //
@@ -19,7 +19,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? 'https://cord.nikg.tech';
+const base = args.base ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const phase = args.phase ?? 'after';
 const widths = (args.widths ?? '1440,390').split(',').map(Number);

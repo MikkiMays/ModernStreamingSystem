@@ -12,7 +12,7 @@ description: Use when a Cord web UI change needs visual proof (before/after scre
 
 ```bash
 cd "$CORD_ROOT/ModernStreamingSystem/web"
-node scripts/shots.mjs --base https://cord.nikg.tech --out ../backlog/screens/E04/before \
+node scripts/shots.mjs --base https://callcord.ru --out ../backlog/screens/E04/before \
   --screens meeting,settings --widths 320,390,768,1024,1280,1440,1920 --themes light,dark
 ```
 

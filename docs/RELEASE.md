@@ -6,7 +6,7 @@
 порядке делать.
 
 Пути — от `$CORD_ROOT`: каталога, где рядом лежат `ModernStreamingSystem` и `ModernStreamingSystem.Windows`. На
-машине `cord.nikg.tech` это `/opt`.
+машине `callcord.ru` это `/opt`.
 
 ## Коротко
 
@@ -175,10 +175,10 @@ git push origin HEAD:main                    # только fast-forward
   `gh run rerun <id> --failed -R MikkiMays/ModernStreamingSystem`.
 - Отказ `push HEAD:main` — `main` ушёл вперёд: `git fetch`, `git rebase origin/main`, снова CI.
 
-## 5. Выкатка на стенд cord.nikg.tech
+## 5. Выкатка на стенд callcord.ru
 
-Стенд — эта машина: `cord.nikg.tech`, 108.165.32.75, каталог `/opt/ModernStreamingSystem`. Режим `strict` с
-01.11.2026: `cord.nikg.tech`, `rtc.cord.nikg.tech`, `turn.cord.nikg.tech` (TURN/TLS на 443, Р-50, Р-52). Профиль
+Стенд — эта машина: `callcord.ru`, 108.165.32.75, каталог `/opt/ModernStreamingSystem`. Режим `strict` с
+01.11.2026: `callcord.ru`, `rtc.callcord.ru`, `turn.callcord.ru` (TURN/TLS на 443, Р-50, Р-52). Профиль
 `monitoring` в `.env` включён, но его службы остановлены с 31.10.2026 — без нужды не поднимать.
 
 ### Какая служба что везёт
@@ -267,9 +267,9 @@ backlog/bin/active-meetings.sh && docker compose restart livekit                
 
 ```bash
 git rev-parse --short HEAD
-curl -s https://cord.nikg.tech/ | grep -o 'name="cord-build" content="[^"]*"'    # = HEAD
-curl -fsS https://cord.nikg.tech/api/v1/ping
-curl -fsS https://cord.nikg.tech/api/v1/load                                      # {"level":1..4,"state":…}
+curl -s https://callcord.ru/ | grep -o 'name="cord-build" content="[^"]*"'    # = HEAD
+curl -fsS https://callcord.ru/api/v1/ping
+curl -fsS https://callcord.ru/api/v1/load                                      # {"level":1..4,"state":…}
 node scripts/smoke.mjs                                                            # PASS: … (через шлюз, по .env)
 docker compose ps
 ```
@@ -277,7 +277,7 @@ docker compose ps
 Трогали SFU, edge или генератор — ещё путь TURN/TLS на 443:
 
 ```bash
-node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn=turn.cord.nikg.tech:443 --transport=tls
+node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn=turn.callcord.ru:443 --transport=tls
 ```
 
 Коммит человеку не показывается нигде — только в `<meta name="cord-build">` (решение владельца 29.10.2026).
@@ -287,8 +287,8 @@ node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn
 
 ```bash
 cd /opt/.worktrees/<имя>/web
-PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/connect.spec.ts e2e/download.spec.ts
-PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/<тронутый>.spec.ts
+PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test e2e/connect.spec.ts e2e/download.spec.ts
+PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test e2e/<тронутый>.spec.ts
 ```
 
 - Без `PLAYWRIGHT_BASE_URL` конфиг поднимает пустой dev-сервер без ядра и SFU — падает всё.
@@ -436,7 +436,7 @@ TURN/TLS — путь звонка из VPN и сетей, где открыт �
 LiveKit 1.13.6 при любом включённом TURN/TLS объявляет `turns:<turn-имя>:443`, а под одним именем 443 — это
 HTTPS. Поэтому `configure.mjs` в `simple` и `ip` TURN/TLS не включает: там TURN по UDP 3478 и ICE/TCP 7881.
 Серверу с DNS нужен `strict`. Повторный `setup.sh` работающий сервер не переводит (`.env` он не трогает) —
-только этот порядок, проверенный на `cord.nikg.tech` 01.11.2026.
+только этот порядок, проверенный на `callcord.ru` 01.11.2026.
 
 0. Сервер уже обновлён до `main` с Р-52 (выше). DNS: A-записи `rtc.<домен>` и `turn.<домен>` → IP сервера,
    без прокси. До перехода `network-audit.mjs` показывает у `rtc` и `turn` `ECONNRESET` — edge таких имён ещё
@@ -549,7 +549,7 @@ sudo ./setup.sh --app <домен> --rtc rtc.<домен> --turn turn.<доме�
 
 - запускается на пуш и PR, если тронуты `desktop/**` или `.github/workflows/desktop.yml`;
 - задание `desktop` (windows-2022, ~9 мин): нативный модуль, `typecheck`, тесты, сборка, дымовой прогон против
-  `CORD_DEFAULT_SERVER` (переменная репы, сейчас `https://cord.nikg.tech/`), установщик NSIS, подпись
+  `CORD_DEFAULT_SERVER` (переменная репы, сейчас `https://callcord.ru/`), установщик NSIS, подпись
   `latest.yml` ключом `CORD_UPDATE_SIGN_KEY`, проверка установщика с обновлением поверх прошлого выпуска
   `desktop-v*`;
 - задание `release` — только на пуш в `main` или `deploy/*`: тег `desktop-v<версия из desktop/package.json>`.
@@ -570,15 +570,16 @@ gh release view desktop-vX.Y.Z -R MikkiMays/ModernStreamingSystem.Windows --json
 
 GitHub клиент не видит: и `/download`, и обновление при запуске читают только зеркало сервера
 (`/downloads/windows/download.json` и канал `/downloads/windows/desktop/`). Клиент основной сборки обновляется с
-`CORD_DEFAULT_SERVER`: с 1.2.3 это продукт `cordcam.ru` (meet), до 1.2.2 — стенд `cord.nikg.tech`. Выпуск кладётся
-**на оба** зеркала: на meet — для всех клиентов, на стенд — чтобы клиенты 1.2.2 и старше дошли до версии, которая смотрит
-на `cordcam.ru`. Пока выпуск не выложен, его не видит никто.
+`CORD_DEFAULT_SERVER` — с 1.2.3 это продукт `cordcam.ru` (meet); выпуск кладётся **на meet** — для всех клиентов.
+Зеркало стенда `callcord.ru` (A) — только для разработки и дымового прогона. Клиенты 1.2.2 и старше смотрели на
+`cord.nikg.tech`; с 09.11 этого имени нет (владелец: «nikg.tech вообще не должен больше фигурировать») — их
+переустанавливают установщиком с `https://cordcam.ru/download`. Пока выпуск не выложен, его не видит никто.
 
 ```bash
 cd /opt/ModernStreamingSystem
 backlog/bin/publish-windows.sh --desktop X.Y.Z
-curl -s https://cord.nikg.tech/downloads/windows/download.json            # "version": "X.Y.Z", "path": "desktop/"
-curl -s https://cord.nikg.tech/downloads/windows/desktop/latest.yml | head -3
+curl -s https://callcord.ru/downloads/windows/download.json            # "version": "X.Y.Z", "path": "desktop/"
+curl -s https://callcord.ru/downloads/windows/desktop/latest.yml | head -3
 ```
 
 Скрипт берёт релиз через `gh`, а `scripts/publish-windows-release.py --desktop` сверяет размеры и дайджесты с
@@ -599,7 +600,7 @@ scp -i /root/.ssh/cord_fra -r release.json artifacts root@108.165.32.23:/tmp/cor
 python3 -I scripts/publish-windows-release.py --desktop /tmp/cord-desktop-X.Y.Z/release.json /tmp/cord-desktop-X.Y.Z/artifacts
 ```
 
-Проверка — `curl -s https://cordcam.ru/downloads/windows/desktop/latest.yml | head -3` и то же на `cord.nikg.tech`.
+Проверка — `curl -s https://cordcam.ru/downloads/windows/desktop/latest.yml | head -3`.
 Манифесты сборки с ключом cordcam (`installations/cordcam.json`, 1.1.x) на meet больше не кладутся: канал `cordcam.ru`
 теперь у основной сборки, подписанной основным ключом.
 
@@ -617,7 +618,7 @@ python3 -I scripts/publish-windows-release.py --desktop /tmp/cord-desktop-X.Y.Z/
   `gh workflow run android.yml -R MikkiMays/ModernStreamingSystem --ref main`.
 - Собирает отладочный APK (`assembleDebug`, отладочный ключ) с адресом продукта `https://cordcam.ru` из
   `mobile/capacitor.config.json` (R200, Р-110); `mobile/scripts/set-server.mjs` без переменной только сверяет файлы.
-  Стенд `cord.nikg.tech` в APK не попадает: переменная `CORD_SERVER_URL` — только для `verify-deployed.yml`.
+  Стенд `callcord.ru` в APK не попадает: переменная `CORD_SERVER_URL` — только для `verify-deployed.yml`.
 - Результат — артефакт `cord-android-debug` (`app-debug.apk`), живёт 14 дней. На сервер и в магазины не
   выкладывается.
 

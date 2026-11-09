@@ -196,7 +196,7 @@ stream:
 (ping по `online`, закрытие без pong), `session.test.ts` (по `online` при `connected` — толчок;
 `disconnected` — `start`; повторный толчок раньше 3 с не идёт). Живой замер — ниже.
 
-## План живого замера (стенд `https://cord.nikg.tech`, два браузера)
+## План живого замера (стенд `https://callcord.ru`, два браузера)
 
 Скилл `cord-live-call`; `RTCPeerConnection` перехватывается `addInitScript`, дальше `getStats()`.
 

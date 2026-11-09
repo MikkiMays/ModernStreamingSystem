@@ -1,6 +1,6 @@
 // Снимки главной и избранного для ревью 1.0.3 (R65, R70, R71, R86) и меню камеры (R35, R36).
 //
-//   node scripts/home-shots.mjs --base https://cord.nikg.tech --tag before --out ../backlog/review-1.0.3/shots
+//   node scripts/home-shots.mjs --base https://callcord.ru --tag before --out ../backlog/review-1.0.3/shots
 //   CORD_STAND_DEV=127.0.0.1:5453 node scripts/stand-dev.mjs &        # невыкаченный веб под именем стенда
 //   node scripts/home-shots.mjs --dev 127.0.0.1:5453 --tag after --out ../backlog/review-1.0.3/shots
 //   node scripts/home-shots.mjs --dev 127.0.0.1:5453 --scenes camera --out ../backlog/review-1.0.3/shots
@@ -28,7 +28,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const tag = args.tag ?? 'after';
 const widths = (args.widths ?? '1440,390').split(',').map(Number);

@@ -1,6 +1,6 @@
 // Снимки звонка в обеих темах для выпуска 1.1.3 (R175, R181) — одна встреча на прогон, один человек.
 //
-//   node scripts/call-shots.mjs --base https://cord.nikg.tech --out ../backlog/screens/R175/before
+//   node scripts/call-shots.mjs --base https://callcord.ru --out ../backlog/screens/R175/before
 //   CORD_STAND_DEV=127.0.0.1:5453 node scripts/stand-dev.mjs &        # невыкаченный веб под именем стенда
 //   node scripts/call-shots.mjs --dev 127.0.0.1:5453 --out ../backlog/screens/R175/after
 //
@@ -17,7 +17,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const themes = (args.themes ?? 'light,dark').split(',');
 const sizes = (args.widths ?? '1920x1040,1440x900,390x844').split(',').map((size) => {

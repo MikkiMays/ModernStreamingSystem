@@ -273,9 +273,9 @@ SFU такую дорожку знает — слушателям с RED отд�
 машины, снаружи закрыт стеной), сертификаты Let's Encrypt — на все три имени. Одно имя с разбором
 содержимого (caddy-l4) не делаем: это новый модуль в краю, через который идёт весь HTTPS (Р-50).
 
-- **`cord.nikg.tech` — в `strict` с 01.11.2026**: `rtc.` и `turn.cord.nikg.tech` → 108.165.32.75; Allocate
-  по TLS на `turn.cord.nikg.tech:443` с учёткой участника проходит, relay в интернет — отказ (A12,
-  `node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn=turn.cord.nikg.tech:443
+- **`callcord.ru` — в `strict` с 01.11.2026**: `rtc.` и `turn.callcord.ru` → 108.165.32.75; Allocate
+  по TLS на `turn.callcord.ru:443` с учёткой участника проходит, relay в интернет — отказ (A12,
+  `node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn=turn.callcord.ru:443
   --transport=tls`).
 - **`cordcam.ru`** — записи `rtc.`/`turn.` в DNS есть, но на 01.11.2026 режим одного имени: TURN/TLS на 5349
   (сертификат `cordcam.ru`), `turn.cordcam.ru:443` не отвечает. Перевод — `configure.mjs --refresh` и

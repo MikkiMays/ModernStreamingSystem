@@ -1,7 +1,7 @@
 // Зазоры плашки переключателей (вкладки `segmented` и `Segmented`, R123) в физических пикселях —
 // по снимку с настоящим масштабом экрана, а не по модели.
 //
-//   node scripts/switcher-gaps.mjs --base https://cord.nikg.tech --path /kit --height 2600 --out ../backlog/screens/R108/kit
+//   node scripts/switcher-gaps.mjs --base https://callcord.ru --path /kit --height 2600 --out ../backlog/screens/R108/kit
 //   node scripts/switcher-gaps.mjs --base http://127.0.0.1:5199 --path /kit --dpr 1,1.25,1.5,1.75
 //
 // Дорожка красится в чистый зелёный, плашка — в чистый красный, фон под дорожкой — в синий, тени и

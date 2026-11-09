@@ -74,13 +74,13 @@ A–B вживую — шаг главной сессии (`rollout.md` §5).
 всё равно идёт по UDP. (2) Ядро пишет в журнал `room … on node <id> (<причина>; asked …; measured […])` и метрику
 `cord_node_choice_total{node,reason}` — по ним видно, работает ли замер у людей.
 
-**Не сделано (осознанно, ждёт решений владельца или DNS):** §7.4 — редирект `cord.nikg.tech → callcord.ru` с переносом
+**Не сделано (осознанно, ждёт решений владельца или DNS):** §7.4 — редирект `callcord.ru → callcord.ru` с переносом
 настроек и новый каталог клиента Windows; §7.5 — `cordcam.ru`/`meet.nikg.tech`; перевод B в `strict` (нет записей DNS);
 Grafana-панель «Узлы» (метрики есть); `probe` (куратор) на узлах; кнопка «Пересоединиться ближе» (§6.4 п. 6).
 
 **Клиент Windows: канал обновлений и `deploy/cordcam`.** Клиент получает обновления с канала своей сборки
 (`CORD_UPDATE_CHANNEL`, по умолчанию `<сервер>/downloads/windows/desktop/`), а не с сервера встреч; убранный выбор сервера
-этого не меняет. Основная сборка — канал `cord.nikg.tech`, после переезда — `callcord.ru` (одна выкатка `publish-windows.sh`
+этого не меняет. Основная сборка — канал `callcord.ru`, после переезда — `callcord.ru` (одна выкатка `publish-windows.sh`
 на новый адрес, старый канал оставить зеркалом до конца переходного периода). Ветка `deploy/cordcam` собирает клиент для
 отдельной установки cordcam со **своим** каналом и ключами; если cordcam становится узлом `msk`, этот канал исчезает вместе
 с установкой — последний выпуск `deploy/cordcam` должен указывать на основной сервер и ключи (`rollout.md` §8 п. 4), иначе
@@ -206,7 +206,7 @@ iperf3 -c 152.234.227.199 -t 30 ; iperf3 -c 152.234.227.199 -t 30 -R   # TCP, cu
 - `turncord.com`: **NXDOMAIN в реестре .com** — домен не делегирован (не зарегистрирован или без NS). Для
   архитектуры он **не нужен**: имя хоста B может быть любым, все имена живут под `callcord.ru` (§6.6). Рекомендую
   переименовать хост в `hel.callcord.ru` и забыть про turncord.com.
-- `cord.nikg.tech`, `turn.cord.nikg.tech` → 108.165.32.75 (DNS only, Cloudflare NS `earl`/`poppy`). Работает как
+- `callcord.ru`, `turn.callcord.ru` → 108.165.32.75 (DNS only, Cloudflare NS `earl`/`poppy`). Работает как
   прод до переезда.
 
 ---
@@ -252,7 +252,7 @@ iperf3 -c 152.234.227.199 -t 30 ; iperf3 -c 152.234.227.199 -t 30 -R   # TCP, cu
 - **Клиентский SDK 2.22.4**: `RegionUrlProvider` и `/settings/regions` работают только для адресов LiveKit Cloud
   (`isCloud(serverUrl)`, `livekit-client.esm.mjs:14571-14575, 26303`) — для `callcord.ru` замер узлов пишем свой.
 - **Как сейчас у нас**: один узел, `redis.address 127.0.0.1:6379`, `rtc.node_ip 108.165.32.75`, `use_external_ip:
-  false`, TURN встроенный (`turn.domain turn.cord.nikg.tech`, UDP 3478, TLS снимает edge на 443), `deny_peer_cidrs`
+  false`, TURN встроенный (`turn.domain turn.callcord.ru`, UDP 3478, TLS снимает edge на 443), `deny_peer_cidrs`
   разрешает релей **только на собственный IP** [код: `infra/generated/livekit.json`]. Ядро ходит в SFU одним
   адресом (`StreamProperties.livekitInternalUrl`) и выдаёт клиенту **один** `livekitUrl`
   (`server/.../media/MediaGateway.java:19-41`); комнаты в SFU создаются неявно первым входом — ядро `CreateRoom`
@@ -420,7 +420,7 @@ WebRTC или TURN, не проксируется Cloudflare** (оранжево
 | `turn-fra.callcord.ru` | A | 108.165.32.75 | серое | TURN/TLS 443 по SNI и UDP 3478 узла A |
 | `hel.callcord.ru`, `rtc-hel.`, `turn-hel.` | A | 152.234.227.199 | серое | то же для B |
 | `msk.`, `rtc-msk.`, `turn-msk.` … | A | узел 3 | серое | по шаблону |
-| `cord.nikg.tech`, `rtc.`, `turn.cord.nikg.tech` | A | 108.165.32.75 | серое | переходный период (§8.3), затем удалить |
+| `callcord.ru`, `rtc.`, `turn.callcord.ru` | A | 108.165.32.75 | серое | переходный период (§8.3), затем удалить |
 
 Каждый узел — режим **`strict`** `edge-config.mjs` со своей тройкой имён (`APP_HOST` узла = `hel.callcord.ru`,
 `RTC_HOST`, `TURN_HOST`). **Сертификаты — Let's Encrypt HTTP-01 самим Caddy на каждом узле**, как сегодня: имена
@@ -650,20 +650,20 @@ ICE `disconnected` по статистике при **отсутствии** в�
 `capacitor.config.json` → `server.url = https://callcord.ru` через `scripts/set-server.mjs` (`CORD_SERVER_URL` в
 `android.yml`). Выбора сервера там и нет.
 
-### 7.4 Существующие пользователи и переезд `cord.nikg.tech` → `callcord.ru`
+### 7.4 Существующие пользователи и переезд `callcord.ru` → `callcord.ru`
 
-- **Браузер**: edge A обслуживает оба имени; `cord.nikg.tech/*` отвечает `301 https://callcord.ru/<тот же путь>` с
+- **Браузер**: edge A обслуживает оба имени; `callcord.ru/*` отвечает `301 https://callcord.ru/<тот же путь>` с
   передачей настроек через `#cord-prefs` (механизм R136 — `document.referrer` из каталога — расширить на
-  «домашний» адрес). Ссылки на встречи `cord.nikg.tech/r/<код>` продолжают работать через редирект. localStorage —
+  «домашний» адрес). Ссылки на встречи `callcord.ru/r/<код>` продолжают работать через редирект. localStorage —
   по origin: избранное и недавние **переносятся** `#cord-prefs`, пароль сервера — тоже (как при смене сервера).
-  Ядро: `PUBLIC_URL = https://callcord.ru`, список допустимых `Origin` — `callcord.ru` и временно `cord.nikg.tech`
+  Ядро: `PUBLIC_URL = https://callcord.ru`, список допустимых `Origin` — `callcord.ru` и временно `callcord.ru`
   (403 на чужой Origin сохраняется).
 - **Windows**: новый подписанный каталог (`seq+1`, `callcord.ru` default) — клиенты подхватывают при старте и
   переезжают; пароль/избранное у записей каталога сохраняются (П4). Пока ключ каталога — стендовый
   (`OWNER-ACTIONS.md` п. 6), это тот же ключ, что сейчас зашит; смена на боевой — отдельный выпуск клиента.
 - **Android** — сборка с новым адресом; старые сборки работают через редирект (`server.url` редиректы WebView
   понимает, но origin для разрешений камеры меняется — проверить).
-- **`rtc.`/`turn.cord.nikg.tech`** остаются работать до конца переходного периода (клиенты, вошедшие на старое имя,
+- **`rtc.`/`turn.callcord.ru`** остаются работать до конца переходного периода (клиенты, вошедшие на старое имя,
   получают токен со старым `livekitUrl`); через 30 дней — удалить записи и имена из edge.
 
 ### 7.5 Отдельные установки: `cordcam.ru` и `meet.nikg.tech`
@@ -694,7 +694,7 @@ ICE `disconnected` по статистике при **отсутствии** в�
 | Фаза | Что | Ценность | Приёмка (числа) | Стоп безопасен? |
 |---|---|---|---|---|
 | **0. Замер и подготовка B** (1–2 дня) | iperf3 по §1.2 (нужно разрешение), docker/ufw/wg-tools/sysctl на B, ключи WG, DNS `callcord.ru` делегирован (владелец) | знаем полосу и потери B↔A; B готов | UDP потери < 0,1 %, джиттер < 5 мс, TCP ≥ 200 Мбит/с; `dig NS callcord.ru @a.dns.ripn.net` = Cloudflare | да: прод не тронут |
-| **1. Домен `callcord.ru` на A** (2–3 дня, окно без встреч) | `configure.mjs --domain callcord.ru` (strict: `callcord.ru`, `rtc-fra`, `turn-fra`), edge на оба домена, 301 + `#cord-prefs`, `PUBLIC_URL`, Origin-список, каталог seq+1 с `callcord.ru`, Android `set-server`, Windows `CORD_DEFAULT_SERVER` | один продуктовый адрес; пользователи переезжают сами | e2e на `https://callcord.ru`; редирект сохраняет избранное (тест); `turn-relay-check` на `turn-fra:443`; старые ссылки `cord.nikg.tech/r/<код>` открывают ту же встречу | да: один узел, только имя |
+| **1. Домен `callcord.ru` на A** (2–3 дня, окно без встреч) | `configure.mjs --domain callcord.ru` (strict: `callcord.ru`, `rtc-fra`, `turn-fra`), edge на оба домена, 301 + `#cord-prefs`, `PUBLIC_URL`, Origin-список, каталог seq+1 с `callcord.ru`, Android `set-server`, Windows `CORD_DEFAULT_SERVER` | один продуктовый адрес; пользователи переезжают сами | e2e на `https://callcord.ru`; редирект сохраняет избранное (тест); `turn-relay-check` на `turn-fra:443`; старые ссылки `callcord.ru/r/<код>` открывают ту же встречу | да: один узел, только имя |
 | **2. Узел B в кластере** (1–2 недели) | WG, Redis на `10.77.0.1`, `compose.node.yaml`, `configure.mjs --node hel`, LiveKit B `region hel`, edge-lite B с `forward_auth` → A, ядро: таблица узлов, `mediaNode`, `CreateRoom` на узле, `nodes` в `capabilities`, `deploy.sh --node`, метрики/алерты узлов; **выбор узла пока по умолчанию = fra** | кластер работает, B принимает комнаты по флагу владельца (`nodes.hel.enabled`) | `lk load-test` против B: 0 % потерь, SFU B ≤ 70 % ядра на 100 Мбит/с; `probe` B зелёный сутки; убийство B → звук у всех ≤ 20 с; `BackboneDown` срабатывает за ≤ 3 мин | да: флаг узла выключен — всё как в фазе 1 |
 | **3. Автовыбор узла и клиенты без выбора сервера** (1–2 недели + выпуск Windows/Android) | `node-probe.ts`, `preferredNode`, гистерезис, диагностика; убрать `ServerMenu`, окно «Серверы», autoconnect; CSP на имена узлов; VPN-лестница §6.3–6.5 (отпечаток сетей раз в 10 с, «входящее молчание», тренд `getStats`); netns-сценарии `vpn-on/off/udp-off/flap` | встреча двух финнов — в Хельсинки, сама | две машины в netns с `delay 20ms` до hel и `delay 45ms` до fra выбирают hel; «рот–ухо» (`voice-probe`) через hel меньше, чем через fra, на ≥ 30 мс; VPN вкл/выкл: звук ≤ 3 с (5 прогонов); VPN без UDP: ≤ 8 с через `turns:`; мигающий VPN 7 с: комната не переезжает, остальные без разрывов; p95 «Войти → звук» ≤ 2,5 с | да: клиентам можно оставить и старый каталог |
 | **4. Устойчивость управления** (2–3 недели) | резервная ВМ или выделенные ядра: Postgres hot standby + PgBouncer, Redis на том же узле управления, плавающий адрес или DNS-переключение `callcord.ru` (TTL 60), Gatus с B, ежедневный `lk load-test` 2×2 как канарейка | отказ A ≠ отказ Cord | переключение управления ≤ 5 мин руками, ≤ 60 с автоматом (если плавающий IP) | да |

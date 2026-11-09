@@ -24,8 +24,8 @@ class MediaNodesTest {
          "stun":"stun:turn-hel.callcord.ru:3478","internalUrl":"http://127.0.0.1:21000","maxRooms":2,"enabled":true,
          "country":"fi","uplinkMbps":500,"cores":2,"loadUrl":"http://127.0.0.1:21002/metrics",
          "ssh":"root@152.234.227.199"},
-        {"id":"fra","control":true,"title":{"ru":"Франкфурт"},"rtcUrl":"wss://cord.nikg.tech",
-         "probeUrl":"https://cord.nikg.tech","stun":"stun:turn.cord.nikg.tech:3478",
+        {"id":"fra","control":true,"title":{"ru":"Франкфурт"},"rtcUrl":"wss://callcord.ru",
+         "probeUrl":"https://callcord.ru","stun":"stun:turn.callcord.ru:3478",
          "internalUrl":"http://127.0.0.1:7880","maxRooms":8,"enabled":true}
       ]}
       """;

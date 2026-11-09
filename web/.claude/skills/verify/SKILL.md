@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Как проверять изменения Cord настоящим браузером — против стенда cord.nikg.tech (эта машина) или dev-сервера с подменой Origin. Использовать, когда нужно увидеть правку работающей, а не зелёные тесты.
+description: Как проверять изменения Cord настоящим браузером — против стенда callcord.ru (эта машина) или dev-сервера с подменой Origin. Использовать, когда нужно увидеть правку работающей, а не зелёные тесты.
 ---
 
 # Проверка Cord вживую
@@ -10,7 +10,7 @@ description: Как проверять изменения Cord настоящи�
 
 ## Куда идти
 
-**Стенд `https://cord.nikg.tech` — первый выбор.** Это та же машина: ядро, SFU и
+**Стенд `https://callcord.ru` — первый выбор.** Это та же машина: ядро, SFU и
 службы подняты `docker compose` из `$CORD_ROOT/ModernStreamingSystem` (с 19.10.2026;
 прод `meet.nikg.tech` пока на старом сервере — проверять его только после переезда).
 Медиа поднимается по-настоящему, встреча доживает до эфира, кинозал играет.
@@ -35,7 +35,7 @@ Playwright с chromium уже установлен в `web/`. Конфиг кл�
 
 ```ts
 // web/.verify/config.ts
-use: { baseURL: 'https://cord.nikg.tech',
+use: { baseURL: 'https://callcord.ru',
        launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } }
 ```
 

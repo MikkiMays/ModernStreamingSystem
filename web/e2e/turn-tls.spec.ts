@@ -11,7 +11,7 @@ import { expect, test, type Browser, type Locator, type Page } from '@playwright
   стенда 10 новых встреч в час. Веб, ещё не выкаченный на стенд, — через `scripts/stand-dev.mjs`:
 
     cd web && node scripts/stand-dev.mjs &
-    CORD_STAND_DEV=127.0.0.1:5443 PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/turn-tls.spec.ts
+    CORD_STAND_DEV=127.0.0.1:5443 PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test e2e/turn-tls.spec.ts
 */
 
 test.skip(!process.env.PLAYWRIGHT_BASE_URL, 'только против стенда: локально нет TURN по TLS на 443');

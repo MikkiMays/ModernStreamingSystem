@@ -27,7 +27,7 @@ const SERVERS = {
       id: 'de-fra',
       name: { ru: 'Германия, Франкфурт', en: 'Germany, Frankfurt' },
       country: 'DE',
-      url: 'https://cord.nikg.tech',
+      url: 'https://callcord.ru',
       order: 10,
     },
   ],
@@ -38,12 +38,12 @@ describe('каталог серверов (R136)', () => {
 
   it('читает серверы по порядку, адрес — origin со слешем, имя — на языке интерфейса', () => {
     const servers = parseServerCatalog(jws(SERVERS));
-    expect(servers.map((server) => server.url)).toEqual(['https://cord.nikg.tech/', 'https://cordcam.ru/']);
+    expect(servers.map((server) => server.url)).toEqual(['https://callcord.ru/', 'https://cordcam.ru/']);
     expect(serverName(servers[1]!, 'ru-RU')).toBe('Россия, Москва');
     expect(serverName(servers[1]!, 'en-US')).toBe('Russia, Moscow');
     // Языка нет в каталоге — английское имя; нет и его — адрес.
     expect(serverName(servers[0]!, 'de-DE')).toBe('Germany, Frankfurt');
-    expect(serverName({ ...servers[0]!, name: {} }, 'de-DE')).toBe('cord.nikg.tech');
+    expect(serverName({ ...servers[0]!, name: {} }, 'de-DE')).toBe('callcord.ru');
   });
 
   it('чужое и битое пропускает: не https, не тот формат, нечитаемая нагрузка', () => {
@@ -64,7 +64,7 @@ describe('каталог серверов (R136)', () => {
     // Адрес с путём сводится к origin: каталог называет сервер, а не страницу на нём; дубль отброшен.
     expect(mixed.map((server) => server.url)).toEqual([
       'https://evil.example/',
-      'https://cord.nikg.tech/',
+      'https://callcord.ru/',
       'https://cordcam.ru/',
     ]);
   });

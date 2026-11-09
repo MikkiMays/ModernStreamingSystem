@@ -13,7 +13,7 @@
  * Headless Chromium на загруженной машине голодает выводом звука — запускать с приоритетом:
  *
  *   ulimit -r 99; CORD_MEDIA_PROBE=1 TRACK=/path/track.flac OUT=/path/out \
- *     PLAYWRIGHT_BASE_URL=https://cord.nikg.tech nice -n -15 npx playwright test e2e/media/music-join.spec.ts
+ *     PLAYWRIGHT_BASE_URL=https://callcord.ru nice -n -15 npx playwright test e2e/media/music-join.spec.ts
  */
 import { expect, test, type Page } from '@playwright/test';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';

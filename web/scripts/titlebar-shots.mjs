@@ -2,7 +2,7 @@
 // мост v2, строка браузера Windows, поддельная зона Window Controls Overlay и нарисованные поверх
 // страницы «— ⧉ ×» (137×36 справа). Печатает переменные `--titlebar-*` и кнопки страницы под кнопками
 // окна; цель — пусто при любой зоне.
-//   node scripts/titlebar-shots.mjs --base https://cord.nikg.tech --out ../backlog/screens/R108/titlebar --wco hidden
+//   node scripts/titlebar-shots.mjs --base https://callcord.ru --out ../backlog/screens/R108/titlebar --wco hidden
 //   --wco visible — окно «☐» (зона как у Chromium), hidden — развёрнутое 1.0.8 (зона пустая), full — зона во всю ширину
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';

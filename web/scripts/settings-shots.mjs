@@ -1,6 +1,6 @@
 // Снимки окон настроек, диагностики и помощи для ревью 1.0.3 (R114, R115, R50, R47–R49, R53–R56, X4).
 //
-//   node scripts/settings-shots.mjs --base https://cord.nikg.tech --tag before --out ../backlog/review-1.0.3/shots
+//   node scripts/settings-shots.mjs --base https://callcord.ru --tag before --out ../backlog/review-1.0.3/shots
 //   CORD_STAND_DEV=127.0.0.1:5447 node scripts/stand-dev.mjs &        # невыкаченный веб под именем стенда
 //   node scripts/settings-shots.mjs --dev 127.0.0.1:5447 --tag after --out ../backlog/review-1.0.3/shots
 //   node scripts/settings-shots.mjs --scenes settings,about --widths 1440 --themes dark
@@ -20,7 +20,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const tag = args.tag ?? 'after';
 const widths = (args.widths ?? '1440,390').split(',').map(Number);

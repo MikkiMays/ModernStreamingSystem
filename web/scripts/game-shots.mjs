@@ -2,7 +2,7 @@
 //
 //   node scripts/stand-dev.mjs &                                   # невыкаченный веб под именем стенда
 //   node scripts/game-shots.mjs --dev 127.0.0.1:5443 --out ../backlog/review-1.0.3/shots
-//   node scripts/game-shots.mjs --base https://cord.nikg.tech --out shots   # выкаченный веб
+//   node scripts/game-shots.mjs --base https://callcord.ru --out shots   # выкаченный веб
 //
 // Дурак: двое за столом, идёт бой — у того, чей ход, жёлтое кольцо хода снаружи лица, у говорящего
 // (поддельный микрофон Chromium пищит) — зелёное у самого лица. Покер: шапка между раздачами
@@ -18,7 +18,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const themes = (args.themes ?? 'dark,light').split(',');
 mkdirSync(out, { recursive: true });

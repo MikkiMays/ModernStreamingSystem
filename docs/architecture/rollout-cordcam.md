@@ -184,7 +184,7 @@ cordcam.ru (люди, API, WS)  ──►  A 108.165.32.75  Франкфурт  
 ```
 
 Встреча живёт целиком на одном узле; узел выбирает ядро по замеру пути создателя и загрузке узлов; люди видят узел и
-флаг и могут перевести встречу вручную. Старые имена: `cord.nikg.tech` → 301 на `cordcam.ru` 7 дней (пока выходят
+флаг и могут перевести встречу вручную. Старые имена: `callcord.ru` → 301 на `cordcam.ru` 7 дней (пока выходят
 клиенты с новым адресом), затем удаляются; `meet.nikg.tech` и прочие имена `nikg.tech` на 108.165.32.23 удаляются в
 момент переезда; `callcord.ru` не используется.
 
@@ -192,7 +192,7 @@ cordcam.ru (люди, API, WS)  ──►  A 108.165.32.75  Франкфурт  
 
 | Сервер | Адрес | Доступ | Сейчас | Становится | Раздел |
 |---|---|---|---|---|---|
-| A | 108.165.32.75 | root, `/opt/ModernStreamingSystem` — единственная копия для выкатки | прод `cord.nikg.tech` 1.2.1 | управление + `fra` на `cordcam.ru` | 4 |
+| A | 108.165.32.75 | root, `/opt/ModernStreamingSystem` — единственная копия для выкатки | прод `callcord.ru` 1.2.1 | управление + `fra` на `cordcam.ru` | 4 |
 | B | 152.234.227.199 | с A: `ssh -i /root/.ssh/cord_fi root@152.234.227.199`; `backlog/bin/node.sh hel …` | узел `hel` в режиме `ip` | узел `hel` в `strict` | 3 |
 | cordcam | 157.22.241.114 | у исполнителя свой доступ; на A ключа нет | отдельный Cord (своя база, канал клиента `deploy/cordcam`) | узел `msk` + прокси YouTube по Р-99 | 5 |
 | meet | 108.165.32.23 | у исполнителя свой доступ | отдельный старый Cord `meet.nikg.tech` | 301 → затем узел `fra2` | 6 |
@@ -232,7 +232,7 @@ node scripts/turn-relay-check.mjs --host turn-hel.cordcam.ru --transport=tls   #
 Это тот же шаг, что `rollout.md` §4.3, с именами `cordcam.ru` **[не проверено: нет DNS]**. Откат: `node-config.mjs
 --node=hel --mode=ip` и `node.sh hel deploy`.
 
-## 4. Узел управления A: `cordcam.ru` рядом с `cord.nikg.tech`, затем переключение
+## 4. Узел управления A: `cordcam.ru` рядом с `callcord.ru`, затем переключение
 
 ### 4.1 Включение реестра и магистрали — `rollout.md` §5.1–5.2 без изменений
 
@@ -246,12 +246,12 @@ gateway`, проверка `cord_node_up{node="hel"} 1`.) Реестр, отло
 cd /opt/ModernStreamingSystem && backlog/bin/active-meetings.sh      # 0
 TAG=cord-rollback-$(date +%Y%m%d-%H%M%S); for s in core gateway; do docker tag modern-streaming-$s:latest $TAG-$s:latest; done
 node scripts/configure.mjs --refresh --app=cordcam.ru --rtc=rtc-fra.cordcam.ru --turn=turn-fra.cordcam.ru \
-  --redirect-hosts=cord.nikg.tech --legacy-media-hosts=rtc.cord.nikg.tech,turn.cord.nikg.tech   # имена флагов — по §8.6, уточнить по --help
+  --redirect-hosts=callcord.ru --legacy-media-hosts=rtc.callcord.ru,turn.callcord.ru   # имена флагов — по §8.6, уточнить по --help
 grep -E '^(PUBLIC_URL|APP_HOST|RTC_HOST|TURN_HOST)=' .env            # cordcam.ru, rtc-fra…, turn-fra…
 docker compose up -d edge livekit && backlog/bin/deploy.sh gateway core
 # Проверка до смены DNS (имя ещё указывает на cordcam-сервер, поэтому --resolve):
 curl -sk --resolve cordcam.ru:443:108.165.32.75 https://cordcam.ru/api/v1/ping -o /dev/null -w '%{http_code}\n'   # 200
-curl -sI https://cord.nikg.tech/api/v1/ping | head -1                                                           # 200 — старое имя живо
+curl -sI https://callcord.ru/api/v1/ping | head -1                                                           # 200 — старое имя живо
 ```
 
 Сертификат для `cordcam.ru` Caddy получит только когда DNS укажет на A (шаг 4.3) — до этого `--resolve`-проверка даёт
@@ -264,7 +264,7 @@ curl -sI https://cord.nikg.tech/api/v1/ping | head -1                           
 ```bash
 dig +short A cordcam.ru; dig +short A www.cordcam.ru                     # 108.165.32.75
 sleep 90; curl -sI https://cordcam.ru/ | grep -iE 'HTTP/|strict-transport' # 200/301 и HSTS; сертификат LE: openssl s_client -connect cordcam.ru:443 -servername cordcam.ru </dev/null 2>/dev/null | openssl x509 -noout -issuer
-curl -sI https://cord.nikg.tech/r/TEST | grep -i location                 # https://cordcam.ru/r/TEST…  (редирект с переносом настроек)
+curl -sI https://callcord.ru/r/TEST | grep -i location                 # https://cordcam.ru/r/TEST…  (редирект с переносом настроек)
 curl -s https://cordcam.ru/api/v1/capabilities | python3 -c 'import json,sys;print([n["id"] for n in json.load(sys.stdin)["nodes"]])'  # ['fra','hel']
 docker compose logs --since 5m core | grep -ciE 'origin|403'               # нет всплеска отказов по Origin
 ```
@@ -274,7 +274,7 @@ docker compose logs --since 5m core | grep -ciE 'origin|403'               # н�
 главной сессии, не этой инструкции.
 
 Откат: владелец возвращает `cordcam.ru` → 157.22.241.114 (минута); на A `docker tag $TAG-… && docker compose up -d
---no-deps core gateway`, `configure.mjs --refresh --app=cord.nikg.tech …` — `cord.nikg.tech` при этом не прерывался.
+--no-deps core gateway`, `configure.mjs --refresh --app=callcord.ru …` — `callcord.ru` при этом не прерывался.
 
 ## 5. Сервер cordcam → медиаузел `msk`
 
@@ -362,7 +362,7 @@ backbone fra2'`, `node.sh fra2 check`. Смысл `fra2`: резерв Фран�
 4. Ручной перевод (после кода 8.4): создатель переводит встречу `fra → hel` — пауза звука ≤ 0,5 с.
 5. Алерты: `curl -s http://127.0.0.1:8880/api/v1/rules | grep -o 'NodeDown\|NodeUnreachable\|NodeSaturated\|NodeSingle'`.
 6. DNS-итог: `for h in cordcam.ru www.cordcam.ru fra rtc-fra turn-fra hel rtc-hel turn-hel msk rtc-msk turn-msk fra2 rtc-fra2 turn-fra2; do …dig…; done`
-   совпадает с таблицей §7.3 проекта; `dig +short A cord.nikg.tech` через 7 дней после переезда — пусто.
+   совпадает с таблицей §7.3 проекта; `dig +short A callcord.ru` через 7 дней после переезда — пусто.
 
 ## 8. Откат всего
 

@@ -3,7 +3,7 @@
 // и сколько длинных задач. Отчёт — JSON и картинка времён кадров рядом.
 //
 //   node scripts/slider-perf.mjs --base http://127.0.0.1:5201 --out ../backlog/screens/R103/W2/after
-//   node scripts/slider-perf.mjs --base https://cord.nikg.tech --out ../backlog/screens/R103/W2/before
+//   node scripts/slider-perf.mjs --base https://callcord.ru --out ../backlog/screens/R103/W2/before
 //
 // Ищет раздел «Звук» (до R100 — «Голос и видео»). Скрипт лежит внутри web/: `@playwright/test`
 // резолвится от файла.
@@ -17,7 +17,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? 'https://cord.nikg.tech';
+const base = args.base ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const seconds = Number(args.seconds ?? 3);
 // Для разбора: свой CSS поверх страницы (`--style '.settings-backdrop{backdrop-filter:none}'`).

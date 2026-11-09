@@ -1,6 +1,6 @@
 // Скриншоты экранов Cord на нескольких ширинах и в обеих темах, плюс отчёт о переполнении.
 //
-//   node scripts/shots.mjs --base https://cord.nikg.tech --out ../backlog/screens/E00/before
+//   node scripts/shots.mjs --base https://callcord.ru --out ../backlog/screens/E00/before
 //   node scripts/shots.mjs --screens home,settings --widths 390,1440 --themes dark
 //   node scripts/shots.mjs --base http://127.0.0.1:5173 --screens kit-integrations --themes light
 //   node scripts/shots.mjs --screens settings --scrollbars 1   # полосы прокрутки как у человека
@@ -19,7 +19,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://callcord.ru';
 const out = path.resolve(args.out ?? 'shots');
 const widths = (args.widths ?? '320,390,768,1024,1280,1440,1920').split(',').map(Number);
 const themes = (args.themes ?? 'light,dark').split(',');

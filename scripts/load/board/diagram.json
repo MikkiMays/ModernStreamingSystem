@@ -79,7 +79,7 @@
   },
   {
    "id": "geodns",
-   "label": "GeoDNS cord.nikg.tech\n(статика; необязательно)",
+   "label": "GeoDNS callcord.ru\n(статика; необязательно)",
    "group": "entry",
    "kind": "lb"
   },

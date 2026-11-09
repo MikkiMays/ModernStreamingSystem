@@ -10,7 +10,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
   Одна встреча на весь файл (сценарии по порядку): у адреса стенда 10 новых встреч в час
   (`cord-e2e-create-budget`).
 
-    cd web && PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test e2e/board.spec.ts
+    cd web && PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test e2e/board.spec.ts
 
   `CORD_BOARD_LOCAL=1` — против dev-сервера с ядром этой ветки без SFU и загрузок: медиа не ждать,
   сценарий с вложениями чата пропустить.
