@@ -570,7 +570,9 @@ gh release view desktop-vX.Y.Z -R MikkiMays/ModernStreamingSystem.Windows --json
 
 GitHub клиент не видит: и `/download`, и обновление при запуске читают только зеркало сервера
 (`/downloads/windows/download.json` и канал `/downloads/windows/desktop/`). Клиент основной сборки обновляется с
-`CORD_DEFAULT_SERVER`, то есть с `cord.nikg.tech`. Пока выпуск не выложен, его не видит никто.
+`CORD_DEFAULT_SERVER`: с 1.2.3 это продукт `cordcam.ru` (meet), до 1.2.2 — стенд `cord.nikg.tech`. Выпуск кладётся
+**на оба** зеркала: на meet — для всех клиентов, на стенд — чтобы клиенты 1.2.2 и старше дошли до версии, которая смотрит
+на `cordcam.ru`. Пока выпуск не выложен, его не видит никто.
 
 ```bash
 cd /opt/ModernStreamingSystem
@@ -584,43 +586,30 @@ GitHub, версию и имя в `latest.yml`, вид подписи; отка�
 предварительный выпуск; пишет `latest.yml` последним и `download.json`; держит прошлый установщик для дельт
 (`--keep 2`). Шлюз читает `.local/windows-releases` только на чтение — перезапуск не нужен.
 
-На другом сервере, чья страница `/download` раздаёт основной клиент (`meet.nikg.tech` — сейчас раздаёт прежний
-0.7.5), — та же команда; нужен `gh` с доступом к приватной репе. Без `gh` на сервере:
+На meet (`/opt/meet/ModernStreamingSystem`, продукт `cordcam.ru`) `gh` нет — файлы приносятся с A:
 
 ```bash
 # на машине с gh
 gh api repos/MikkiMays/ModernStreamingSystem.Windows/releases/tags/desktop-vX.Y.Z > release.json
 gh release download desktop-vX.Y.Z -R MikkiMays/ModernStreamingSystem.Windows -D artifacts \
   -p 'Cord-Setup-X.Y.Z.exe*' -p 'latest.yml*'
-ssh root@<сервер> mkdir -p /tmp/cord-desktop-X.Y.Z && scp -r release.json artifacts root@<сервер>:/tmp/cord-desktop-X.Y.Z/
-# на сервере, из каталога установки
+ssh -i /root/.ssh/cord_fra root@108.165.32.23 mkdir -p /tmp/cord-desktop-X.Y.Z
+scp -i /root/.ssh/cord_fra -r release.json artifacts root@108.165.32.23:/tmp/cord-desktop-X.Y.Z/
+# на meet, из /opt/meet/ModernStreamingSystem
 python3 -I scripts/publish-windows-release.py --desktop /tmp/cord-desktop-X.Y.Z/release.json /tmp/cord-desktop-X.Y.Z/artifacts
 ```
 
-Основной установщик на `cordcam.ru` не кладётся: у него сервер и канал обновлений `cord.nikg.tech`.
+Проверка — `curl -s https://cordcam.ru/downloads/windows/desktop/latest.yml | head -3` и то же на `cord.nikg.tech`.
+Манифесты сборки с ключом cordcam (`installations/cordcam.json`, 1.1.x) на meet больше не кладутся: канал `cordcam.ru`
+теперь у основной сборки, подписанной основным ключом.
 
-### Сборка cordcam
+### Сборка cordcam (выведена с 1.2.3)
 
-У `cordcam.ru` своя сборка: свой сервер по умолчанию и свой ключ обновлений (`desktop/build/installations/cordcam.json`).
-Она живёт в ветке `deploy/cordcam`, которая отличается от `main` одним файлом `desktop/build/installation`.
-
-```bash
-git -C /opt/ModernStreamingSystem.Windows fetch origin
-git -C /opt/ModernStreamingSystem.Windows worktree add --detach /opt/.worktrees/cordcam-X.Y.Z origin/deploy/cordcam
-cd /opt/.worktrees/cordcam-X.Y.Z
-git merge --no-ff origin/main -m "Слияние main: клиент X.Y.Z — <что нового>"
-git diff --stat origin/main HEAD            # только desktop/build/installation
-git push origin HEAD:deploy/cordcam
-```
-
-CI ветки собирает клиент с `https://cordcam.ru/` и ключами cordcam, `latest.yml` в CI не подписывает и выпускает
-предварительный релиз `cordcam-desktop-vX.Y.Z` («Cord desktop X.Y.Z (cordcam)»). `publish-windows-release.py` его
-не возьмёт (предварительный, другой префикс): `latest.yml` подписывает и выкладывает сам сервер cordcam своим
-ключом — по записи в `cordcam.json`, скриптом `/root/cordcam-release/cordcam-client.sh` на том сервере. Скрипта
-нет в репах, отсюда он не проверяется. 01.11.2026 на `cordcam.ru` выложен 1.0.11, а `cordcam-desktop-v1.1.0` уже
-выпущен.
-
-`deploy/cordcam` в `main` не сливать: CI на `main` падает, если там есть `desktop/build/installation`.
+Отдельная сборка `deploy/cordcam` (свой сервер по умолчанию и свой ключ, `desktop/build/installations/cordcam.json`)
+больше не выпускается: с Р-110′ `cordcam.ru` — единственный продукт, и основная сборка 1.2.3 сама смотрит на него и
+обновляется с него основным ключом. Ветка `deploy/cordcam` оставлена как история; в `main` её не сливать — CI на `main`
+падает, если там есть `desktop/build/installation`. Клиенты 1.1.x той сборки (ключ cordcam) основной манифест не
+примут — их переустанавливают установщиком с `/download`.
 
 ## 8. Android
 
