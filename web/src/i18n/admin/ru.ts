@@ -642,7 +642,7 @@ export const text = {
     states: {
       ok: 'работает',
       busy: 'нагружен',
-      full: 'мест нет',
+      full: 'перегружен',
       down: 'не отвечает',
       drained: 'дренаж',
     } as Record<string, string>,
@@ -690,7 +690,6 @@ export const text = {
       app: 'Имя сайта узла',
       rtc: 'Имя сигналинга',
       turn: 'Имя TURN',
-      maxRooms: 'Комнат, макс.',
       uplinkMbps: 'Отдача канала, Мбит/с',
       cores: 'Ядер ЦП',
       ssh: 'SSH (пользователь@IP)',

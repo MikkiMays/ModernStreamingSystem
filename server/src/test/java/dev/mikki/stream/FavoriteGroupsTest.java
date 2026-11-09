@@ -29,8 +29,7 @@ import org.springframework.web.context.WebApplicationContext;
 @SpringBootTest(
     properties = {
       "spring.datasource.url=jdbc:h2:mem:favorite-groups;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-      "stream.scheduling-enabled=false",
-      "stream.max-rooms=200"
+      "stream.scheduling-enabled=false"
     })
 @ActiveProfiles("local")
 class FavoriteGroupsTest {

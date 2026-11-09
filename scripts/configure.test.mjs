@@ -36,8 +36,8 @@ test('configuration keeps media internal, shares external 443, and cannot overwr
     // «Только TCP» после обрыва — навсегда до перезахода; без него ICE restart возвращает UDP.
     assert.equal(sfu.rtc.allow_tcp_fallback, false);
     assert.deepEqual(sfu.audio, { active_red_encoding: true, update_interval: 200, smooth_intervals: 2 });
-    // Двадцать людей ядра и четыре места ботам и переходным сессиям (T06).
-    assert.equal(sfu.room.max_participants, 24);
+    // Тридцать людей ядра (R228) и четыре места ботам и переходным сессиям (T06).
+    assert.equal(sfu.room.max_participants, 34);
     // TURN — не открытый relay (A12): к SFU этой машины можно, в интернет и внутрь — нет.
     assert.equal(permits(sfu.turn, '192.0.2.1'), true);
     for (const peer of ['8.8.8.8', '192.0.2.2', '127.0.0.1', '10.0.0.1', '169.254.169.254', '100.64.0.1'])

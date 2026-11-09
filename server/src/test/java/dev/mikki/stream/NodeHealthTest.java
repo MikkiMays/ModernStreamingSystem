@@ -48,7 +48,6 @@ class NodeHealthTest {
           "https://hel",
           null,
           "http://127.0.0.1:21000",
-          2,
           true);
 
   NodeHealthTest() {
@@ -494,34 +493,117 @@ class NodeHealthTest {
     assertThat(gauge("cord.node.up")).isEqualTo(1);
   }
 
+  static MediaNodes.Sample sample(
+      int rooms, int people, double cpu, double steal, double mbps, double memory, double disk) {
+    return new MediaNodes.Sample(rooms, people, cpu, steal, mbps, memory, disk, Double.NaN);
+  }
+
+  static final double NaN = Double.NaN;
+
   @Test
   void peopleAndNodeExporterSharesReachTheRegistryWithTheRooms() {
     health.observe(hel, new MediaGateway.NodeStats(1, 5), 1000);
-    verify(nodes).load("hel", 1, 5, Double.NaN, Double.NaN, Double.NaN);
+    verify(nodes).load("hel", MediaNodes.Sample.rooms(1, 5));
     assertThat(registry.get("cord.node.participants").tag("node", "hel").gauge().value())
         .isEqualTo(5);
-    // Первый снимок node-exporter долей не даёт; второй через 5 с — даёт: 50 % ЦП, 10 % steal,
-    // 8 Мбит/с.
-    health.measure(hel, exporter(100, 50, 0, 0), 1000);
+    // Первый снимок node-exporter долей ЦП не даёт, но память и диск — уже да; второй через 5 с —
+    // 50 % ЦП, 10 % steal, 8 Мбит/с.
+    health.measure(hel, exporter(100, 50, 0, 0, 1000, 600, 100, 30), 1000);
     health.observe(hel, new MediaGateway.NodeStats(1, 5), 1000);
-    verify(nodes, times(2)).load("hel", 1, 5, Double.NaN, Double.NaN, Double.NaN);
-    health.measure(hel, exporter(200, 100, 10, 5_000_000), 6000);
+    verify(nodes).load("hel", sample(1, 5, NaN, NaN, NaN, 0.4, 0.7));
+    health.measure(hel, exporter(200, 100, 10, 5_000_000, 1000, 600, 100, 30), 6000);
     health.observe(hel, new MediaGateway.NodeStats(1, 6), 6000);
-    verify(nodes).load("hel", 1, 6, 0.5, 0.1, 8.0);
+    verify(nodes).load("hel", sample(1, 6, 0.5, 0.1, 8.0, 0.4, 0.7));
     // node-exporter замолчал — доли остаются сглаженными, пока молчание короткое…
     health.measure(hel, null, 11000);
     health.observe(hel, new MediaGateway.NodeStats(1, 6), 11000);
-    verify(nodes, times(2)).load("hel", 1, 6, 0.5, 0.1, 8.0);
-    // …и забываются, когда молчит дольше трёх опросов: ступень считается без ЦП и канала.
+    verify(nodes, times(2)).load("hel", sample(1, 6, 0.5, 0.1, 8.0, 0.4, 0.7));
+    // …и забываются, когда молчит дольше трёх опросов: нагрузка считается по людям.
     health.measure(hel, null, 26000);
     health.observe(hel, new MediaGateway.NodeStats(1, 6), 26000);
-    verify(nodes).load("hel", 1, 6, Double.NaN, Double.NaN, Double.NaN);
+    verify(nodes).load("hel", MediaNodes.Sample.rooms(1, 6));
     // Чужой текст (не node-exporter) — как молчание.
     health.measure(hel, "<html>busy</html>", 27000);
     verify(nodes, never()).down("hel", true);
   }
 
-  static String exporter(double total, double idle, double steal, long tx) {
+  /**
+   * Одиночный всплеск ЦП до 100 % — не «горячий узел»: доли сглаживаются (EWMA 0,35 раз в 2 с), и
+   * до порога 70 % доходит только нагрузка, которая держится несколько опросов (Р-135).
+   */
+  @Test
+  void aSingleCpuSpikeIsSmoothedButASustainedLoadIsNot() {
+    long total = 0, idle = 0;
+    long at = 0;
+    for (int i = 0; i < 5; i++) {
+      total += 100;
+      idle += 90;
+      at += 2000;
+      health.measure(hel, exporter(total, idle, 0, 0, 1000, 600, 100, 30), at);
+    }
+    total += 100;
+    at += 2000;
+    health.measure(hel, exporter(total, idle, 0, 0, 1000, 600, 100, 30), at);
+    health.observe(hel, new MediaGateway.NodeStats(1, 2), at);
+    var spike = org.mockito.ArgumentCaptor.forClass(MediaNodes.Sample.class);
+    verify(nodes).load(org.mockito.ArgumentMatchers.eq("hel"), spike.capture());
+    assertThat(spike.getValue().cpu()).isBetween(0.35, 0.45);
+    for (int i = 0; i < 4; i++) {
+      total += 100;
+      at += 2000;
+      health.measure(hel, exporter(total, idle, 0, 0, 1000, 600, 100, 30), at);
+    }
+    health.observe(hel, new MediaGateway.NodeStats(1, 2), at);
+    verify(nodes, times(2)).load(org.mockito.ArgumentMatchers.eq("hel"), spike.capture());
+    assertThat(spike.getValue().cpu()).isGreaterThan(0.70);
+  }
+
+  /**
+   * Память процесса SFU — из его метрик раз в 10 с; молчание дольше трёх чтений — оценка по людям.
+   */
+  @Test
+  void theSfuMemoryComesFromItsOwnMetricsEveryTenSeconds() {
+    var withMetrics =
+        new MediaNode(
+            "hel",
+            false,
+            Map.of(),
+            "wss://rtc-hel",
+            "https://hel",
+            null,
+            "http://127.0.0.1:21000",
+            true,
+            "FI",
+            1000,
+            2,
+            "http://127.0.0.1:21002/metrics",
+            "http://127.0.0.1:21001/metrics",
+            1024);
+    assertThat(health.sfuDue(hel, 0)).isFalse();
+    assertThat(health.sfuDue(withMetrics, 0)).isTrue();
+    assertThat(health.sfuDue(withMetrics, NodeHealth.SFU_PERIOD_MS - 1)).isFalse();
+    assertThat(health.sfuDue(withMetrics, NodeHealth.SFU_PERIOD_MS)).isTrue();
+    health.sfu(withMetrics, "go_goroutines 10\nprocess_resident_memory_bytes 5.24288e+08\n", 0);
+    health.observe(withMetrics, new MediaGateway.NodeStats(1, 2), 0);
+    verify(nodes).load("hel", new MediaNodes.Sample(1, 2, NaN, NaN, NaN, NaN, NaN, 500.0));
+    health.sfu(withMetrics, null, 3 * NodeHealth.SFU_PERIOD_MS + 1);
+    health.observe(withMetrics, new MediaGateway.NodeStats(1, 2), 0);
+    verify(nodes).load("hel", MediaNodes.Sample.rooms(1, 2));
+  }
+
+  /**
+   * Текст node-exporter: ЦП одного ядра, отдача, память хоста в МиБ (всего и доступно) и корневой
+   * диск в ГиБ (размер и свободно).
+   */
+  static String exporter(
+      double total,
+      double idle,
+      double steal,
+      long tx,
+      long memTotal,
+      long memAvailable,
+      long diskSize,
+      long diskFree) {
     var busy = total - idle - steal;
     return """
         # HELP node_cpu_seconds_total Seconds the CPUs spent in each mode.
@@ -531,8 +613,22 @@ class NodeHealthTest {
         node_network_transmit_bytes_total{device="lo"} 99999999
         node_network_transmit_bytes_total{device="docker0"} 5555555
         node_network_transmit_bytes_total{device="eth0"} %d
+        node_memory_MemAvailable_bytes %d
+        node_memory_MemTotal_bytes %d
+        node_filesystem_avail_bytes{device="/dev/vda1",fstype="ext4",mountpoint="/"} %d
+        node_filesystem_size_bytes{device="/dev/vda1",fstype="ext4",mountpoint="/"} %d
+        node_filesystem_avail_bytes{device="/dev/vda15",fstype="vfat",mountpoint="/boot/efi"} 1
+        node_filesystem_size_bytes{device="/dev/vda15",fstype="vfat",mountpoint="/boot/efi"} 100
         """
-        .formatted(idle, steal, busy, tx);
+        .formatted(
+            idle,
+            steal,
+            busy,
+            tx,
+            memAvailable << 20,
+            memTotal << 20,
+            diskFree << 30,
+            diskSize << 30);
   }
 
   @Test

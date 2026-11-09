@@ -2490,7 +2490,7 @@
         "3": "high",
         "4": "very high"
       },
-      "full": "no room",
+      "full": "overloaded",
       "maintenance": "updating",
       "closed": "closed to new meetings",
       "unknown": "unknown"
@@ -3393,7 +3393,6 @@
     "ROOMS_PER_HOUR": "Too many new meetings in an hour. Try again later",
     "ROOM_CLOSED": "The meeting has ended",
     "ROOM_FULL": "The meeting is full",
-    "ROOM_LIMIT": "All rooms are busy. Try again later",
     "ROOM_NOT_FOUND": "Room not found",
     "SCREEN_ENDED": "Screen share ended",
     "SCREEN_LIMIT": "Someone else is already sharing their screen",

@@ -36,11 +36,12 @@ public record StreamProperties(
     @Size(max = 200) String fleetKey,
     @Size(max = 60) String serverName,
     boolean redisEnabled,
-    // Сколько людей во встрече; боты (музыка) не считаются (T06, П3). Выше пятидесяти не пускаем:
-    // снимок читает каждый участник на каждое изменение, и бюджет 24 КиБ мерян на двадцать.
+    // Сколько людей во встрече; боты (музыка) не считаются (T06, П3). По умолчанию 30
+    // (владелец, R228, Р-135). Выше пятидесяти не пускаем: снимок читает каждый участник на каждое
+    // изменение, а бюджет 24 КиБ держится на тридцати (`RoomServiceTest`). Предела числа встреч
+    // нет.
     @Min(1) @Max(50) int maxParticipants,
     @Min(1) @Max(2) int maxScreens,
-    @Min(1) int maxRooms,
     @Min(5) @Max(60) int recoverySeconds,
     @Min(20) @Max(300) int joinSeconds,
     @Min(20) int emptyRoomSeconds,
@@ -176,8 +177,8 @@ public record StreamProperties(
      * <p>{@code defaultTerm} — срок блока, когда владелец его не выбрал. {@code autoBlock} —
      * сколько отказов 429 за окно получает адрес, прежде чем сервер закроет его сам на {@code
      * autoBlockTerm} ({@code off} — сам не закрывает). Считаются только отказы, которые про адрес,
-     * а не про сервер или встречу: «все комнаты заняты» и частота чата одного человека офис за NAT
-     * не закрывают.
+     * а не про встречу или человека: «слишком много входов в эту встречу» и частота чата одного
+     * человека офис за NAT не закрывают.
      */
     public record Blocks(
         @NotNull Duration defaultTerm, @NotNull Rate autoBlock, @NotNull Duration autoBlockTerm) {}

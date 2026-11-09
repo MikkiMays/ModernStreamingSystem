@@ -9,7 +9,8 @@ rtc:
 keys:
   devkey: local-development-only-secret-32bytes
 room:
-  max_participants: 24
+  # 30 людей ядра (`stream.max-participants`, R228) и четыре места ботам и переходным сессиям.
+  max_participants: 34
   empty_timeout: 300
   departure_timeout: 60
 webhook:

@@ -2518,7 +2518,7 @@
         "3": "alto",
         "4": "molto alto"
       },
-      "full": "nessun posto",
+      "full": "sovraccarico",
       "maintenance": "in aggiornamento",
       "closed": "chiuso alle nuove riunioni",
       "unknown": "sconosciuto"
@@ -3426,7 +3426,6 @@
     "ROOMS_PER_HOUR": "Troppe nuove riunioni in un'ora. Riprova più tardi",
     "ROOM_CLOSED": "La riunione è terminata",
     "ROOM_FULL": "La riunione è piena",
-    "ROOM_LIMIT": "Tutte le stanze sono occupate. Riprova più tardi",
     "ROOM_NOT_FOUND": "Stanza non trovata",
     "SCREEN_ENDED": "La condivisione dello schermo è terminata",
     "SCREEN_LIMIT": "Un altro partecipante sta già condividendo lo schermo",
