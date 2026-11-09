@@ -276,3 +276,19 @@ groups:
         labels: { severity: warn }
         annotations: { summary: '{{ $labels.machine }}: исходящий канал больше 600 Мбит/с десять минут' }
 
+  # Р-134: содержимое (чат, файлы, доска и её картинки, очереди кинозала и музыки) — не дольше 24 ч от добавления.
+  - name: cord-retention
+    interval: 60s
+    rules:
+      - alert: ContentRetentionBreached
+        expr: max by (kind) (cord_retention_oldest_content_seconds) > 25 * 3600
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: 'Содержимое старше 25 ч ({{ $labels.kind }}): почасовая чистка не справляется (Р-134)' }
+
+      - alert: RetentionSweepStalled
+        expr: time() - max by (job) (cord_retention_last_sweep_timestamp_seconds) > 2 * 3600
+        for: 10m
+        labels: { severity: warn }
+        annotations: { summary: 'Чистка содержимого не проходила больше двух часов ({{ $labels.job }})' }
+

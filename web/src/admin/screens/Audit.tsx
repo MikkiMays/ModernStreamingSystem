@@ -144,18 +144,18 @@ function FleetAudit({ console }: { console: Console }) {
   );
 }
 
+/** Ответ ядра `GET /api/v1/admin/audit` (`Audit.Page`): записи — `items`, курсор — `next`. */
 type CoreAuditPage = {
-  events: {
-    ts?: number;
-    at?: number;
-    code?: string;
-    group?: string;
+  items: {
+    at: number;
+    action?: string;
+    code?: string | null;
     outcome?: string;
-    ip?: string;
-    room?: string;
-    detail?: Record<string, unknown>;
+    roomCode?: string | null;
+    actorName?: string | null;
+    ip?: string | null;
   }[];
-  cursor?: string | null;
+  next?: string | null;
 };
 
 function CoreAudit({ console }: { console: Console }) {
@@ -166,7 +166,7 @@ function CoreAudit({ console }: { console: Console }) {
     enabled: !!id,
   });
   if (!id) return <Empty>{text.overview.noCore}</Empty>;
-  const events = rows.data?.events ?? [];
+  const events = rows.data?.items ?? [];
   return (
     <Panel title={`${text.audit.core} — ${console.machine!.product ?? console.machine!.title}`} flush>
       <ErrorLine error={rows.error} onRetry={() => void rows.refetch()} />
@@ -187,14 +187,14 @@ function CoreAudit({ console }: { console: Console }) {
               {events.map((event, i) => (
                 <tr key={i}>
                   <td data-label={text.audit.when} className="admin-hint">
-                    {when(Math.round(((event.ts ?? event.at ?? 0) as number) / 1000), true)}
+                    {when(Math.round((event.at ?? 0) / 1000), true)}
                   </td>
                   <td data-primary>
-                    <code>{event.code ?? event.group ?? ''}</code>
+                    <code>{event.action ?? event.code ?? ''}</code>
                   </td>
                   <td data-label={text.audit.outcome}>{event.outcome || null}</td>
                   <td data-label={text.audit.target} className="admin-hint">
-                    {event.room || event.ip || null}
+                    {[event.roomCode, event.actorName, event.ip].filter(Boolean).join(' · ') || null}
                   </td>
                 </tr>
               ))}
