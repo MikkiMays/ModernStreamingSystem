@@ -361,8 +361,8 @@ hel   FI      не отвечает —        —            —      —    �
 ### 8.3. Добавить сервер (форма → план)
 
 Поля: `id` (`[a-z][a-z0-9-]{1,15}`, не занят), IP (v4), страна (ISO-2, флаг из `kit/Flag`), названия ru/en, домены
-(`<id>.cordcam.ru`, `rtc-<id>`, `turn-<id>` — подставляются, можно править), ёмкость (`maxRooms`, `uplinkMbps`,
-`cores`), SSH (`root@ip`, ключ из списка `/keys`). Кнопка **«Составить план»** → справа план:
+(`<id>.cordcam.ru`, `rtc-<id>`, `turn-<id>` — подставляются, можно править), ёмкость (`uplinkMbps`,
+`cores`; `maxRooms` с R228 не передаётся — предела числа встреч нет, Р-135), SSH (`root@ip`, ключ из списка `/keys`). Кнопка **«Составить план»** → справа план:
 
 ```
 1. DNS (владелец, Cloudflare, серое облако):   msk.cordcam.ru      A 157.22.241.114
@@ -370,7 +370,7 @@ hel   FI      не отвечает —        —            —      —    �
                                                turn-msk.cordcam.ru A 157.22.241.114
 2. На meet (/opt/meet/ModernStreamingSystem):
    node scripts/node-config.mjs --node=msk --ip=157.22.241.114 --app=msk.cordcam.ru --rtc=rtc-msk.cordcam.ru \
-     --turn=turn-msk.cordcam.ru --title-ru=Москва --title-en=Moscow --country=RU --max-rooms=4 --uplink-mbps=500 \
+     --turn=turn-msk.cordcam.ru --title-ru=Москва --title-en=Moscow --country=RU --uplink-mbps=500 \
      --cores=2 --ssh=root@157.22.241.114 --ssh-key=/root/.ssh/cord_msk
    node scripts/node-config.mjs --control-id=fra --write-env   # CSP, профиль nodes
    backlog/bin/node.sh msk bootstrap
