@@ -566,6 +566,12 @@ gh release view desktop-vX.Y.Z -R MikkiMays/ModernStreamingSystem.Windows --json
 
 Нет `latest.yml.sig` — нет секрета `CORD_UPDATE_SIGN_KEY` (§11): такое обновление клиенты не примут.
 
+**Снимок каталога серверов** (`dist/shell/catalog.jws` в установщике) сборка берёт с `cordcam.ru/api/v1/catalog`, а
+если CI до продукта не достучался — из `desktop/build/catalog.jws` репы Windows (из двух — с бо́льшим `seq`). Сборка
+продукта в CI без снимка падает: без него клиент, обновлённый с прошлой сборки, верит её сохранённому каталогу и
+открывает её сервер (1.2.3 так открывал убранный `cord.nikg.tech` — «нет связи»). Подписали новый `seq` каталога
+продукта — тот же `servers.jws` кладётся в `desktop/build/catalog.jws` и в `.local/catalog/` стенда.
+
 ### Зеркало
 
 GitHub клиент не видит: и `/download`, и обновление при запуске читают только зеркало сервера
