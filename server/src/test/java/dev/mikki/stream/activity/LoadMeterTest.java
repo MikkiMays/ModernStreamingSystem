@@ -19,25 +19,18 @@ class LoadMeterTest {
   final AtomicLong now = new AtomicLong(1_000_000);
   final AtomicReference<String> stat = new AtomicReference<>();
   final AtomicReference<String> net = new AtomicReference<>();
-  final ActivityReport report = mock(ActivityReport.class);
   final StreamProperties config = mock(StreamProperties.class);
   final Maintenance maintenance = mock(Maintenance.class);
   long user, idle, steal, sent;
-  int rooms, connected;
   LoadMeter meter;
 
   @BeforeEach
   void setUp() {
     var clock = mock(Clock.class);
     when(clock.millis()).thenAnswer(_ -> now.get());
-    when(config.maxRooms()).thenReturn(8);
     when(config.admissionOpen()).thenReturn(true);
-    when(report.now())
-        .thenAnswer(
-            _ -> new ActivityReport.Now(now.get(), rooms, 0, connected, connected, 0, 0, rooms()));
     meter =
         new LoadMeter(
-            report,
             config,
             maintenance,
             clock,
@@ -68,19 +61,6 @@ class LoadMeterTest {
     return meter.sample();
   }
 
-  /** Занятые встречи (с человеком на связи) и одна пустая сохранённая — она сервер не занимает. */
-  List<ActivityReport.LiveRoom> rooms() {
-    var list = new java.util.ArrayList<ActivityReport.LiveRoom>();
-    for (int i = 0; i < rooms; i++)
-      list.add(
-          new ActivityReport.LiveRoom(
-              "r" + i, "000000000", 0, null, null, 1, 1, 0, 0, 0, List.of(), false, false));
-    list.add(
-        new ActivityReport.LiveRoom(
-            "idle", "000000001", 0, null, null, 0, 0, 0, 0, 0, List.of(), false, false));
-    return list;
-  }
-
   @Test
   void quarterStepsTakeTheBusiestShare() {
     after(0.1, 0, 10);
@@ -91,19 +71,17 @@ class LoadMeterTest {
     assertThat(LoadMeter.step(0.25)).isEqualTo(2);
     assertThat(LoadMeter.step(0.6)).isEqualTo(3);
     assertThat(LoadMeter.step(0.9)).isEqualTo(4);
-    rooms = 4;
-    assertThat(after(0.1, 0, 10).level()).isEqualTo(3);
+    // ЦП 60 % — ступень 3, сколько бы встреч ни шло: число встреч в ступень не входит (Р-135).
+    // Доля сглажена: ступень доходит до 3 за несколько замеров, а не по одному всплеску.
+    for (int i = 0; i < 5; i++) after(0.6, 0, 10);
+    assertThat(after(0.6, 0, 10).level()).isEqualTo(3);
   }
 
   @Test
   void sharesAreExportedOneByOne() {
-    rooms = 4;
-    connected = 12;
     after(0.2, 0.05, 100);
     after(0.2, 0.05, 100);
-    // Ступень — наибольшая доля, а в «Cord — сервер» видно каждую: 4 из 8 встреч, 12 из 48 человек.
-    assertThat(meter.share("rooms")).isEqualTo(0.5);
-    assertThat(meter.share("people")).isEqualTo(0.25);
+    // Ступень — наибольшая доля, а в «Cord — сервер» видно каждую.
     assertThat(meter.share("cpu")).isCloseTo(0.2, within(0.01));
     assertThat(meter.share("uplink")).isCloseTo(0.1, within(0.01));
     assertThat(meter.share("steal")).isCloseTo(0.05, within(0.01));
@@ -120,12 +98,12 @@ class LoadMeterTest {
   }
 
   @Test
-  void fullMaintenanceAndClosedAreStates() {
-    rooms = 8;
-    assertThat(after(0, 0, 0))
+  void maintenanceAndClosedAreStatesButNeverFull() {
+    // Предела встреч нет — и «мест нет» сервер не говорит даже на ступени 4 (Р-135).
+    after(0.9, 0, 0);
+    assertThat(after(0.9, 0, 0))
         .extracting(LoadMeter.Load::level, LoadMeter.Load::state)
-        .containsExactly(4, "full");
-    rooms = 0;
+        .containsExactly(4, "busy");
     when(maintenance.on()).thenReturn(true);
     assertThat(after(0, 0, 0).state()).isEqualTo("maintenance");
     when(maintenance.on()).thenReturn(false);
@@ -135,11 +113,15 @@ class LoadMeterTest {
 
   @Test
   void goesUpAtOnceAndDownOnlyAfterThirtySeconds() {
-    rooms = 7;
-    assertThat(after(0, 0, 0).level()).isEqualTo(4);
-    rooms = 0;
-    for (int i = 0; i < 6; i++) assertThat(after(0, 0, 0).level()).isEqualTo(4);
-    assertThat(after(0, 0, 0).level()).isEqualTo(1);
+    after(0.95, 0, 0);
+    assertThat(after(0.95, 0, 0).level()).isEqualTo(4);
+    // Сглаживание: ЦП падает до нуля не сразу — ступень держится, пока доля не опустится и пока не
+    // пройдут 30 с ниже порога.
+    var levels = new java.util.ArrayList<Integer>();
+    for (int i = 0; i < 20; i++) levels.add(after(0, 0, 0).level());
+    assertThat(levels.getFirst()).isEqualTo(4);
+    assertThat(levels.getLast()).isEqualTo(1);
+    assertThat(levels).isSortedAccordingTo(java.util.Comparator.reverseOrder());
   }
 
   @Test

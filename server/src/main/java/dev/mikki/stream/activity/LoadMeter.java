@@ -2,7 +2,6 @@ package dev.mikki.stream.activity;
 
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.Maintenance;
-import dev.mikki.stream.room.RoomState;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
@@ -21,10 +20,10 @@ import org.springframework.stereotype.Component;
  * использовании, они остаются за паролем владельца ({@code GET /api/v1/admin/now}). Человеку,
  * который выбирает сервер, хватает «свободно — средне — тесно — мест нет».
  *
- * <p>Ступень — наибольшая из четырёх долей, потому что звонок портит любое узкое место, а не их
- * среднее: занятые встречи к {@code max-rooms}, люди на связи к обычной встрече из пяти-шести
- * человек на каждое место, ЦП хоста вместе со steal провайдера (на этой машине он и есть «звонок
- * дёргается») и отдача канала к {@code stream.uplink-mbps}. Пороги — четверти; steal выше четверти
+ * <p>Ступень — наибольшая из долей, потому что звонок портит любое узкое место, а не их среднее: ЦП
+ * хоста вместе со steal провайдера (на этой машине он и есть «звонок дёргается») и отдача канала к
+ * {@code stream.uplink-mbps}. Число встреч и людей в ступень не входит: общего предела встреч нет
+ * (R228, Р-135), сервер упирается в ресурсы, а не в счётчик. Пороги — четверти; steal выше четверти
  * поднимает ступень не ниже третьей. Ядро в {@code network_mode: host} — {@code /proc} у него
  * хостовый.
  *
@@ -33,7 +32,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class LoadMeter {
-  /** Ответ {@code GET /api/v1/load}. {@code state}: ok, busy, full, maintenance, closed. */
+  /** Ответ {@code GET /api/v1/load}. {@code state}: ok, busy, maintenance, closed. */
   public record Load(int level, String state, long updatedAt) {}
 
   /** Источник {@code /proc} — в тестах подставной. */
@@ -57,13 +56,9 @@ public class LoadMeter {
     }
   }
 
-  /** Сколько людей на связи считается «полной» встречей при расчёте доли людей. */
-  static final int PEOPLE_PER_ROOM = 6;
-
   static final long DOWN_AFTER_MS = 30_000;
   private static final double EWMA = 0.35;
 
-  private final ActivityReport report;
   private final StreamProperties config;
   private final Maintenance maintenance;
   private final Clock clock;
@@ -78,7 +73,7 @@ public class LoadMeter {
   private double tx;
 
   /** Доли последнего замера — для «Cord — сервер»: какое узкое место подняло ступень. */
-  private volatile double roomsShare, peopleShare, cpuShare, uplinkShare, stealShare;
+  private volatile double cpuShare, uplinkShare, stealShare;
 
   private int level = 1;
   private long lowerSince = -1;
@@ -86,30 +81,26 @@ public class LoadMeter {
 
   @Autowired
   public LoadMeter(
-      ActivityReport report,
       StreamProperties config,
       Maintenance maintenance,
       Clock clock,
       @Value("${stream.uplink-mbps:1000}") double uplinkMbps,
       MeterRegistry registry) {
-    this(report, config, maintenance, clock, Proc.host(), uplinkMbps);
+    this(config, maintenance, clock, Proc.host(), uplinkMbps);
     // Та же ступень — в «Cord — сервер»: что видели люди рядом с пингом, видно и владельцу.
     Gauge.builder("cord.server.load.level", this, meter -> meter.current.level())
         .description("Загрузка сервера ступенью 1–4, как её видят люди рядом с пингом (R143)")
         .register(registry);
     // Доли по отдельности (0…1): ступень — наибольшая из них, а владельцу видно, какая именно.
-    for (var kind : new String[] {"rooms", "people", "cpu", "uplink", "steal"})
+    for (var kind : new String[] {"cpu", "uplink", "steal"})
       Gauge.builder("cord.server.load.share", this, meter -> meter.share(kind))
-          .description(
-              "Доля загрузки сервера по виду (0…1): встречи, люди, процессор, канал, steal")
+          .description("Доля загрузки сервера по виду (0…1): процессор, канал, steal")
           .tag("kind", kind)
           .register(registry);
   }
 
   double share(String kind) {
     return switch (kind) {
-      case "rooms" -> roomsShare;
-      case "people" -> peopleShare;
       case "cpu" -> cpuShare;
       case "uplink" -> uplinkShare;
       default -> stealShare;
@@ -117,13 +108,7 @@ public class LoadMeter {
   }
 
   LoadMeter(
-      ActivityReport report,
-      StreamProperties config,
-      Maintenance maintenance,
-      Clock clock,
-      Proc proc,
-      double uplinkMbps) {
-    this.report = report;
+      StreamProperties config, Maintenance maintenance, Clock clock, Proc proc, double uplinkMbps) {
     this.config = config;
     this.maintenance = maintenance;
     this.clock = clock;
@@ -147,25 +132,11 @@ public class LoadMeter {
     var now = clock.millis();
     readCpu();
     readNetwork(now);
-    var snapshot = report.now();
-    // Занятые встречи — как их считает `max-rooms` (RoomState.busy): человек на связи или встреча
-    // совсем новая. Пустые сохранённые комнаты из избранного не закрыты, но сервер не занимают.
-    var rooms =
-        (int)
-            snapshot.rooms().stream()
-                .filter(room -> room.connected() > 0 || now - room.createdAt() < RoomState.FRESH_MS)
-                .count();
-    var maxRooms = Math.max(1, config.maxRooms());
-    roomsShare = (double) rooms / maxRooms;
-    peopleShare = (double) snapshot.connected() / (maxRooms * PEOPLE_PER_ROOM);
     cpuShare = cpu;
     uplinkShare = tx / uplinkMbps;
     stealShare = steal;
-    var share = Math.max(Math.max(roomsShare, peopleShare), Math.max(cpuShare, uplinkShare));
-    var wanted = step(share);
+    var wanted = step(Math.max(cpuShare, uplinkShare));
     if (steal > 0.25) wanted = Math.max(wanted, 3);
-    var full = rooms >= maxRooms;
-    if (full) wanted = 4;
     if (wanted >= level) {
       level = wanted;
       lowerSince = -1;
@@ -177,7 +148,6 @@ public class LoadMeter {
     String state;
     if (maintenance.on()) state = "maintenance";
     else if (!config.admissionOpen()) state = "closed";
-    else if (full) state = "full";
     else if (level >= 3) state = "busy";
     else state = "ok";
     current = new Load(level, state, now);

@@ -45,8 +45,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
       "spring.datasource.url=jdbc:h2:mem:nodes;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
       "stream.scheduling-enabled=false",
       "stream.files-root=./.local/test-uploads",
-      "stream.node-id=fra",
-      "stream.max-rooms=200"
+      "stream.node-id=fra"
     })
 @ActiveProfiles("local")
 class MediaNodesIntegrationTest {
@@ -110,7 +109,12 @@ class MediaNodesIntegrationTest {
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
-  final AtomicLong now = new AtomicLong(System.currentTimeMillis());
+
+  /**
+   * Время — одно на все тесты класса и только вперёд: резерв недавно поставленных встреч и
+   * остывание узлов (Р-135) считаются от него, а бин узлов общий.
+   */
+  static final AtomicLong now = new AtomicLong(System.currentTimeMillis());
 
   @BeforeEach
   void setUp() {
@@ -120,6 +124,22 @@ class MediaNodesIntegrationTest {
     when(tus.terminate(anyString())).thenReturn(true);
     nodes.down("hel", false);
     nodes.down("fra", false);
+    calm();
+  }
+
+  /**
+   * Узлы — один бин на все тесты класса: горячий узел и резерв прошлого теста остывают здесь —
+   * несколько опросов в спокойствии с запасом времени на гистерезис, резерв и ступень.
+   */
+  void calm() {
+    for (int i = 0; i < 3; i++) {
+      for (var id : List.of("fra", "hel")) nodes.load(id, MediaNodes.Sample.rooms(0, 0));
+      now.addAndGet(120_000);
+    }
+  }
+
+  static MediaNodes.Sample cpu(double share) {
+    return new MediaNodes.Sample(3, 12, share, 0, 100, 0.4, 0.3, 300);
   }
 
   Create create(String preferred) {
@@ -310,6 +330,118 @@ class MediaNodesIntegrationTest {
     assertThatThrownBy(() -> media.move(host.roomId(), host.credential(), UUID.randomUUID(), "hel"))
         .isInstanceOf(Problem.class)
         .satisfies(e -> assertThat(((Problem) e).code()).isEqualTo("NODE_UNAVAILABLE"));
+  }
+
+  /**
+   * Общего предела встреч нет (Р-135): сорок встреч разом создаются, в каждую входят, и дверь
+   * пустой встречи не закрывается тем, что сорок других идут. Пределы антибота (10 в час с адреса,
+   * 6 с профиля) — про создателя, а не про сервер; здесь создатель — служба без адреса.
+   */
+  @Test
+  void fortyMeetingsAtOnceAreAllAdmittedWithoutAnyCountLimit() throws Exception {
+    var created =
+        new java.util.concurrent.CopyOnWriteArrayList<dev.mikki.stream.room.Contracts.Admission>();
+    try (var pool = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+      var futures = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+      for (int i = 0; i < 40; i++)
+        futures.add(pool.submit(() -> created.add(rooms.create(create(null)))));
+      for (var future : futures) future.get();
+    }
+    assertThat(created).hasSize(40);
+    assertThat(created.stream().map(dev.mikki.stream.room.Contracts.Admission::roomId).distinct())
+        .hasSize(40);
+    // Пачка расходится по узлам: каждая поставленная встреча резервирует свою долю, пока её нет в
+    // метриках (Р-135), — и ни одной не отказано.
+    assertThat(
+            created.stream()
+                .map(a -> rooms.read(a.roomId()).mediaNode)
+                .collect(java.util.stream.Collectors.toSet()))
+        .containsExactlyInAnyOrder("fra", "hel");
+    // Каждая — с человеком на связи, то есть по-настоящему идёт.
+    for (var host : created)
+      media.observe(
+          host.roomId(),
+          Map.of(host.participantId(), "PA_" + host.roomId()),
+          now.incrementAndGet());
+    now.addAndGet(RoomState.FRESH_MS + 1);
+    assertThat(repository.all().stream().filter(r -> r.busy(now.get()))).hasSize(40);
+    // Сорок первая: создаётся, стоит пустой дольше 30 с — и всё равно пускает гостя.
+    var late = rooms.create(create(null));
+    now.addAndGet(RoomState.FRESH_MS + 1);
+    assertThat(rooms.read(late.roomId()).busy(now.get())).isFalse();
+    var guest =
+        rooms.join(
+            late.roomId(),
+            new Join(UUID.randomUUID(), late.inviteUrl().split("invite=")[1], "Гость"));
+    assertThat(guest.participantId()).isNotBlank();
+    for (var host : created)
+      assertThat(
+              rooms.join(
+                  host.roomId(),
+                  new Join(UUID.randomUUID(), host.inviteUrl().split("invite=")[1], "Гость")))
+          .isNotNull();
+  }
+
+  /**
+   * Перегруженный узел новых встреч не берёт, пока у другого есть запас: встреча идёт на следующий
+   * ближайший; ручной выбор — замена со словами (Р-101). Запаса нет нигде — встреча всё равно
+   * создаётся, на наименее загруженном узле, а не отказ (Р-135).
+   */
+  @Test
+  void aHotNodeSpillsNewMeetingsOverAndASaturatedFleetStillAdmits() {
+    nodes.load("hel", cpu(0.85));
+    assertThat(nodes.levelOf(nodes.resolve("hel")).state()).isEqualTo("full");
+    var spilled = rooms.create(create("hel"));
+    assertThat(rooms.read(spilled.roomId()).mediaNode).isEqualTo("fra");
+    assertThat(spilled.nodeFallback()).isNull();
+    var manual = rooms.create(manual("hel"));
+    assertThat(rooms.read(manual.roomId()).mediaNode).isEqualTo("fra");
+    assertThat(manual.nodeFallback())
+        .isEqualTo(new dev.mikki.stream.room.Contracts.NodeFallback("hel", "fra"));
+
+    nodes.load("fra", cpu(0.95));
+    assertThat(nodes.saturated()).isTrue();
+    for (int i = 0; i < 5; i++) {
+      var admitted = rooms.create(create("hel"));
+      // hel (85 %) свободнее fra (95 %) — туда, хоть и горячий.
+      assertThat(rooms.read(admitted.roomId()).mediaNode).isEqualTo("hel");
+      assertThat(
+              rooms.join(
+                  admitted.roomId(),
+                  new Join(UUID.randomUUID(), admitted.inviteUrl().split("invite=")[1], "Гость")))
+          .isNotNull();
+    }
+  }
+
+  /**
+   * Идущая встреча ради нагрузки не переезжает (Р-102): узел стал горячим — люди остаются, новые
+   * входят туда же; переезжает она только со смертью узла.
+   */
+  @Test
+  void aRunningMeetingStaysOnItsHotNodeAndMovesOnlyWhenTheNodeDies() {
+    var host = rooms.create(create("hel"));
+    media.observe(host.roomId(), Map.of(host.participantId(), "PA_1"), now.incrementAndGet());
+    nodes.load("hel", cpu(0.99));
+    nodes.load("hel", cpu(0.99));
+    var guest =
+        rooms.join(
+            host.roomId(),
+            new Join(UUID.randomUUID(), host.inviteUrl().split("invite=")[1], "Гость"));
+    assertThat(guest.snapshot().mediaNode()).isEqualTo("hel");
+    var room = rooms.read(host.roomId());
+    assertThat(room.mediaNode).isEqualTo("hel");
+    assertThat(room.mediaMoves).isNull();
+    assertThat(
+            new MediaGateway(config, nodes, repository)
+                .token(room, room.members.get(guest.participantId()))
+                .url())
+        .isEqualTo("wss://rtc-hel.test");
+
+    nodes.down("hel", true);
+    media.evacuate("hel");
+    var moved = rooms.read(host.roomId());
+    assertThat(moved.mediaNode).isEqualTo("fra");
+    assertThat(moved.mediaMoves).isEqualTo(1);
   }
 
   @Test

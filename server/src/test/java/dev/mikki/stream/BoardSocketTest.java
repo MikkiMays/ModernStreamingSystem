@@ -49,7 +49,6 @@ import org.springframework.web.socket.WebSocketSession;
       "spring.datasource.url=jdbc:h2:mem:boards;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
       "stream.scheduling-enabled=false",
       "stream.files-root=./.local/test-uploads",
-      "stream.max-rooms=200",
       "stream.abuse.per-ip.sockets=1000",
       "stream.abuse.per-ip.socket-opens=off"
     })

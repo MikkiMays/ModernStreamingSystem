@@ -28,8 +28,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
       "spring.datasource.url=jdbc:h2:mem:rooms;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
       "stream.scheduling-enabled=false",
       "stream.event-history-limit=10",
-      "stream.files-root=./.local/test-uploads",
-      "stream.max-rooms=200"
+      "stream.files-root=./.local/test-uploads"
     })
 @ActiveProfiles("local")
 @org.springframework.test.context.event.RecordApplicationEvents
@@ -356,16 +355,16 @@ class RoomServiceTest {
   }
 
   /**
-   * Бюджет снимка (решение 7 целевой архитектуры): комната из двадцати человек без переписки — не
-   * больше 24 КиБ.
+   * Бюджет снимка (решение 7 целевой архитектуры): полная встреча без переписки — не больше 24 КиБ.
+   * Бюджет мерили на двадцати; с пределом в тридцать (R228, Р-135) он тот же.
    *
    * <p>ЗАЧЕМ ТЕСТ. Снимок собирается на каждого участника и целиком перечитывается каждым на любое
-   * {@code room.changed}: двадцать человек — двадцать чтений на каждое изменение. Поле, которое
+   * {@code room.changed}: тридцать человек — тридцать чтений на каждое изменение. Поле, которое
    * растёт с числом людей или с историей, умножается на это дважды. Картинки профиля в бюджет не
-   * входят: у каждой свой предел (3500 знаков), и двадцать картинок — это ещё до 70 КиБ сверху.
+   * входят: у каждой свой предел (3500 знаков), и тридцать картинок — это ещё до 105 КиБ сверху.
    */
   @Test
-  void aSnapshotOfTwentyPeopleStaysWithinBudget() {
+  void aSnapshotOfAFullMeetingStaysWithinBudget() {
     var host =
         rooms.create(
             new Create(UUID.randomUUID(), "Н".repeat(80), "Х".repeat(40), false),
@@ -444,9 +443,9 @@ class RoomServiceTest {
   }
 
   /**
-   * Бот — не человек: музыка во встрече не занимает ни одного из двадцати мест (T06, П3). Иначе
-   * комната с музыкой вмещала бы девятнадцать человек, а предел в настройках означал бы не то, что
-   * в нём написано.
+   * Бот — не человек: музыка во встрече не занимает ни одного из тридцати мест (T06, П3). Иначе
+   * комната с музыкой вмещала бы двадцать девять человек, а предел в настройках означал бы не то,
+   * что в нём написано.
    */
   @Test
   void musicServiceIsIdempotentTakesNoHumanSeatAndHasNoHostRights() {

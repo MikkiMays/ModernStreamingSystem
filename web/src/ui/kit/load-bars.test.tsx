@@ -22,12 +22,14 @@ describe('загрузка сервера палочками (R143, Р-37)', () 
     );
     expect(filled()).toBe(3);
     cleanup();
+    // Узел над порогом нагрузки (Р-135): новые встречи — к соседу, но не отказ — «перегружен», а не
+    // «мест нет».
     render(<LoadBars level={4} state="full" withText />);
-    expect(screen.getByRole('img', { name: 'Загрузка сервера: мест нет' })).toHaveAttribute(
+    expect(screen.getByRole('img', { name: 'Загрузка сервера: перегружен' })).toHaveAttribute(
       'data-tone',
       'danger',
     );
-    expect(screen.getByText('мест нет')).toBeInTheDocument();
+    expect(screen.getByText('перегружен')).toBeInTheDocument();
     expect(filled()).toBe(4);
   });
 

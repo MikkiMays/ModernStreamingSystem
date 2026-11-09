@@ -27,7 +27,7 @@ test('a media node gets its own files, the registry, the control backbone and no
   try {
     await writeFile(join(directory, '.env'), ENV, { mode: 0o600 });
     const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
-    const first = run('--node=hel', '--ip=203.0.113.7', '--app=hel.example.test', '--rtc=rtc-hel.example.test', '--turn=turn-hel.example.test', '--title-ru=Хельсинки', '--title-en=Helsinki', '--country=fi', '--max-rooms=3', '--uplink-mbps=500', '--cores=2', '--ssh=root@203.0.113.7', '--ssh-key=/root/.ssh/k');
+    const first = run('--node=hel', '--ip=203.0.113.7', '--app=hel.example.test', '--rtc=rtc-hel.example.test', '--turn=turn-hel.example.test', '--title-ru=Хельсинки', '--title-en=Helsinki', '--country=fi', '--sfu-memory-mb=2048', '--uplink-mbps=500', '--cores=2', '--ssh=root@203.0.113.7', '--ssh-key=/root/.ssh/k');
     assert.equal(first.status, 0, first.stderr);
     assert.ok(!first.stdout.includes('0123456789abcdef'), 'secret leaked to stdout');
 
@@ -43,17 +43,24 @@ test('a media node gets its own files, the registry, the control backbone and no
     assert.equal(control.uplinkMbps, 1000);
     assert.ok(control.cores >= 1);
     assert.equal(control.loadUrl, 'http://127.0.0.1:9100/metrics');
+    // Память SFU (Р-135): у узла управления — его собственный /metrics LiveKit, предел контейнера 1 ГиБ.
+    assert.equal(control.sfuMetricsUrl, 'http://127.0.0.1:6789/metrics');
+    assert.equal(control.sfuMemoryMb, 1024);
+    // Предела числа встреч нет ни у одного узла (R228).
+    assert.equal(control.maxRooms, undefined);
     assert.equal(hel.country, 'FI');
     assert.equal(hel.uplinkMbps, 500);
     assert.equal(hel.cores, 2);
     assert.equal(hel.loadUrl, 'http://127.0.0.1:21002/metrics');
+    assert.equal(hel.sfuMetricsUrl, 'http://127.0.0.1:21001/metrics');
+    assert.equal(hel.sfuMemoryMb, 2048);
     assert.deepEqual(hel.title, { ru: 'Хельсинки', en: 'Helsinki' });
     assert.equal(hel.index, 1);
     assert.equal(hel.rtcUrl, 'wss://rtc-hel.example.test');
     assert.equal(hel.probeUrl, 'https://hel.example.test');
     assert.equal(hel.stun, 'stun:turn-hel.example.test:3478');
     assert.equal(hel.internalUrl, 'http://127.0.0.1:21000');
-    assert.equal(hel.maxRooms, 3);
+    assert.equal(hel.maxRooms, undefined);
     assert.equal(hel.enabled, true);
     assert.equal(hel.ssh, 'root@203.0.113.7');
 
@@ -109,6 +116,7 @@ test('a media node gets its own files, the registry, the control backbone and no
     assert.equal(msk.country, undefined, 'no country until the operator names one');
     assert.equal(msk.uplinkMbps, 1000, 'default uplink');
     assert.equal(msk.loadUrl, 'http://127.0.0.1:22002/metrics');
+    assert.equal(msk.sfuMemoryMb, 1024, 'default SFU memory limit');
     assert.equal(again.nodes.find((n) => n.id === 'hel').internalUrl, 'http://127.0.0.1:21000');
     await stat(join(directory, 'infra/generated/nodes/msk/tls/turn.crt'));
     const mskLivekit = JSON.parse(await readFile(join(directory, 'infra/generated/nodes/msk/livekit.json'), 'utf8'));
@@ -143,6 +151,9 @@ test('a media node gets its own files, the registry, the control backbone and no
     assert.match(run('--node=new', '--ip=1.2.3.4').stderr, /--mode=ip/);
     assert.match(run('--node=hel', '--refresh', '--country=Finland').stderr, /ISO 3166/);
     assert.match(run('--node=hel', '--refresh', '--uplink-mbps=fast').stderr, /positive integer/);
+    // Предел числа встреч убран (R228, Р-135): флаг — ошибка словами, а не тихий пропуск.
+    assert.match(run('--node=hel', '--refresh', '--max-rooms=4').stderr, /--max-rooms is gone/);
+    assert.match(run('--control-max-rooms=12').stderr, /--control-max-rooms is gone/);
     // Страна узла управления — флагом без --node.
     assert.equal(run('--country=nl').status, 0);
     assert.equal(JSON.parse(await readFile(join(directory, 'infra/generated/nodes/registry.json'), 'utf8')).nodes[0].country, 'NL');
@@ -177,6 +188,34 @@ test('a node on a machine with someone else\'s site passes that site\'s TLS thro
     assert.ok((await edgeRoutes()).every((r) => r.handle.length === 2), 'no passthrough left');
     const after = JSON.parse(await readFile(join(directory, 'infra/generated/nodes/registry.json'), 'utf8'));
     assert.equal(after.nodes.find((n) => n.id === 'msk').legacyHosts, undefined);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('an old registry loses maxRooms on any run, and without a metrics password there is no SFU metrics address', async () => {
+  const directory = await mkdtemp(join(resolve(tmpdir()), 'cord-node-'));
+  try {
+    await writeFile(join(directory, '.env'), ENV.replace(/^LIVEKIT_METRICS_PASSWORD=.*\n/m, ''), { mode: 0o600 });
+    const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
+    assert.equal(run('--node=hel', '--ip=203.0.113.7', '--mode=ip').status, 0);
+    const file = join(directory, 'infra/generated/nodes/registry.json');
+    const before = JSON.parse(await readFile(file, 'utf8'));
+    // Так реестр выглядел на продукте до R228: maxRooms 12 / 4.
+    before.nodes[0].maxRooms = 12;
+    before.nodes[1].maxRooms = 4;
+    await writeFile(file, JSON.stringify(before, null, 2));
+    const refreshed = run('--node=hel', '--refresh');
+    assert.equal(refreshed.status, 0, refreshed.stderr);
+    const after = JSON.parse(await readFile(file, 'utf8'));
+    for (const node of after.nodes) {
+      assert.equal(node.maxRooms, undefined, node.id);
+      assert.equal(node.sfuMetricsUrl, undefined, `${node.id}: SFU metrics are closed without a password`);
+    }
+    assert.ok(refreshed.stdout.includes('SFU 1024 MiB'));
+    const livekit = JSON.parse(await readFile(join(directory, 'infra/generated/nodes/hel/livekit.json'), 'utf8'));
+    // Тридцать людей ядра (R228) и четыре места ботам.
+    assert.equal(livekit.room.max_participants, 34);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

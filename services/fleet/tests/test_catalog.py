@@ -79,6 +79,7 @@ class CatalogTest(unittest.TestCase):
             "country": "ru",
             "titleRu": "Москва",
             "titleEn": "Moscow",
+            # Старая форма пульта ещё шлёт число встреч на узел: оно больше ничего не значит (R228, Р-135).
             "maxRooms": 4,
             "uplinkMbps": 500,
             "cores": 2,
@@ -103,7 +104,7 @@ class CatalogTest(unittest.TestCase):
             steps,
             [
                 "node scripts/node-config.mjs --node=msk --ip=157.22.241.114 --app=msk.cordcam.ru --rtc=rtc-msk.cordcam.ru "
-                "--turn=turn-msk.cordcam.ru '--title-ru=Москва' --title-en=Moscow --country=RU --max-rooms=4 --uplink-mbps=500 "
+                "--turn=turn-msk.cordcam.ru '--title-ru=Москва' --title-en=Moscow --country=RU --uplink-mbps=500 "
                 "--cores=2 --ssh=root@157.22.241.114 --ssh-key=/root/.ssh/cord_msk",
                 "node scripts/node-config.mjs --write-env",
                 "backlog/bin/node.sh msk bootstrap",
@@ -120,7 +121,7 @@ class CatalogTest(unittest.TestCase):
 
     def test_node_add_rejects_bad_fields(self):
         base = {"id": "hel", "ip": "152.234.227.199", "product": "cordcam.ru", "country": "FI", "titleRu": "Хельсинки", "titleEn": "Helsinki", "maxRooms": 2, "uplinkMbps": 1000, "cores": 2}
-        for key, value in (("id", "HEL"), ("ip", "999.1.1.1"), ("product", "cordcam"), ("country", "FIN"), ("titleRu", "Хель синки"), ("titleEn", 'He"lsinki'), ("maxRooms", 0), ("ssh", "root@evil.test"), ("sshKey", "relative/key"), ("rtc", "hel.cordcam.ru")):
+        for key, value in (("id", "HEL"), ("ip", "999.1.1.1"), ("product", "cordcam"), ("country", "FIN"), ("titleRu", "Хель синки"), ("titleEn", 'He"lsinki'), ("ssh", "root@evil.test"), ("sshKey", "relative/key"), ("rtc", "hel.cordcam.ru")):
             with self.assertRaises(Problem, msg=key):
                 catalog.node_add_args({**base, key: value})
 

@@ -207,13 +207,14 @@ docker compose up -d victoriametrics vmalert            # профиль monitor
    ```bash
    cd /opt/ModernStreamingSystem
    node scripts/node-config.mjs --node=<id> --ip=<IP> --app=<id>.callcord.ru --rtc=rtc-<id>.callcord.ru --turn=turn-<id>.callcord.ru \
-     --title-ru='<Город>' --title-en='<City>' --max-rooms=<N> --ssh=root@<IP> --ssh-key=/root/.ssh/<ключ>
+     --title-ru='<Город>' --title-en='<City>' --cores=<vCPU> --uplink-mbps=<Мбит/с> --ssh=root@<IP> --ssh-key=/root/.ssh/<ключ>
    backlog/bin/node.sh <id> bootstrap && backlog/bin/node.sh <id> deploy
    sudo ufw allow from <IP> to any port 7443 proto tcp comment "cord backbone <id>"
    docker compose up -d backbone          # перечитать backbone.json с новым узлом (пересоздаётся без встреч: ядро и SFU не трогаются)
    ```
 3. Ядро подхватывает реестр само за ≤ 10 с (`Media nodes: […]` в журнале), клиенты получают узел в `capabilities` без выкатки.
-   `--max-rooms` — сколько встреч ядро ставит на узел: 2 vCPU ≈ 2 встречи по 5–6 человек с камерами (`docs/capacity.md`).
+   Предела числа встреч на узле нет (R228, Р-135): ядро ставит встречи по нагрузке (ЦП, канал к `--uplink-mbps`, память,
+   диск), поэтому `--cores` и `--uplink-mbps` должны быть правдой; `--max-rooms` больше нет (ошибка).
 4. Снять узел с размещения перед работами: `backlog/bin/node.sh <id> drain` (ждёт конца встреч на нём), после —
    `backlog/bin/node.sh <id> undrain`. Убрать узел навсегда: удалить его запись из `infra/generated/nodes/registry.json`,
    `node scripts/node-config.mjs --write-env`, `docker compose up -d backbone`, закрыть 7443 для его адреса.

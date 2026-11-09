@@ -57,8 +57,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
       "spring.datasource.url=jdbc:h2:mem:rooms;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
       "stream.scheduling-enabled=false",
       "stream.event-history-limit=10",
-      "stream.files-root=./.local/test-uploads",
-      "stream.max-rooms=200"
+      "stream.files-root=./.local/test-uploads"
     })
 @ActiveProfiles("local")
 class ActivityTest {
@@ -281,8 +280,8 @@ class ActivityTest {
 
   /**
    * Десять отказов «слишком часто» за десять минут — и адрес закрыт сам на полчаса, с записью в
-   * журнале. Отказы не про адрес («все комнаты заняты») к этому не ведут: офис за одним NAT не
-   * закрывается из-за того, что сервер полон.
+   * журнале. Отказы не про адрес («слишком много входов в эту встречу») к этому не ведут: офис за
+   * одним NAT не закрывается из-за одной шумной встречи.
    */
   @Test
   void tenRefusalsAboutAnAddressCloseItForAWhile() throws Exception {
@@ -290,7 +289,7 @@ class ActivityTest {
     var office = fresh();
     for (int i = 0; i < 12; i++) {
       refusal(script, "RATE_LIMITED");
-      refusal(office, "ROOM_LIMIT");
+      refusal(office, "SESSION_LIMIT");
     }
     var until = blocks.blockedUntil(script, null);
     assertThat(until).isPresent();

@@ -2490,7 +2490,7 @@
         "3": "hoch",
         "4": "sehr hoch"
       },
-      "full": "kein Platz",
+      "full": "überlastet",
       "maintenance": "wird aktualisiert",
       "closed": "für neue Meetings geschlossen",
       "unknown": "unbekannt"
@@ -3393,7 +3393,6 @@
     "ROOMS_PER_HOUR": "Zu viele neue Meetings in einer Stunde. Versuch es später",
     "ROOM_CLOSED": "Das Meeting ist beendet",
     "ROOM_FULL": "Das Meeting ist voll",
-    "ROOM_LIMIT": "Alle Räume sind belegt. Versuch es später",
     "ROOM_NOT_FOUND": "Raum nicht gefunden",
     "SCREEN_ENDED": "Bildschirmfreigabe beendet",
     "SCREEN_LIMIT": "Ein anderer Teilnehmer teilt bereits den Bildschirm",

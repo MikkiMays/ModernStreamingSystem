@@ -49,7 +49,6 @@ import org.springframework.web.socket.WebSocketSession;
       "stream.scheduling-enabled=false",
       "stream.event-history-limit=10",
       "stream.files-root=./.local/test-uploads",
-      "stream.max-rooms=200",
       // Механизм проверяется на трёх: по умолчанию с адреса — восемь (решение владельца
       // 20.10.2026).
       "stream.abuse.per-ip.open-rooms=3"
@@ -573,7 +572,7 @@ class AbuseLimitsTest {
   }
 
   /**
-   * Полная встреча: двадцать человек внутри. Ожидающие допуска встают у двери вне мест — до своего
+   * Полная встреча: тридцать человек внутри. Ожидающие допуска встают у двери вне мест — до своего
    * потолка, — а ведущий не может впустить сверх мест, пока кто-то не выйдет.
    */
   @Test
