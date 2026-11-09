@@ -416,7 +416,7 @@ describe('экраны пульта R209/R210/R215', () => {
     expect(steal).toHaveAttribute('data-tone', 'bad');
     expect(within(card).getByText(/кинозал · 2/)).toBeInTheDocument();
     // Встреча на восемь человек с показом — первой: у неё больше потоков SFU.
-    const rows = within(card).getAllByRole('row');
+    const rows = within(within(card).getByRole('table', { name: text.live.nowTitle })).getAllByRole('row');
     expect(rows[1]).toHaveTextContent('444555666');
     expect(rows[1]).toHaveTextContent(String(8 * 7 + 7));
     expect(within(card).getByText(text.live.containersEmpty, { exact: false })).toBeInTheDocument();
@@ -432,11 +432,11 @@ describe('экраны пульта R209/R210/R215', () => {
     expect(first.path).toMatch(/^\/api\/fleet\/core\/meet\/analytics\?/);
     expect(first.path).toContain('mode=actual');
     expect((await screen.findAllByText('50 %')).length).toBeGreaterThan(0);
-    expect(screen.getByText(text.analytics.meetings).closest('.admin-tile')).toHaveTextContent('14');
+    expect(screen.getByText(text.analytics.meetings).closest('.admin-stat')).toHaveTextContent('14');
     fireEvent.click(screen.getByRole('radio', { name: text.analytics.ltv }));
     await waitFor(() => expect(calls.some((c) => c.path.includes('mode=ltv'))).toBe(true));
     await waitFor(() =>
-      expect(screen.getByText(text.analytics.meetings).closest('.admin-tile')).toHaveTextContent('—'),
+      expect(screen.getByText(text.analytics.meetings).closest('.admin-stat')).toHaveTextContent('—'),
     );
     // Таблица удержания: доли и «рано» там, где срок не прошёл.
     expect(screen.getAllByText(text.analytics.early).length).toBeGreaterThan(0);

@@ -5,7 +5,7 @@ import { text } from '../../i18n/admin/ru';
 import { fleet, type AnalyticsMode, type AnalyticsReport, type Cohort, type Machine } from '../api';
 import type { Console } from '../AdminApp';
 import { DayBars, HBars, dayLabel } from '../charts';
-import { Empty, ErrorLine, Panel, Skeleton } from '../parts';
+import { Empty, ErrorLine, Panel, Skeleton, Stat, Stats } from '../parts';
 
 const t = text.analytics;
 
@@ -58,7 +58,7 @@ export function Analytics({ console }: { console: Console }) {
   };
   return (
     <div className="admin-stack">
-      <Panel title={t.period}>
+      <Panel title={t.period} description={mode === 'ltv' ? t.ltvHint : t.actualHint}>
         <div className="admin-filters">
           {cores.length > 1 && (
             <Field label={t.machine} inline>
@@ -71,7 +71,7 @@ export function Analytics({ console }: { console: Console }) {
               </Select>
             </Field>
           )}
-          <div className="admin-actions">
+          <div className="admin-actions" role="group" aria-label={t.period}>
             <Button variant="quiet" size="sm" onClick={() => quick(7)}>
               {t.days7}
             </Button>
@@ -108,10 +108,11 @@ export function Analytics({ console }: { console: Console }) {
             ]}
           />
         </div>
-        <p className="admin-hint">
-          {mode === 'ltv' ? t.ltvHint : t.actualHint}
-          {data && ` ${t.zone} ${data.zone}, ${t.today} ${dayLabel(data.today)}.`}
-        </p>
+        {data && (
+          <p className="admin-hint">
+            {t.zone} {data.zone}, {t.today} {dayLabel(data.today)}.
+          </p>
+        )}
         <ErrorLine error={report.error} onRetry={() => void report.refetch()} />
       </Panel>
       {report.isPending && <Skeleton rows={4} />}
@@ -152,7 +153,7 @@ function Report({
     <>
       {empty && <Empty>{t.empty}</Empty>}
       <Panel title={t.visitorsTitle}>
-        <div className="admin-tiles">
+        <Stats>
           <Metric value={v.total} label={t.visitors} hint={t.visitorsHint} />
           <Metric value={v.fresh} label={t.fresh} hint={t.freshHint} />
           <Metric
@@ -163,10 +164,10 @@ function Report({
           <Metric value={v.callers} label={t.callers} hint={t.callersHint} />
           <Metric value={v.newCallers} label={t.newCallers} hint={t.newCallersHint} />
           <Metric value={v.sameDayCallers} label={t.sameDay} hint={t.sameDayHint} />
-        </div>
+        </Stats>
       </Panel>
       <Panel title={t.engagementTitle}>
-        <div className="admin-tiles">
+        <Stats>
           <Metric value={share(r.er)} label={t.er} hint={t.erHint} />
           <Metric
             value={share(r.stickiness)}
@@ -196,10 +197,10 @@ function Report({
             hint={t.joinFailureRateHint}
             tone={(r.joinFailureRate ?? 0) > 0.1 ? 'warn' : undefined}
           />
-        </div>
+        </Stats>
       </Panel>
       <Panel title={t.callsTitle}>
-        <div className="admin-tiles">
+        <Stats>
           <Metric
             value={number(c.meetings)}
             label={t.meetings}
@@ -244,12 +245,18 @@ function Report({
             label={t.largestMeeting}
             hint={ltv ? t.onlyActual : undefined}
           />
-        </div>
+        </Stats>
       </Panel>
       <Panel
         title={t.byDays}
         actions={
-          <>
+          <Button variant="secondary" size="sm" onClick={() => setAsTable(!asTable)}>
+            {asTable ? t.chart : t.table}
+          </Button>
+        }
+      >
+        {!asTable && (
+          <div className="admin-scroll-x">
             <Segmented<Series>
               size="sm"
               aria-label={t.byDays}
@@ -257,12 +264,8 @@ function Report({
               onValueChange={setSeries}
               options={seriesOptions.map((key) => ({ value: key, label: t.series[key]! }))}
             />
-            <Button variant="quiet" size="sm" onClick={() => setAsTable(!asTable)}>
-              {asTable ? t.chart : t.table}
-            </Button>
-          </>
-        }
-      >
+          </div>
+        )}
         {asTable ? (
           <DaysTable data={data} />
         ) : (
@@ -344,25 +347,28 @@ function Metric({
   tone?: 'warn' | 'bad' | 'ok';
 }) {
   return (
-    <div className="admin-tile" data-tone={tone}>
-      <div className="admin-tile__value">{value}</div>
-      <div className="admin-tile__label">
-        {label}
-        {hint && (
-          <>
-            {' '}
-            <HintIcon text={hint} label={label} focusable />
-          </>
-        )}
-      </div>
-    </div>
+    <Stat
+      value={value}
+      tone={tone}
+      label={
+        <>
+          {label}
+          {hint && (
+            <>
+              {' '}
+              <HintIcon text={hint} label={label} focusable />
+            </>
+          )}
+        </>
+      }
+    />
   );
 }
 
 function DaysTable({ data }: { data: AnalyticsReport }) {
   return (
     <div className="admin-table-wrap admin-table-wrap--tall">
-      <table className="admin-table">
+      <table className="admin-table admin-days">
         <thead>
           <tr>
             <th>{t.day}</th>

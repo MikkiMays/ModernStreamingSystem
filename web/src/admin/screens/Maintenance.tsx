@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Badge, Button, Field, Input, Switch } from '../../ui/kit';
+import { Button, Field, Input, Switch } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type MaintenanceStatus, type Now } from '../api';
 import type { Console } from '../AdminApp';
-import { Confirm, Empty, ErrorLine, Panel, Skeleton, iso } from '../parts';
+import { Confirm, Empty, ErrorLine, Panel, Pill, Skeleton, iso } from '../parts';
 
 type Mode = 'now' | 'schedule' | 'extend' | null;
 
@@ -71,6 +71,7 @@ export function Maintenance({ console }: { console: Console }) {
     <div className="admin-stack">
       <Panel
         title={`${text.maintenance.title} — ${machine.product ?? machine.title}`}
+        description={text.maintenance.hint}
         actions={
           <>
             <Button variant="danger" size="sm" onClick={() => setMode('now')} disabled={phase === 'active'}>
@@ -95,8 +96,10 @@ export function Maintenance({ console }: { console: Console }) {
         {status.data && (
           <div className="admin-stack">
             <div className="admin-row">
-              <span className="admin-row__name">{text.maintenance.status}</span>
-              <Badge variant={phase === 'none' ? 'neutral' : 'danger'}>{text.overview.phase[phase]}</Badge>
+              <span className="admin-strong">{text.maintenance.status}</span>
+              <Pill tone={phase === 'none' ? 'ok' : phase === 'scheduled' ? 'warn' : 'bad'} dot>
+                {text.overview.phase[phase]}
+              </Pill>
               {now.data && (
                 <span className="admin-hint">
                   {text.maintenance.liveNow
@@ -134,7 +137,7 @@ export function Maintenance({ console }: { console: Console }) {
           </div>
         )}
       </Panel>
-      <Panel title={text.maintenance.drain}>
+      <Panel title={text.maintenance.drainTitle}>
         <ErrorLine error={drain.error} onRetry={() => void drain.refetch()} />
         <Switch
           checked={drain.data?.on ?? false}

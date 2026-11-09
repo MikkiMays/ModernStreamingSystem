@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Users } from 'lucide-react';
 import { Button, Field, Input, Switch, Tab, TabList, TabPanel, Tabs } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type LiveRoom, type Now, type Summary } from '../api';
 import type { Console } from '../AdminApp';
-import { Confirm, Empty, ErrorLine, Panel, Skeleton, Tile, duration } from '../parts';
+import { Confirm, Empty, ErrorLine, Panel, Skeleton, Stat, Stats, duration } from '../parts';
+import { streams } from './Live';
 
 /** Встречи ядра выбранной машины (§8.4): сейчас (с завершением) и сводка за период. */
 export function Meetings({ console }: { console: Console }) {
@@ -17,7 +19,7 @@ export function Meetings({ console }: { console: Console }) {
         <Tab value="period">{text.meetings.period}</Tab>
       </TabList>
       <TabPanel value="now">
-        <LiveMeetings id={machine.id} />
+        <LiveMeetings id={machine.id} title={machine.product ?? machine.title} />
       </TabPanel>
       <TabPanel value="period">
         <Period id={machine.id} />
@@ -26,7 +28,7 @@ export function Meetings({ console }: { console: Console }) {
   );
 }
 
-function LiveMeetings({ id }: { id: string }) {
+function LiveMeetings({ id, title }: { id: string; title: string }) {
   const client = useQueryClient();
   const now = useQuery({
     queryKey: ['now', id],
@@ -45,57 +47,83 @@ function LiveMeetings({ id }: { id: string }) {
     },
   });
   const data = now.data;
+  const rooms = data ? [...data.rooms].sort((a, b) => streams(b) - streams(a)) : [];
   return (
-    <Panel title={text.meetings.now}>
-      <ErrorLine error={now.error} onRetry={() => void now.refetch()} />
-      {now.isPending && <Skeleton />}
-      {data && (
-        <div className="admin-tiles">
-          <Tile value={data.live} label={text.overview.meetings} />
-          <Tile value={data.humans} label={text.overview.humans} />
-          <Tile value={data.bots} label={text.overview.bots} />
-          <Tile value={data.screens} label={text.overview.screens} />
-        </div>
-      )}
-      {data && data.rooms.length === 0 && <Empty>{text.meetings.empty}</Empty>}
-      {data && data.rooms.length > 0 && (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>{text.meetings.code}</th>
-                <th>{text.meetings.humans}</th>
-                <th>{text.meetings.screens}</th>
-                <th>{text.meetings.bots}</th>
-                <th>{text.meetings.node}</th>
-                <th>{text.meetings.since}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {data.rooms.map((room) => (
-                <tr key={room.id}>
-                  <td>
-                    <code>{room.code}</code>
-                  </td>
-                  <td>{room.humans}</td>
-                  <td>{room.screens}</td>
-                  <td>{room.bots}</td>
-                  <td>{room.mediaNode ?? '—'}</td>
-                  <td>
-                    {room.startedAt ? duration(Math.max(0, (data.serverTime - room.startedAt) / 1000)) : '—'}
-                  </td>
-                  <td>
-                    <Button variant="danger" size="sm" onClick={() => setClosing(room)}>
-                      {text.meetings.close}
-                    </Button>
-                  </td>
+    <div className="admin-stack">
+      <Panel title={`${text.meetings.now} — ${title}`} description={text.meetings.nowHint}>
+        <ErrorLine
+          error={now.error}
+          onRetry={() => void now.refetch()}
+          updatedAt={data ? now.dataUpdatedAt : undefined}
+        />
+        {now.isPending && <Skeleton rows={2} />}
+        {data && (
+          <Stats>
+            <Stat value={data.live} label={text.live.meetings} />
+            <Stat value={data.humans} label={text.live.humans} />
+            <Stat value={data.screens} label={text.live.screens} />
+            <Stat value={data.bots} label={text.overview.botsLabel} />
+          </Stats>
+        )}
+      </Panel>
+      <Panel title={text.meetings.list} flush>
+        {now.isPending && <Skeleton />}
+        {data && rooms.length === 0 && <Empty icon={<Users />}>{text.meetings.empty}</Empty>}
+        {rooms.length > 0 && (
+          <div className="admin-table-wrap">
+            <table className="admin-table" data-stack>
+              <thead>
+                <tr>
+                  <th>{text.meetings.code}</th>
+                  <th data-num>{text.meetings.humans}</th>
+                  <th data-num>{text.meetings.screens}</th>
+                  <th data-num>{text.meetings.bots}</th>
+                  <th>{text.meetings.node}</th>
+                  <th>{text.meetings.since}</th>
+                  <th>
+                    <span className="sr-only">{text.nodes.actions}</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {rooms.map((room) => (
+                  <tr key={room.id}>
+                    <td data-primary>
+                      <code>{room.code}</code>
+                      {room.integrations.map((kind) => (
+                        <span key={kind} className="admin-hint">
+                          {' '}
+                          · {text.live.integrationKinds[kind] ?? kind}
+                        </span>
+                      ))}
+                    </td>
+                    <td data-num data-label={text.meetings.humans}>
+                      {room.humans}
+                    </td>
+                    <td data-num data-label={text.meetings.screens}>
+                      {room.screens}
+                    </td>
+                    <td data-num data-label={text.meetings.bots}>
+                      {room.bots}
+                    </td>
+                    <td data-label={text.meetings.node}>{room.mediaNode ?? '—'}</td>
+                    <td data-label={text.meetings.since}>
+                      {room.startedAt
+                        ? duration(Math.max(0, (data!.serverTime - room.startedAt) / 1000))
+                        : '—'}
+                    </td>
+                    <td className="admin-actions" data-num>
+                      <Button variant="danger" size="sm" onClick={() => setClosing(room)}>
+                        {text.meetings.close}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
       <Confirm
         open={closing !== null}
         onOpenChange={(open) => !open && setClosing(null)}
@@ -119,7 +147,7 @@ function LiveMeetings({ id }: { id: string }) {
           </Field>
         )}
       </Confirm>
-    </Panel>
+    </div>
   );
 }
 
@@ -156,20 +184,20 @@ function Period({ id }: { id: string }) {
       <ErrorLine error={summary.error} onRetry={() => void summary.refetch()} />
       {summary.isPending && <Skeleton />}
       {data && (
-        <div className="admin-tiles">
-          <Tile value={data.meetings} label={text.meetings.meetingsCount} />
-          <Tile value={(data.humanSeconds / 3600).toFixed(1)} label={text.meetings.humanHours} />
-          <Tile value={Math.round(data.medianSeconds / 60)} label={text.meetings.median} />
-          <Tile value={Math.round(data.longestSeconds / 60)} label={text.meetings.longest} />
-          <Tile value={data.peakHumans} label={text.meetings.peak} />
-          <Tile value={data.uniqueDevices} label={text.meetings.devices} />
-          <Tile value={data.joins} label={text.meetings.joins} />
-          <Tile
+        <Stats>
+          <Stat value={data.meetings} label={text.meetings.meetingsCount} />
+          <Stat value={(data.humanSeconds / 3600).toFixed(1)} label={text.meetings.humanHours} />
+          <Stat value={Math.round(data.medianSeconds / 60)} label={text.meetings.median} />
+          <Stat value={Math.round(data.longestSeconds / 60)} label={text.meetings.longest} />
+          <Stat value={data.peakHumans} label={text.meetings.peak} />
+          <Stat value={data.uniqueDevices} label={text.meetings.devices} />
+          <Stat value={data.joins} label={text.meetings.joins} />
+          <Stat
             value={data.joinFailures}
             label={text.meetings.joinFailures}
             tone={data.joinFailures ? 'warn' : undefined}
           />
-        </div>
+        </Stats>
       )}
     </Panel>
   );

@@ -1,24 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import {
-  Badge,
-  Button,
-  Dialog,
-  Field,
-  Flag,
-  Input,
-  LoadBars,
-  Switch,
-  useToast,
-  type LoadState,
-} from '../../ui/kit';
+import { Plus, Server } from 'lucide-react';
+import { Button, Dialog, Field, Flag, Input, LoadBars, Switch, useToast, type LoadState } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type AddServerPlan, type Job, type NodesView, type RegistryNode } from '../api';
 import type { Console } from '../AdminApp';
-import { Confirm, Empty, ErrorLine, Panel, Skeleton } from '../parts';
+import { Confirm, Empty, ErrorLine, Panel, Pill, Skeleton, type Tone } from '../parts';
 
 type Action = 'drain' | 'undrain' | 'check' | 'update' | 'remove' | 'logs';
+
+const STATE_TONE: Record<string, Tone> = {
+  ok: 'ok',
+  busy: 'warn',
+  full: 'warn',
+  down: 'bad',
+  drained: 'neutral',
+};
 
 const STATE: Record<string, LoadState> = {
   ok: 'ok',
@@ -83,13 +80,19 @@ export function Nodes({ console }: { console: Console }) {
     <div className="admin-stack">
       <Panel
         title={`${text.nodes.title} — ${machine.product ?? machine.title}`}
+        description={text.nodes.hint}
+        flush
         actions={
           <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={() => setAdding(true)}>
             {text.nodes.add}
           </Button>
         }
       >
-        <ErrorLine error={nodes.error} onRetry={() => void nodes.refetch()} />
+        <ErrorLine
+          error={nodes.error}
+          onRetry={() => void nodes.refetch()}
+          updatedAt={data ? nodes.dataUpdatedAt : undefined}
+        />
         {data?.registryError && !data.registry && <p className="admin-hint">{data.registryError}</p>}
         {data?.levels.error && (
           <p className="admin-hint">
@@ -97,19 +100,29 @@ export function Nodes({ console }: { console: Console }) {
           </p>
         )}
         {nodes.isPending && <Skeleton />}
-        {data && registryNodes.length === 0 && <Empty>{text.nodes.empty}</Empty>}
+        {data && registryNodes.length === 0 && (
+          <Empty
+            icon={<Server />}
+            action={
+              <Button variant="secondary" size="sm" icon={<Plus size={16} />} onClick={() => setAdding(true)}>
+                {text.nodes.add}
+              </Button>
+            }
+          >
+            {text.nodes.empty}
+          </Empty>
+        )}
         {data && registryNodes.length > 0 && (
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table" data-stack>
               <thead>
                 <tr>
                   <th>{text.nodes.node}</th>
-                  <th>{text.nodes.country}</th>
                   <th>{text.nodes.state}</th>
                   <th>{text.nodes.level}</th>
-                  <th>{text.nodes.rooms}</th>
-                  <th>{text.nodes.uplink}</th>
-                  <th>{text.nodes.cores}</th>
+                  <th data-num>{text.nodes.rooms}</th>
+                  <th data-num>{text.nodes.uplink}</th>
+                  <th data-num>{text.nodes.cores}</th>
                   <th>{text.nodes.actions}</th>
                 </tr>
               </thead>
@@ -119,33 +132,38 @@ export function Nodes({ console }: { console: Console }) {
                   const drained = node.enabled === false;
                   return (
                     <tr key={node.id}>
-                      <td>
-                        <strong>{node.id}</strong>
-                        <span className="admin-hint"> {node.title?.ru ?? ''}</span>
-                        {node.control && <Badge variant="neutral">{text.nodes.control}</Badge>}
+                      <td data-primary>
+                        <span className="admin-row">
+                          {node.country ? <Flag country={node.country} /> : null}
+                          <strong>{node.id}</strong>
+                          <span className="admin-hint">{node.title?.ru ?? ''}</span>
+                          {node.control && <Pill>{text.nodes.control}</Pill>}
+                        </span>
+                        {node.ip && <span className="admin-sub">{node.ip}</span>}
                       </td>
-                      <td>{node.country ? <Flag country={node.country} /> : '—'}</td>
-                      <td>
+                      <td data-label={text.nodes.state}>
                         {drained ? (
-                          <Badge variant="soon">{text.nodes.drained}</Badge>
+                          <Pill dot>{text.nodes.drained}</Pill>
                         ) : level ? (
-                          <Badge
-                            variant={
-                              level.state === 'down' ? 'danger' : level.state === 'ok' ? 'success' : 'accent'
-                            }
-                          >
-                            {level.state}
-                          </Badge>
+                          <Pill tone={STATE_TONE[level.state] ?? 'neutral'} dot>
+                            {text.nodes.states[level.state] ?? level.state}
+                          </Pill>
                         ) : (
-                          <Badge variant="neutral">{text.nodes.enabled}</Badge>
+                          <Pill dot>{text.nodes.enabled}</Pill>
                         )}
                       </td>
-                      <td>
+                      <td data-label={text.nodes.level}>
                         {level ? <LoadBars level={level.level} state={STATE[level.state] ?? 'ok'} /> : '—'}
                       </td>
-                      <td>{node.maxRooms ?? '—'}</td>
-                      <td>{node.uplinkMbps ?? '—'}</td>
-                      <td>{node.cores ?? '—'}</td>
+                      <td data-num data-label={text.nodes.rooms}>
+                        {node.maxRooms ?? '—'}
+                      </td>
+                      <td data-num data-label={text.nodes.uplink}>
+                        {node.uplinkMbps ?? '—'}
+                      </td>
+                      <td data-num data-label={text.nodes.cores}>
+                        {node.cores ?? '—'}
+                      </td>
                       <td className="admin-actions">
                         {!node.control && (
                           <>
@@ -191,6 +209,7 @@ export function Nodes({ console }: { console: Console }) {
                               variant="danger"
                               size="sm"
                               disabled={!drained}
+                              title={drained ? undefined : text.nodes.removeHint}
                               onClick={() => setPending({ node, action: 'remove' })}
                             >
                               {text.nodes.remove}
