@@ -10,22 +10,25 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Реестр медиаузлов и выбор узла для новой встречи (R195, ёмкость — R200).
+ * Реестр медиаузлов и выбор узла для новой встречи (R195; ёмкость — R200; без пределов по числу
+ * встреч — R228, Р-135).
  *
  * <p>ИСТОЧНИК. Файл {@code stream.nodes-file} ({@code infra/generated/nodes/registry.json}),
  * который пишет {@code scripts/node-config.mjs} на узле управления. Перечитывается не чаще раза в
@@ -34,22 +37,32 @@ import org.springframework.stereotype.Component;
  * и {@code LIVEKIT_INTERNAL_URL} с именем {@code stream.node-id}; так работала каждая установка до
  * узлов, и так же работают тесты.
  *
+ * <p>ЧИСЛО ВСТРЕЧ — НЕ ПРЕДЕЛ (Р-135, как у Google Meet, Телемоста и Discord). Ни ядро, ни узел не
+ * считают встречи против потолка: узел упирается в ЦП, канал, память или диск, а не в счётчик.
+ * Каждый ресурс узла — доля к своему мягкому порогу ({@link #CPU_HOT}, {@link #EGRESS_HOT}, {@link
+ * #MEMORY_HOT}, {@link #SFU_MEMORY_HOT}, {@link #DISK_HOT}); нагрузка узла — наибольшая из этих
+ * долей, 1 — порог. Узел «горячий» с нагрузки 1 и остывает, только простояв ниже {@link #COOL}
+ * {@link #COOL_AFTER_MS} (гистерезис по значению и по времени; сглаживание ЦП, канала и памяти — в
+ * {@code media.NodeHealth}, EWMA раз в 2 с). Метрик нет — ЦП оценивается по людям на узле ({@link
+ * #PEOPLE_PER_CORE}), память SFU — по людям ({@link #SFU_MB_PER_PERSON}).
+ *
  * <p>ВЫБОР ({@code server-selection.md} §3.1, §3.4). Создатель встречи присылает {@code
  * preferredNode} — узел, до которого его устройство измерило лучший путь ({@code
- * web/src/media/node-probe.ts}), и сами замеры. Ядро проверяет, что узел есть, принимает встречи,
- * жив (его не отметил мёртвым опрос {@code media.NodeHealth}), не полон и не на ступени 4. Узел на
- * ступени 3 или без запаса под рост (прогнозная доля после новой встречи выше {@link #HEADROOM})
- * уступает узлу со ступенью ≤ 2, если тот не дальше {@link #TIE_MS} по замеру создателя. Иначе —
- * лучший по замеру среди свободных, иначе узел управления, иначе первый живой, иначе узел
- * управления как есть (встреча хоть куда-то, а не отказ). Причина выбора — в метрике {@code
- * cord.node.choice}.
+ * web/src/media/node-probe.ts}), и сами замеры. Узел «с запасом» — живой, принимает встречи, не
+ * горячий и останется ниже порога с этой встречей и с теми, что поставлены на него за последние
+ * {@link #RESERVE_MS} (их нагрузка ещё не дошла до метрик: {@link #MEETING_MBPS}, {@link
+ * #MEETING_CORES} на встречу — так пачка встреч не ложится на один узел). Предпочтённый узел с
+ * запасом — он; иначе ближайший по замеру создателя среди узлов с запасом («перенаправить на другой
+ * ближайший»); без замеров — узел управления или наименее загруженный. Запаса нет ни у кого —
+ * встреча всё равно создаётся, на наименее загруженном узле (причина {@code *-saturated}, метрика
+ * {@code cord.nodes.saturated}): отказа по нагрузке нет, SFU сам снижает слои (simulcast, dynacast,
+ * adaptive stream). Идущие встречи ради нагрузки не переезжают (Р-102) — только при смерти узла.
+ * Причина выбора — в метрике {@code cord.node.choice}.
  *
- * <p>СТУПЕНЬ 1–4 на каждый узел — по правилу {@code activity.LoadMeter}: наибольшая из долей
- * «встречи / maxRooms», «люди / (maxRooms × 6)», «ЦП со steal», «отдача / uplinkMbps»; четверти;
- * вверх сразу, вниз через {@link #DOWN_AFTER_MS}. Данные приносит {@code media.NodeHealth} раз в
- * опрос ({@link #load}); ЦП и канал — только у узлов с {@code loadUrl}, остальным хватает встреч и
- * людей. Один неявный узел ведёт себя как до R200: ступень на решение не влияет, потому что
- * выбирать не из чего.
+ * <p>СТУПЕНЬ 1–4 на каждый узел — для палочек в «Настройки → Сервер»: по нагрузке трети порога,
+ * горячий — 4 («full»), steal выше {@link #STEAL_BUSY} — не ниже 3; вверх сразу, вниз через {@link
+ * #DOWN_AFTER_MS}. Данные приносит {@code media.NodeHealth} раз в опрос ({@link #load}). Один
+ * неявный узел ведёт себя как до R200: выбирать не из чего, встреча всегда на нём.
  *
  * <p>ПОЧЕМУ НЕ В {@code media}. Пакет {@code room} ({@code RoomService.create}) этим пользуется, а
  * зависеть от медиатранспорта ему нельзя ({@code ArchitectureTest}). Здесь нет ни LiveKit, ни сети
@@ -61,19 +74,68 @@ public class MediaNodes {
   static final long RELOAD_MS = 10_000;
   static final String FORMAT = "cord.nodes/1";
 
-  /** Сколько людей считается «полной» встречей при доле людей и в прогнозе новой встречи. */
-  static final int PEOPLE_PER_ROOM = 6;
+  /** Мягкий порог ЦП хоста (со steal): выше — узел горячий. */
+  static final double CPU_HOT = 0.70;
 
-  /** Сколько отдачи канала занимает новая встреча в прогнозе (камеры 5–6 человек). */
+  /** Мягкий порог отдачи канала к {@code uplinkMbps} узла. */
+  static final double EGRESS_HOT = 0.70;
+
+  /**
+   * Мягкий порог занятой памяти хоста ({@code 1 − MemAvailable / MemTotal}): кэш страниц не в счёт.
+   */
+  static final double MEMORY_HOT = 0.85;
+
+  /**
+   * Мягкий порог памяти процесса SFU к пределу его контейнера: Go нужен запас под сборку мусора.
+   */
+  static final double SFU_MEMORY_HOT = 0.80;
+
+  /** Мягкий порог занятого корневого диска: журналы и образы Docker. */
+  static final double DISK_HOT = 0.90;
+
+  /** Нагрузка, с которой узел горячий: наибольшая доля дошла до своего порога. */
+  static final double HOT = 1.0;
+
+  /**
+   * Нагрузка, ниже которой горячий узел остывает: ЦП и канал — 60 %, память хоста — 72 %, память
+   * SFU — 68 %, диск — 76 %.
+   */
+  static final double COOL = 0.857;
+
+  /** Сколько горячий узел должен простоять ниже {@link #COOL}, чтобы снова брать встречи. */
+  static final long COOL_AFTER_MS = 30_000;
+
+  /** Ступень вниз — не раньше, чем через столько: палочки не мигают на каждом всплеске. */
+  static final long DOWN_AFTER_MS = 30_000;
+
+  /**
+   * Отдача, которую новая встреча успевает набрать, пока её нет в метриках (камеры 3–6 человек).
+   */
   static final double MEETING_MBPS = 25;
 
-  /** Запас под рост идущих встреч: узел с прогнозной долей выше не берётся, пока есть другой. */
-  static final double HEADROOM = 0.75;
+  /** ЦП той же встречи: ≈ 250 Мбит/с пересылки на ядро ({@code docs/capacity.md}, И1 R227). */
+  static final double MEETING_CORES = 0.1;
 
-  /** Узлы, чьи замеры различаются не больше этого, считаются равными — берётся менее занятый. */
-  static final int TIE_MS = 20;
+  /** Сколько поставленная встреча считается сверх метрик узла (резерв под запаздывание). */
+  static final long RESERVE_MS = 60_000;
 
-  static final long DOWN_AFTER_MS = 30_000;
+  /**
+   * Сколько людей на ядро — оценка ЦП, пока node-exporter молчит (2 vCPU ≈ 150 Мбит/с, T09/R227).
+   */
+  static final int PEOPLE_PER_CORE = 15;
+
+  /** Оценка памяти SFU без его метрик: база и на человека ({@code docs/capacity.md} §3). */
+  static final double SFU_BASE_MB = 60;
+
+  static final double SFU_MB_PER_PERSON = 6;
+
+  /** steal выше этого — ступень не ниже 3: хост делит ЦП с соседями. */
+  static final double STEAL_BUSY = 0.25;
+
+  /**
+   * Журнал «запаса нет нигде» — не чаще раза в столько: встречи создаются, крик не нужен каждой.
+   */
+  static final long SATURATED_LOG_MS = 60_000;
 
   /** Чем кончился выбор: для метрики и журнала. */
   public record Choice(MediaNode node, String reason) {}
@@ -83,6 +145,37 @@ public class MediaNodes {
 
   /** Нагрузка узла для показа: ступень и состояние, без чисел ({@code GET /api/v1/nodes}). */
   public record Level(int level, String state) {}
+
+  /**
+   * Что узел показал опросом ({@code media.NodeHealth}): комнаты и люди — из {@code ListRooms}; ЦП
+   * со steal, steal, занятая память и корневой диск хоста — доли 0…1, отдача — Мбит/с (всё из
+   * node-exporter); память процесса SFU — МиБ (из метрик SFU). {@code NaN} — не меряется.
+   */
+  public record Sample(
+      int rooms,
+      int participants,
+      double cpu,
+      double steal,
+      double egressMbps,
+      double memory,
+      double disk,
+      double sfuMemoryMb) {
+    /** Только то, что знает {@code ListRooms}. */
+    public static Sample rooms(int rooms, int participants) {
+      return new Sample(
+          rooms,
+          participants,
+          Double.NaN,
+          Double.NaN,
+          Double.NaN,
+          Double.NaN,
+          Double.NaN,
+          Double.NaN);
+    }
+  }
+
+  /** Нагрузка узла: наибольшая доля к своему порогу и какой ресурс её дал. */
+  record Pressure(double value, String by) {}
 
   private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -111,19 +204,20 @@ public class MediaNodes {
   private final Set<String> unreachable = ConcurrentHashMap.newKeySet();
 
   private final Map<String, Load> loads = new ConcurrentHashMap<>();
+  private final AtomicLong saturatedLoggedAt = new AtomicLong(Long.MIN_VALUE / 2);
 
-  /** Что известно о нагрузке узла по последнему опросу. */
+  /** Что известно о нагрузке узла по последнему опросу. Меняется под замком самого объекта. */
   static final class Load {
-    volatile int rooms;
-    volatile int participants;
-
-    /** Доли 0…1; {@code NaN} — не меряется (узел без {@code loadUrl} или node-exporter молчит). */
-    volatile double cpu = Double.NaN;
-
-    volatile double steal = Double.NaN;
-    volatile double uplinkMbps = Double.NaN;
+    volatile Sample sample = Sample.rooms(0, 0);
+    volatile double pressure;
+    volatile String by = "none";
+    volatile boolean hot;
+    long coolSince = -1;
     final AtomicInteger level = new AtomicInteger(1);
     long lowerSince = -1;
+
+    /** Когда на узел ставились встречи последние {@link #RESERVE_MS}. */
+    final Deque<Long> placed = new ArrayDeque<>();
   }
 
   @Autowired
@@ -139,6 +233,11 @@ public class MediaNodes {
     Gauge.builder("cord.node.registry.ignored", ignored, AtomicInteger::get)
         .description("Реестр узлов проигнорирован: его узел управления — не NODE_ID этого сервера")
         .register(registry);
+    Gauge.builder("cord.nodes.saturated", this, nodes -> nodes.saturated() ? 1 : 0)
+        .description(
+            "Все живые медиаузлы горячие (Р-135): встречи создаются на наименее загруженном, запаса"
+                + " нет")
+        .register(registry);
     this.implicit =
         new MediaNode(
             config.nodeId(),
@@ -148,7 +247,6 @@ public class MediaNodes {
             config.publicUrl(),
             null,
             config.livekitInternalUrl(),
-            config.maxRooms(),
             true);
     this.nodes = List.of(implicit);
   }
@@ -195,9 +293,13 @@ public class MediaNodes {
     return choose(preferred, measures, false);
   }
 
-  /** {@code manual} — узел просил человек в настройках, а не замер (Р-101): видно в метрике. */
+  /**
+   * {@code manual} — узел просил человек в настройках, а не замер (Р-101): видно в метрике.
+   * Выбранный узел получает резерв новой встречи на {@link #RESERVE_MS}.
+   */
   public Choice choose(String preferred, List<Measure> measures, boolean manual) {
     var choice = decide(preferred, measures == null ? List.of() : measures);
+    reserve(choice.node().id());
     Counter.builder("cord.node.choice")
         .description("Выбор узла для новой встречи: узел и причина")
         .tags(
@@ -215,71 +317,56 @@ public class MediaNodes {
   Choice decide(String preferred, List<Measure> measures) {
     var candidates = available();
     var control = control();
+    var now = clock.millis();
+    MediaNode wanted = null;
     if (preferred != null)
-      for (var node : candidates)
-        if (node.id().equals(preferred)) {
-          // Полный узел по предпочтению не берётся: встреча идёт на запасной (ревью R195).
-          if (full(node)) return fallback(candidates, control, measures, "preferred-full");
-          // Ступень 4 без свободных мест по встречам — то же: людям там уже тесно.
-          if (level(node.id()) >= 4)
-            return fallback(candidates, control, measures, "preferred-level");
-          // Тесно или без запаса — уступает соседу не дальше TIE_MS со ступенью ≤ 2 (§3.4).
-          if (level(node.id()) >= 3 || !headroom(node)) {
-            var mine = ms(measures, node.id());
-            if (mine != null) {
-              var nearby =
-                  candidates.stream()
-                      .filter(n -> n != node && placeable(n) && level(n.id()) <= 2 && headroom(n))
-                      .filter(
-                          n -> {
-                            var other = ms(measures, n.id());
-                            return other != null && other <= mine + TIE_MS;
-                          })
-                      .min(Comparator.comparingInt((MediaNode n) -> level(n.id())));
-              if (nearby.isPresent()) return new Choice(nearby.get(), "preferred-busy");
-            }
-          }
-          return new Choice(node, "preferred");
-        }
-    if (preferred != null && !knows(preferred))
-      return fallback(candidates, control, measures, "unknown");
-    if (preferred != null)
-      return fallback(
-          candidates,
-          control,
-          measures,
-          down.contains(preferred)
-              ? "down"
-              : unreachable.contains(preferred) ? "unreachable" : "disabled");
-    return fallback(candidates, control, measures, "default");
-  }
-
-  private Choice fallback(
-      List<MediaNode> candidates, MediaNode control, List<Measure> measures, String why) {
-    // Замеры есть — лучший по пути среди свободных (с запасом), а не узел управления вслепую.
-    if (!measures.isEmpty()) {
-      var measured = bestMeasured(candidates, measures);
-      if (measured.isPresent()) return new Choice(measured.get(), why + "-measured");
+      for (var node : candidates) if (node.id().equals(preferred)) wanted = node;
+    if (wanted != null && headroom(wanted, now)) return new Choice(wanted, "preferred");
+    String why;
+    if (wanted != null) why = "preferred-hot";
+    else if (preferred == null) why = "default";
+    else if (!knows(preferred)) why = "unknown";
+    else if (down.contains(preferred)) why = "down";
+    else if (unreachable.contains(preferred)) why = "unreachable";
+    else why = "disabled";
+    // Все мёртвы — встреча всё равно куда-то ставится (на узел управления), а не отказ.
+    if (candidates.isEmpty()) return new Choice(control, why + "-all-down");
+    var roomy = candidates.stream().filter(n -> headroom(n, now)).toList();
+    if (!roomy.isEmpty()) {
+      // Ближайший по пути создателя среди узлов с запасом: UDP впереди TCP, потом миллисекунды.
+      var nearest = roomy.stream().filter(n -> ms(measures, n.id()) != null).min(byPath(measures));
+      if (nearest.isPresent()) return new Choice(nearest.get(), why + "-measured");
+      if (roomy.contains(control)) return new Choice(control, why + "-control");
+      return new Choice(leastLoaded(roomy, measures, now), why + "-least");
     }
-    if (candidates.contains(control) && !full(control))
-      return new Choice(control, why + "-control");
-    for (var node : candidates) if (!full(node)) return new Choice(node, why + "-first");
-    if (candidates.contains(control)) return new Choice(control, why + "-control-full");
-    return new Choice(control, why + "-all-down");
+    // Запаса нет ни у кого: не отказ, а наименее загруженный узел; SFU снизит слои сам (Р-135).
+    var least = leastLoaded(candidates, measures, now);
+    var logged = saturatedLoggedAt.get();
+    if (now - logged >= SATURATED_LOG_MS && saturatedLoggedAt.compareAndSet(logged, now))
+      log.warn(
+          "Every media node is over its soft limits — the meeting goes to the least loaded {} ({}"
+              + " at {} % of its limit), not refused; add capacity",
+          least.id(), loadOf(least).by, Math.round(predicted(least, now, 1).value() * 100));
+    return new Choice(least, why + "-saturated");
   }
 
-  private Optional<MediaNode> bestMeasured(List<MediaNode> candidates, List<Measure> measures) {
-    Comparator<MediaNode> byPath =
-        Comparator.comparing((MediaNode n) -> !udpOpen(measures, n.id()))
-            .thenComparingInt(n -> ms(measures, n.id()));
-    var free =
-        candidates.stream()
-            .filter(n -> placeable(n) && ms(measures, n.id()) != null && headroom(n))
-            .min(byPath);
-    if (free.isPresent()) return free;
-    return candidates.stream()
-        .filter(n -> placeable(n) && ms(measures, n.id()) != null)
-        .min(byPath);
+  private static Comparator<MediaNode> byPath(List<Measure> measures) {
+    return Comparator.comparing((MediaNode n) -> !udpOpen(measures, n.id()))
+        .thenComparingInt(n -> ms(measures, n.id()));
+  }
+
+  /**
+   * Наименее загруженный по прогнозу с этой встречей; поровну — ближе по замеру, затем управление.
+   */
+  private MediaNode leastLoaded(List<MediaNode> nodes, List<Measure> measures, long now) {
+    Comparator<MediaNode> order =
+        Comparator.comparingDouble((MediaNode n) -> predicted(n, now, 1).value())
+            .thenComparing(n -> ms(measures, n.id()) == null)
+            .thenComparing(n -> !udpOpen(measures, n.id()))
+            .thenComparingInt(
+                n -> ms(measures, n.id()) == null ? Integer.MAX_VALUE : ms(measures, n.id()))
+            .thenComparing(n -> !n.control());
+    return nodes.stream().min(order).orElseThrow();
   }
 
   private static Integer ms(List<Measure> measures, String id) {
@@ -315,32 +402,37 @@ public class MediaNodes {
   }
 
   /**
-   * Сколько комнат SFU узел держит сейчас — по ответу {@code ListRooms}; полный узел не выбирается.
-   * Короткая форма {@link #load} для тех, кто знает только комнаты.
+   * Нагрузка узла с опроса ({@link Sample}). Отсюда — горячий ли узел (с гистерезисом) и ступень.
    */
-  public void rooms(String id, int count) {
-    var load = loads.computeIfAbsent(id, this::track);
-    load(id, count, load.participants, Double.NaN, Double.NaN, Double.NaN);
-  }
-
-  /**
-   * Нагрузка узла с опроса: встречи и люди — из {@code ListRooms}, ЦП, steal и отдача — из
-   * node-exporter узла ({@code NaN} — не меряется). Отсюда считается ступень.
-   */
-  public void load(
-      String id, int rooms, int participants, double cpu, double steal, double uplinkMbps) {
-    var load = loads.computeIfAbsent(id, this::track);
-    load.rooms = rooms;
-    load.participants = participants;
-    load.cpu = cpu;
-    load.steal = steal;
-    load.uplinkMbps = uplinkMbps;
+  public void load(String id, Sample sample) {
+    var load = loadOf(id);
     var node = resolveExact(id);
-    var wanted = node == null ? 1 : step(share(node, load, 0, 0, 0));
-    if (!Double.isNaN(steal) && steal > 0.25) wanted = Math.max(wanted, 3);
-    if (node != null && rooms >= node.maxRooms()) wanted = 4;
     var now = clock.millis();
     synchronized (load) {
+      load.sample = sample;
+      if (node == null) return;
+      var pressure = pressure(node, sample, 0);
+      load.pressure = pressure.value();
+      load.by = pressure.by();
+      if (!load.hot && pressure.value() >= HOT) {
+        load.hot = true;
+        load.coolSince = -1;
+        log.warn(
+            "Media node {} is hot: {} at {} % of its soft limit — new meetings go to the nearest"
+                + " node with headroom, running ones stay",
+            id, pressure.by(), Math.round(pressure.value() * 100));
+      } else if (load.hot) {
+        if (pressure.value() >= COOL) load.coolSince = -1;
+        else if (load.coolSince < 0) load.coolSince = now;
+        else if (now - load.coolSince >= COOL_AFTER_MS) {
+          load.hot = false;
+          load.coolSince = -1;
+          log.info("Media node {} has cooled down and takes new meetings again", id);
+        }
+      }
+      var wanted = load.hot ? 4 : step(pressure.value());
+      if (!Double.isNaN(sample.steal()) && sample.steal() > STEAL_BUSY)
+        wanted = Math.max(wanted, 3);
       if (wanted >= load.level.get()) {
         load.level.set(wanted);
         load.lowerSince = -1;
@@ -358,51 +450,115 @@ public class MediaNodes {
     return load == null ? 1 : load.level.get();
   }
 
+  /** Горячий ли узел: новые встречи — мимо него, пока у другого есть запас. */
+  public boolean hot(String id) {
+    var load = loads.get(id);
+    return load != null && load.hot;
+  }
+
+  /** Все живые узлы горячие: запаса нет нигде, встречи всё равно создаются (Р-135). */
+  public boolean saturated() {
+    var alive = available();
+    return !alive.isEmpty() && alive.stream().allMatch(n -> hot(n.id()));
+  }
+
   /** Ступень и состояние узла словами — для {@code GET /api/v1/nodes} и настроек. */
   public Level levelOf(MediaNode node) {
     String state;
     if (down.contains(node.id()) || unreachable.contains(node.id())) state = "down";
     else if (!node.enabled()) state = "drained";
-    else if (full(node) || level(node.id()) >= 4) state = "full";
+    else if (hot(node.id())) state = "full";
     else if (level(node.id()) >= 3) state = "busy";
     else state = "ok";
     return new Level(level(node.id()), state);
   }
 
-  private boolean placeable(MediaNode node) {
-    return !full(node) && level(node.id()) < 4;
-  }
-
-  /** Есть ли место под ещё одну встречу так, чтобы ни одна доля не вышла за {@link #HEADROOM}. */
-  boolean headroom(MediaNode node) {
+  /**
+   * Есть ли у узла запас под ещё одну встречу: не горячий и с ней, и с недавно поставленными
+   * останется ниже порога.
+   */
+  boolean headroom(MediaNode node, long now) {
     var load = loads.get(node.id());
-    if (load == null) return true;
-    return share(node, load, 1, PEOPLE_PER_ROOM, MEETING_MBPS) <= HEADROOM;
+    if (load != null && load.hot) return false;
+    return predicted(node, now, 1).value() < HOT;
   }
 
-  /** Наибольшая доля узла с прибавкой (прогноз новой встречи); доли без данных не считаются. */
-  private static double share(
-      MediaNode node, Load load, int moreRooms, int morePeople, double moreMbps) {
-    var rooms = (double) (load.rooms + moreRooms) / node.maxRooms();
-    var people = (double) (load.participants + morePeople) / (node.maxRooms() * PEOPLE_PER_ROOM);
-    var share = Math.max(rooms, people);
-    if (!Double.isNaN(load.cpu)) share = Math.max(share, load.cpu);
-    if (!Double.isNaN(load.uplinkMbps))
-      share = Math.max(share, (load.uplinkMbps + moreMbps) / node.uplinkMbps());
-    return share;
+  /** Нагрузка узла с резервом недавно поставленных встреч и {@code extra} новых. */
+  Pressure predicted(MediaNode node, long now, int extra) {
+    var load = loadOf(node.id());
+    int reserved;
+    synchronized (load) {
+      while (!load.placed.isEmpty() && Math.abs(now - load.placed.peekFirst()) >= RESERVE_MS)
+        load.placed.pollFirst();
+      reserved = load.placed.size();
+    }
+    return pressure(node, load.sample, reserved + extra);
   }
 
-  /** Доля 0…1 → ступень 1…4 по четвертям (как {@code LoadMeter.step}). */
-  static int step(double share) {
-    if (share < 0.25) return 1;
-    if (share < 0.5) return 2;
-    if (share < 0.75) return 3;
+  private void reserve(String id) {
+    var load = loadOf(id);
+    synchronized (load) {
+      load.placed.addLast(clock.millis());
+    }
+  }
+
+  /**
+   * Нагрузка узла: наибольшая из долей ресурсов, каждая к своему порогу, с прибавкой {@code
+   * meetings} новых встреч. Без ЦП из node-exporter — оценка по людям и ядрам; без памяти SFU — по
+   * людям; остальное без данных не считается.
+   */
+  static Pressure pressure(MediaNode node, Sample sample, int meetings) {
+    var value = 0.0;
+    var by = "none";
+    var cpu = sample.cpu();
+    if (Double.isNaN(cpu) && node.cores() > 0)
+      cpu = (double) sample.participants() / (node.cores() * PEOPLE_PER_CORE);
+    if (!Double.isNaN(cpu)) {
+      if (node.cores() > 0) cpu += meetings * MEETING_CORES / node.cores();
+      if (cpu / CPU_HOT > value) {
+        value = cpu / CPU_HOT;
+        by = "cpu";
+      }
+    }
+    var egress = Double.isNaN(sample.egressMbps()) ? 0 : sample.egressMbps();
+    var uplink = (egress + meetings * MEETING_MBPS) / node.uplinkMbps() / EGRESS_HOT;
+    if (uplink > value) {
+      value = uplink;
+      by = "egress";
+    }
+    if (!Double.isNaN(sample.memory()) && sample.memory() / MEMORY_HOT > value) {
+      value = sample.memory() / MEMORY_HOT;
+      by = "memory";
+    }
+    var sfu =
+        Double.isNaN(sample.sfuMemoryMb())
+            ? SFU_BASE_MB + SFU_MB_PER_PERSON * sample.participants()
+            : sample.sfuMemoryMb();
+    if (sfu / node.sfuMemoryMb() / SFU_MEMORY_HOT > value) {
+      value = sfu / node.sfuMemoryMb() / SFU_MEMORY_HOT;
+      by = "sfu-memory";
+    }
+    if (!Double.isNaN(sample.disk()) && sample.disk() / DISK_HOT > value) {
+      value = sample.disk() / DISK_HOT;
+      by = "disk";
+    }
+    return new Pressure(value, by);
+  }
+
+  /** Нагрузка → ступень 1…4 по третям порога; порог и выше — 4. */
+  static int step(double pressure) {
+    if (pressure < 0.35) return 1;
+    if (pressure < 0.7) return 2;
+    if (pressure < HOT) return 3;
     return 4;
   }
 
-  private boolean full(MediaNode node) {
-    var load = loads.get(node.id());
-    return load != null && load.rooms >= node.maxRooms();
+  private Load loadOf(MediaNode node) {
+    return loadOf(node.id());
+  }
+
+  private Load loadOf(String id) {
+    return loads.computeIfAbsent(id, this::track);
   }
 
   private MediaNode resolveExact(String id) {
@@ -414,6 +570,15 @@ public class MediaNodes {
     var load = new Load();
     Gauge.builder("cord.node.level", load.level, AtomicInteger::get)
         .description("Ступень нагрузки медиаузла 1–4, как её видят люди в настройках (R200)")
+        .tags("node", id)
+        .register(registry);
+    Gauge.builder("cord.node.pressure", load, l -> l.pressure)
+        .description(
+            "Нагрузка медиаузла: наибольшая доля ресурса к его мягкому порогу, 1 — порог (Р-135)")
+        .tags("node", id)
+        .register(registry);
+    Gauge.builder("cord.node.hot", load, l -> l.hot ? 1 : 0)
+        .description("Медиаузел горячий: новые встречи идут на ближайший узел с запасом (Р-135)")
         .tags("node", id)
         .register(registry);
     return load;

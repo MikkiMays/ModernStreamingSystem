@@ -79,4 +79,43 @@ class NodeExporterTest {
             1);
     assertThat(sample.total()).isEqualTo(3);
   }
+
+  /**
+   * Память и диск — по одному снимку (Р-135): занятая память хоста без кэша страниц ({@code
+   * MemAvailable}), корневая файловая система, а не {@code /boot/efi} или снимки snap.
+   */
+  @Test
+  void memoryAndTheRootDiskComeFromOneSample() {
+    var sample =
+        NodeExporter.parse(
+            FIRST
+                + """
+                node_memory_MemTotal_bytes 4.294967296e+09
+                node_memory_MemAvailable_bytes 1.073741824e+09
+                node_memory_MemFree_bytes 1.0e+08
+                node_filesystem_avail_bytes{device="/dev/vda15",fstype="vfat",mountpoint="/boot/efi"} 1
+                node_filesystem_size_bytes{device="/dev/vda15",fstype="vfat",mountpoint="/boot/efi"} 100
+                node_filesystem_avail_bytes{device="/dev/vda1",fstype="ext4",mountpoint="/"} 4e+09
+                node_filesystem_size_bytes{device="/dev/vda1",fstype="ext4",mountpoint="/"} 4e+10
+                """,
+            1_000);
+    assertThat(sample.memory()).isCloseTo(0.75, within(1e-9));
+    assertThat(sample.disk()).isCloseTo(0.9, within(1e-9));
+    // Без рядов памяти и диска — неизвестно, а не ноль.
+    var bare = NodeExporter.parse(FIRST, 1_000);
+    assertThat(bare.memory()).isNaN();
+    assertThat(bare.disk()).isNaN();
+  }
+
+  @Test
+  void theSfuResidentMemoryIsReadFromItsOwnMetrics() {
+    assertThat(
+            NodeExporter.residentMb(
+                "# TYPE process_resident_memory_bytes gauge\n"
+                    + "process_resident_memory_bytes_total 1\n"
+                    + "process_resident_memory_bytes 1.19894016e+08\n"))
+        .isCloseTo(114.34, within(0.01));
+    assertThat(NodeExporter.residentMb("go_goroutines 10\n")).isNaN();
+    assertThat(NodeExporter.residentMb(null)).isNaN();
+  }
 }

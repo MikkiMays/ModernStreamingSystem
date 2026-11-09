@@ -19,8 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest(
     properties = {
       "spring.datasource.url=jdbc:h2:mem:favorite-order;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-      "stream.scheduling-enabled=false",
-      "stream.max-rooms=200"
+      "stream.scheduling-enabled=false"
     })
 @ActiveProfiles("local")
 class FavoriteOrderTest {

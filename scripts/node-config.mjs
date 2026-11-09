@@ -8,6 +8,7 @@ import { createLivekit } from "./livekit-config.mjs";
 import {
   BACKBONE_PORT,
   NODE_LOCAL,
+  NODE_SERVICES,
   assertNodeId,
   controlBackbone,
   controlPorts,
@@ -19,7 +20,7 @@ import {
  *
  *   node scripts/node-config.mjs --node=hel --ip=152.234.227.199 \
  *     --app=hel.cordcam.ru --rtc=rtc-hel.cordcam.ru --turn=turn-hel.cordcam.ru \
- *     --title-ru=Хельсинки --title-en=Helsinki --country=FI --max-rooms=2 --uplink-mbps=1000 --cores=2 \
+ *     --title-ru=Хельсинки --title-en=Helsinki --country=FI --uplink-mbps=1000 --cores=2 \
  *     --ssh=root@152.234.227.199 --ssh-key=/root/.ssh/cord_fi
  *   node scripts/node-config.mjs --node=hel --mode=ip --ip=…        # до DNS: самоподписанный сертификат
  *   node scripts/node-config.mjs --node=hel --refresh                 # перевыпуск файлов по nodes.json
@@ -35,11 +36,18 @@ import {
  * Узел управления (A) тоже узел: первая запись `nodes.json` с `control: true` строится из `.env` и
  * получает `--control-id` (по умолчанию `fra`). Его сертификат — такой же, как у медиаузлов.
  *
- * Ёмкость и показ (R200, `server-selection.md` §3.4): `country` — ISO 3166-1 alpha-2 для флага у человека;
- * `uplinkMbps` — отдача канала узла (доля трафика в ступени нагрузки); `cores` — ядра хоста, для справки;
- * `loadUrl` — node-exporter узла по магистрали (`127.0.0.1:2N002`), откуда ядро читает ЦП и трафик. У узла
- * управления `loadUrl` — его собственный node-exporter (профиль `monitoring`), страна и ядра — из `.env`
- * (`NODE_COUNTRY`) и `os.cpus()`.
+ * Ёмкость и показ (R200, `server-selection.md` §3.4; Р-135): `country` — ISO 3166-1 alpha-2 для флага у
+ * человека; `uplinkMbps` — отдача канала узла (доля к мягкому порогу 70 %); `cores` — ядра хоста (оценка ЦП
+ * по людям, пока node-exporter молчит, и резерв новой встречи); `loadUrl` — node-exporter узла по
+ * магистрали (`127.0.0.1:2N002`), откуда ядро читает ЦП, трафик, память и диск; `sfuMetricsUrl` — метрики
+ * SFU (`127.0.0.1:2N001`, у узла управления — `127.0.0.1:6789`; только если в `.env` есть
+ * `LIVEKIT_METRICS_PASSWORD`), откуда — память процесса SFU; `sfuMemoryMb` — предел памяти контейнера SFU
+ * (`mem_limit`, по умолчанию 1024; `--sfu-memory-mb`). У узла управления `loadUrl` — его собственный
+ * node-exporter (профиль `monitoring`), страна и ядра — из `.env` (`NODE_COUNTRY`) и `os.cpus()`.
+ *
+ * Предела числа встреч на узле нет (R228, Р-135): узел упирается в ресурсы, а не в счётчик. Поле
+ * `maxRooms` старых реестров при любом запуске удаляется, флаги `--max-rooms` и `--control-max-rooms` —
+ * ошибка, а не тихий пропуск: кто их передал, ждёт предела, которого больше нет.
  */
 const args = Object.fromEntries(
   process.argv.slice(2).map((arg) => {
@@ -69,6 +77,12 @@ const registry = await readFile(NODES_FILE, "utf8").then(JSON.parse, (e) => {
   return { format: FORMAT, nodes: [] };
 });
 if (registry.format !== FORMAT) throw new Error(`${NODES_FILE}: unknown format ${registry.format}`);
+for (const flag of ["max-rooms", "control-max-rooms"])
+  if (args[flag] !== undefined)
+    throw new Error(`--${flag} is gone (R228, Р-135): nodes take meetings by load (CPU, uplink, memory, disk), not by a meeting count`);
+for (const n of registry.nodes) delete n.maxRooms;
+// Метрики SFU (память процесса) — только если SFU их отдаёт: livekit-config включает их по паролю.
+const sfuMetrics = (port) => (env.LIVEKIT_METRICS_PASSWORD ? `http://127.0.0.1:${port}/metrics` : undefined);
 
 // ── Узел управления ───────────────────────────────────────────────────────────────────────────────
 let control = registry.nodes.find((n) => n.control);
@@ -84,18 +98,21 @@ Object.assign(control, {
   probeUrl: env.PUBLIC_URL,
   stun: `stun:${env.TURN_HOST || env.PUBLIC_IP}:3478`,
   internalUrl: env.LIVEKIT_INTERNAL_URL || "http://127.0.0.1:7880",
-  maxRooms: Number(args["control-max-rooms"] ?? control.maxRooms ?? env.STREAM_MAX_ROOMS ?? 8),
   enabled: control.enabled ?? true,
   country: control.country ?? env.NODE_COUNTRY ?? "DE",
   uplinkMbps: Number(control.uplinkMbps ?? env.STREAM_UPLINK_MBPS ?? 1000),
   cores: control.cores ?? cpus().length,
   loadUrl: control.loadUrl ?? "http://127.0.0.1:9100/metrics",
+  sfuMetricsUrl: sfuMetrics(NODE_SERVICES.metrics),
+  sfuMemoryMb: Number(control.sfuMemoryMb ?? 1024),
 });
+if (!control.sfuMetricsUrl) delete control.sfuMetricsUrl;
 if (args["title-ru"] && !args.node) control.title.ru = args["title-ru"];
 if (args["title-en"] && !args.node) control.title.en = args["title-en"];
 if (args.country && !args.node) control.country = assertCountry(args.country);
 if (args["uplink-mbps"] && !args.node) control.uplinkMbps = assertPositive("--uplink-mbps", args["uplink-mbps"]);
 if (args.cores && !args.node) control.cores = assertPositive("--cores", args.cores);
+if (args["sfu-memory-mb"] && !args.node) control.sfuMemoryMb = assertPositive("--sfu-memory-mb", args["sfu-memory-mb"]);
 
 // ── Медиаузел ─────────────────────────────────────────────────────────────────────────────────────
 let node = null;
@@ -109,7 +126,7 @@ if (args.node) {
     const used = new Set(registry.nodes.map((n) => n.index).filter(Boolean));
     let index = 1;
     while (used.has(index)) index++;
-    node = { id, index, enabled: true, maxRooms: 2, title: { ru: id, en: id }, uplinkMbps: 1000 };
+    node = { id, index, enabled: true, title: { ru: id, en: id }, uplinkMbps: 1000 };
     registry.nodes.push(node);
   }
   // Аргументы правят запись реестра; `--refresh` без аргументов повторяет её как есть.
@@ -133,12 +150,12 @@ if (args.node) {
   if (!node.mode) throw new Error("Specify --app/--rtc/--turn (strict) or --mode=ip");
   if (args["title-ru"]) node.title.ru = args["title-ru"];
   if (args["title-en"]) node.title.en = args["title-en"];
-  if (args["max-rooms"]) node.maxRooms = Number(args["max-rooms"]);
-  if (!Number.isInteger(node.maxRooms) || node.maxRooms < 1) throw new Error("--max-rooms must be a positive integer");
   if (args.country) node.country = assertCountry(args.country);
   if (args["uplink-mbps"]) node.uplinkMbps = assertPositive("--uplink-mbps", args["uplink-mbps"]);
   if (args.cores) node.cores = assertPositive("--cores", args.cores);
   if (!node.uplinkMbps) node.uplinkMbps = 1000;
+  if (args["sfu-memory-mb"]) node.sfuMemoryMb = assertPositive("--sfu-memory-mb", args["sfu-memory-mb"]);
+  if (!node.sfuMemoryMb) node.sfuMemoryMb = 1024;
   if (args.enabled !== undefined) node.enabled = args.enabled !== "false";
   if (args.ssh) node.ssh = args.ssh;
   if (args["ssh-key"]) node.sshKey = args["ssh-key"];
@@ -164,6 +181,9 @@ if (args.node) {
   node.internalUrl = `http://127.0.0.1:${controlPorts(node.index).livekit}`;
   // ЦП и трафик узла ядро читает у node-exporter узла через магистраль — отдельного образа не нужно.
   node.loadUrl = `http://127.0.0.1:${controlPorts(node.index).node}/metrics`;
+  // Память SFU узла — из его же метрик, тем же путём, что их собирает VictoriaMetrics.
+  node.sfuMetricsUrl = sfuMetrics(controlPorts(node.index).metrics);
+  if (!node.sfuMetricsUrl) delete node.sfuMetricsUrl;
 
   const dir = `infra/generated/nodes/${id}`;
   await mkdir(`${dir}/pki`, { recursive: true });
@@ -182,7 +202,7 @@ if (args.node) {
     key: env.LIVEKIT_API_KEY,
     secret: env.LIVEKIT_API_SECRET,
     metricsPassword: env.LIVEKIT_METRICS_PASSWORD,
-    maxParticipants: Number(env.STREAM_MAX_PARTICIPANTS) || 20,
+    maxParticipants: Number(env.STREAM_MAX_PARTICIPANTS) || 30,
     // Вебхуки — ядру A через магистраль: локальный порт клиентской стороны `backbone` этого узла.
     webhookUrl: `http://127.0.0.1:${NODE_LOCAL.hooks}/internal/livekit`,
   });
@@ -247,7 +267,7 @@ if (args["write-env"]) {
 }
 
 console.log(`Nodes: ${registry.nodes.map((n) => `${n.id}${n.control ? " (control)" : ""}${n.country ? ` ${n.country}` : ""}${n.enabled ? "" : " [drained]"}`).join(", ")}
-${node ? `Node ${node.id}: ${node.mode} · ${node.rtcUrl} · twirp via ${node.internalUrl} · load via ${node.loadUrl} · ${node.maxRooms} rooms, ${node.uplinkMbps} Mbit/s${node.cores ? `, ${node.cores} cores` : ""} · files in ${resolve(`infra/generated/nodes/${node.id}`)}` : ""}
+${node ? `Node ${node.id}: ${node.mode} · ${node.rtcUrl} · twirp via ${node.internalUrl} · load via ${node.loadUrl} · ${node.uplinkMbps} Mbit/s, SFU ${node.sfuMemoryMb} MiB${node.cores ? `, ${node.cores} cores` : ""} · files in ${resolve(`infra/generated/nodes/${node.id}`)}` : ""}
 Control node ${control.id}: backbone infra/generated/backbone.json, pki infra/generated/backbone-pki, targets infra/generated/scrape-nodes/
 
 .env of the control node needs (${args["write-env"] ? "written" : "add with --write-env or by hand"}):

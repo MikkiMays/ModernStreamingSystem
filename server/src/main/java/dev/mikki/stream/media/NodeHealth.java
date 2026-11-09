@@ -56,10 +56,12 @@ import org.springframework.stereotype.Component;
  * {@link MediaService#evacuate переезжают} сразу и на каждом проходе, пока он мёртв; ожил — снова
  * принимает встречи, переехавшие комнаты назад не возвращаются.
  *
- * <p>Ёмкость (R200 §3.4): тем же проходом читается node-exporter узла ({@link
- * MediaGateway#metrics}, {@link NodeExporter}) — ЦП со steal и отдача канала; по разности двух
- * снимков вместе с комнатами и людьми {@link MediaNodes#load} считает ступень 1–4. Молчание
- * node-exporter — не отказ узла.
+ * <p>Ёмкость (R200 §3.4, Р-135): тем же проходом читается node-exporter узла ({@link
+ * MediaGateway#metrics}, {@link NodeExporter}) — ЦП со steal и отдача канала по разности двух
+ * снимков, занятая память и корневой диск хоста; раз в {@link #SFU_PERIOD_MS} — память процесса SFU
+ * из его метрик ({@link MediaGateway#sfuMetrics}). Всё сглаживается (EWMA) и вместе с комнатами и
+ * людьми уходит в {@link MediaNodes#load}: там узел становится горячим и получает ступень 1–4.
+ * Молчание node-exporter или SFU-метрик — не отказ узла.
  *
  * <p>Метрики: {@code cord.node.up{node}}, {@code cord.node.reachable{node}}, {@code
  * cord.node.rooms{node}}, {@code cord.node.participants{node}}, {@code cord.node.level{node}} (в
@@ -91,8 +93,14 @@ public class NodeHealth {
    */
   static final long STREAK_SLACK_MS = 5000;
 
-  /** Сглаживание долей ЦП и канала между опросами — как у {@code LoadMeter}. */
-  private static final double EWMA = 0.35;
+  /**
+   * Сглаживание долей между опросами — как у {@code LoadMeter}: одиночный всплеск ЦП до 100 % даёт
+   * треть, до порога доходит только нагрузка дольше 4–6 с.
+   */
+  static final double EWMA = 0.35;
+
+  /** Память SFU меняется медленно, а его {@code /metrics} — ≈ 90 КБ: читать раз в 10 с. */
+  public static final long SFU_PERIOD_MS = 10_000;
 
   /**
    * Правила A и C: столько разных участников должны пожаловаться — один жалобщик ничего не решает.
@@ -132,6 +140,16 @@ public class NodeHealth {
     double cpu = Double.NaN;
     double steal = Double.NaN;
     double mbps = Double.NaN;
+    double memory = Double.NaN;
+    double disk = Double.NaN;
+    double sfuMb = Double.NaN;
+    long sfuAt = Long.MIN_VALUE / 2;
+    long sfuAskedAt = Long.MIN_VALUE / 2;
+
+    MediaNodes.Sample of(MediaGateway.NodeStats stats) {
+      return new MediaNodes.Sample(
+          stats.rooms(), stats.participants(), cpu, steal, mbps, memory, disk, sfuMb);
+    }
   }
 
   public NodeHealth(
@@ -171,7 +189,10 @@ public class NodeHealth {
                   stats = null;
                 }
                 var now = clock.millis();
-                if (stats != null) measure(node, gateway.metrics(node), now);
+                if (stats != null) {
+                  measure(node, gateway.metrics(node), now);
+                  if (sfuDue(node, now)) sfu(node, gateway.sfuMetrics(node), now);
+                }
                 observe(node, stats, now);
               },
               executor));
@@ -223,7 +244,7 @@ public class NodeHealth {
   private void answered(MediaNode node, State state, MediaGateway.NodeStats stats, long now) {
     state.rooms.set(stats.rooms());
     state.participants.set(stats.participants());
-    nodes.load(node.id(), stats.rooms(), stats.participants(), state.cpu, state.steal, state.mbps);
+    nodes.load(node.id(), state.of(stats));
     if (state.up.get() == 0) {
       log.info("Media node {} is back after {} s", node.id(), (now - state.since) / 1000);
       nodes.down(node.id(), false);
@@ -343,16 +364,42 @@ public class NodeHealth {
       // Молчание дольше трёх опросов — старые доли ничего не значат, считаем без них.
       if (state.sample != null && now - state.sample.at() > 3 * PERIOD_MS) {
         state.sample = null;
-        state.cpu = state.steal = state.mbps = Double.NaN;
+        state.cpu = state.steal = state.mbps = state.memory = state.disk = Double.NaN;
       }
       return;
     }
+    if (!Double.isNaN(sample.memory())) state.memory = smooth(state.memory, sample.memory());
+    if (!Double.isNaN(sample.disk())) state.disk = sample.disk();
     var shares = sample.since(state.sample);
     state.sample = sample;
     if (shares == null) return;
     state.cpu = smooth(state.cpu, shares.cpu());
     state.steal = smooth(state.steal, shares.steal());
     if (!Double.isNaN(shares.mbps())) state.mbps = smooth(state.mbps, shares.mbps());
+  }
+
+  /** Пора ли читать метрики SFU узла: у узла есть их адрес и прошло {@link #SFU_PERIOD_MS}. */
+  public boolean sfuDue(MediaNode node, long now) {
+    if (node.sfuMetricsUrl() == null) return false;
+    var state = states.computeIfAbsent(node.id(), this::track);
+    if (now - state.sfuAskedAt < SFU_PERIOD_MS) return false;
+    state.sfuAskedAt = now;
+    return true;
+  }
+
+  /**
+   * Метрики SFU узла ({@code null} — не ответил): память процесса, сглаженная; молчание дольше трёх
+   * чтений — оценка по людям ({@link MediaNodes}).
+   */
+  public void sfu(MediaNode node, String metrics, long now) {
+    var state = states.computeIfAbsent(node.id(), this::track);
+    var mb = NodeExporter.residentMb(metrics);
+    if (Double.isNaN(mb)) {
+      if (now - state.sfuAt > 3 * SFU_PERIOD_MS) state.sfuMb = Double.NaN;
+      return;
+    }
+    state.sfuMb = smooth(state.sfuMb, mb);
+    state.sfuAt = now;
   }
 
   private static double smooth(double previous, double value) {

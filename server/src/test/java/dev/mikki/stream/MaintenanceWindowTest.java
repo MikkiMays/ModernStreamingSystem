@@ -47,8 +47,7 @@ import org.springframework.transaction.support.TransactionTemplate;
       "spring.datasource.url=jdbc:h2:mem:maintenance;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
       "stream.scheduling-enabled=false",
       "stream.event-history-limit=10",
-      "stream.files-root=./.local/test-uploads",
-      "stream.max-rooms=200"
+      "stream.files-root=./.local/test-uploads"
     })
 @ActiveProfiles("local")
 class MaintenanceWindowTest {

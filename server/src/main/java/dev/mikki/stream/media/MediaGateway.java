@@ -35,10 +35,27 @@ public class MediaGateway {
    */
   private final Map<String, RoomServiceClient> healthClients = new ConcurrentHashMap<>();
 
+  /**
+   * Пароль {@code /metrics} SFU ({@code LIVEKIT_METRICS_PASSWORD} из {@code .env}, тот же на всех
+   * узлах — {@code node-config.mjs}); пусто — метрики SFU не читаются, память SFU оценивается.
+   */
+  private final String metricsPassword;
+
   public MediaGateway(StreamProperties config, MediaNodes nodes, RoomRepository rooms) {
+    this(config, nodes, rooms, "");
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public MediaGateway(
+      StreamProperties config,
+      MediaNodes nodes,
+      RoomRepository rooms,
+      @org.springframework.beans.factory.annotation.Value("${LIVEKIT_METRICS_PASSWORD:}")
+          String metricsPassword) {
     this.config = config;
     this.nodes = nodes;
     this.rooms = rooms;
+    this.metricsPassword = metricsPassword == null ? "" : metricsPassword;
   }
 
   private RoomServiceClient client(MediaNode node) {
@@ -167,17 +184,34 @@ public class MediaGateway {
       new okhttp3.OkHttpClient.Builder().callTimeout(Duration.ofSeconds(1)).build();
 
   /**
-   * Текст метрик node-exporter узла по его {@code loadUrl} — только ЦП и сеть ({@code collect[]}).
-   * Нет адреса или узел не ответил — {@code null}: ступень считается без ЦП и канала, это не отказ.
+   * Текст метрик node-exporter узла по его {@code loadUrl} — только ЦП, сеть, память и файловые
+   * системы ({@code collect[]}). Нет адреса или узел не ответил — {@code null}: нагрузка считается
+   * без них, это не отказ.
    */
   public String metrics(MediaNode node) {
     if (node.loadUrl() == null) return null;
     var url =
         node.loadUrl()
             + (node.loadUrl().contains("?") ? "&" : "?")
-            + "collect[]=cpu&collect[]=netdev";
-    try (var response =
-        metricsClient.newCall(new okhttp3.Request.Builder().url(url).build()).execute()) {
+            + "collect[]=cpu&collect[]=netdev&collect[]=meminfo&collect[]=filesystem";
+    return fetch(new okhttp3.Request.Builder().url(url).build());
+  }
+
+  /**
+   * Текст {@code /metrics} самого SFU узла по {@code sfuMetricsUrl} (за паролем): оттуда — память
+   * процесса. Нет адреса или пароля, узел не ответил — {@code null}.
+   */
+  public String sfuMetrics(MediaNode node) {
+    if (node.sfuMetricsUrl() == null || metricsPassword.isEmpty()) return null;
+    return fetch(
+        new okhttp3.Request.Builder()
+            .url(node.sfuMetricsUrl())
+            .header("Authorization", okhttp3.Credentials.basic("metrics", metricsPassword))
+            .build());
+  }
+
+  private String fetch(okhttp3.Request request) {
+    try (var response = metricsClient.newCall(request).execute()) {
       if (!response.isSuccessful() || response.body() == null) return null;
       return response.body().string();
     } catch (Exception e) {

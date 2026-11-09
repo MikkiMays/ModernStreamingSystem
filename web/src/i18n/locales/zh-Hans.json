@@ -2462,7 +2462,7 @@
         "3": "高",
         "4": "很高"
       },
-      "full": "已满",
+      "full": "过载",
       "maintenance": "正在更新",
       "closed": "不接受新会议",
       "unknown": "未知"
@@ -3360,7 +3360,6 @@
     "ROOMS_PER_HOUR": "一小时内新建的会议太多。请稍后再试",
     "ROOM_CLOSED": "会议已结束",
     "ROOM_FULL": "会议人数已满",
-    "ROOM_LIMIT": "所有房间都已占用。请稍后再试",
     "ROOM_NOT_FOUND": "未找到房间",
     "SCREEN_ENDED": "屏幕共享已结束",
     "SCREEN_LIMIT": "其他参与者正在共享屏幕",

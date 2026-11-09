@@ -37,8 +37,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
       "spring.datasource.url=jdbc:h2:mem:rooms;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
       "stream.scheduling-enabled=false",
       "stream.event-history-limit=10",
-      "stream.files-root=./.local/test-uploads",
-      "stream.max-rooms=200"
+      "stream.files-root=./.local/test-uploads"
     })
 @ActiveProfiles("local")
 class MeetingLimitsTest {
@@ -334,14 +333,15 @@ class MeetingLimitsTest {
     refusedFor(() -> join(other, ME), first);
   }
 
-  // T06: двадцать человек, боты не в счёт ------------------------------------------------------
+  // T06, R228: тридцать человек, боты не в счёт ----------------------------------------------
 
   @Test
-  void twentyPeopleFitAndTheMusicBotDoesNotTakeASeat() {
-    assertThat(config.maxParticipants()).isEqualTo(20);
+  void thirtyPeopleFitAndTheMusicBotDoesNotTakeASeat() {
+    // Предел одной встречи — 30 (владелец, Р-135), не 20 и не 100.
+    assertThat(config.maxParticipants()).isEqualTo(30);
     var host = someoneElses("Большая");
     for (int i = 1; i < config.maxParticipants(); i++) join(host, Entrant.UNKNOWN);
-    // Двадцать людей уже внутри, а музыке место находится: бот место не занимает.
+    // Тридцать людей уже внутри, а музыке место находится: бот место не занимает.
     var music = rooms.addMusicService(host.roomId(), UUID.randomUUID());
     assertThat(music.participantId()).isNotBlank();
     assertThatThrownBy(() -> join(host, Entrant.UNKNOWN))
@@ -349,15 +349,15 @@ class MeetingLimitsTest {
             Problem.class,
             problem -> {
               assertThat(problem.code()).isEqualTo("ROOM_FULL");
-              assertThat(problem.getMessage()).contains("20");
+              assertThat(problem.getMessage()).contains("30");
             });
-    assertThat(rooms.read(host.roomId()).seatedHumans()).isEqualTo(20);
+    assertThat(rooms.read(host.roomId()).seatedHumans()).isEqualTo(30);
   }
 
   /**
-   * Комната занимает место на сервере ({@code stream.max-rooms}), когда в ней хотя бы один человек
-   * на связи или когда она моложе тридцати секунд: пять POST без подключения больше не держат
-   * сервер две минуты (A1 модели угроз).
+   * Встреча считается идущей (предел открытых встреч адреса, A1 модели угроз), когда в ней хотя бы
+   * один человек на связи или когда она моложе тридцати секунд: пять POST без подключения не держат
+   * предел две минуты.
    */
   @Test
   void aRoomHoldsAServerSlotOnlyWhileSomebodyIsConnectedOrItIsNew() {
