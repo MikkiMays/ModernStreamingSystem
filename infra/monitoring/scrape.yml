@@ -77,3 +77,13 @@ scrape_configs:
     basic_auth:
       username: metrics
       password: '%{LIVEKIT_METRICS_PASSWORD}'
+
+  # SFU машин продукта (R208, R209): через туннели пульта (`infra/fleet/tunnels.sh`, цель 3 → 6789), со своим паролем —
+  # паролем метрик LiveKit продукта, не стенда. `job` переименовывается в `nodes`: «Флот — live» узнаёт удалённую
+  # машину по нему, а вид — по `kind=livekit`.
+  - job_name: nodes-sfu
+    file_sd_configs: [{ files: ['/etc/vm/sfu/*.json'] }]
+    basic_auth:
+      username: metrics
+      password: '%{PRODUCT_LIVEKIT_METRICS_PASSWORD}'
+    relabel_configs: [{ target_label: job, replacement: nodes }]

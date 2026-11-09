@@ -304,11 +304,14 @@ services:
     # Пароль метрик LiveKit подставляется в scrape.yml как %{LIVEKIT_METRICS_PASSWORD}.
     environment:
       LIVEKIT_METRICS_PASSWORD: ${LIVEKIT_METRICS_PASSWORD:-}
+      # Пароль метрик LiveKit продукта — для SFU машин флота (задание nodes-sfu в scrape.yml).
+      PRODUCT_LIVEKIT_METRICS_PASSWORD: ${PRODUCT_LIVEKIT_METRICS_PASSWORD:-}
     volumes:
       - metrics:/storage
       - ./infra/monitoring/scrape.yml:/etc/vm/scrape.yml:ro
       # Цели медиаузлов через магистраль (R195): по файлу на узел, пишет `scripts/node-config.mjs`.
       - ./infra/generated/scrape-nodes:/etc/vm/nodes:ro
+      - ./infra/generated/scrape-sfu:/etc/vm/sfu:ro
     read_only: true
     tmpfs: [/tmp]
     mem_limit: 256m
