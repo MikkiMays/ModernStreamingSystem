@@ -7,10 +7,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import dev.mikki.stream.access.AdminAccess;
 import dev.mikki.stream.access.Identity;
+import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.activity.Analytics;
 import dev.mikki.stream.activity.AnalyticsReport;
 import dev.mikki.stream.activity.ClientKind;
+import dev.mikki.stream.api.AnalyticsController;
+import dev.mikki.stream.api.ClientAddress;
 import dev.mikki.stream.room.RoomState;
 import dev.mikki.stream.shared.Json;
 import java.time.Clock;
@@ -24,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -58,6 +62,8 @@ class AnalyticsTest {
   @Autowired AnalyticsReport report;
   @Autowired JdbcClient jdbc;
   @Autowired Secrets secrets;
+  @Autowired AdminAccess admin;
+  @Autowired ClientAddress address;
   @MockitoBean Clock clock;
   AtomicLong now = new AtomicLong();
   MockMvc mvc;
@@ -494,6 +500,116 @@ class AnalyticsTest {
                 .query(Integer.class)
                 .single())
         .isEqualTo(2);
+  }
+
+  /**
+   * База недоступна — проход останавливается на первой пачке, а не ждёт срок соединения на каждой
+   * строке: пачка возвращается с попыткой в счёт, остальное — без неё. После {@link
+   * Analytics#ATTEMPTS} неудач пачка выброшена, а строки за ней дожидаются базы целыми.
+   */
+  @Test
+  void aBrokenDatabaseStopsThePassAtTheFirstChunk() {
+    int rows = Analytics.CHUNK + 1;
+    for (int i = 0; i < rows; i++) analytics.visit(Secrets.hash(profile(i)), WEB, "open");
+    jdbc.sql("ALTER TABLE visitor_days RENAME TO visitor_days_away").update();
+    try {
+      for (int pass = 0; pass < Analytics.ATTEMPTS; pass++) assertThat(analytics.flush()).isZero();
+    } finally {
+      jdbc.sql("ALTER TABLE visitor_days_away RENAME TO visitor_days").update();
+    }
+    // Пачка откатилась целиком — строк посетителя от неё не осталось.
+    assertThat(analytics.flush()).isEqualTo(1);
+    assertThat(jdbc.sql("SELECT COUNT(*) FROM visitors").query(Long.class).single()).isEqualTo(1);
+    assertThat(jdbc.sql("SELECT COUNT(*) FROM visitor_days").query(Long.class).single())
+        .isEqualTo(1);
+  }
+
+  /** Строка посетителя, уже записанная за день, не переписывается каждым проходом. */
+  @Test
+  void aSecondPassOfTheSameDayAddsToTheDayRow() {
+    var hash = Secrets.hash(PROFILE_A);
+    analytics.visit(hash, WEB, "open");
+    assertThat(analytics.flush()).isEqualTo(1);
+    analytics.visit(hash, WEB, "prejoin");
+    analytics.entered(hash, null, WEB, "link", true);
+    assertThat(analytics.flush()).isEqualTo(1);
+    var visitor =
+        jdbc.sql("SELECT first_day, last_day, first_called_day FROM visitors")
+            .query(
+                (rs, n) ->
+                    new Object[] {
+                      rs.getObject(1, LocalDate.class),
+                      rs.getObject(2, LocalDate.class),
+                      rs.getObject(3, LocalDate.class)
+                    })
+            .single();
+    // Звонок в тот же день всё же доходит до строки посетителя.
+    assertThat(visitor).containsExactly(DAY1, DAY1, DAY1);
+    var day =
+        jdbc.sql("SELECT visits, prejoins, joins FROM visitor_days")
+            .query((rs, n) -> new int[] {rs.getInt(1), rs.getInt(2), rs.getInt(3)})
+            .single();
+    assertThat(day).containsExactly(1, 1, 1);
+  }
+
+  /**
+   * Сводка ошибок посетителя не создаёт: случайный профиль в ней — не человек, открывший Cord. У
+   * знакомого посетителя ошибки считаются.
+   */
+  @Test
+  void errorsAloneDoNotMakeAVisitor() {
+    analytics.errors(Secrets.hash(PROFILE_D), WEB, 3);
+    assertThat(analytics.flush()).isZero();
+    assertThat(jdbc.sql("SELECT COUNT(*) FROM visitors").query(Long.class).single()).isZero();
+    analytics.visit(Secrets.hash(PROFILE_A), WEB, "open");
+    analytics.errors(Secrets.hash(PROFILE_A), WEB, 2);
+    analytics.flush();
+    assertThat(
+            jdbc.sql("SELECT errors FROM visitor_days WHERE visitor_key=?")
+                .param(key(PROFILE_A))
+                .query(Integer.class)
+                .single())
+        .isEqualTo(2);
+  }
+
+  /**
+   * Открытая ручка визита и случайные профили: незнакомых со всех адресов — не больше потолка в
+   * минуту, сверх — принято и не записано; знакомый посетитель потолком не считается.
+   */
+  @Test
+  void newProfilesFromEverywhereHitACeiling() {
+    var known = Secrets.hash(PROFILE_A);
+    analytics.visit(known, WEB, "open");
+    var controller =
+        new AnalyticsController(analytics, report, admin, RateLimits.inMemory(), address);
+    var open = new AnalyticsController.Visit("open");
+    int ceiling = AnalyticsController.NEW_PER_SERVER.count();
+    for (int i = 0; i <= ceiling; i++)
+      controller.visit(open, request("198.19." + i / 256 + "." + i % 256, profile(i)));
+    controller.visit(open, request("198.19.9.9", PROFILE_A));
+    analytics.flush();
+    assertThat(jdbc.sql("SELECT COUNT(*) FROM visitors").query(Long.class).single())
+        .isEqualTo(ceiling + 1);
+    assertThat(
+            jdbc.sql("SELECT visits FROM visitor_days WHERE visitor_key=?")
+                .param(key(PROFILE_A))
+                .query(Integer.class)
+                .single())
+        .isEqualTo(2);
+  }
+
+  /** Секрет профиля из 43 знаков, свой у каждого {@code i}. */
+  private static String profile(int i) {
+    var digits = Integer.toString(i, 36);
+    return "p".repeat(43 - digits.length()) + digits;
+  }
+
+  private static MockHttpServletRequest request(String address, String profile) {
+    var request = new MockHttpServletRequest("POST", "/api/v1/visit");
+    request.setRemoteAddr(address);
+    request.addHeader(Identity.PROFILE, profile);
+    request.addHeader(ClientKind.HEADER, "web");
+    return request;
   }
 
   @Test

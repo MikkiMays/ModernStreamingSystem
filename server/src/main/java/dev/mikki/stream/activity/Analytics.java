@@ -10,12 +10,11 @@ import java.time.LocalDate;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Аналитика продукта (R210, {@code docs/architecture/admin-analytics.md} §2): строка на посетителя
@@ -31,29 +30,41 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * <p>БУФЕР. События складываются в память и раз в 10 с ({@link AnalyticsSchedule}) ложатся в базу
  * одним проходом — не в транзакции встречи и не в запросе человека: вход во встречу не ждёт
  * аналитики и не ломается от её сбоя, а у PostgreSQL ошибка внутри транзакции встречи откатила бы
- * саму встречу. Не записанное (база недоступна) возвращается в буфер и пробуется снова; при
- * остановке ядра буфер дописывается ({@link #shutdown}).
+ * саму встречу. Проход пишет пачками по {@link #CHUNK} строк, пачка — одна транзакция (одна запись
+ * журнала базы, а не две на строку); строка посетителя, уже записанная за этот день, второй раз не
+ * трогается. Первая же неудача останавливает проход: база недоступна — незачем ждать срок
+ * соединения на каждой строке, занимая поток обслуживания. Не записанное возвращается в буфер и
+ * пробуется снова; при остановке ядра буфер дописывается ({@link #shutdown}).
  *
  * <p>ПРИСУТСТВИЕ. Наблюдатель комнаты помнит, с какого момента каждый участник с профилем на связи;
  * каждый проход буфера досчитывает открытые отрезки до «сейчас», отрезок через полночь режется по
  * дням. Наблюдатель зовётся внутри транзакции комнаты — изменение применяется только после её
- * фиксации, откаченная встреча аналитику не трогает.
+ * фиксации, откаченная встреча аналитику не трогает; в транзакции комнаты — только снять, кто на
+ * связи: HMAC ключей считается после неё и один раз на профиль, а не на каждое событие. Сбой
+ * аналитики встречу не ломает — ни внутри транзакции комнаты, ни после её фиксации.
  *
- * <p>Ядро одно на машину (compose), поэтому писатель один и гонок вставки нет; на случай второго
- * экземпляра вставка, проигравшая гонку, повторяется обновлением.
+ * <p>Ядро одно на машину (compose), а проход записи — один за раз ({@code flushing}), поэтому гонок
+ * вставки нет; на случай второго экземпляра пачка, проигравшая гонку, откатывается и ложится
+ * следующим проходом обновлением.
  */
 @Component
 public class Analytics implements RoomObserver {
   private static final Logger log = LoggerFactory.getLogger(Analytics.class);
 
-  /** Сколько клиентов профилей помнить для присутствия; дальше — забываются самые давние. */
+  /**
+   * Сколько посетителей помнить в памяти (клиент для присутствия, «знаком ли» для пределов новых,
+   * ключ HMAC, записана ли строка посетителя за день); дальше — забываются самые давние.
+   */
   static final int CLIENT_MEMORY = 50_000;
+
+  /** Строк в одной транзакции прохода записи. */
+  public static final int CHUNK = 500;
 
   /** Сколько строк «посетитель × день» держать в буфере; больше — новые события теряются. */
   static final int BUFFER_LIMIT = 100_000;
 
   /** Сколько раз пробовать записать строку, прежде чем выбросить её с предупреждением. */
-  static final int ATTEMPTS = 5;
+  public static final int ATTEMPTS = 5;
 
   /** Комната без людей на связи забывается, если о ней ничего не слышно сутки. */
   static final long STALE_ROOM_MS = 24 * 3600_000L;
@@ -62,19 +73,37 @@ public class Analytics implements RoomObserver {
   private final Secrets secrets;
   private final AnalyticsProperties config;
   private final Clock clock;
+  private final TransactionTemplate tx;
   private final Object lock = new Object();
+
+  /** Проход записи — один за раз: расписание и остановка ядра не пишут одну строку вдвоём. */
+  private final Object flushing = new Object();
 
   // Под lock.
   private Map<Slot, Tally> pending = new HashMap<>();
   private final Map<String, Watched> rooms = new HashMap<>();
-  private final LinkedHashMap<String, ClientKind> clients =
-      new LinkedHashMap<>(1024, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<String, ClientKind> eldest) {
-          return size() > CLIENT_MEMORY;
-        }
-      };
+
+  /** Посетители, которых ядро видело с запуска: ключ → клиент (или {@link ClientKind#UNKNOWN}). */
+  private final LinkedHashMap<String, ClientKind> clients = lru();
+
   private long dropped;
+
+  /** Ключ посетителя по хэшу профиля или ключу актора — HMAC один раз; под собой. */
+  private final LinkedHashMap<String, String> keys = lru();
+
+  /** Строка посетителя записана за день (и со звонком ли); только в проходе записи. */
+  private final LinkedHashMap<String, Written> written = lru();
+
+  private record Written(LocalDate day, boolean called) {}
+
+  private static <V> LinkedHashMap<String, V> lru() {
+    return new LinkedHashMap<>(1024, 0.75f, true) {
+      @Override
+      protected boolean removeEldestEntry(Map.Entry<String, V> eldest) {
+        return size() > CLIENT_MEMORY;
+      }
+    };
+  }
 
   /** Строка буфера: посетитель за день. */
   record Slot(LocalDate day, String key) {}
@@ -115,11 +144,17 @@ public class Analytics implements RoomObserver {
     long touched;
   }
 
-  public Analytics(JdbcClient jdbc, Secrets secrets, AnalyticsProperties config, Clock clock) {
+  public Analytics(
+      JdbcClient jdbc,
+      Secrets secrets,
+      AnalyticsProperties config,
+      Clock clock,
+      TransactionTemplate tx) {
     this.jdbc = jdbc;
     this.secrets = secrets;
     this.config = config;
     this.clock = clock;
+    this.tx = tx;
   }
 
   // ── События ──────────────────────────────────────────────────────────────────────────────────
@@ -132,10 +167,23 @@ public class Analytics implements RoomObserver {
     record(
         key,
         client,
+        false,
         t -> {
           if (open) t.visits++;
           else t.prejoins++;
         });
+  }
+
+  /**
+   * Видело ли ядро этого посетителя с запуска (открытие, вход, присутствие) — для предела новых
+   * посетителей у {@code POST /visit}: незнакомый профиль может оказаться случайным.
+   */
+  public boolean recent(String profileHash) {
+    var key = key(profileHash, null);
+    if (key == null) return false;
+    synchronized (lock) {
+      return clients.containsKey(key);
+    }
   }
 
   /**
@@ -151,6 +199,7 @@ public class Analytics implements RoomObserver {
     record(
         key,
         client,
+        false,
         t -> {
           if (!ok) t.failures++;
           else {
@@ -161,12 +210,16 @@ public class Analytics implements RoomObserver {
         });
   }
 
-  /** Человек увидел {@code count} ошибок (сводка {@code client-errors}, R180). */
+  /**
+   * Человек увидел {@code count} ошибок (сводка {@code client-errors}, R180). Только знакомому
+   * посетителю: сводка ошибок сама посетителя не создаёт — иначе случайные профили в ней раздули бы
+   * таблицы.
+   */
   public void errors(String profileHash, ClientKind client, int count) {
     if (count <= 0) return;
     var key = key(profileHash, null);
     if (key == null) return;
-    record(key, client, t -> t.errors += count);
+    record(key, client, true, t -> t.errors += count);
   }
 
   // ── Наблюдатель комнаты ──────────────────────────────────────────────────────────────────────
@@ -178,22 +231,41 @@ public class Analytics implements RoomObserver {
       closed(room, "closed", now);
       return;
     }
-    var connected = new HashMap<String, String>();
-    for (var member : room.members.values()) {
-      if (!member.human() || member.status != RoomState.Status.CONNECTED) continue;
-      var key = key(room.profiles.get(member.id), null);
-      if (key != null) connected.put(member.id, key);
+    try {
+      // Внутри транзакции и под замком комнаты — только снять, кто на связи с каким профилем; ключи
+      // (HMAC) и буфер — после фиксации.
+      var profiles = new HashMap<String, String>();
+      for (var member : room.members.values()) {
+        if (!member.human() || member.status != RoomState.Status.CONNECTED) continue;
+        var profile = room.profiles.get(member.id);
+        if (profile != null) profiles.put(member.id, profile);
+      }
+      var kinds = Activity.integrations(room);
+      var id = room.id;
+      afterCommit(
+          () -> {
+            var connected = new HashMap<String, String>();
+            for (var entry : profiles.entrySet()) {
+              var key = key(entry.getValue(), null);
+              if (key != null) connected.put(entry.getKey(), key);
+            }
+            observe(id, connected, kinds, false, now);
+          });
+    } catch (RuntimeException e) {
+      // Аналитика не роняет встречу: её отказ внутри транзакции комнаты откатил бы саму встречу.
+      log.warn("Аналитика: событие комнаты не учтено: {}", e.toString());
     }
-    var kinds = Activity.integrations(room);
-    var id = room.id;
-    afterCommit(() -> observe(id, connected, kinds, false, now));
   }
 
   @Override
   public void closed(RoomState room, String reason, long now) {
     if (!config.enabled()) return;
-    var id = room.id;
-    afterCommit(() -> observe(id, Map.of(), List.of(), true, now));
+    try {
+      var id = room.id;
+      afterCommit(() -> observe(id, Map.of(), List.of(), true, now));
+    } catch (RuntimeException e) {
+      log.warn("Аналитика: конец встречи не учтён: {}", e.toString());
+    }
   }
 
   private void observe(
@@ -252,10 +324,17 @@ public class Analytics implements RoomObserver {
   // ── Запись ───────────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Записать буфер: досчитать открытые отрезки до «сейчас» и разложить строки по таблицам. Сколько
-   * строк записано.
+   * Записать буфер: досчитать открытые отрезки до «сейчас» и разложить строки по таблицам пачками
+   * по {@link #CHUNK}, пачка — одна транзакция. Первая неудача останавливает проход: эта пачка
+   * возвращается в буфер с попыткой в счёт, остальные — как были. Сколько строк записано.
    */
   public int flush() {
+    synchronized (flushing) {
+      return flushOnce();
+    }
+  }
+
+  private int flushOnce() {
     long now = clock.millis();
     Map<Slot, Tally> batch;
     synchronized (lock) {
@@ -274,39 +353,66 @@ public class Analytics implements RoomObserver {
       batch = pending;
       pending = new HashMap<>();
     }
-    int written = 0;
-    var failed = new HashMap<Slot, Tally>();
-    DataAccessException failure = null;
     var slots = new ArrayList<>(batch.keySet());
     slots.sort(Comparator.comparing(Slot::day).thenComparing(Slot::key));
-    for (var slot : slots) {
-      var tally = batch.get(slot);
+    int written = 0;
+    for (int from = 0; from < slots.size(); from += CHUNK) {
+      var chunk = slots.subList(from, Math.min(slots.size(), from + CHUNK));
+      var stored = new ArrayList<Slot>(chunk.size());
       try {
-        write(slot, tally, now);
-        written++;
-      } catch (DataAccessException e) {
-        failure = e;
-        if (++tally.attempts < ATTEMPTS) failed.put(slot, tally);
+        tx.executeWithoutResult(
+            status -> {
+              stored.clear();
+              for (var slot : chunk) if (write(slot, batch.get(slot))) stored.add(slot);
+            });
+      } catch (RuntimeException e) {
+        requeue(slots, from, chunk.size(), batch, e);
+        break;
+      }
+      for (var slot : stored) remember(slot, batch.get(slot).called);
+      written += stored.size();
+    }
+    return written;
+  }
+
+  /**
+   * Пачка {@code [from, from + size)} не записалась: она — обратно в буфер с попыткой в счёт (после
+   * {@link #ATTEMPTS} — выброшена), всё после неё — без попытки: до неё дело не дошло.
+   */
+  private void requeue(
+      List<Slot> slots, int from, int size, Map<Slot, Tally> batch, RuntimeException failure) {
+    int lost = 0, back = 0;
+    synchronized (lock) {
+      for (int i = from; i < slots.size(); i++) {
+        var slot = slots.get(i);
+        var tally = batch.get(slot);
+        if (i < from + size && ++tally.attempts >= ATTEMPTS) {
+          lost++;
+          continue;
+        }
+        var fresh = pending.get(slot);
+        if (fresh != null) tally.add(fresh);
+        else if (pending.size() >= BUFFER_LIMIT) {
+          lost++;
+          continue;
+        }
+        pending.put(slot, tally);
+        back++;
       }
     }
-    if (failure != null)
-      log.warn(
-          "Аналитика: {} строк не записано, {} вернутся в буфер: {}",
-          slots.size() - written,
-          failed.size(),
-          failure.getMessage());
-    if (!failed.isEmpty())
-      synchronized (lock) {
-        for (var entry : failed.entrySet())
-          pending.merge(
-              entry.getKey(),
-              entry.getValue(),
-              (fresh, old) -> {
-                old.add(fresh);
-                return old;
-              });
-      }
-    return written;
+    log.warn(
+        "Аналитика: база не приняла запись, {} строк вернутся в буфер, {} выброшено: {}",
+        back,
+        lost,
+        failure.getMessage());
+  }
+
+  private void remember(Slot slot, boolean called) {
+    var before = written.get(slot.key());
+    if (before != null && before.day().equals(slot.day()))
+      written.put(slot.key(), new Written(slot.day(), called || before.called()));
+    else if (before == null || slot.day().isAfter(before.day()))
+      written.put(slot.key(), new Written(slot.day(), called));
   }
 
   /** Остановка ядра: дописать буфер вместе с открытыми отрезками. */
@@ -319,71 +425,25 @@ public class Analytics implements RoomObserver {
     }
   }
 
-  private void write(Slot slot, Tally t, long now) {
+  /**
+   * Одна строка буфера — в строку дня и строку посетителя, внутри транзакции пачки. Строка
+   * посетителя, уже записанная за этот день этим ядром, не трогается: её даты от второго раза не
+   * меняются. Посетителя создают открытие, вход, присутствие и интеграции — одни ошибки без них
+   * посетителя не создают ({@code false}: строка пропущена).
+   */
+  private boolean write(Slot slot, Tally t) {
     var day = slot.day();
     var client = t.client == null ? ClientKind.UNKNOWN : t.client;
-    var calledDay = t.called ? day : null;
     long dayExpiry = dayStart(day.plusDays(1)) + config.retention().toMillis();
-    for (int attempt = 0; ; attempt++) {
-      // Строка из буфера бывает старше записанной (вернулась после сбоя базы) — поэтому LEAST и
-      // GREATEST, а не «первый — тот, что был».
-      var update =
-          t.called
-              ? jdbc.sql(
-                      "UPDATE visitors SET first_day=LEAST(first_day, ?), last_day=GREATEST(last_day,"
-                          + " ?), first_called_day=LEAST(COALESCE(first_called_day, ?), ?),"
-                          + " expires_at=GREATEST(expires_at, ?) WHERE visitor_key=?")
-                  .params(day, day, day, day, dayExpiry, slot.key())
-              : jdbc.sql(
-                      "UPDATE visitors SET first_day=LEAST(first_day, ?), last_day=GREATEST(last_day,"
-                          + " ?), expires_at=GREATEST(expires_at, ?) WHERE visitor_key=?")
-                  .params(day, day, dayExpiry, slot.key());
-      if (update.update() > 0) break;
-      try {
+    int dayUpdated =
         jdbc.sql(
-                "INSERT INTO visitors(visitor_key,first_day,first_client,first_os,first_called_day,"
-                    + "last_day,expires_at) VALUES(?,?,?,?,?,?,?)")
-            .params(slot.key(), day, client.client(), client.os(), calledDay, day, dayExpiry)
-            .update();
-        break;
-      } catch (DuplicateKeyException race) {
-        if (attempt > 0) throw race;
-      }
-    }
-    for (int attempt = 0; ; attempt++) {
-      int updated =
-          jdbc.sql(
-                  "UPDATE visitor_days SET visits=visits+?, prejoins=prejoins+?, creates=creates+?,"
-                      + " joins=joins+?, join_failures=join_failures+?,"
-                      + " presence_seconds=presence_seconds+?, integrations=integrations+?,"
-                      + " errors=errors+?, client=CASE WHEN client='other' THEN ? ELSE client END,"
-                      + " os=CASE WHEN os='other' THEN ? ELSE os END WHERE local_day=? AND"
-                      + " visitor_key=?")
-              .params(
-                  t.visits,
-                  t.prejoins,
-                  t.creates,
-                  t.joins,
-                  t.failures,
-                  t.presence,
-                  t.integrations,
-                  t.errors,
-                  client.client(),
-                  client.os(),
-                  day,
-                  slot.key())
-              .update();
-      if (updated > 0) return;
-      try {
-        jdbc.sql(
-                "INSERT INTO visitor_days(local_day,visitor_key,client,os,visits,prejoins,creates,"
-                    + "joins,join_failures,presence_seconds,integrations,errors,expires_at)"
-                    + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                "UPDATE visitor_days SET visits=visits+?, prejoins=prejoins+?, creates=creates+?,"
+                    + " joins=joins+?, join_failures=join_failures+?,"
+                    + " presence_seconds=presence_seconds+?, integrations=integrations+?,"
+                    + " errors=errors+?, client=CASE WHEN client='other' THEN ? ELSE client END,"
+                    + " os=CASE WHEN os='other' THEN ? ELSE os END WHERE local_day=? AND"
+                    + " visitor_key=?")
             .params(
-                day,
-                slot.key(),
-                client.client(),
-                client.os(),
                 t.visits,
                 t.prejoins,
                 t.creates,
@@ -392,13 +452,68 @@ public class Analytics implements RoomObserver {
                 t.presence,
                 t.integrations,
                 t.errors,
-                dayExpiry)
+                client.client(),
+                client.os(),
+                day,
+                slot.key())
             .update();
-        return;
-      } catch (DuplicateKeyException race) {
-        if (attempt > 0) throw race;
-      }
+    var known = written.get(slot.key());
+    if (dayUpdated > 0 && known != null && known.day().equals(day) && (known.called() || !t.called))
+      return true;
+    // Строка из буфера бывает старше записанной (вернулась после сбоя базы) — поэтому LEAST и
+    // GREATEST, а не «первый — тот, что был».
+    var update =
+        t.called
+            ? jdbc.sql(
+                    "UPDATE visitors SET first_day=LEAST(first_day, ?), last_day=GREATEST(last_day,"
+                        + " ?), first_called_day=LEAST(COALESCE(first_called_day, ?), ?),"
+                        + " expires_at=GREATEST(expires_at, ?) WHERE visitor_key=?")
+                .params(day, day, day, day, dayExpiry, slot.key())
+            : jdbc.sql(
+                    "UPDATE visitors SET first_day=LEAST(first_day, ?), last_day=GREATEST(last_day,"
+                        + " ?), expires_at=GREATEST(expires_at, ?) WHERE visitor_key=?")
+                .params(day, day, dayExpiry, slot.key());
+    if (update.update() == 0) {
+      if (onlyErrors(t)) return false;
+      jdbc.sql(
+              "INSERT INTO visitors(visitor_key,first_day,first_client,first_os,first_called_day,"
+                  + "last_day,expires_at) VALUES(?,?,?,?,?,?,?)")
+          .params(
+              slot.key(), day, client.client(), client.os(), t.called ? day : null, day, dayExpiry)
+          .update();
     }
+    if (dayUpdated == 0)
+      jdbc.sql(
+              "INSERT INTO visitor_days(local_day,visitor_key,client,os,visits,prejoins,creates,"
+                  + "joins,join_failures,presence_seconds,integrations,errors,expires_at)"
+                  + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")
+          .params(
+              day,
+              slot.key(),
+              client.client(),
+              client.os(),
+              t.visits,
+              t.prejoins,
+              t.creates,
+              t.joins,
+              t.failures,
+              t.presence,
+              t.integrations,
+              t.errors,
+              dayExpiry)
+          .update();
+    return true;
+  }
+
+  private static boolean onlyErrors(Tally t) {
+    return !t.called
+        && t.visits == 0
+        && t.prejoins == 0
+        && t.creates == 0
+        && t.joins == 0
+        && t.failures == 0
+        && t.presence == 0
+        && t.integrations == 0;
   }
 
   /** Забыть строки старше срока ({@code stream.analytics.retention}); сколько забыто. */
@@ -416,20 +531,34 @@ public class Analytics implements RoomObserver {
    */
   String key(String profileHash, String entrant) {
     if (!config.enabled()) return null;
-    if (profileHash != null) return secrets.derive("analytics:" + profileHash);
-    if (entrant != null && entrant.startsWith("actor:"))
-      return secrets.derive("analytics:" + entrant);
-    return null;
+    String scope;
+    if (profileHash != null) scope = profileHash;
+    else if (entrant != null && entrant.startsWith("actor:")) scope = entrant;
+    else return null;
+    synchronized (keys) {
+      var known = keys.get(scope);
+      if (known != null) return known;
+    }
+    var derived = secrets.derive("analytics:" + scope);
+    synchronized (keys) {
+      keys.put(scope, derived);
+    }
+    return derived;
   }
 
   private interface Change {
     void apply(Tally tally);
   }
 
-  private void record(String key, ClientKind client, Change change) {
+  /** {@code knownOnly} — только посетителю, которого ядро уже видело с запуска. */
+  private void record(String key, ClientKind client, boolean knownOnly, Change change) {
     var day = day(clock.millis());
     synchronized (lock) {
-      if (client != null && !"other".equals(client.client())) clients.put(key, client);
+      var seen = clients.get(key);
+      if (seen == null) {
+        if (knownOnly) return;
+        clients.put(key, client == null ? ClientKind.UNKNOWN : client);
+      } else if (client != null && !"other".equals(client.client())) clients.put(key, client);
       var tally = tally(day, key);
       tally.client(client);
       change.apply(tally);
@@ -452,17 +581,28 @@ public class Analytics implements RoomObserver {
     return tally;
   }
 
-  /** Применить после фиксации транзакции комнаты; без транзакции — сразу. */
+  /**
+   * Применить после фиксации транзакции комнаты; без транзакции — сразу. Отказ здесь не доходит до
+   * того, кто менял комнату: встреча уже зафиксирована, и ответ человеку не должен стать ошибкой.
+   */
   private static void afterCommit(Runnable action) {
+    Runnable safe =
+        () -> {
+          try {
+            action.run();
+          } catch (RuntimeException e) {
+            log.warn("Аналитика: перемена комнаты не учтена: {}", e.toString());
+          }
+        };
     if (TransactionSynchronizationManager.isSynchronizationActive())
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-              action.run();
+              safe.run();
             }
           });
-    else action.run();
+    else safe.run();
   }
 
   LocalDate day(long millis) {

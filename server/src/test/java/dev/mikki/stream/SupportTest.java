@@ -518,6 +518,41 @@ class SupportTest {
     assertThat(jdbc.sql("SELECT COUNT(*) FROM support_notes").query(Long.class).single()).isZero();
   }
 
+  /**
+   * Пульт, вторая вкладка и кнопка Telegram жмут одно и то же разом: шаг из «ждём человека»
+   * делается один раз — пауза SLA не удваивается, в ленте один переход, а не столько, сколько
+   * нажатий.
+   */
+  @Test
+  void concurrentMovesOfOneTicketAreDoneOnce() throws Exception {
+    var id = submit(fresh(), "Камера чёрная у всех собеседников");
+    support.setStatus(id, Status.WAITING, "owner");
+    now.addAndGet(Duration.ofHours(2).toMillis());
+    int hands = 8;
+    var start = new java.util.concurrent.CountDownLatch(1);
+    var pool = java.util.concurrent.Executors.newFixedThreadPool(hands);
+    try {
+      var done = new ArrayList<java.util.concurrent.Future<?>>();
+      for (int i = 0; i < hands; i++)
+        done.add(
+            pool.submit(
+                () -> {
+                  start.await();
+                  support.setStatus(id, Status.OPEN, "owner");
+                  return null;
+                }));
+      start.countDown();
+      for (var future : done) future.get(30, java.util.concurrent.TimeUnit.SECONDS);
+    } finally {
+      pool.shutdownNow();
+    }
+    var ticket = support.get(id);
+    assertThat(ticket.ticket().pausedMs()).isEqualTo(Duration.ofHours(2).toMillis());
+    assertThat(ticket.notes())
+        .extracting(SupportService.Note::kind, SupportService.Note::text)
+        .containsExactly(tuple("status", "waiting"), tuple("status", "open"));
+  }
+
   /** Решённое через две недели само уходит в архив — с записью в ленте от системы. */
   @Test
   void resolvedTicketsMoveToTheArchiveByThemselves() throws Exception {
@@ -533,6 +568,11 @@ class SupportTest {
     assertThat(archived.ticket().status()).isEqualTo(Status.ARCHIVED);
     assertThat(archived.notes().getLast().author()).isEqualTo("system");
     assertThat(support.get(open).ticket().status()).isEqualTo(Status.OPEN);
+    // Владелец вернул его из архива в «решено» — следующий проход не уносит его обратно сразу.
+    support.setStatus(done, Status.DONE, "owner");
+    assertThat(support.archiveResolved()).isZero();
+    now.addAndGet(Duration.ofDays(15).toMillis());
+    assertThat(support.archiveResolved()).isEqualTo(1);
   }
 
   /**

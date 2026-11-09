@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Обращения в поддержку (E13, T36).
@@ -25,6 +26,12 @@ import org.springframework.stereotype.Service;
  *
  * <p>Защита — та же, что у входа во встречу (E11-B): задача «не бот» на действие {@code support},
  * предел на адрес и общий предел сервера. Адрес не хранится: {@code from_key} — HMAC его ключа.
+ *
+ * <p>ОДНО ОБРАЩЕНИЕ — ОДИН ПРАВЯЩИЙ. Его ведут сразу несколько мест: пульт владельца и агента,
+ * кнопки Telegram, «Активность», автоархив. Каждая перемена — транзакция, начинающаяся с замка
+ * строки обращения ({@code FOR UPDATE}): два одновременных шага не прочтут один и тот же прежний
+ * статус — пауза SLA не удвоится, в ленте не будет двух одинаковых переходов, а перемена и её
+ * строка ленты ложатся вместе.
  */
 @Service
 public class SupportService {
@@ -448,35 +455,60 @@ public class SupportService {
         unassigned);
   }
 
-  /** Качество работы за последние {@code days} дней ({@link Stats}). */
+  /**
+   * Качество работы за последние {@code days} дней ({@link Stats}). Читаются только сроки и тема,
+   * без текстов: за год обращений с диагностикой в памяти ядра встреч набралось бы слишком много.
+   */
   public Stats stats(int days) {
     long since = clock.millis() - java.time.Duration.ofDays(days).toMillis();
-    var rows =
-        jdbc.sql("SELECT * FROM support_tickets WHERE created_at >= ?")
-            .param(since)
-            .query(this::entry)
-            .list();
+    var sla = config.slaOrDefault();
     var firstResponse = new ArrayList<Long>();
     var resolve = new ArrayList<Long>();
-    long resolved = 0, met = 0;
     var topics = new TreeMap<String, Long>();
-    for (var e : rows) {
-      topics.merge(e.topic(), 1L, Long::sum);
-      if (e.firstResponseAt() != null) firstResponse.add(e.firstResponseAt() - e.createdAt());
-      if (e.resolvedAt() != null) {
-        resolved++;
-        resolve.add(e.resolvedAt() - e.createdAt() - e.pausedMs());
-        if (Boolean.TRUE.equals(e.slaMet())) met++;
-      }
-    }
+    long[] totals = new long[3]; // пришло, решено, решено в срок
+    jdbc.sql(
+            "SELECT topic, created_at, first_response_at, resolved_at, paused_ms FROM"
+                + " support_tickets WHERE created_at >= ?")
+        .param(since)
+        .query(
+            (org.springframework.jdbc.core.RowCallbackHandler)
+                rs -> {
+                  long createdAt = rs.getLong("created_at");
+                  Long firstResponseAt = rs.getObject("first_response_at", Long.class);
+                  Long resolvedAt = rs.getObject("resolved_at", Long.class);
+                  long paused = rs.getLong("paused_ms");
+                  totals[0]++;
+                  topics.merge(rs.getString("topic"), 1L, Long::sum);
+                  if (firstResponseAt != null) firstResponse.add(firstResponseAt - createdAt);
+                  if (resolvedAt != null) {
+                    totals[1]++;
+                    resolve.add(resolvedAt - createdAt - paused);
+                    if (slaMet(sla, createdAt, firstResponseAt, resolvedAt, paused)) totals[2]++;
+                  }
+                });
     return new Stats(
         days,
-        rows.size(),
-        resolved,
+        totals[0],
+        totals[1],
         medianMinutes(firstResponse),
         medianMinutes(resolve),
-        resolved > 0 ? met / (double) resolved : null,
+        totals[1] > 0 ? totals[2] / (double) totals[1] : null,
         topics);
+  }
+
+  /**
+   * Решённое — в срок: первая реакция не позже срока от создания, решение — не позже срока решения
+   * плюс время в «ждём человека».
+   */
+  private static boolean slaMet(
+      SupportProperties.Sla sla,
+      long createdAt,
+      Long firstResponseAt,
+      long resolvedAt,
+      long paused) {
+    return (firstResponseAt == null
+            || firstResponseAt <= createdAt + sla.firstResponse().toMillis())
+        && resolvedAt <= createdAt + sla.resolve().toMillis() + paused;
   }
 
   private static Double medianMinutes(List<Long> millis) {
@@ -532,9 +564,7 @@ public class SupportService {
     boolean open = status == Status.NEW || status == Status.OPEN;
     boolean breached = open && ((firstResponseAt == null && now > firstDue) || now > resolveDue);
     Boolean slaMet =
-        resolvedAt == null
-            ? null
-            : (firstResponseAt == null || firstResponseAt <= firstDue) && resolvedAt <= resolveDue;
+        resolvedAt == null ? null : slaMet(sla, createdAt, firstResponseAt, resolvedAt, pausedNow);
     var tags = rs.getString("tags");
     return new Entry(
         rs.getString("id"),
@@ -562,6 +592,7 @@ public class SupportService {
   }
 
   /** Владелец ведёт обращение: «в работе», «решено». Из Telegram и со старой «Активности». */
+  @Transactional
   public void setStatus(String id, Status status) {
     setStatus(id, status, "owner");
   }
@@ -572,10 +603,11 @@ public class SupportService {
    * {@code resolved_at}, {@code archived} — {@code archived_at} (и решение, если его не было); шаг
    * назад их снимает.
    */
+  @Transactional
   public void setStatus(String id, Status status, String author) {
     long now = clock.millis();
     var current =
-        jdbc.sql("SELECT status, status_at FROM support_tickets WHERE id=?")
+        jdbc.sql("SELECT status, status_at FROM support_tickets WHERE id=? FOR UPDATE")
             .param(id)
             .query((rs, n) -> new Object[] {Status.of(rs.getString(1)), rs.getLong(2)})
             .optional()
@@ -609,11 +641,15 @@ public class SupportService {
    * Назначение, приоритет, метки; {@code null} — не менять, пустая строка — снять. Каждая перемена
    * — строка в ленте; то же значение — ничего.
    */
+  @Transactional
   public void update(String id, String assignee, String priority, String tags, String author) {
+    lock(id);
     var before = get(id).ticket();
     long now = clock.millis();
     if (assignee != null) {
       var value = line(assignee);
+      // «-» — «без назначения» у фильтра ящика: назначить такое слово значит снять назначение.
+      if ("-".equals(value)) value = null;
       if (!Objects.equals(value, before.assignee())) {
         jdbc.sql("UPDATE support_tickets SET assignee=? WHERE id=?").params(value, id).update();
         note(id, author, "assign", value == null ? "—" : value, now);
@@ -643,12 +679,14 @@ public class SupportService {
    * Заметка себе ({@code note}) или что ответили человеку ({@code reply}). Ответ — первая реакция
    * для SLA и переход в «ждём человека», если обращение было новым или в работе.
    */
+  @Transactional
   public Note addNote(String id, String kind, String text, String author) {
     if (!"note".equals(kind) && !"reply".equals(kind))
       throw new IllegalArgumentException("Unknown note kind");
     var body = text(text);
     if (body.isEmpty() || body.length() > MAX_MESSAGE)
       throw new IllegalArgumentException("Note text");
+    lock(id);
     var ticket = get(id).ticket();
     long now = clock.millis();
     var note = note(id, author, kind, body, now);
@@ -662,6 +700,15 @@ public class SupportService {
         setStatus(id, Status.WAITING, author);
     }
     return note;
+  }
+
+  /** Замок строки обращения до конца транзакции; нет такого — 404. */
+  private void lock(String id) {
+    jdbc.sql("SELECT id FROM support_tickets WHERE id=? FOR UPDATE")
+        .param(id)
+        .query(String.class)
+        .optional()
+        .orElseThrow(SupportService::notFound);
   }
 
   private Note note(String ticketId, String author, String kind, String text, long now) {
@@ -681,6 +728,7 @@ public class SupportService {
    * доносятся. Сообщение с кнопками можно переслать, а бота — добавить в другую беседу; нажатие там
    * статуса не меняет.
    */
+  @Transactional
   public Moved moveFromChat(String id, Status status, String chat) {
     var owners = config.chat();
     if (owners.isEmpty() || !owners.equals(chat == null ? "" : chat.trim()))
@@ -689,7 +737,8 @@ public class SupportService {
     return new Moved(id, number(id), status);
   }
 
-  /** Забыть обращения старше срока хранения; сколько забыто. */
+  /** Забыть обращения старше срока хранения вместе с их лентой; сколько забыто. */
+  @Transactional
   public int forgetOld() {
     long before = clock.millis() - config.retention().toMillis();
     jdbc.sql(
@@ -702,12 +751,14 @@ public class SupportService {
 
   /**
    * Решённое дольше {@code stream.support.auto-archive} уходит в архив само — ящик остаётся рабочим
-   * списком; сколько убрано.
+   * списком; сколько убрано. Срок — от перехода в «решено» ({@code status_at}), а не от первого
+   * решения: обращение, которое владелец вернул из архива, не уходит туда же в следующий час.
    */
+  @Transactional
   public int archiveResolved() {
     long now = clock.millis();
     var ids =
-        jdbc.sql("SELECT id FROM support_tickets WHERE status='done' AND resolved_at < ?")
+        jdbc.sql("SELECT id FROM support_tickets WHERE status='done' AND status_at < ?")
             .param(now - config.autoArchiveOrDefault().toMillis())
             .query(String.class)
             .list();
