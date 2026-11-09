@@ -47,12 +47,12 @@ describe('меню качества', () => {
   });
 
   it('кодеков в меню нет: одна строка на высоту, за ней — ступень кодека просмотра', () => {
-    // Движок пометил чужой кодек `fit: false` (`engines/hls.ts`): просмотр идёт на H.264.
+    // Движок пометил чужой кодек `foreign` (`engines/hls.ts`): просмотр идёт на H.264.
     const levels: Level[] = [
-      { ...level(1080, 3_000_000), videoCodec: 'vp09.00.40.08', fit: false },
+      { ...level(1080, 3_000_000), videoCodec: 'vp09.00.40.08', foreign: true },
       { ...level(1080, 4_500_000), videoCodec: 'avc1.640028' },
       { ...level(1080, 4_000_000), videoCodec: 'avc1.640028' },
-      { ...level(720, 1_500_000), videoCodec: 'vp09.00.31.08', fit: false },
+      { ...level(720, 1_500_000), videoCodec: 'vp09.00.31.08', foreign: true },
       { ...level(720, 2_500_000), videoCodec: 'avc1.4d401f' },
     ];
     expect(qualities(t, levels)).toEqual([
@@ -70,8 +70,19 @@ describe('меню качества', () => {
     expect(qualities(t, levels).map((q) => q.label)).toEqual(['1080p', '720p']);
   });
 
-  it('помечено всё — меню всё равно есть, а не пустое', () => {
+  it('неплавным помечено всё — меню своего кодека всё равно есть, но чужой кодек не появляется', () => {
     expect(qualities(t, [{ ...level(480, 900_000), fit: false }])).toEqual([{ level: 0, label: '480p' }]);
+    // Телевизор на H.264, `MediaCapabilities` не обещает плавности ни одной ступени: VP9 в меню не всплывает.
+    expect(
+      qualities(t, [
+        { ...level(1080, 6_000_000), videoCodec: 'vp09.00.40.08', foreign: true, fit: true },
+        { ...level(1080, 4_500_000), videoCodec: 'avc1.640028', fit: false },
+        { ...level(720, 2_500_000), videoCodec: 'avc1.4d401f', fit: false },
+      ]),
+    ).toEqual([
+      { level: 1, label: '1080p' },
+      { level: 2, label: '720p' },
+    ]);
   });
 
   it('у неизвестного кодека одной высоты — лучший битрейт, по-прежнему одна строка', () => {

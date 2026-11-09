@@ -225,10 +225,21 @@ describe('сторож застрявшего плеера в usePlayback (R216)
   it('отказ, а потом сеть вернулась — пробуем сами; «Повторить» сразу показывает «Открываем…»', async () => {
     const room = setup();
     await pass(0);
+    // Отказ при сети (поток сломан) — возвращение сети его не трогает: лишний разбор у площадки ни к чему.
+    act(() => room.hook.result.current.setStatus('failed'));
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(room.resolve).toHaveBeenCalledTimes(1);
+    act(() => room.hook.result.current.setStatus('ready'));
+    // Отказ без сети — сеть вернулась, пробуем сами.
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     act(() => {
       room.hook.result.current.setStatus('failed');
       room.hook.result.current.setError('Видео не грузится');
     });
+    online.mockReturnValue(true);
     await act(async () => {
       window.dispatchEvent(new Event('online'));
       await vi.advanceTimersByTimeAsync(0);

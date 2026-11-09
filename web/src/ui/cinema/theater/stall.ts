@@ -89,3 +89,8 @@ export function nextHeal(input: {
   if (!done.has('kick') && !fed && !fresh && stalledMs >= KICK_STARVED) return 'kick';
   return due(NETWORK);
 }
+
+/** Браузер знает, что сети нет вовсе (`navigator.onLine` врёт только в сторону «есть»). */
+export function offline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}

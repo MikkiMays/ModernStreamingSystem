@@ -33,6 +33,8 @@ const mock = vi.hoisted(() => {
     bandwidthEstimate = 2_500_000;
     nextLoadLevel = 0;
     nextLevel = -1;
+    startLevel = -1;
+    loadLevel = -1;
     autoLevelEnabled = true;
     autoLevelCapping = -1;
     currentLevel = -1;
@@ -326,11 +328,20 @@ describe('HLS через hls.js', () => {
     ] as never;
     fire('manifestParsed');
     expect(hls().config.videoPreference).toEqual({ videoCodec: 'vp09' });
+    // Первая ступень — сами, нашим кодеком: лучшая VP9 в пределах начальной оценки канала (2 Мбит/с).
+    expect(hls().startLevel).toBe(2);
     const [levels] = report.levels.mock.calls.at(-1)!;
-    expect(levels.map((level: { fit?: boolean }) => level.fit)).toEqual([false, undefined, undefined]);
+    expect(levels.map((level: { foreign?: boolean }) => level.foreign)).toEqual([true, undefined, undefined]);
+    // Первый кусок пришёл — дальше выбирает автоматика (и при перезапуске загрузки тоже).
+    fire('fragLoaded');
+    expect(hls().startLevel).toBe(-1);
     // Ступени hls.js убрал сам — меню перечитывается.
     fire('levelsUpdated');
     expect(report.levels).toHaveBeenCalledTimes(2);
+    // hls.js всё же играет H.264 (ошибка ступени, запасной путь) — меню идёт за тем, что играет.
+    fire('levelSwitched', { level: 0 });
+    const [after] = report.levels.mock.calls.at(-1)!;
+    expect(after.map((level: { foreign?: boolean }) => level.foreign)).toEqual([undefined, true, true]);
   });
 
   it('мастер без известных кодеков — выбирает hls.js', () => {
@@ -355,23 +366,36 @@ describe('HLS через hls.js', () => {
     fire('manifestParsed');
     hls().currentLevel = 0;
     expect(engine.lighten!()).toEqual({ codec: 'av01' });
-    // 1080p60 VP9, а не 1080p30 VP9 и не H.264: ближайший легче кодек, та же частота кадров.
-    expect(hls().nextLoadLevel).toBe(1);
+    // 1080p60 VP9, а не 1080p30 VP9 и не H.264: ближайший легче кодек, та же частота кадров. Ручной
+    // ступенью, а не подсказкой автоматике (её hls.js сбросил бы с концом идущего куска)…
+    expect(hls().nextLevel).toBe(1);
     expect(hls().config.videoPreference).toEqual({ videoCodec: 'vp09' });
+    // …и меню при этом по-прежнему «Авто».
+    expect(report.levels.mock.calls.at(-1)![1]).toBe(-1);
+    // Первый кусок новой ступени в буфере — снова автоматика, уже внутри VP9.
+    hls().loadLevel = 1;
+    fire('fragBuffered', { frag: { type: 'audio', level: 1 } });
+    expect(hls().loadLevel).toBe(1);
+    fire('fragBuffered', { frag: { type: 'main', level: 1 } });
+    expect(hls().loadLevel).toBe(-1);
     hls().currentLevel = 1;
     expect(engine.lighten!()).toEqual({ codec: 'vp09' });
-    expect(hls().nextLoadLevel).toBe(3);
+    expect(hls().nextLevel).toBe(3);
     hls().currentLevel = 3;
     expect(engine.lighten!()).toEqual({ level: 4 });
     expect(hls().autoLevelCapping).toBe(4);
     // Высота, выбранная руками, — тот же кадр легче, и меню отмечает новую ступень той же высоты.
-    hls().currentLevel = 1;
+    engine.quality(1);
     hls().autoLevelEnabled = false;
     expect(engine.lighten!()).toEqual({ codec: 'vp09' });
     expect(hls().nextLevel).toBe(3);
     expect(report.levels.mock.calls.at(-1)![1]).toBe(3);
     hls().currentLevel = 3;
     expect(engine.lighten!()).toBeNull();
+    // hls.js убрал ступень ниже — потолок — та же ступень под новым номером, а не старый номер.
+    hls().levels = hls().levels.filter((_level, index) => index !== 2);
+    fire('levelsUpdated');
+    expect(hls().autoLevelCapping).toBe(3);
   });
 
   it('пересборка ставит `<video>` на паузу без события — играющий плеер запускается сразу', () => {

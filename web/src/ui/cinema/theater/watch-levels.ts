@@ -3,16 +3,19 @@ import type { Translate } from '../../../i18n';
 /**
  * Ступень качества так, как её видит меню: высота, битрейт и кодек — из плейлиста.
  *
- * `fit: false` — эту ступень человеку не предлагаем: её кодек не тот, на котором играет просмотр
- * (переключать декодер посреди фильма ради выбора высоты — значит рвать картинку), или устройство не
- * декодирует её плавно (`MediaCapabilities`, `engines/hls.ts`). Нет поля — не знаем, предлагаем.
+ * Человеку не предлагаем ступень чужого кодека (`foreign`: переключать декодер посреди фильма ради выбора
+ * высоты — значит рвать картинку) и ступень, которую устройство не декодирует плавно (`fit: false`,
+ * `MediaCapabilities`, `engines/hls.ts`). Нет поля — не знаем, предлагаем.
  */
 export interface Level {
   height?: number;
   bitrate?: number;
   videoCodec?: string;
   attrs?: Record<string, string | undefined>;
+  /** Устройство декодирует ступень плавно (`MediaCapabilities`); нет поля — не знаем. */
   fit?: boolean;
+  /** Кодек не тот, на котором играет просмотр: выбор высоты не должен переключать декодер. */
+  foreign?: boolean;
 }
 
 export interface Quality {
@@ -37,15 +40,20 @@ export function levelLabel(t: Translate, level: Level | undefined): string {
 /**
  * Меню качества (R216, владелец: «давать выбирать только качество, а кодек система должна подбирать
  * сама»): одна строка на высоту и частоту кадров, без кодеков. За строкой — ступень, которую устройство
- * потянет: кодек просмотра выбирает движок (`decode.ts`, `device.videoCodecs`) и помечает чужие кодеки и
- * неплавные ступени `fit: false`; из оставшихся на высоту — лучшая по битрейту.
+ * потянет: кодек просмотра выбирает движок (`decode.ts`, `device.videoCodecs`) и помечает чужие кодеки
+ * (`foreign`) и неплавные ступени (`fit: false`); из оставшихся на высоту — лучшая по битрейту.
  */
 export function qualities(t: Translate, levels: Level[]): Quality[] {
-  const offered = levels.some((level) => level.fit !== false);
+  const own = levels.some((level) => !level.foreign);
+  const plain = levels.some((level) => !level.foreign && level.fit !== false);
   const best = new Map<string, { level: number; bitrate: number; height: number; fast: boolean }>();
   levels.forEach((level, index) => {
-    // Помечено всё — значит, пометки врут (кодек без ступеней): лучше меню, чем пустота.
-    if (offered && level.fit === false) return;
+    /*
+      Чужой кодек не предлагаем никогда (пока есть свой); неплавное — пока есть плавное: помечено всё —
+      значит, обещания `MediaCapabilities` врут, и лучше меню своего кодека, чем пустота.
+    */
+    if (own && level.foreign) return;
+    if (plain && level.fit === false) return;
     const label = levelLabel(t, level);
     const bitrate = level.bitrate ?? 0;
     const kept = best.get(label);

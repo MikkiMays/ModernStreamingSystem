@@ -7,14 +7,14 @@ import { noteFailure } from '../../../core/failure';
 import { t } from '../../../i18n';
 import { useStore } from '../../primitives';
 import type { AdBreak } from './ad-breaks';
-import { DecodeWatch, demote, type VideoFamily } from './decode';
+import { DecodeWatch, demote, demotedFamilies, type VideoFamily } from './decode';
 import { videoCodecs, type MediaProfile } from './device';
 import { attachDash } from './engines/dash';
 import { attachFile } from './engines/file';
 import { attachHls, hlsSupported } from './engines/hls';
 import type { Playback } from './engines/playback';
 import { aheadOf, type Playhead } from './playhead';
-import { DATA, nextHeal, type Heal } from './stall';
+import { DATA, nextHeal, offline, type Heal } from './stall';
 import type { Echo } from './useRoomSync';
 import { contentOf, useSource } from './useSource';
 import type { Level } from './watch-levels';
@@ -81,10 +81,19 @@ export function usePlayback({
   const recovery = useRef(recover);
   recovery.current = recover;
 
+  /*
+    Кодеки, от которых отказались в этом просмотре (`decode.ts`), — и те, что ещё не доказали, что отказ
+    помог, и потому не запомнены на устройстве. Поток заново (лечение, срок подписи) иначе начинался бы с
+    того же кодека, который устройство только что не потянуло.
+  */
+  const lightened = useRef(new Set<VideoFamily>());
+  const codecs = (device: MediaProfile) =>
+    videoCodecs(device, undefined, new Set([...demotedFamilies(), ...lightened.current]));
   // Другое видео — другие ступени, озвучки и субтитры. Автоматическую ступень прежнего здесь
   // не сбрасывали и раньше: до первой новой её перепишет сам движок.
   const content = contentOf(watch);
   useEffect(() => {
+    lightened.current = new Set();
     setLevels([]);
     setLevel(-1);
     setVoices([]);
@@ -115,7 +124,7 @@ export function usePlayback({
       playback.current = attachFile(element, source.url);
     } else if (source.kind === 'dash') {
       // Дорожка картинки DASH — тоже кодеком по силам устройства (`device.ts`), а не самой широкой.
-      void (profile ? videoCodecs(profile).catch(() => ['avc1' as const]) : Promise.resolve(undefined))
+      void (profile ? codecs(profile).catch(() => ['avc1' as const]) : Promise.resolve(undefined))
         .then((codecs) =>
           alive
             ? attachDash(
@@ -173,7 +182,7 @@ export function usePlayback({
           { codecs },
         );
       };
-      if (profile) void videoCodecs(profile).then(attach, () => attach(['avc1']));
+      if (profile) void codecs(profile).then(attach, () => attach(['avc1']));
       else attach(undefined);
     } else if (element.canPlayType('application/vnd.apple.mpegurl')) {
       playback.current = attachFile(element, source.url);
@@ -257,6 +266,7 @@ export function usePlayback({
       }
       // Застревания при данных впереди — довод сам по себе; потери кадров — только если шаг помог.
       if ('codec' in result) {
+        lightened.current.add(result.codec);
         if (verdict.reason === 'stalls') demote(result.codec);
         else trial = result.codec;
       }
@@ -274,6 +284,8 @@ export function usePlayback({
         продолжает с того же места, а срок первого кадра считает только видимое время.
       */
       const away = document.hidden || offline();
+      // Не судим о кадрах — и следующая проверка начинает счёт заново, а не с кадров, потерянных в фоне.
+      if (away || statusNow.current !== 'ready') decode.sample(now, null);
       if (statusNow.current === 'loading') {
         if (!away) loadingFor += Math.min(gap, WATCHDOG_MS * 4);
         /*
@@ -383,9 +395,14 @@ export function usePlayback({
   */
   const retryNow = useRef(player.retry);
   retryNow.current = player.retry;
+  /** Отказ случился без сети: только такой стоит повторять самим, когда она вернётся. */
+  const failedOffline = useRef(false);
+  useEffect(() => {
+    failedOffline.current = player.status === 'failed' && offline();
+  }, [player.status]);
   useEffect(() => {
     const online = () => {
-      if (statusNow.current === 'failed') retryNow.current();
+      if (statusNow.current === 'failed' && failedOffline.current) retryNow.current();
     };
     window.addEventListener('online', online);
     return () => window.removeEventListener('online', online);
@@ -458,10 +475,6 @@ const SOUND_FINE_MS = 10_000;
  * Громкость и «без звука» плеера (R213, владелец: «нельзя менять/выключать громкость… с телефона»). Safari на iPhone
  * громкость элемента не меняет — `volume` там только для чтения, и ноль не глушил; `muted` работает везде.
  */
-function offline(): boolean {
-  return typeof navigator !== 'undefined' && navigator.onLine === false;
-}
-
 export function setWatchLevel(element: HTMLMediaElement, level: number) {
   element.volume = level;
   element.muted = level <= 0;
