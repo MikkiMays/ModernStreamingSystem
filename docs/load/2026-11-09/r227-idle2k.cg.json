@@ -1,0 +1,181 @@
+{
+ "name": "r227-idle2k",
+ "host_busy": 44.379,
+ "steal": 7.564,
+ "lt-core": 0.338,
+ "lt-pg": 0.381,
+ "modern-streaming-livekit-1": 0.153,
+ "lt-core_max": 0.405,
+ "lt-core_mib_max": 604,
+ "lt-pg_max": 0.446,
+ "lt-pg_mib_max": 233,
+ "modern-streaming-livekit-1_max": 0.269,
+ "modern-streaming-livekit-1_mib_max": 93,
+ "samples": [
+  {
+   "t": 2.0,
+   "host_busy": 19.7,
+   "steal": 3.7,
+   "lt-core": 0.14,
+   "lt-core_mib": 604,
+   "lt-pg": 0.173,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.03,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 4.0,
+   "host_busy": 48.0,
+   "steal": 10.5,
+   "lt-core": 0.36,
+   "lt-core_mib": 604,
+   "lt-pg": 0.426,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.137,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 6.0,
+   "host_busy": 54.0,
+   "steal": 5.3,
+   "lt-core": 0.379,
+   "lt-core_mib": 604,
+   "lt-pg": 0.414,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.192,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 8.0,
+   "host_busy": 36.9,
+   "steal": 4.4,
+   "lt-core": 0.325,
+   "lt-core_mib": 604,
+   "lt-pg": 0.383,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.142,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 10.0,
+   "host_busy": 36.7,
+   "steal": 3.6,
+   "lt-core": 0.291,
+   "lt-core_mib": 604,
+   "lt-pg": 0.369,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.054,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 12.0,
+   "host_busy": 43.2,
+   "steal": 5.6,
+   "lt-core": 0.378,
+   "lt-core_mib": 604,
+   "lt-pg": 0.427,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.181,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 14.0,
+   "host_busy": 49.3,
+   "steal": 5.9,
+   "lt-core": 0.358,
+   "lt-core_mib": 604,
+   "lt-pg": 0.402,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.269,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 16.0,
+   "host_busy": 47.1,
+   "steal": 13.0,
+   "lt-core": 0.215,
+   "lt-core_mib": 604,
+   "lt-pg": 0.252,
+   "lt-pg_mib": 216,
+   "modern-streaming-livekit-1": 0.05,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 18.0,
+   "host_busy": 38.6,
+   "steal": 10.3,
+   "lt-core": 0.313,
+   "lt-core_mib": 604,
+   "lt-pg": 0.323,
+   "lt-pg_mib": 233,
+   "modern-streaming-livekit-1": 0.171,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 20.0,
+   "host_busy": 53.4,
+   "steal": 11.5,
+   "lt-core": 0.392,
+   "lt-core_mib": 604,
+   "lt-pg": 0.439,
+   "lt-pg_mib": 233,
+   "modern-streaming-livekit-1": 0.174,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 22.0,
+   "host_busy": 42.6,
+   "steal": 6.7,
+   "lt-core": 0.382,
+   "lt-core_mib": 604,
+   "lt-pg": 0.398,
+   "lt-pg_mib": 233,
+   "modern-streaming-livekit-1": 0.221,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 24.0,
+   "host_busy": 29.9,
+   "steal": 5.0,
+   "lt-core": 0.2,
+   "lt-core_mib": 604,
+   "lt-pg": 0.286,
+   "lt-pg_mib": 233,
+   "modern-streaming-livekit-1": 0.042,
+   "modern-streaming-livekit-1_mib": 92
+  },
+  {
+   "t": 26.0,
+   "host_busy": 52.8,
+   "steal": 6.7,
+   "lt-core": 0.379,
+   "lt-core_mib": 604,
+   "lt-pg": 0.382,
+   "lt-pg_mib": 233,
+   "modern-streaming-livekit-1": 0.16,
+   "modern-streaming-livekit-1_mib": 93
+  },
+  {
+   "t": 28.0,
+   "host_busy": 41.9,
+   "steal": 8.5,
+   "lt-core": 0.351,
+   "lt-core_mib": 604,
+   "lt-pg": 0.392,
+   "lt-pg_mib": 233,
+   "modern-streaming-livekit-1": 0.175,
+   "modern-streaming-livekit-1_mib": 93
+  },
+  {
+   "t": 30.0,
+   "host_busy": 46.9,
+   "steal": 8.9,
+   "lt-core": 0.405,
+   "lt-core_mib": 604,
+   "lt-pg": 0.446,
+   "lt-pg_mib": 233,
+   "modern-streaming-livekit-1": 0.17,
+   "modern-streaming-livekit-1_mib": 91
+  }
+ ]
+}

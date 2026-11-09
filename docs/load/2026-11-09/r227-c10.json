@@ -1,0 +1,187 @@
+{
+ "name": "r227-c10",
+ "rooms": 1,
+ "lk": [
+  "--video-publishers",
+  "10",
+  "--audio-publishers",
+  "10",
+  "--subscribers",
+  "10",
+  "--layout",
+  "5x5",
+  "--no-simulcast"
+ ],
+ "duration": 75,
+ "sfu_cores_avg": 0.714,
+ "sfu_cores_max": 0.905,
+ "sfu_mem_peak_mib": 226.8,
+ "host_busy_avg": 75.978,
+ "host_steal_avg": 6.644,
+ "host_softirq_avg": 2.756,
+ "lo_mbps_avg": 234.744,
+ "samples": [
+  {
+   "t": 2.0,
+   "sfu_cores": 0.907,
+   "sfu_mem_mib": 122.4,
+   "host_busy_pct": 82.9,
+   "host_steal_pct": 2.3,
+   "host_softirq_pct": 3.4,
+   "lo_mbps": 48.1
+  },
+  {
+   "t": 4.0,
+   "sfu_cores": 1.236,
+   "sfu_mem_mib": 164.9,
+   "host_busy_pct": 91.0,
+   "host_steal_pct": 4.3,
+   "host_softirq_pct": 3.3,
+   "lo_mbps": 74.1
+  },
+  {
+   "t": 6.0,
+   "sfu_cores": 0.756,
+   "sfu_mem_mib": 187.9,
+   "host_busy_pct": 83.7,
+   "host_steal_pct": 5.8,
+   "host_softirq_pct": 2.5,
+   "lo_mbps": 168.2
+  },
+  {
+   "t": 8.0,
+   "sfu_cores": 0.777,
+   "sfu_mem_mib": 199.6,
+   "host_busy_pct": 90.0,
+   "host_steal_pct": 3.5,
+   "host_softirq_pct": 2.7,
+   "lo_mbps": 298.0
+  },
+  {
+   "t": 10.0,
+   "sfu_cores": 0.727,
+   "sfu_mem_mib": 206.8,
+   "host_busy_pct": 72.0,
+   "host_steal_pct": 4.0,
+   "host_softirq_pct": 2.6,
+   "lo_mbps": 223.9
+  },
+  {
+   "t": 12.0,
+   "sfu_cores": 0.74,
+   "sfu_mem_mib": 209.9,
+   "host_busy_pct": 69.2,
+   "host_steal_pct": 3.1,
+   "host_softirq_pct": 2.8,
+   "lo_mbps": 234.7
+  },
+  {
+   "t": 14.0,
+   "sfu_cores": 0.764,
+   "sfu_mem_mib": 210.3,
+   "host_busy_pct": 65.5,
+   "host_steal_pct": 7.5,
+   "host_softirq_pct": 2.9,
+   "lo_mbps": 231.0
+  },
+  {
+   "t": 16.0,
+   "sfu_cores": 0.774,
+   "sfu_mem_mib": 210.7,
+   "host_busy_pct": 68.0,
+   "host_steal_pct": 6.1,
+   "host_softirq_pct": 2.8,
+   "lo_mbps": 246.2
+  },
+  {
+   "t": 18.0,
+   "sfu_cores": 0.79,
+   "sfu_mem_mib": 210.9,
+   "host_busy_pct": 70.8,
+   "host_steal_pct": 8.2,
+   "host_softirq_pct": 2.5,
+   "lo_mbps": 246.9
+  },
+  {
+   "t": 20.0,
+   "sfu_cores": 0.74,
+   "sfu_mem_mib": 211.7,
+   "host_busy_pct": 68.6,
+   "host_steal_pct": 7.9,
+   "host_softirq_pct": 2.7,
+   "lo_mbps": 225.4
+  },
+  {
+   "t": 22.0,
+   "sfu_cores": 0.734,
+   "sfu_mem_mib": 211.8,
+   "host_busy_pct": 68.0,
+   "host_steal_pct": 7.5,
+   "host_softirq_pct": 2.4,
+   "lo_mbps": 231.2
+  },
+  {
+   "t": 24.0,
+   "sfu_cores": 0.722,
+   "sfu_mem_mib": 211.8,
+   "host_busy_pct": 84.3,
+   "host_steal_pct": 4.8,
+   "host_softirq_pct": 2.7,
+   "lo_mbps": 271.5
+  },
+  {
+   "t": 26.0,
+   "sfu_cores": 0.786,
+   "sfu_mem_mib": 211.9,
+   "host_busy_pct": 84.7,
+   "host_steal_pct": 6.8,
+   "host_softirq_pct": 2.7,
+   "lo_mbps": 272.5
+  },
+  {
+   "t": 28.0,
+   "sfu_cores": 0.786,
+   "sfu_mem_mib": 212.2,
+   "host_busy_pct": 72.0,
+   "host_steal_pct": 7.0,
+   "host_softirq_pct": 2.7,
+   "lo_mbps": 259.9
+  },
+  {
+   "t": 30.0,
+   "sfu_cores": 0.716,
+   "sfu_mem_mib": 212.8,
+   "host_busy_pct": 71.8,
+   "host_steal_pct": 6.8,
+   "host_softirq_pct": 3.0,
+   "lo_mbps": 224.5
+  },
+  {
+   "t": 32.0,
+   "sfu_cores": 0.741,
+   "sfu_mem_mib": 213.9,
+   "host_busy_pct": 90.9,
+   "host_steal_pct": 2.9,
+   "host_softirq_pct": 3.0,
+   "lo_mbps": 307.9
+  },
+  {
+   "t": 34.0,
+   "sfu_cores": 0.905,
+   "sfu_mem_mib": 219.0,
+   "host_busy_pct": 95.1,
+   "host_steal_pct": 5.4,
+   "host_softirq_pct": 3.7,
+   "lo_mbps": 295.4
+  },
+  {
+   "t": 36.0,
+   "sfu_cores": 0.297,
+   "sfu_mem_mib": 226.8,
+   "host_busy_pct": 48.4,
+   "host_steal_pct": 10.7,
+   "host_softirq_pct": 1.9,
+   "lo_mbps": 24.4
+  }
+ ]
+}
