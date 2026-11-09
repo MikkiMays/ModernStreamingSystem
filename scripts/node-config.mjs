@@ -142,9 +142,20 @@ if (args.node) {
   if (args.enabled !== undefined) node.enabled = args.enabled !== "false";
   if (args.ssh) node.ssh = args.ssh;
   if (args["ssh-key"]) node.sshKey = args["ssh-key"];
-  const topology = resolveTopology(
-    node.mode === "ip" ? { mode: "ip", ip: node.ip } : { app: node.app, rtc: node.rtc, turn: node.turn, ip: node.ip },
-  );
+  // Чужие сайты на машине узла (например, сайт владельца на cordcam): edge узла пропускает их TLS по SNI на локальный
+  // порт, не вскрывая (`edge-config.mjs`, `--legacy-hosts`). Пустое значение — убрать.
+  if (args["legacy-hosts"] !== undefined) {
+    if (args["legacy-hosts"]) node.legacyHosts = args["legacy-hosts"].split(",");
+    else delete node.legacyHosts;
+  }
+  if (args["legacy-tls-port"]) node.legacyTlsPort = Number(args["legacy-tls-port"]);
+  if (!node.legacyHosts) delete node.legacyTlsPort;
+  const nodeEdge = {
+    ...(node.mode === "ip" ? { mode: "ip", ip: node.ip } : { app: node.app, rtc: node.rtc, turn: node.turn, ip: node.ip }),
+    ...(node.legacyHosts ? { "legacy-hosts": node.legacyHosts.join(",") } : {}),
+    ...(node.legacyTlsPort ? { "legacy-tls-port": String(node.legacyTlsPort) } : {}),
+  };
+  const topology = resolveTopology(nodeEdge);
   // Что ядро и клиенты знают об узле. Клиент подключает SDK к `rtcUrl` (SDK сам добавляет /rtc),
   // меряет TCP по `probeUrl/api/v1/ping` и UDP — STUN-запросом к TURN узла.
   node.rtcUrl = `wss://${topology.rtc}`;
@@ -176,7 +187,7 @@ if (args.node) {
     webhookUrl: `http://127.0.0.1:${NODE_LOCAL.hooks}/internal/livekit`,
   });
   await writeFile(`${dir}/livekit.json`, JSON.stringify(livekit, null, 2), { mode: 0o600 });
-  await writeFile(`${dir}/edge.json`, JSON.stringify(createEdge(topology.mode === "ip" ? { mode: "ip", ip: node.ip } : { app: node.app, rtc: node.rtc, turn: node.turn, ip: node.ip }), null, 2));
+  await writeFile(`${dir}/edge.json`, JSON.stringify(createEdge(nodeEdge), null, 2));
   await writeFile(`${dir}/backbone.json`, JSON.stringify(nodeBackbone(node, control), null, 2));
   const nodeEnv = {
     NODE_ID: id,

@@ -150,3 +150,34 @@ test('a media node gets its own files, the registry, the control backbone and no
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('a node on a machine with someone else\'s site passes that site\'s TLS through by SNI and remembers it on --refresh', async () => {
+  const directory = await mkdtemp(join(resolve(tmpdir()), 'cord-node-'));
+  try {
+    await writeFile(join(directory, '.env'), ENV, { mode: 0o600 });
+    const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
+    const edgeRoutes = async () =>
+      JSON.parse(await readFile(join(directory, 'infra/generated/nodes/msk/edge.json'), 'utf8')).apps.layer4.servers.main.routes;
+    const first = run('--node=msk', '--ip=203.0.113.9', '--app=msk.example.test', '--rtc=rtc-msk.example.test', '--turn=turn-msk.example.test',
+      '--legacy-hosts=site.example.test,www.site.example.test', '--legacy-tls-port=8443');
+    assert.equal(first.status, 0, first.stderr);
+    const passthrough = (await edgeRoutes()).at(-1);
+    assert.deepEqual(passthrough.match, [{ tls: { sni: ['site.example.test', 'www.site.example.test'] } }]);
+    // Без вскрытия TLS: один прокси на локальный порт сайта.
+    assert.deepEqual(passthrough.handle, [{ handler: 'proxy', upstreams: [{ dial: ['127.0.0.1:8443'] }] }]);
+    const registry = JSON.parse(await readFile(join(directory, 'infra/generated/nodes/registry.json'), 'utf8'));
+    assert.deepEqual(registry.nodes.find((n) => n.id === 'msk').legacyHosts, ['site.example.test', 'www.site.example.test']);
+
+    const again = run('--node=msk', '--refresh');
+    assert.equal(again.status, 0, again.stderr);
+    assert.deepEqual((await edgeRoutes()).at(-1).match, passthrough.match);
+
+    const dropped = run('--node=msk', '--refresh', '--legacy-hosts=');
+    assert.equal(dropped.status, 0, dropped.stderr);
+    assert.ok((await edgeRoutes()).every((r) => r.handle.length === 2), 'no passthrough left');
+    const after = JSON.parse(await readFile(join(directory, 'infra/generated/nodes/registry.json'), 'utf8'));
+    assert.equal(after.nodes.find((n) => n.id === 'msk').legacyHosts, undefined);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
