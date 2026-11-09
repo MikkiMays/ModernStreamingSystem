@@ -1,6 +1,6 @@
 # Cord — вход для агентов
 
-Cord — закрытый продукт для видеовстреч. Две репы лежат рядом в `$CORD_ROOT` (на `cord.nikg.tech` — `/opt`):
+Cord — закрытый продукт для видеовстреч. Две репы лежат рядом в `$CORD_ROOT` (на `callcord.ru` — `/opt`):
 
 - `ModernStreamingSystem` — ядро `server/` (Java, Spring), веб `web/` (React, TypeScript), службы `services/`
   (Python, Go), контракты `contracts/`, инфраструктура `infra/`, `compose.yaml`, приложение Android `mobile/`,
