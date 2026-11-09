@@ -24,6 +24,7 @@ from .core import Core
 from .media import MAX_FILE, probe
 from .metrics import render as render_metrics
 from .music import Music
+from .retention import Retention
 from .sources import PLATFORMS, Sources
 from .store import Store, now
 from .webapp import Refusal, enabled, max_age, release, startgroup_url
@@ -131,6 +132,8 @@ def create_app(
     )
     # Яндекс Музыка — тем же автоматом площадок, что кинозал и музыка (`cinema/reach.py`).
     yandex = Yandex(store, music, core.secret, reach=cinema.reach)
+    # Срок содержимого (Р-134): уборка ниже, счёт — в `/metrics`.
+    retention = Retention()
     sources_on = music_sources(os.environ.get("MUSIC_SOURCES"))
     sources = Sources(
         cinema.ytdlp,
@@ -183,10 +186,9 @@ def create_app(
                 await asyncio.sleep(300)
                 # Одна неудачная уборка не должна останавливать все следующие: без них не
                 # истекают сроки треков и не уходят осиротевшие файлы до перезапуска службы.
+                # Срок содержимого — сутки (Р-134, `retention.py`): стор, вход Яндекса, память кинозала.
                 try:
-                    store.cleanup()
-                    # Вход Яндекса комнаты уходит вместе с её музыкой (R157).
-                    yandex.sweep_rooms({room["roomId"] for room in store.rooms()})
+                    retention.sweep(store, cinema, yandex)
                 except Exception:
                     logging.getLogger(__name__).exception("Уборка хранилища музыки не удалась")
 
@@ -220,6 +222,7 @@ def create_app(
     app.state.webapp = webapp_on
     app.state.cinema = cinema
     app.state.sources = sources
+    app.state.retention = retention
     app.include_router(routes(yandex, core))
     app.include_router(device_routes(yandex))
     app.include_router(cinema_routes(cinema, core))

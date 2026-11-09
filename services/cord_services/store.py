@@ -301,7 +301,11 @@ class Store:
         self.flushed.pop(room_id, None)
         self.db.execute("DELETE FROM music WHERE room_id=?", (room_id,))
 
-    def cleanup(self):
+    def cleanup(self) -> dict[str, int]:
+        """Сроки стора (Р-134: принесённое в комнату — не дольше суток): треки очереди и истории «назад» и
+        их файлы, забытые комнаты музыки, расписки, номера ссылок кинозала, осиротевшие и недокачанные
+        файлы. Сколько ушло по видам — для `cord_retention_deleted_total`."""
+        gone = {"music_track": 0, "music_room": 0, "cinema_link": 0, "audio_file": 0}
         for room in self.rooms():
             expired = [
                 track
@@ -309,6 +313,7 @@ class Store:
                 if track.get("createdAt", 0) <= now() - TRACK_TTL
             ]
             if expired:
+                gone["music_track"] += len(expired)
                 if room["queue"][0] in expired:
                     room["epoch"] += 1
                     room["position"] = 0.0
@@ -326,6 +331,7 @@ class Store:
                 if track.get("createdAt", 0) <= now() - TRACK_TTL
             ]
             if stale:
+                gone["music_track"] += len(stale)
                 room = self.get(room["roomId"])
                 room["history"] = [
                     track for track in room["history"] if track not in stale
@@ -350,17 +356,22 @@ class Store:
                 and room.get("lastHumanAt", room["updatedAt"]) <= now() - TRACK_TTL
             ):
                 self.forget(room["roomId"])
+                gone["music_room"] += 1
         self.db.execute("DELETE FROM claims WHERE expires_at<=?", (now(),))
         self.db.execute("DELETE FROM receipts WHERE expires_at<=?", (now(),))
-        self.links.sweep()
+        gone["cinema_link"] += self.links.sweep()
         referenced = self.referenced()
         for path in self.files.iterdir():
+            # Держит файл только очередь или история, а у них срок — сутки от добавления трека (Р-134).
             if path.name not in referenced and older_than(path, 3600):
                 path.unlink(missing_ok=True)
+                gone["audio_file"] += 1
         # Куски скачивания, которое оборвалось вместе со службой или отменой, — тот же час.
         for path in self.incoming.iterdir():
             if older_than(path, 3600):
                 path.unlink(missing_ok=True)
+                gone["audio_file"] += 1
+        return gone
 
 
 # Потолки таблицы номеров ссылок (M12). Уборка по сроку идёт раз в сутки, а флудить вставками можно куда
@@ -458,5 +469,6 @@ class Links:
             (self.cap * 9 // 10, self.byte_cap * 9 // 10),
         )
 
-    def sweep(self) -> None:
-        self.db.execute("DELETE FROM cinema_links WHERE expires_at<=?", (now(),))
+    def sweep(self) -> int:
+        """Номера, чей срок вышел (сутки от последней записи); сколько ушло."""
+        return self.db.execute("DELETE FROM cinema_links WHERE expires_at<=?", (now(),)).rowcount

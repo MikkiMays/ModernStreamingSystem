@@ -54,6 +54,15 @@ class Segments:
         if found:
             self._size -= len(found[1])
 
+    def sweep(self) -> int:
+        """Забыть кусочки старше срока, даже если их больше никто не спросит (Р-134): видео, принесённое
+        в комнату, не лежит в памяти дольше своих секунд. Сколько забыто."""
+        born_before = time.time() - self.ttl
+        stale = [url for url, (born, _, _) in self._items.items() if born < born_before]
+        for url in stale:
+            self.drop(url)
+        return len(stale)
+
     def lock(self, url: str) -> asyncio.Lock:
         if url not in self._locks:
             if len(self._locks) > 512:

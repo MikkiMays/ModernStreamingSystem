@@ -54,6 +54,10 @@ class FakeCore:
             return httpx.Response(200, json={"serverTime": 1, "live": 1, "rooms": []})
         if path == "/api/v1/admin/meetings":
             return httpx.Response(200, json={"from": request.url.params["from"], "meetings": 3})
+        if path == "/api/v1/admin/participants":
+            self.participants = dict(request.url.params)
+            row = {"id": "p1", "roomCode": "123456789", "name": "Анна", "ip": "2001:db8:0:0:0:0:0:7", "joinedAt": 1, "leftAt": None}
+            return httpx.Response(200, json={"items": [row], "next": None})
         return httpx.Response(404, json={"status": 404, "code": "NOT_FOUND", "detail": path})
 
 
@@ -237,6 +241,16 @@ class OverviewTest(unittest.TestCase):
         self.assertEqual(client.get("/api/fleet/core/a/reboot", headers=READ).status_code, 404)
         self.assertEqual(client.get("/api/fleet/core/nope/now", headers=READ).json()["code"], "MACHINE_UNKNOWN")
         self.assertEqual(client.get("/api/fleet/core/a/nodes", headers=READ).json()[0]["id"], "fra")
+
+    def test_participants_of_a_meeting_or_a_period_reach_the_console(self):
+        # Р-134: «Встречи → участники» — журнал ядра с полным адресом, фильтры встречи, периода и адреса.
+        client, _, core = build()
+        login(client)
+        params = {"code": "123456789", "from": 1, "to": 2, "ip": "2001:db8", "cursor": "1.x", "limit": 50, "evil": "x"}
+        answer = client.get("/api/fleet/core/a/participants", params=params, headers=READ)
+        self.assertEqual(answer.status_code, 200)
+        self.assertEqual(answer.json()["items"][0]["ip"], "2001:db8:0:0:0:0:0:7")
+        self.assertEqual(core.participants, {"code": "123456789", "from": "1", "to": "2", "ip": "2001:db8", "cursor": "1.x", "limit": "50"})
 
 
 class LeverTest(unittest.TestCase):
