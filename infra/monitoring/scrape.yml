@@ -41,6 +41,11 @@ scrape_configs:
   - job_name: probe
     static_configs: [{ targets: ['127.0.0.1:9402'], labels: { machine: a, kind: local } }]
 
+  # Контейнеры этой машины (cAdvisor из infra/fleet/install-agents.sh --containers-only, только loopback). Нет агента —
+  # цель просто `down`, экран «Флот — live» пишет, что строк по контейнерам нет.
+  - job_name: cadvisor
+    static_configs: [{ targets: ['127.0.0.1:19101'], labels: { machine: a, kind: local } }]
+
   # Машина: ЦП (и steal — главный признак замирания хоста), память, диск, сеть; textfile-метрики хоста
   # (`cord_host_soft_lockups_total` из `infra/host/soft-lockups.sh`).
   - job_name: node
