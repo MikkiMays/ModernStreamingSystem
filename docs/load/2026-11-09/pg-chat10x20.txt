@@ -1,0 +1,16 @@
+db 179 1366 115 0 15804 24211
+wal 29906776
+tbl command_receipts 0 0 0 17 0
+tbl messages 0 0 0 16 0
+tbl room_events 0 0 0 16 0
+tbl rooms 0 0 0 28 0
+tbl system_lock 1 0 0 1 1
+state 0 0 0
+db 137976 14198 2220 5735 2783354 1911513
+wal 48780504
+tbl command_receipts 1684 0 0 36 1780
+tbl messages 1484 0 0 10103 26785
+tbl room_events 3168 0 0 33 64624
+tbl rooms 10 1989 0 158 78513
+tbl system_lock 1 0 0 1 201
+state 10 13476 13476

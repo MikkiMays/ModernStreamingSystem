@@ -1,0 +1,112 @@
+{
+ "name": "r227-seg-tlsfile",
+ "host_busy": 58.309,
+ "steal": 7.609,
+ "lt-bench-py": 0.003,
+ "lt-bench-caddy": 0.787,
+ "lt-bench-py_max": 0.003,
+ "lt-bench-py_mib_max": 44,
+ "lt-bench-caddy_max": 0.925,
+ "lt-bench-caddy_mib_max": 38,
+ "samples": [
+  {
+   "t": 2.0,
+   "host_busy": 60.8,
+   "steal": 8.4,
+   "lt-bench-py": 0.002,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.715,
+   "lt-bench-caddy_mib": 38
+  },
+  {
+   "t": 4.0,
+   "host_busy": 61.8,
+   "steal": 10.3,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.871,
+   "lt-bench-caddy_mib": 35
+  },
+  {
+   "t": 6.0,
+   "host_busy": 60.7,
+   "steal": 12.9,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.901,
+   "lt-bench-caddy_mib": 32
+  },
+  {
+   "t": 8.0,
+   "host_busy": 59.8,
+   "steal": 9.5,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.877,
+   "lt-bench-caddy_mib": 37
+  },
+  {
+   "t": 10.0,
+   "host_busy": 60.6,
+   "steal": 5.1,
+   "lt-bench-py": 0.002,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.861,
+   "lt-bench-caddy_mib": 30
+  },
+  {
+   "t": 12.0,
+   "host_busy": 72.9,
+   "steal": 5.2,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.84,
+   "lt-bench-caddy_mib": 25
+  },
+  {
+   "t": 14.0,
+   "host_busy": 65.0,
+   "steal": 6.6,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.859,
+   "lt-bench-caddy_mib": 24
+  },
+  {
+   "t": 16.0,
+   "host_busy": 59.1,
+   "steal": 6.4,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.925,
+   "lt-bench-caddy_mib": 36
+  },
+  {
+   "t": 18.0,
+   "host_busy": 60.9,
+   "steal": 8.7,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.894,
+   "lt-bench-caddy_mib": 34
+  },
+  {
+   "t": 20.0,
+   "host_busy": 59.4,
+   "steal": 7.2,
+   "lt-bench-py": 0.003,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.89,
+   "lt-bench-caddy_mib": 27
+  },
+  {
+   "t": 22.0,
+   "host_busy": 20.4,
+   "steal": 3.4,
+   "lt-bench-py": 0.002,
+   "lt-bench-py_mib": 44,
+   "lt-bench-caddy": 0.021,
+   "lt-bench-caddy_mib": 21
+  }
+ ]
+}
