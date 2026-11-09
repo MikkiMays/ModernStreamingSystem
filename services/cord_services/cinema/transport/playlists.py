@@ -15,6 +15,7 @@ from fastapi import HTTPException
 
 from ..ads import mark_breaks
 from .signer import SIGNATURE_TTL, Signer, proxied
+from .voices import one_audio_group
 
 
 # Чужой плейлист (площадка с любыми хостами — «По ссылке») переписывается строка за строкой: подпись
@@ -262,10 +263,15 @@ def rewrite(
 
     До переписывания список сегментов получает разметку рекламы, которой поток не размечает сам:
     отрезки между `DISCONTINUITY` с рекламных хостов (`ads.mark_breaks`). После переписывания адресов
-    браузер хостов уже не видит — помечать можно только здесь.
+    браузер хостов уже не видит — помечать можно только здесь. Мастер — одну группу звука на все ступени
+    (`voices.one_audio_group`).
     """
     if not master_playlist(body):
         body = mark_breaks(body, base)
+    else:
+        # Звук — одной группой на все ступени картинки (`voices.py`): иначе смена качества меняла бы и
+        # кодек и адрес звука.
+        body = one_audio_group(body)
     if reels is not None and not master_playlist(body) and finished_playlist(body):
         return _numbered(body, base, signer, reels, provider, profile)
     route = "playlist" if master_playlist(body) else "fetch"
