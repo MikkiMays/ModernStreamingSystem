@@ -8,15 +8,66 @@ import { outboundNote } from '../media/outbound-note';
 import { useStore } from './primitives';
 import { useServerLoad } from '../core/server-load';
 import { LoadBars } from './kit/LoadBars';
-const noPing = new Store<number | null>(null);
+import { manualNode } from '../core/node-choice';
+import { unknownLink, type LinkState } from '../media/link-quality';
+import { nodeProbe } from '../media/node-probe';
+import { locale } from '../i18n';
 const noControl = new Store('closed');
 const noVideo = new Store<OutboundVideo | null>(null);
+const noLink = new Store<LinkState>(unknownLink);
+
+/**
+ * До какого узла мерить на главной: тот, через который пойдёт новая встреча, — выбранный руками или последний
+ * выбор замера (`nodeProbe`). Узел один или ещё не выбран — `null`: меряется сам сервер.
+ */
+function nextNode() {
+  const nodes = nodeProbe.known();
+  if (nodes.length <= 1) return null;
+  const id = manualNode.get() ?? nodeProbe.last()?.node ?? null;
+  return nodes.find((node) => node.id === id) ?? null;
+}
+
+/** Один запрос и его время; `null` — не ответил за `budgetMs` или страница ушла (`outer`). */
+async function timed(
+  url: string,
+  outer: AbortSignal,
+  budgetMs: number,
+  cors: boolean,
+): Promise<number | null> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  outer.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(abort, budgetMs);
+  const at = performance.now();
+  try {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      signal: controller.signal,
+      ...(cors ? { mode: 'cors' as const, credentials: 'omit' as const } : {}),
+    });
+    if (!response.ok) return null;
+    await response.arrayBuffer();
+    return Math.round(performance.now() - at);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    outer.removeEventListener('abort', abort);
+  }
+}
 
 /**
  * PING и что происходит с картинкой на самом деле — строкой в потоке (R20): на главной — в подвале,
  * во встрече — в строке о встрече рядом с кодом. Раньше это была плашка `fixed` в левом верхнем углу,
  * и на главной она лежала поверх марки.
  *
+ *
+ * ЧТО ЗНАЧИТ ЧИСЛО (владелец 09.11: «я в Москве, нода московская, а пинг 50»). Во встрече — оборот до медиаузла
+ * встречи по WebRTC (`media.link`, выбранная пара ICE): звук и видео идут прямо на узел, а не через ядро, и
+ * задержку разговора определяет именно он. Управляющий канал до ядра (`control.ping`) задержку разговора не
+ * меняет — ядро стоит в одном месте, и его число не менялось бы ни от узла, ни от переезда встречи; от него
+ * осталось только «Нет связи». На главной — время ответа узла, через который пойдёт новая встреча; узел не
+ * ответил или он один — самого сервера, как раньше.
  *
  * Плашка показывала один PING. Настройки при этом обещали 1440p и 60 кадров, а камера могла
  * отдавать 1080p и сорок — и узнать об этом было неоткуда, кроме как открыть диагностику и
@@ -28,8 +79,10 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
   const { t } = useTranslation();
   const [enabled, setEnabled] = useState(() => readPreferences().showPing);
   const [http, setHttp] = useState<number | null>(null);
+  /** Узел, до которого намерено `http`; `null` — намерен сам сервер. */
+  const [measured, setMeasured] = useState<string | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
-  const rtt = useStore(meeting?.control.ping ?? noPing);
+  const link = useStore(meeting?.media.link ?? noLink);
   const control = useStore(meeting?.control.state ?? noControl);
   const video = useStore(meeting?.media.outbound ?? noVideo);
   const load = useServerLoad(enabled && !meeting);
@@ -44,24 +97,19 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
     let disposed = false;
     const measure = async () => {
       if (document.hidden || request) return;
-      request = new AbortController();
-      const at = performance.now();
-      const timeout = setTimeout(() => request?.abort(), 1800);
+      const current = (request = new AbortController());
       try {
-        const response = await fetch('/api/v1/ping', { cache: 'no-store', signal: request.signal });
-        if (!response.ok) throw new Error();
-        await response.arrayBuffer();
-        if (!disposed) {
-          setHttp(Math.round(performance.now() - at));
-          setOffline(false);
-        }
-      } catch {
-        if (!disposed) {
-          setHttp(null);
-          setOffline(true);
-        }
+        const node = nextNode();
+        const url = node ? `${node.probeUrl.replace(/\/+$/, '')}/api/v1/ping` : null;
+        let ms = url ? await timed(url, current.signal, 900, true) : null;
+        const target = ms === null ? null : node!.id;
+        if (ms === null && !current.signal.aborted)
+          ms = await timed('/api/v1/ping', current.signal, 1800, false);
+        if (disposed) return;
+        setHttp(ms);
+        setMeasured(target);
+        setOffline(ms === null);
       } finally {
-        clearTimeout(timeout);
         request = undefined;
       }
     };
@@ -78,7 +126,7 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
   }, [enabled, meeting]);
   if (!enabled) return null;
   const disconnected = meeting ? control === 'recovering' || control === 'closed' : offline;
-  const value = meeting ? rtt : http;
+  const value = meeting ? (link.rttMs === null ? null : Math.round(link.rttMs)) : http;
   const note = video ? outboundNote(t, video) : '';
   return (
     <div
@@ -91,7 +139,9 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
             : t(($) => $.media.ping.cameraTitle)
           : meeting
             ? t(($) => $.media.ping.controlTitle)
-            : t(($) => $.media.ping.httpTitle)
+            : measured
+              ? t(($) => $.media.ping.nodeTitle, { node: nodeProbe.title(measured, locale(t)) })
+              : t(($) => $.media.ping.httpTitle)
       }
     >
       PING ·{' '}

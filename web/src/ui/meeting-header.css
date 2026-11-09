@@ -132,17 +132,6 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* Узел встречи с флагом (R200) — рядом с PING, той же приглушённой гарнитурой. */
-.meeting-header__node {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.meeting-header__node > .ui-flag {
-  width: 16px;
-  height: 11px;
-}
 .meeting-header__code {
   min-height: 0;
   padding: 2px var(--space-1);
@@ -335,8 +324,7 @@
     margin-right: var(--space-1);
   }
   /* На телефоне строке о встрече хватает кода и времени; числа связи — в «Диагностике». */
-  .meeting-header__meta .ping-badge,
-  .meeting-header__meta .meeting-header__node {
+  .meeting-header__meta .ping-badge {
     display: none;
   }
 }

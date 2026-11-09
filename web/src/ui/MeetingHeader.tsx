@@ -7,9 +7,7 @@ import type { Participant } from '../api/types';
 import { formatCode } from '../core/invitation';
 import { formatDuration, readStartedAt, spokenDuration } from '../core/meeting-clock';
 import type { Translate } from '../i18n';
-import { Flag, IconButton } from './kit';
-import { locale } from '../i18n';
-import { nodeCountry, nodeProbe } from '../media/node-probe';
+import { IconButton } from './kit';
 import { CinemaTraffic, MeetingEnds } from './abuse/Notices';
 import { HelpButton } from './support/HelpButton';
 import { Logo } from './brand/Logo';
@@ -56,31 +54,6 @@ function useDuration(meeting: Meeting, startedAt: number | null, running: boolea
     return () => clearInterval(timer);
   }, [meeting, startedAt, running]);
   return startedAt === null ? null : now - startedAt;
-}
-
-/**
- * Узел встречи и флаг — ненавязчиво в строке о встрече (R200, владелец: «на какой ноде сервер и флаг,
- * где-нибудь невзначай сверху»). Только когда узлов больше одного: с одним выбирать и сравнивать нечего.
- * На узком экране скрыт — там и PING в «Диагностике».
- */
-function NodeBadge({ node }: { node?: string | null }) {
-  const { t } = useTranslation();
-  if (!node || nodeProbe.known().length <= 1) return null;
-  const title = nodeProbe.title(node, locale(t));
-  const ms = nodeProbe.latency(node);
-  return (
-    <span
-      className="meeting-header__node"
-      title={
-        ms === null ? t(($) => $.meeting.header.node) : t(($) => $.diagnostics.nodeMs, { node: title, ms })
-      }
-      aria-label={`${t(($) => $.meeting.header.node)}: ${title}`}
-      data-testid="meeting-node"
-    >
-      <Flag country={nodeCountry(node)} />
-      <span>{title}</span>
-    </span>
-  );
 }
 
 export function MeetingHeader({
@@ -177,8 +150,8 @@ export function MeetingHeader({
               </span>
             )}
             {/* «Показывать PING» — числа связи и картинки в той же строке, а не плашкой поверх (R20). */}
+            {/* Узла встречи здесь нет (R230, владелец: «это нужно только в диагностике»). */}
             <Ping meeting={meeting} />
-            <NodeBadge node={snapshot.mediaNode} />
           </div>
           {!ended && <MeetingEnds snapshot={snapshot} />}
           {!ended && <CinemaTraffic snapshot={snapshot} />}

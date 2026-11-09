@@ -7,6 +7,7 @@ import { Store } from '../core/store';
 import { savePreferences } from '../core/preferences';
 import type { Meeting } from '../core/meeting';
 import { t } from '../i18n';
+import { unknownLink } from '../media/link-quality';
 import { nodeProbe } from '../media/node-probe';
 import { headerStatus, MeetingHeader } from './MeetingHeader';
 
@@ -32,7 +33,12 @@ function fakeMeeting(extra: Record<string, unknown> = {}, status = 'connected') 
       participants: [{ id: 'self', status: 'CONNECTED', service: null }],
       ...extra,
     }),
-    media: { state: new Store({ status }), outbound: new Store(null), report: vi.fn() },
+    media: {
+      state: new Store({ status }),
+      outbound: new Store(null),
+      link: new Store({ ...unknownLink, rttMs: 4.6 }),
+      report: vi.fn(),
+    },
     control: { ping: new Store<number | null>(42), state: new Store('connected') },
     ended: new Store<string | null>(null),
     serverNow: () => now,
@@ -94,7 +100,7 @@ it('counts the meeting from the core’s start, by the server clock', () => {
   }
 });
 
-it('names the meeting node with a flag next to PING, only when there is more than one node (R200)', () => {
+it('узла встречи в шапке нет — он только в диагностике, и при нескольких узлах (R230)', () => {
   const nodes = [
     {
       id: 'fra',
@@ -105,27 +111,23 @@ it('names the meeting node with a flag next to PING, only when there is more tha
       country: 'DE',
     },
     {
-      id: 'hel',
-      title: { ru: 'Хельсинки' },
-      rtcUrl: 'wss://hel',
-      probeUrl: 'https://hel',
+      id: 'msk',
+      title: { ru: 'Москва' },
+      rtcUrl: 'wss://msk',
+      probeUrl: 'https://msk',
       control: false,
-      country: 'FI',
+      country: 'RU',
     },
   ];
-  vi.spyOn(nodeProbe, 'refresh').mockResolvedValue({ at: 1, node: 'hel', measures: [] });
+  vi.spyOn(nodeProbe, 'refresh').mockResolvedValue({ at: 1, node: 'msk', measures: [] });
   nodeProbe.schedule(nodes);
-  vi.spyOn(nodeProbe, 'latency').mockReturnValue(12);
-  show(fakeMeeting({ mediaNode: 'hel' }));
-  const badge = screen.getByTestId('meeting-node');
-  expect(badge).toHaveTextContent('Хельсинки');
-  expect(badge).toHaveAttribute('title', 'Хельсинки · 12 мс');
-  expect(badge.querySelector('.ui-flag[data-country="FI"]')).not.toBeNull();
-  cleanup();
-  nodeProbe.schedule([nodes[0]!]);
-  show(fakeMeeting({ mediaNode: 'fra' }));
-  expect(screen.queryByTestId('meeting-node')).not.toBeInTheDocument();
-  nodeProbe.schedule([]);
+  try {
+    show(fakeMeeting({ mediaNode: 'msk' }));
+    expect(screen.queryByText('Москва')).not.toBeInTheDocument();
+    expect(document.querySelector('.meeting-header .ui-flag')).toBeNull();
+  } finally {
+    nodeProbe.schedule([]);
+  }
 });
 
 it('shows no clock until the core reports a start', () => {
@@ -172,7 +174,9 @@ it('PING — в строке о встрече рядом с кодом, а не
   try {
     show(fakeMeeting());
     const ping = screen.getByText(/^PING ·/);
-    expect(ping).toHaveTextContent('PING · 42 мс');
+    // Оборот до узла встречи (WebRTC), а не управляющий канал до ядра (42 мс) — владелец 09.11.
+    expect(ping).toHaveTextContent('PING · 5 мс');
+    expect(ping).toHaveAttribute('title', 'Задержка звука и видео до узла встречи');
     expect(ping.closest('.meeting-header__meta')).not.toBeNull();
   } finally {
     savePreferences({ showPing: false });

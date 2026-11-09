@@ -587,8 +587,7 @@
       "ended": "已结束",
       "waiting": "等待进入",
       "recovering": "正在恢复连接…",
-      "connecting": "正在连接…",
-      "node": "会议节点"
+      "connecting": "正在连接…"
     },
     "settings": {
       "saveFailed": "保存失败",
@@ -1413,10 +1412,11 @@
       "camera": "摄像头上限"
     },
     "ping": {
-      "screenTitle": "控制通道延迟及屏幕的上行数据",
-      "cameraTitle": "控制通道延迟及摄像头的上行数据",
-      "controlTitle": "与会议连接的延迟",
+      "screenTitle": "到会议节点的延迟及屏幕的上行数据",
+      "cameraTitle": "到会议节点的延迟及摄像头的上行数据",
+      "controlTitle": "到会议节点的音视频延迟",
       "httpTitle": "服务器响应时间",
+      "nodeTitle": "{{node}} 节点的响应时间——下一次会议将经由该节点",
       "offline": "无连接",
       "ms": "{{value}} 毫秒",
       "mbps": "{{value}} Mbps"

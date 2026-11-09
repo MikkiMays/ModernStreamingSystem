@@ -588,8 +588,7 @@
       "ended": "Ended",
       "waiting": "Waiting to join",
       "recovering": "Reconnecting…",
-      "connecting": "Connecting…",
-      "node": "Meeting node"
+      "connecting": "Connecting…"
     },
     "settings": {
       "saveFailed": "Couldn't save",
@@ -1427,10 +1426,11 @@
       "camera": "the camera's maximum"
     },
     "ping": {
-      "screenTitle": "Control channel latency and what your screen sends to the network",
-      "cameraTitle": "Control channel latency and what your camera sends to the network",
-      "controlTitle": "Delay of the connection to the meeting",
+      "screenTitle": "Delay to the meeting node and what your screen sends to the network",
+      "cameraTitle": "Delay to the meeting node and what your camera sends to the network",
+      "controlTitle": "Audio and video delay to the meeting node",
       "httpTitle": "Server response time",
+      "nodeTitle": "Response time of the {{node}} node — your next meeting will run through it",
       "offline": "Offline",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbps"

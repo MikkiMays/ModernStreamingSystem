@@ -589,8 +589,7 @@
       "ended": "Terminée",
       "waiting": "En attente d'admission",
       "recovering": "Rétablissement de la connexion…",
-      "connecting": "Connexion…",
-      "node": "Nœud de la réunion"
+      "connecting": "Connexion…"
     },
     "settings": {
       "saveFailed": "Impossible d'enregistrer",
@@ -1441,10 +1440,11 @@
       "camera": "limite de la caméra"
     },
     "ping": {
-      "screenTitle": "Latence du canal de contrôle et débit envoyé depuis votre écran",
-      "cameraTitle": "Latence du canal de contrôle et débit envoyé depuis votre caméra",
-      "controlTitle": "Délai de la connexion à la réunion",
+      "screenTitle": "Délai jusqu’au nœud de la réunion et débit envoyé depuis votre écran",
+      "cameraTitle": "Délai jusqu’au nœud de la réunion et débit envoyé depuis votre caméra",
+      "controlTitle": "Délai audio et vidéo jusqu’au nœud de la réunion",
       "httpTitle": "Temps de réponse du serveur",
+      "nodeTitle": "Temps de réponse du nœud {{node}} : votre prochaine réunion passera par lui",
       "offline": "Hors ligne",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"

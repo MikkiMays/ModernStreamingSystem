@@ -589,8 +589,7 @@
       "ended": "Finalizada",
       "waiting": "Esperando para entrar",
       "recovering": "Restableciendo la conexión…",
-      "connecting": "Conectando…",
-      "node": "Nodo de la reunión"
+      "connecting": "Conectando…"
     },
     "settings": {
       "saveFailed": "No se pudo guardar",
@@ -1441,10 +1440,11 @@
       "camera": "es lo que da la cámara"
     },
     "ping": {
-      "screenTitle": "Latencia del canal de control y lo que tu pantalla envía a la red",
-      "cameraTitle": "Latencia del canal de control y lo que tu cámara envía a la red",
-      "controlTitle": "Retardo de la conexión con la reunión",
+      "screenTitle": "Retardo hasta el nodo de la reunión y lo que tu pantalla envía a la red",
+      "cameraTitle": "Retardo hasta el nodo de la reunión y lo que tu cámara envía a la red",
+      "controlTitle": "Retardo de audio y vídeo hasta el nodo de la reunión",
       "httpTitle": "Tiempo de respuesta del servidor",
+      "nodeTitle": "Tiempo de respuesta del nodo {{node}}: por él pasará tu próxima reunión",
       "offline": "Sin conexión",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"

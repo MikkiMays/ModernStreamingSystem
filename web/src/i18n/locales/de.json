@@ -588,8 +588,7 @@
       "ended": "Beendet",
       "waiting": "Warten auf Einlass",
       "recovering": "Verbindung wird wiederhergestellt…",
-      "connecting": "Verbinden…",
-      "node": "Meeting-Knoten"
+      "connecting": "Verbinden…"
     },
     "settings": {
       "saveFailed": "Speichern fehlgeschlagen",
@@ -1427,10 +1426,11 @@
       "camera": "mehr liefert die Kamera nicht"
     },
     "ping": {
-      "screenTitle": "Latenz des Steuerkanals und was dein Bildschirm ins Netz sendet",
-      "cameraTitle": "Latenz des Steuerkanals und was deine Kamera ins Netz sendet",
-      "controlTitle": "Verzögerung der Verbindung zum Meeting",
+      "screenTitle": "Verzögerung zum Meeting-Knoten und was dein Bildschirm ins Netz sendet",
+      "cameraTitle": "Verzögerung zum Meeting-Knoten und was deine Kamera ins Netz sendet",
+      "controlTitle": "Audio- und Videoverzögerung zum Meeting-Knoten",
       "httpTitle": "Antwortzeit des Servers",
+      "nodeTitle": "Antwortzeit des Knotens {{node}} – darüber läuft dein nächstes Meeting",
       "offline": "Keine Verbindung",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"
