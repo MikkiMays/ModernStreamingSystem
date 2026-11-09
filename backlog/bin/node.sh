@@ -110,7 +110,10 @@ EOF
     # `edge.json`/`Caddyfile` секретов не несут — им 644; секреты (.env, livekit.json, pki) остаются 600.
     remote "chmod 644 $REMOTE_DIR/edge.json $REMOTE_DIR/backbone.json $REMOTE_DIR/Caddyfile $REMOTE_DIR/compose.yaml $REMOTE_DIR/pki/ca.crt $REMOTE_DIR/pki/node.crt; chmod 644 $REMOTE_DIR/tls/* 2>/dev/null || true"
     echo "== узел $ID: pull + up"
-    remote "cd $REMOTE_DIR && docker compose pull -q && docker compose up -d --remove-orphans && sleep 3 && docker compose ps --format '{{.Name}} {{.Status}}'"
+    # --force-recreate: edge.json, livekit.json, backbone.json и Caddyfile смонтированы по одному файлу, а rsync кладёт
+    # новый файл — контейнер без пересоздания видит прежний, и `up -d` его не пересоздаёт (меняются только env и образ).
+    # Так 09.11 hel остался на файлах стенда (режим ip, ключи A). Встреч на узле здесь уже нет — проверено выше.
+    remote "cd $REMOTE_DIR && docker compose pull -q && docker compose up -d --remove-orphans --force-recreate && sleep 3 && docker compose ps --format '{{.Name}} {{.Status}}'"
     "$0" "$ID" check
     ;;
 
