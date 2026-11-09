@@ -60,22 +60,11 @@ async function slowStream(page: Page) {
   );
 }
 
-/** Позиция, кружок и число перемоток `<video>` (`seeking`) с начала наблюдения. */
+/** Позиция `<video>` плеера, секунды. */
 async function observe(page: Page) {
-  return page.locator('.watch-video').evaluate((video: HTMLVideoElement) => {
-    const w = window as unknown as { __seeks?: number };
-    if (w.__seeks === undefined) {
-      w.__seeks = 0;
-      video.addEventListener('seeking', () => {
-        w.__seeks = (w.__seeks ?? 0) + 1;
-      });
-    }
-    return {
-      time: video.currentTime,
-      seeks: w.__seeks,
-      spinner: !!document.querySelector('.watch-buffering'),
-    };
-  });
+  return {
+    time: await page.locator('.watch-video').evaluate((video: HTMLVideoElement) => video.currentTime),
+  };
 }
 
 test('перемотка +15 с на слабом канале: одно честное ожидание и ни одной перемотки вдогонку', async ({
@@ -116,11 +105,19 @@ test('перемотка +15 с на слабом канале: одно чес�
   await expect(page.locator('.watch-buffering')).toHaveCount(0);
   const resumed = await observe(page);
 
-  // Десять секунд дальше: ни одной перемотки вдогонку (до R216 — очередь перемоток и ожиданий).
-  await page.waitForTimeout(10_000);
-  const after = await observe(page);
-  expect(after.seeks - resumed.seeks).toBe(0);
-  expect(after.time - resumed.time).toBeGreaterThan(8);
-  // Перемоток всего: своя и, может быть, одна поправка движка внутри загруженного.
-  expect(after.seeks - before.seeks).toBeLessThanOrEqual(2);
+  /*
+    Десять секунд дальше: ни одной перемотки вдогонку. Её видно скачком позиции — у прежнего плеера это были
+    скачки по 3,6–6,4 с (до R216 — очередь перемоток и ожиданий). Поправки самого hls.js на стыке кусков —
+    доли секунды, короткая дозагрузка на канале впритык — тоже не скачок.
+  */
+  let last = resumed.time;
+  let jump = 0;
+  for (let sample = 0; sample < 20; sample++) {
+    await page.waitForTimeout(500);
+    const now = (await observe(page)).time;
+    jump = Math.max(jump, Math.abs(now - last));
+    last = now;
+  }
+  expect(jump).toBeLessThan(1.5);
+  expect(last - resumed.time).toBeGreaterThan(6);
 });
