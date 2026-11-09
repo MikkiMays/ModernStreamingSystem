@@ -22,6 +22,7 @@ public class ActivityRollup {
   private final Audit audit;
   private final MeetingStats stats;
   private final Blocks blocks;
+  private final Analytics analytics;
 
   public ActivityRollup(
       JdbcClient jdbc,
@@ -29,13 +30,15 @@ public class ActivityRollup {
       Clock clock,
       Audit audit,
       MeetingStats stats,
-      Blocks blocks) {
+      Blocks blocks,
+      Analytics analytics) {
     this.jdbc = jdbc;
     this.config = config;
     this.clock = clock;
     this.audit = audit;
     this.stats = stats;
     this.blocks = blocks;
+    this.analytics = analytics;
   }
 
   @Transactional
@@ -48,6 +51,7 @@ public class ActivityRollup {
     jdbc.sql("DELETE FROM meeting_stats WHERE expires_at<=?").param(now).update();
     jdbc.sql("DELETE FROM activity_daily WHERE expires_at<=?").param(now).update();
     blocks.sweep(now);
+    analytics.sweep(now);
   }
 
   private void day(LocalDate day) {

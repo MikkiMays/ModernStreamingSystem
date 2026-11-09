@@ -267,3 +267,235 @@ export type Summary = {
   joinFailures: number;
   days: { day: string; meetings: number; humanSeconds: number; peakHumans: number }[];
 };
+
+// ── Флот — live (R209): `GET /live`, `GET /live/history` ────────────────────────────────────────────
+export type SourceState = boolean | null;
+
+export type LiveCore = {
+  live: number | null;
+  waiting: number | null;
+  humans: number | null;
+  connected: number | null;
+  bots: number | null;
+  screens: number | null;
+  integrations: Record<string, number | null>;
+  joinsPerMin: number | null;
+  failuresPerMin: number | null;
+  clientErrorsPerMin: number | null;
+  loadLevel: number | null;
+  loadShare: Record<string, number | null>;
+  version: string | null;
+  nodes: { node: string; rooms: number | null; participants: number | null; up: number | null }[];
+};
+
+export type LiveMachine = Machine & {
+  sources: Record<'node' | 'containers' | 'core' | 'sfu' | 'gateway', SourceState>;
+  hardware: {
+    cores: number | null;
+    memTotalBytes: number | null;
+    diskTotalBytes: number | null;
+    kernel: string | null;
+    os: string | null;
+    arch: string | null;
+    hostname: string | null;
+    virtualization: string | null;
+    bootTime: number | null;
+  };
+  load: Record<
+    | 'cpu'
+    | 'steal'
+    | 'iowait'
+    | 'load1'
+    | 'memUsed'
+    | 'memAvailableBytes'
+    | 'swapUsedBytes'
+    | 'diskUsed'
+    | 'diskFreeBytes'
+    | 'diskReadMBps'
+    | 'diskWriteMBps'
+    | 'netInMbps'
+    | 'netOutMbps'
+    | 'netErrorsPerSec'
+    | 'tcpEstablished'
+    | 'psiCpu'
+    | 'psiMemory'
+    | 'psiIo',
+    number | null
+  >;
+  containers: {
+    name: string;
+    cpu: number | null;
+    memBytes: number | null;
+    inMbps: number | null;
+    outMbps: number | null;
+  }[];
+  core: LiveCore | null;
+  sfu: {
+    rooms: number | null;
+    participants: number | null;
+    inMbps: number | null;
+    outMbps: number | null;
+    lossPercent: number | null;
+    rttMs: number | null;
+  } | null;
+  gateway: { rps: number | null; inFlight: number | null; errorsPerSec: number | null } | null;
+  now: Boxed<Now> | null;
+};
+
+export type Live = {
+  serverTime: number;
+  error: string | null;
+  machines: LiveMachine[];
+  totals: {
+    meetings: number;
+    waiting: number;
+    humans: number;
+    screens: number;
+    bots: number;
+    integrations: number;
+    netInMbps: number;
+    netOutMbps: number;
+    busiest: { machine: string; cpu: number } | null;
+  };
+};
+
+export type Point = [number, number | null];
+
+export type LiveHistory = {
+  machines: Record<string, { cpu: Point[]; netOutMbps: Point[]; netInMbps: Point[]; connected: Point[] }>;
+  error: string | null;
+  step: number | null;
+};
+
+// ── Аналитика (R210): `GET /core/{machine}/analytics` — зеркало `AnalyticsReport.Report` ──────────────
+export type AnalyticsMode = 'actual' | 'ltv';
+export type Share = { kind: string; count: number };
+export type Cohort = {
+  since: string;
+  until: string;
+  size: number;
+  d1: number | null;
+  d3: number | null;
+  d7: number | null;
+  d30: number | null;
+};
+
+export type AnalyticsReport = {
+  mode: AnalyticsMode;
+  from: string;
+  to: string;
+  zone: string;
+  today: string;
+  visitors: {
+    total: number;
+    fresh: number;
+    returning: number;
+    callers: number;
+    newCallers: number;
+    sameDayCallers: number;
+  };
+  rates: {
+    er: number | null;
+    stickiness: number | null;
+    activeDays: number | null;
+    errorsPerVisit: number | null;
+    joinFailureRate: number | null;
+  };
+  calls: {
+    meetings: number | null;
+    created: number;
+    entries: number;
+    joinFailures: number;
+    presenceHours: number;
+    meetingHours: number | null;
+    hoursPerCaller: number | null;
+    minutesPerEntry: number | null;
+    avgMinutes: number | null;
+    medianMinutes: number | null;
+    longestMinutes: number | null;
+    peakMeetings: number | null;
+    largestMeeting: number | null;
+  };
+  funnel: { opened: number; prejoined: number; joined: number };
+  clients: Share[];
+  os: Share[];
+  integrations: { meetings: Share[]; meetingsWithAny: number | null; visitors: number; encounters: number };
+  days: {
+    day: string;
+    visitors: number;
+    fresh: number;
+    callers: number;
+    entries: number;
+    presenceHours: number;
+    meetings: number | null;
+  }[];
+  retention: { anchor: 'first' | 'period'; step: 'day' | 'week' | 'month'; total: Cohort; cohorts: Cohort[] };
+};
+
+// ── Обращения (R215): `GET /support…` — зеркало `SupportService.Entry` с машиной ───────────────────────
+export type TicketStatus = 'NEW' | 'OPEN' | 'WAITING' | 'DONE' | 'ARCHIVED';
+export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export type SupportTicket = {
+  id: string;
+  number: string;
+  createdAt: number;
+  topic: string;
+  message: string;
+  contact: string | null;
+  diagnostics: string | null;
+  issues: string[];
+  status: TicketStatus;
+  statusAt: number;
+  notifiedAt: number | null;
+  assignee: string | null;
+  priority: TicketPriority;
+  tags: string[];
+  firstResponseAt: number | null;
+  resolvedAt: number | null;
+  archivedAt: number | null;
+  pausedMs: number;
+  firstResponseDueAt: number;
+  resolveDueAt: number;
+  breached: boolean;
+  slaMet: boolean | null;
+  machine: string;
+  machineTitle: string;
+  product: string | null;
+};
+
+export type SupportNote = {
+  id: number;
+  ticketId: string;
+  createdAt: number;
+  author: string;
+  kind: 'note' | 'reply' | 'status' | 'assign' | 'priority' | 'tags';
+  text: string;
+};
+
+export type SupportInbox = {
+  tickets: SupportTicket[];
+  more: boolean;
+  errors: (Problem & { machine: string })[];
+  skipped: string[];
+};
+
+export type SupportCounts = {
+  fresh: number;
+  open: number;
+  waiting: number;
+  done: number;
+  archived: number;
+  breached: number;
+  unassigned: number;
+};
+
+export type SupportStats = {
+  days: number;
+  created: number;
+  resolved: number;
+  firstResponseMedianMinutes: number | null;
+  resolveMedianMinutes: number | null;
+  withinSla: number | null;
+  topics: Record<string, number>;
+};

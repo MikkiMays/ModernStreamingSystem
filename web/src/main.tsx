@@ -20,6 +20,7 @@ import { installDevicePixel } from './ui/device-pixel';
 import { installScrollActivity } from './ui/scroll-activity';
 import { startFailureReports, watchFailures } from './core/failure';
 import { sendFailures } from './api/client';
+import { noteVisit } from './core/analytics';
 unlockNotificationAudio();
 // Кольцо фокуса — только тому, кто ходит клавиатурой (S1, R26).
 installInputModality();
@@ -31,6 +32,8 @@ installScrollActivity();
 // ошибок клиента уходит ядру сводкой раз в 30 с и при уходе со страницы (R180).
 watchFailures();
 startFailureReports(sendFailures);
+// Аналитика продукта (R210): «открыл Cord» — один раз на сессию вкладки или запуск приложения.
+noteVisit('open');
 
 /**
  * Регистрируется после загрузки и только в браузере.

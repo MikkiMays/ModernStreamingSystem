@@ -3587,7 +3587,9 @@
       "statuses": {
         "NEW": "新反馈",
         "OPEN": "处理中",
-        "DONE": "已解决"
+        "DONE": "已解决",
+        "WAITING": "等待回复",
+        "ARCHIVED": "已归档"
       },
       "contact": "联系方式：{{contact}}",
       "noContact": "未留下联系方式",

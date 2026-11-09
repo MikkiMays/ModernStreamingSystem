@@ -6,7 +6,7 @@ import { ISSUES, SUPPORT_TOPICS, type Issue, type SupportTopic } from '../../cor
 import { Button, Select } from '../kit';
 import { Failure, useAdmin, when } from './Activity';
 
-const STATUSES: SupportStatus[] = ['NEW', 'OPEN', 'DONE'];
+const STATUSES: SupportStatus[] = ['NEW', 'OPEN', 'WAITING', 'DONE', 'ARCHIVED'];
 
 /**
  * «Обращения» на странице владельца (E13, T36): что пришло из «Помощи», со статусом, который ведёт

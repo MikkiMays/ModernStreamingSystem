@@ -1,4 +1,20 @@
 export interface paths {
+    "/api/v1/admin/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["analytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/audit": {
         parameters: {
             query?: never;
@@ -255,6 +271,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/support/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ticket"];
+        put: operations["update_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["note"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/support/{id}/status": {
         parameters: {
             query?: never;
@@ -264,6 +312,38 @@ export interface paths {
         };
         get?: never;
         put: operations["status"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stats"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -895,6 +975,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["visit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1108,6 +1204,22 @@ export interface components {
         Connect: {
             password?: string;
         };
+        Counts: {
+            /** Format: int64 */
+            archived?: number;
+            /** Format: int64 */
+            breached?: number;
+            /** Format: int64 */
+            done?: number;
+            /** Format: int64 */
+            fresh?: number;
+            /** Format: int64 */
+            open?: number;
+            /** Format: int64 */
+            unassigned?: number;
+            /** Format: int64 */
+            waiting?: number;
+        };
         Create: {
             approvalRequired?: boolean;
             /** Format: uuid */
@@ -1298,20 +1410,37 @@ export interface components {
             turn: boolean;
         };
         Entry: {
+            /** Format: int64 */
+            archivedAt?: number;
+            assignee?: string;
+            breached?: boolean;
             contact?: string;
             /** Format: int64 */
             createdAt?: number;
             diagnostics?: string;
+            /** Format: int64 */
+            firstResponseAt?: number;
+            /** Format: int64 */
+            firstResponseDueAt?: number;
             id?: string;
             issues?: string[];
             message?: string;
             /** Format: int64 */
             notifiedAt?: number;
             number?: string;
+            /** Format: int64 */
+            pausedMs?: number;
+            priority?: string;
+            /** Format: int64 */
+            resolvedAt?: number;
+            /** Format: int64 */
+            resolveDueAt?: number;
+            slaMet?: boolean;
             /** @enum {string} */
-            status?: "NEW" | "OPEN" | "DONE";
+            status?: "NEW" | "OPEN" | "WAITING" | "DONE" | "ARCHIVED";
             /** Format: int64 */
             statusAt?: number;
+            tags?: string[];
             topic?: string;
         };
         ErrorCount: {
@@ -1656,7 +1785,7 @@ export interface components {
             id?: string;
             number?: string;
             /** @enum {string} */
-            status?: "NEW" | "OPEN" | "DONE";
+            status?: "NEW" | "OPEN" | "WAITING" | "DONE" | "ARCHIVED";
         };
         NodeFallback: {
             asked: string;
@@ -1680,6 +1809,20 @@ export interface components {
             /** Format: int32 */
             udpMs: number;
             udpOpen: boolean;
+        };
+        Note: {
+            author?: string;
+            /** Format: int64 */
+            createdAt?: number;
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
+            text?: string;
+            ticketId?: string;
+        };
+        NoteRequest: {
+            kind: string;
+            text: string;
         };
         NoteView: {
             /** Format: int64 */
@@ -2083,9 +2226,26 @@ export interface components {
             watch: components["schemas"]["Watch"] | null;
             you?: components["schemas"]["RoomYou"] | null;
         };
+        Stats: {
+            /** Format: int64 */
+            created?: number;
+            /** Format: int32 */
+            days?: number;
+            /** Format: double */
+            firstResponseMedianMinutes?: number;
+            /** Format: int64 */
+            resolved?: number;
+            /** Format: double */
+            resolveMedianMinutes?: number;
+            topics?: {
+                [key: string]: number;
+            };
+            /** Format: double */
+            withinSla?: number;
+        };
         StatusChange: {
             /** @enum {string} */
-            status: "NEW" | "OPEN" | "DONE";
+            status: "NEW" | "OPEN" | "WAITING" | "DONE" | "ARCHIVED";
         };
         Summary: {
             days?: components["schemas"]["Day"][];
@@ -2181,7 +2341,11 @@ export interface components {
         TelegramStatus: {
             chat: string;
             /** @enum {string} */
-            status: "NEW" | "OPEN" | "DONE";
+            status: "NEW" | "OPEN" | "WAITING" | "DONE" | "ARCHIVED";
+        };
+        Ticket: {
+            notes?: components["schemas"]["Note"][];
+            ticket?: components["schemas"]["Entry"];
         };
         TxSwitch: {
             from: string;
@@ -2201,6 +2365,14 @@ export interface components {
             /** Format: double */
             seconds?: number;
             source: string;
+        };
+        Update: {
+            assignee?: string;
+            priority?: string;
+            tags?: string;
+        };
+        Visit: {
+            stage: string;
         };
         Watch: {
             /** Format: int64 */
@@ -2245,6 +2417,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    analytics: {
+        parameters: {
+            query: {
+                from: string;
+                mode?: string;
+                to: string;
+            };
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Report"];
+                };
+            };
+        };
+    };
     audit: {
         parameters: {
             query?: {
@@ -2688,7 +2886,15 @@ export interface operations {
     tickets: {
         parameters: {
             query?: {
+                assignee?: string;
                 before?: number;
+                limit?: number;
+                overdue?: boolean;
+                priority?: string;
+                q?: string;
+                sort?: "NEW" | "OLD" | "PRIORITY";
+                status?: "NEW" | "OPEN" | "WAITING" | "DONE" | "ARCHIVED";
+                topic?: string;
             };
             header?: {
                 "X-Cord-Admin"?: string;
@@ -2709,11 +2915,92 @@ export interface operations {
             };
         };
     };
+    ticket: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Ticket"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+                "X-Cord-Admin-Actor"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Update"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    note: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+                "X-Cord-Admin-Actor"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Note"];
+                };
+            };
+        };
+    };
     status: {
         parameters: {
             query?: never;
             header?: {
                 "X-Cord-Admin"?: string;
+                "X-Cord-Admin-Actor"?: string;
             };
             path: {
                 id: string;
@@ -2732,6 +3019,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    counts: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Counts"];
+                };
+            };
+        };
+    };
+    stats: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Stats"];
+                };
             };
         };
     };
@@ -3783,6 +4116,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["Receipt"];
                 };
+            };
+        };
+    };
+    visit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Visit"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

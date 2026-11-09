@@ -156,6 +156,12 @@ stream:
     max-window: 6 hours
     overrun: 1 hour
     warn-before: 15 minutes
+  # Аналитика продукта (R210, docs/architecture/admin-analytics.md): посетитель — HMAC профиля устройства, дни —
+  # по поясу владельца; посетитель, не появлявшийся `retention`, забывается вместе со всеми своими днями (Р-121).
+  analytics:
+    enabled: ${ANALYTICS_ENABLED:true}
+    zone: ${ANALYTICS_ZONE:Europe/Moscow}
+    retention: ${ANALYTICS_RETENTION:400 days}
   # Обращения в поддержку (E13): форма на странице «Помощь» и в окне «?». Обращение хранится в базе,
   # бот доносит его в Telegram владельца Cord: `SUPPORT_TELEGRAM_CHAT_ID`, без него — чат оповещений
   # мониторинга (`ALERT_TELEGRAM_CHAT_ID`, E10); нет обоих — обращения только в базе.
@@ -167,6 +173,13 @@ stream:
     per-server: ${SUPPORT_PER_SERVER:60 per hour}
     # В обращении может быть контакт человека — дольше нужного его не держим.
     retention: ${SUPPORT_RETENTION:6 months}
+    # Сроки SLA пульта (R215): первая реакция (взяли в работу, ответили, решили) и решение; пока ждём ответа
+    # человека, часы решения стоят. Пульт красит просроченные.
+    sla:
+      first-response: ${SUPPORT_SLA_FIRST_RESPONSE:4 hours}
+      resolve: ${SUPPORT_SLA_RESOLVE:48 hours}
+    # Решённое уходит в архив само через столько.
+    auto-archive: ${SUPPORT_AUTO_ARCHIVE:14 days}
   # Антибот (E11, `docs/abuse-model.md` §4). Пределы — словами: `10 per hour`, `20 per minute`,
   # `2 per 10 minutes`, `off`. Ключ адреса — IPv4 целиком или сеть /64 для IPv6. Числа — для машины
   # на 6 vCPU; пересчитываются по метрикам E10 и замеру ёмкости E05.

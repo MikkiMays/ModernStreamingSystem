@@ -52,7 +52,10 @@ class Machine:
     core: Core | None = None
     registry: str = ""  # путь к registry.json этой машины, если он читается с A напрямую
     title: str = ""
-    metrics: dict[str, str] = field(default_factory=dict)  # метки рядов VictoriaMetrics: {"job": "node"} или {"node": "msk"}
+    metrics: dict[str, str] = field(default_factory=dict)  # метки рядов VictoriaMetrics: {"job": "node"} или {"machine": "fra"}
+    # Метки по видам источников («Флот — live», Р-125), если соглашение `kind_selector` не подходит:
+    # {"containers": {"job": "cadvisor"}, "core": {"job": "core"}, "sfu": {"job": "livekit"}}.
+    metrics_kinds: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @property
     def local(self) -> bool:
@@ -115,6 +118,10 @@ def parse(source: str, credentials: dict[str, str]) -> list[Machine]:
                 registry=str(item.get("registry", "")),
                 title=str(item.get("title", "")),
                 metrics={str(k): str(v) for k, v in (item.get("metrics") or {}).items()},
+                metrics_kinds={
+                    str(kind): {str(k): str(v) for k, v in (labels or {}).items()}
+                    for kind, labels in (item.get("metricsKinds") or {}).items()
+                },
             )
         )
     return machines

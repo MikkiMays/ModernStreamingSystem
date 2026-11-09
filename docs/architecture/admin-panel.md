@@ -246,11 +246,16 @@ GET    /machines                → [{id, role, host, nodeId, reachable, lastSta
 PUT    /machines                → (план, B8′) заменить список; сейчас список — только из FLEET_MACHINES
 POST   /jobs {kind: status, …}  → состояние машины (`git rev-parse`, `docker compose ps`, `uptime`, `df`)
 
-GET    /core/{machine}/now | /meetings?from&to | /quality | /audit?… | /server | /blocks | /support
+GET    /core/{machine}/now | /meetings?from&to | /quality | /audit?… | /server | /blocks | /analytics?from&to&mode
 POST   /core/{machine}/rooms/{id}/close {blockCreator, term}   DELETE /core/{machine}/blocks/{id}
 POST   /core/{machine}/blocks {…}                              DELETE /core/{machine}/shield
 GET    /core/{machine}/maintenance                             POST /core/{machine}/maintenance/now|schedule|extend
-DELETE /core/{machine}/maintenance                             PUT  /core/{machine}/support/{id}/status
+DELETE /core/{machine}/maintenance
+
+GET    /live | /live/history?minutes      → «Флот — live» (R209, admin-analytics.md §3)
+GET    /support?…&machine | /support/counts | /support/stats | /support/{machine}/{id}
+PUT    /support/{machine}/{id}/status | /support/{machine}/{id}   POST /support/{machine}/{id}/notes
+                                           → обращения всей системы (R215, admin-analytics.md §4)
 
 GET    /nodes/{machine}         → реестр машины (registry.json по ssh или локально) + GET /api/v1/nodes ядра + метрики
 POST   /nodes/{machine}/{id}/drain | undrain | check | deploy | update | remove      → Job
@@ -260,7 +265,7 @@ POST   /jobs {kind, machine, args, dryRun}   → Job        GET /jobs?machine&ki
 GET    /jobs/{id}?after=N                    → {job, lines:[…]}   (опрос раз в секунду, пока running)
 POST   /jobs/{id}/cancel                     → 204
 
-GET    /metrics/machines        → по машине: cpu, steal, mem, disk, uplink за 5 мин (VictoriaMetrics instant)
+GET    /metrics/machines        → по машине: cpu, steal, mem, disk, uplink за минуту (из снимка /live)
 GET    /metrics/alerts          → vmalert /api/v1/alerts (горящие)
 GET    /audit?from&to&actor&action&outcome&limit&cursor      GET /audit/export?from&to → JSONL
 GET    /operations              → каталог операций (вид, группа, поля, предусловия, таймаут)
@@ -438,8 +443,9 @@ steal `avg(rate(node_cpu_seconds_total{mode="steal"}[5m]))`, память `1-Mem
 
 ### 8.9. Ошибки и обращения
 
-`support` ядра (обращения со статусами, смена статуса) и ошибки клиентов (R180: `audit?group=client`, по виду и версии).
-Ядро выбранной машины.
+Обращения — отдельный экран «Обращения» по всем машинам сразу (R215, `admin-analytics.md` §4); ошибки клиентов (R180:
+`audit?group=client`, по виду и версии) — раздел «Ошибки клиентов», ядро выбранной машины; «ошибок на сессию» — в
+«Аналитике» (R210).
 
 ### 8.10. Флаги возможностей
 

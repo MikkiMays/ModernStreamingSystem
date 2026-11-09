@@ -152,7 +152,7 @@ export type BlockRequest = {
 type Session = { token: string; expiresAt: number };
 
 /** Обращение в поддержку (E13) так, как его видит владелец. */
-export type SupportStatus = 'NEW' | 'OPEN' | 'DONE';
+export type SupportStatus = 'NEW' | 'OPEN' | 'WAITING' | 'DONE' | 'ARCHIVED';
 export type SupportTicket = {
   id: string;
   number: string;

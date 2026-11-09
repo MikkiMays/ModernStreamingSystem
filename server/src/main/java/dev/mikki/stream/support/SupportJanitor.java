@@ -5,8 +5,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Раз в час забывает обращения старше {@code stream.support.retention}: в них может быть контакт
- * человека, и держать его дольше нужного незачем (П8).
+ * Раз в час убирает в архив давно решённое ({@code stream.support.auto-archive}) и забывает
+ * обращения старше {@code stream.support.retention}: в них может быть контакт человека, и держать
+ * его дольше нужного незачем (П8).
  */
 @Component
 @ConditionalOnProperty(
@@ -22,6 +23,7 @@ public class SupportJanitor {
 
   @Scheduled(initialDelay = 60_000, fixedDelay = 3_600_000)
   public void tidy() {
+    support.archiveResolved();
     support.forgetOld();
   }
 }
