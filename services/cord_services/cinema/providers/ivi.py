@@ -34,6 +34,7 @@ ivi: только бесплатное — фильмы, сериалы и му�
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import logging
 import re
@@ -181,6 +182,22 @@ def _poster_url(posters: Any) -> str:
         ):
             return item["url"]
     return ""
+
+
+# Описание у ivi приходит с разметкой сайта: `<p>`, `<br>`, `&nbsp;`, `&laquo;` (замечено 09.11.2026 —
+# в карточке стояло «… амнезией. <p> Встречая рассвет …»). Веб показывает описание текстом, поэтому
+# разметка снимается здесь.
+_BREAK = re.compile(r"<\s*(?:br|p|/p)\b[^>]*>", re.IGNORECASE)
+_TAG = re.compile(r"<[^>]*>")
+
+
+def _plain(text: object) -> str:
+    """Описание словами: абзацы и `<br>` — переводом строки, прочие теги — прочь, сущности — символами."""
+    if not isinstance(text, str):
+        return ""
+    unmarked = html.unescape(_TAG.sub("", _BREAK.sub("\n", text)))
+    lines = (" ".join(line.split()) for line in unmarked.splitlines())
+    return "\n".join(line for line in lines if line)[:4000]
 
 
 def _year(item: dict[str, Any]) -> int | None:
@@ -398,7 +415,7 @@ class Ivi(Provider):
                 series_id,
                 show.get("title") or "Сериал",
                 poster=self.image(_poster_url(show.get("posters"))),
-                description=(show.get("description") or "")[:4000],
+                description=_plain(show.get("description")),
                 year=_year(show),
                 seasons=[{"id": number, "title": f"Сезон {number}"} for number in numbers],
             ),
@@ -432,7 +449,7 @@ class Ivi(Provider):
             duration=_duration(info),
             category=_meta_line(info, names, rating=True),
             published=(info.get("ivi_release_date") or "")[:10] or None,
-            description=(info.get("description") or "")[:4000],
+            description=_plain(info.get("description")),
             poster=self.image(_poster_url(info.get("posters"))),
             **extra,
         )

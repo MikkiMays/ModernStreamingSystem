@@ -1010,3 +1010,28 @@ class RouteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IviDescriptionTest(unittest.TestCase):
+    """Описание ivi приходит с разметкой сайта — человеку показывается текст (09.11.2026: «<p>»)."""
+
+    def test_markup_becomes_text(self):
+        from cord_services.cinema.providers.ivi import _plain
+
+        raw = (
+            "За расследование берётся подруга убитой.\n"
+            "<p>Встречая&nbsp;рассвет, &laquo;Вера&raquo;</p><br/>замечает <b>мужчину</b>"
+        )
+        self.assertEqual(
+            _plain(raw),
+            "За расследование берётся подруга убитой.\nВстречая рассвет, «Вера»\nзамечает мужчину",
+        )
+
+    def test_no_text_and_long_text(self):
+        from cord_services.cinema.providers.ivi import _plain
+
+        self.assertEqual(_plain(None), "")
+        self.assertEqual(_plain(42), "")
+        self.assertEqual(len(_plain("а" * 5000)), 4000)
+        # Экранированный тег — это текст площадки, а не разметка: остаётся символами.
+        self.assertEqual(_plain("1 &lt; 2"), "1 < 2")
