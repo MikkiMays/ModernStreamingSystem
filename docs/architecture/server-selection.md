@@ -275,9 +275,10 @@ maxRooms» и «люди / maxRooms × 6» в ступени узла и в па
 не ниже 3; вниз — через 30 с. Палочки рядом с пингом (`GET /api/v1/load`, машина ядра) — ЦП и канал, без встреч и людей,
 состояния `full` больше нет.
 
-**Алерты** (`infra/monitoring/rules/cord.yml`, правит главная сессия): `NodeSaturated` по `cord_node_level >= 4`
-остаётся; предложены `NodeHot` (узел горячий 5 мин), `NodesSaturated` (горячие все, 2 мин, page) и
-`MeetingsOnSaturatedFleet` (встречи создаются без запаса) — журнал R228.
+**Алерты** (`infra/monitoring/rules/cord.yml`, правит главная сессия; предложение R228): `NodeHot` —
+`cord_node_hot == 1` 5 мин, warn (заменяет `NodeSaturated` по `cord_node_level >= 4`: горячий узел и есть ступень 4);
+`NodesSaturated` — `cord_nodes_saturated == 1` 2 мин, page (запаса нет нигде — нужна ёмкость);
+`MeetingsPlacedWithoutHeadroom` — `sum(increase(cord_node_choice_total{reason=~".*-saturated"}[10m])) > 0`, info.
 
 **Дренаж перед выкаткой** — как сегодня (`enabled: false` → новые встречи не ставятся, ждём конца идущих) плюс
 возможность `--move` (§3.3).
