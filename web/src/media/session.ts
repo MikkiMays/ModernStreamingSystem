@@ -968,11 +968,16 @@ export class MediaSession {
       }
     return tracks;
   }
-  /** Отчёт первой своей дорожки — по нему путь виден, даже когда принимать нечего. */
+  /**
+   * Отчёт первой своей дорожки — по нему путь виден, даже когда принимать нечего. Своих дорожек тоже нет
+   * (один во встрече, камера и микрофон выключены) — отчёт самого соединения с узлом: путь и оборот те же,
+   * а без них PING во встрече стоял бы на «—» (замер на продукте 09.11), и сторож пути был бы слеп.
+   */
   private sendingStats = async () => {
     for (const publication of this.room.localParticipant.trackPublications.values())
       if (publication.track) return publication.track.getRTCStatsReport();
-    return undefined;
+    const transports = this.room.engine?.pcManager;
+    return (await transports?.subscriber?.getStats()) ?? (await transports?.publisher.getStats());
   };
   private async tunePlayout() {
     if (this.disposed || this.playoutSampling || this.state.get().status !== 'connected') return;
