@@ -12,6 +12,7 @@ import dev.mikki.stream.shared.Problem;
 import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class MediaService {
@@ -21,6 +22,7 @@ public class MediaService {
   private final StreamProperties config;
   private final MediaNodes nodes;
   private final LossReports losses;
+  private final TransactionTemplate tx;
   private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MediaService.class);
 
   public MediaService(
@@ -29,8 +31,10 @@ public class MediaService {
       MediaGateway gateway,
       StreamProperties config,
       MediaNodes nodes,
-      LossReports losses) {
+      LossReports losses,
+      TransactionTemplate tx) {
     this.nodes = nodes;
+    this.tx = tx;
     this.losses = losses;
     this.rooms = rooms;
     this.repository = repository;
@@ -115,6 +119,11 @@ public class MediaService {
    * пропало вместе с узлом, и клиенты в этом окне берут новый токен ({@code /token}) с адресом
    * нового узла. Ссылка, чат, права — не меняются. Мёртвый узел уже исключён из выбора, поэтому
    * {@code choose(null)} даст другой; если живых нет вовсе — комнаты остаются на месте.
+   *
+   * <p>Каждая комната — в своей транзакции через {@link #tx}: вызов {@link #moveRoom} изнутри бина
+   * идёт мимо прокси, {@code @Transactional} там не сработал бы, и замок строки ({@code FOR
+   * UPDATE}) отпускался бы сразу после чтения — вход или выход, пришедший во время переезда,
+   * затирался бы сохранением переезда (или наоборот).
    */
   public void evacuate(String nodeId) {
     for (var candidate : repository.all()) {
@@ -125,7 +134,7 @@ public class MediaService {
         log.warn("room {} stays on dead node {}: no other node is alive", candidate.id, nodeId);
         continue;
       }
-      moveRoom(candidate.id, nodeId, target.id());
+      tx.executeWithoutResult(status -> moveRoom(candidate.id, nodeId, target.id()));
     }
   }
 
