@@ -81,8 +81,9 @@ public class BoardController {
       throw Problem.conflict(
           "BOARD_FILES_FULL", "На доске уже слишком много картинок. Удалите ненужные");
     store.deleteFiles(roomId, freed);
-    store.putFile(roomId, fileId, mime, data, rooms.now());
-    hub.room().addFile(new BoardRoom.FileMeta(fileId, mime, data.length));
+    long now = rooms.now();
+    store.putFile(roomId, fileId, mime, data, now);
+    hub.room().addFile(new BoardRoom.FileMeta(fileId, mime, data.length, now));
     return ResponseEntity.noContent().build();
   }
 

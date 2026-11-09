@@ -7,6 +7,7 @@ import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.activity.ActivityReport;
 import dev.mikki.stream.activity.Audit;
 import dev.mikki.stream.activity.Metrics;
+import dev.mikki.stream.activity.Participants;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.config.Term;
 import dev.mikki.stream.room.Maintenance;
@@ -80,6 +81,7 @@ public class ActivityController {
   private final StreamProperties config;
   private final Metrics metrics;
   private final Maintenance maintenance;
+  private final Participants participants;
 
   public ActivityController(
       AdminAccess admin,
@@ -92,8 +94,10 @@ public class ActivityController {
       Secrets secrets,
       StreamProperties config,
       Metrics metrics,
-      Maintenance maintenance) {
+      Maintenance maintenance,
+      Participants participants) {
     this.maintenance = maintenance;
+    this.participants = participants;
     this.admin = admin;
     this.report = report;
     this.audit = audit;
@@ -116,7 +120,10 @@ public class ActivityController {
     try {
       var issued = admin.connect(request.password());
       audit.record(
-          Audit.Entry.of("admin.login").actor("admin", null, null).from(fingerprint(http), null));
+          Audit.Entry.of("admin.login")
+              .actor("admin", null, null)
+              .from(fingerprint(http), null)
+              .ip(address.ip(http)));
       return new Session(issued.token(), issued.expiresAt());
     } catch (Problem refused) {
       if (refused.status() == 401) {
@@ -125,7 +132,8 @@ public class ActivityController {
             Audit.Entry.of("admin.login")
                 .denied(refused.code())
                 .actor("anonymous", null, null)
-                .from(fingerprint(http), null));
+                .from(fingerprint(http), null)
+                .ip(address.ip(http)));
       }
       throw refused;
     }
@@ -177,6 +185,26 @@ public class ActivityController {
       @RequestParam(required = false) Integer limit) {
     admin.require(token);
     return audit.query(new Audit.Filter(from, to, group, code, outcome, ip, room, cursor, limit));
+  }
+
+  /**
+   * Журнал участников (Р-134): кто входил во встречу, откуда (полный адрес, клиент, система, узел)
+   * и когда вышел — для встречи ({@code room} — номер, {@code code} — код) или за период ({@code
+   * from}, {@code to} — мс входа), по адресу ({@code ip} — начало); новые первыми, страницы —
+   * {@code cursor} из прошлого ответа. Метаданные хранятся год.
+   */
+  @GetMapping("/participants")
+  public Participants.MeetingParticipants participants(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @RequestParam(required = false) String room,
+      @RequestParam(required = false) String code,
+      @RequestParam(required = false) Long from,
+      @RequestParam(required = false) Long to,
+      @RequestParam(required = false) String ip,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) Integer limit) {
+    admin.require(token);
+    return participants.query(new Participants.Filter(room, code, from, to, ip, cursor, limit));
   }
 
   @GetMapping("/server")
@@ -232,6 +260,7 @@ public class ActivityController {
           Audit.Entry.of("admin.maintenance")
               .actor("admin", null, null)
               .from(fingerprint(http), null)
+              .ip(address.ip(http))
               .detail("on", request.on()));
     return new MaintenanceState(maintenance.draining(), maintenance.since());
   }
@@ -277,6 +306,7 @@ public class ActivityController {
               Audit.Entry.of("block.created")
                   .actor("admin", null, null)
                   .from(fingerprint(http), null)
+                  .ip(address.ip(http))
                   .room(request.roomId(), null)
                   .target(block.id())
                   .detail("kind", kind)
@@ -301,6 +331,7 @@ public class ActivityController {
         Audit.Entry.of("block.lifted")
             .actor("admin", null, null)
             .from(fingerprint(http), null)
+            .ip(address.ip(http))
             .target(lifted.id())
             .detail("kind", lifted.kind()));
   }
@@ -321,6 +352,7 @@ public class ActivityController {
         Audit.Entry.of("admin.room_closed")
             .actor("admin", null, null)
             .from(fingerprint(http), null)
+            .ip(address.ip(http))
             .room(room));
     if (request != null && request.blockCreator())
       block(
@@ -340,7 +372,8 @@ public class ActivityController {
     audit.record(
         Audit.Entry.of("admin.shield_cleared")
             .actor("admin", null, null)
-            .from(fingerprint(http), null));
+            .from(fingerprint(http), null)
+            .ip(address.ip(http)));
   }
 
   private String fingerprint(HttpServletRequest http) {

@@ -71,6 +71,14 @@ class Memo:
         while len(self._items) > self.capacity:
             self._items.pop(next(iter(self._items)))
 
+    def sweep(self) -> int:
+        """Забыть ответы, чей срок вышел (Р-134): без спроса они лежали бы до вытеснения. Сколько забыто."""
+        moment = time.time()
+        stale = [key for key, (until, _) in self._items.items() if until <= moment]
+        for key in stale:
+            self._items.pop(key, None)
+        return len(stale)
+
     def scope(self, namespace: str) -> Scope:
         """Память одной площадки: все её ключи начинаются с её имени."""
         return Scope(self, namespace)

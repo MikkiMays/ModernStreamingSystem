@@ -490,6 +490,90 @@ describe('экраны пульта R209/R210/R215', () => {
     );
   }, 30_000);
 
+  it('«Встречи → участники»: из идущей встречи — к её журналу с полным адресом, клиентом и выходом', async () => {
+    history.replaceState(null, '', '/meetings');
+    const started = Date.now() - 60_000;
+    const calls = serve((url, init) => {
+      const path = url.pathname;
+      if (/^\/api\/fleet\/core\/[^/]+\/now$/.test(path))
+        return {
+          status: 200,
+          body: {
+            serverTime: Date.now(),
+            live: 1,
+            waiting: 0,
+            humans: 2,
+            connected: 2,
+            bots: 0,
+            screens: 0,
+            rooms: [
+              {
+                id: 'r1',
+                code: '111222333',
+                createdAt: started,
+                startedAt: started,
+                humans: 2,
+                connected: 2,
+                waiting: 0,
+                bots: 0,
+                screens: 0,
+                integrations: [],
+                createdHere: true,
+                mediaNode: 'fra',
+              },
+            ],
+          },
+        };
+      if (/^\/api\/fleet\/core\/[^/]+\/participants$/.test(path))
+        return {
+          status: 200,
+          body: {
+            items: [
+              {
+                id: 'p1',
+                roomId: 'r1',
+                roomCode: '111222333',
+                title: 'Совет директоров',
+                participantId: 'm1',
+                name: 'Анна',
+                profileHash: null,
+                ip: '2001:db8:0:0:0:0:0:7',
+                client: 'desktop',
+                os: 'windows',
+                door: 'link',
+                mediaNode: 'fra',
+                joinedAt: started,
+                leftAt: null,
+              },
+            ],
+            next: null,
+          },
+        };
+      return routes(url, init);
+    });
+    render(<AdminApp />);
+    const people = await screen.findByRole(
+      'button',
+      { name: `${text.meetings.peopleOf} 111222333` },
+      { timeout: 10_000 },
+    );
+    fireEvent.click(people);
+    await screen.findByText('2001:db8:0:0:0:0:0:7', {}, { timeout: 10_000 });
+    const asked = calls.find((c) => c.path.includes('/participants'))!;
+    // Встреча по коду — за весь срок журнала, без периода.
+    expect(asked.path).toContain('code=111222333');
+    expect(asked.path).not.toContain('from=');
+    const table = screen.getByRole('table', { name: text.meetings.participants });
+    expect(within(table).getByText(text.meetings.inMeeting)).toBeInTheDocument();
+    expect(within(table).getByText(/приложение Windows · Windows/)).toBeInTheDocument();
+    expect(within(table).getByText(/Совет директоров/)).toBeInTheDocument();
+    // Без кода — журнал за период.
+    fireEvent.change(screen.getByLabelText(text.meetings.codeFilter), { target: { value: '' } });
+    await waitFor(() =>
+      expect(calls.some((c) => c.path.includes('/participants') && c.path.includes('from='))).toBe(true),
+    );
+  }, 30_000);
+
   it('контакт человека становится ссылкой ответа, SLA — словами', () => {
     expect(contactLink('@cord_user')).toEqual({
       href: 'https://t.me/cord_user',

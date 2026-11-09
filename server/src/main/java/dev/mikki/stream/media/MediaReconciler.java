@@ -20,6 +20,7 @@ public class MediaReconciler {
   private final MediaGateway gateway;
   private final Lifecycle lifecycle;
   private final MaintenanceWindows windows;
+  private final Retention retention;
 
   /** Запасной путь открытия показа ждёт окно разгона — почему, в самом классе. */
   private final ScreenGrace grace;
@@ -31,8 +32,10 @@ public class MediaReconciler {
       MediaGateway gateway,
       Lifecycle lifecycle,
       StreamProperties config,
-      MaintenanceWindows windows) {
+      MaintenanceWindows windows,
+      Retention retention) {
     this.windows = windows;
+    this.retention = retention;
     this.repository = repository;
     this.rooms = rooms;
     this.media = media;
@@ -47,6 +50,16 @@ public class MediaReconciler {
     windows.tick();
     for (var id : repository.ids()) lifecycle.sweepRoom(id);
     lifecycle.sweepLedger();
+  }
+
+  /**
+   * Содержимое старше суток (Р-134) — раз в час, тем же расписанием уборки: снимки комнат и доски
+   * ({@link Retention}). Первый проход — через минуту после запуска: ядро после простоя убирает
+   * накопившееся сразу, а не через час.
+   */
+  @Scheduled(initialDelay = 60_000, fixedDelay = 3_600_000)
+  public void retention() {
+    retention.sweep();
   }
 
   @Scheduled(fixedDelay = 2000)

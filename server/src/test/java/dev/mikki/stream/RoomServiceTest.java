@@ -1546,7 +1546,8 @@ class RoomServiceTest {
   void closingTheMeetingClosesTheBoardButKeepsItsScene() {
     var host = host();
     poker(host, "board.open", null, null, null);
-    assertThat(boardStore.save(host.roomId(), 0, 3, "[{\"id\":\"a\"}]", now.get())).isTrue();
+    assertThat(boardStore.save(host.roomId(), 0, 3, "[{\"id\":\"a\"}]", now.get(), now.get()))
+        .isTrue();
     command(host, "close", null, 0);
     assertThat(rooms.read(host.roomId()).board).isNull();
     assertThat(boardStore.load(host.roomId())).isPresent();
@@ -1561,9 +1562,10 @@ class RoomServiceTest {
     var host = host();
     var id = host.roomId();
     assertThat(boardStore.load(id)).isEmpty();
-    assertThat(boardStore.save(id, 1, 5, "[{\"id\":\"a\",\"text\":\"привет\"}]", now.get()))
+    assertThat(
+            boardStore.save(id, 1, 5, "[{\"id\":\"a\",\"text\":\"привет\"}]", now.get(), now.get()))
         .isTrue();
-    assertThat(boardStore.save(id, 2, 9, "[{\"id\":\"b\"}]", now.get())).isTrue();
+    assertThat(boardStore.save(id, 2, 9, "[{\"id\":\"b\"}]", now.get(), now.get())).isTrue();
     var saved = boardStore.load(id).orElseThrow();
     assertThat(saved.epoch()).isEqualTo(2);
     assertThat(saved.seq()).isEqualTo(9);
@@ -1573,7 +1575,8 @@ class RoomServiceTest {
     assertThat(boardStore.putFile(id, "f1", "image/png", bytes, now.get())).isFalse();
     assertThat(boardStore.file(id, "f1").orElseThrow().data()).isEqualTo(bytes);
     assertThat(boardStore.files(id)).extracting(f -> f.id()).containsExactly("f1");
-    assertThat(boardStore.save(UUID.randomUUID().toString(), 1, 1, "[]", now.get())).isFalse();
+    assertThat(boardStore.save(UUID.randomUUID().toString(), 1, 1, "[]", now.get(), now.get()))
+        .isFalse();
     jdbc.sql("DELETE FROM rooms WHERE id=?").param(id).update();
     assertThat(boardStore.load(id)).isEmpty();
     assertThat(boardStore.files(id)).isEmpty();

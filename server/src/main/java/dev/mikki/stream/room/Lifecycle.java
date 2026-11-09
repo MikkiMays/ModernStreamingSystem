@@ -20,6 +20,7 @@ public class Lifecycle {
   private final GameClock games;
   private final ApplicationEventPublisher events;
   private final MaintenanceWindows windows;
+  private final RetentionMeter retention;
 
   /**
    * Сколько завершённая работами встреча лежит в базе, даже если её никто не сохранял: клиент
@@ -44,8 +45,10 @@ public class Lifecycle {
       StreamProperties config,
       GameClock games,
       ApplicationEventPublisher events,
-      MaintenanceWindows windows) {
+      MaintenanceWindows windows,
+      RetentionMeter retention) {
     this.windows = windows;
+    this.retention = retention;
     this.service = service;
     this.rooms = rooms;
     this.config = config;
@@ -107,13 +110,104 @@ public class Lifecycle {
   @Transactional
   public void sweepLedger() {
     long now = service.now();
-    rooms
-        .jdbc()
-        .sql("DELETE FROM messages WHERE created_at<=? OR expires_at<=?")
-        .params(now - config.retention().messages().toMillis(), now)
-        .update();
-    rooms.jdbc().sql("DELETE FROM room_events WHERE expires_at<=?").param(now).update();
+    retention.deleted(
+        "message",
+        rooms
+            .jdbc()
+            .sql("DELETE FROM messages WHERE created_at<=? OR expires_at<=?")
+            .params(now - config.retention().messages().toMillis(), now)
+            .update());
+    retention.deleted(
+        "room_event",
+        rooms.jdbc().sql("DELETE FROM room_events WHERE expires_at<=?").param(now).update());
     rooms.jdbc().sql("DELETE FROM command_receipts WHERE expires_at<=?").param(now).update();
+  }
+
+  /**
+   * Содержимое в снимке комнаты, что старше {@code cutoff} (Р-134, почасовая очистка {@link
+   * Retention}): итоги игр, кино встречи, картинки профиля ушедших, прежний список сообщений.
+   * Встреча — это метаданные (код, название, кто был), она остаётся; уходит то, что в ней принесли.
+   *
+   * <p>Кино и столы игр живут только в идущей встрече и уходят с её концом, а встреча — не дольше
+   * потолка длительности ({@code stream.meeting.max-duration}, сутки). Здесь — страховка на случай,
+   * когда потолок снят ({@code never}): во встрече, открытой раньше {@code cutoff}, кино и столы
+   * закрываются, даже если начаты позже, — время открытия ролика и стола снимок не хранит.
+   *
+   * @return сколько записей ушло
+   */
+  @Transactional
+  public int expireContent(String id, long cutoff) {
+    RoomState room;
+    try {
+      room = service.lock(id);
+    } catch (Problem missing) {
+      return 0;
+    }
+    long now = service.now();
+    int gone = 0;
+    boolean changed = false;
+    boolean dirty = false;
+    long opened = room.openedAt != null ? room.openedAt : room.createdAt;
+    if (room.closedAt == null && opened <= cutoff) {
+      if (room.watch != null) {
+        room.watch = null;
+        retention.deleted("watch", 1);
+        gone++;
+        changed = true;
+      }
+      if (room.poker != null || room.durak != null || room.chess != null || room.gartic != null) {
+        room.poker = null;
+        room.durak = null;
+        room.chess = null;
+        room.gartic = null;
+        games.forget(id);
+        retention.deleted("game", 1);
+        gone++;
+        changed = true;
+      }
+    }
+    int summaries = 0;
+    if (room.pokerGames != null) {
+      int before = room.pokerGames.size();
+      room.pokerGames.removeIf(game -> game.finishedAt() <= cutoff);
+      summaries += before - room.pokerGames.size();
+      if (room.pokerGames.isEmpty()) room.pokerGames = null;
+    }
+    if (room.durakGames != null) {
+      int before = room.durakGames.size();
+      room.durakGames.removeIf(game -> game.finishedAt() <= cutoff);
+      summaries += before - room.durakGames.size();
+      if (room.durakGames.isEmpty()) room.durakGames = null;
+    }
+    if (summaries > 0) {
+      retention.deleted("game_summary", summaries);
+      gone += summaries;
+      changed = true;
+    }
+    int avatars = 0;
+    for (var member : room.members.values())
+      if (member.avatar != null && !member.occupiesSeat() && member.joinedAt <= cutoff) {
+        member.avatar = null;
+        avatars++;
+      }
+    if (avatars > 0) {
+      retention.deleted("avatar", avatars);
+      gone += avatars;
+      dirty = true;
+    }
+    int before = room.messages == null ? 0 : room.messages.size();
+    if (before > 0 && room.messages.removeIf(message -> message.createdAt() <= cutoff)) {
+      retention.deleted("message", before - room.messages.size());
+      gone += before - room.messages.size();
+      dirty = true;
+    }
+    if (changed) {
+      service.emit(room, "room.changed", Contracts.EventPayload.changed());
+      dirty = true;
+    }
+    if (dirty) rooms.save(room, now);
+    if (changed) events.publishEvent(new RoomChanged(id));
+    return gone;
   }
 
   @Transactional
@@ -389,8 +483,11 @@ public class Lifecycle {
     if (RoomService.MAINTENANCE.equals(room.closedFor))
       roomUntil = Math.max(roomUntil, room.closedAt + MAINTENANCE_END_READABLE_MS);
     if (now < room.closedAt + keep.closedHistory().toMillis() && now < roomUntil) return;
-    rooms.jdbc().sql("DELETE FROM room_events WHERE room_id=?").param(id).update();
-    rooms.jdbc().sql("DELETE FROM messages WHERE room_id=?").param(id).update();
+    retention.deleted(
+        "room_event",
+        rooms.jdbc().sql("DELETE FROM room_events WHERE room_id=?").param(id).update());
+    retention.deleted(
+        "message", rooms.jdbc().sql("DELETE FROM messages WHERE room_id=?").param(id).update());
     rooms.jdbc().sql("DELETE FROM command_receipts WHERE room_id=?").param(id).update();
     // Вложения переживают комнату только физически: пока файл лежит на диске, строка о нём
     // нужна, иначе он станет ничьим. Минутный проход `AttachmentService` уносит просроченные

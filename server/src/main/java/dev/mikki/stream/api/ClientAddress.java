@@ -70,6 +70,34 @@ public class ClientAddress {
     return service(request) && !key.startsWith("actor:") ? null : key;
   }
 
+  /**
+   * Полный адрес человека, приславшего запрос (Р-134, метаданные): {@code X-Real-IP} шлюза, если
+   * шлюз доказал себя внутренним секретом, иначе адрес сокета; IPv6 — целиком, без сети /64. У
+   * запроса службы (бот Telegram входит от имени человека) адреса человека нет — {@code null}.
+   */
+  public String ip(HttpServletRequest request) {
+    if (service(request)) return null;
+    String forwarded = request.getHeader("X-Real-IP");
+    return full(
+        forwarded != null
+                && Secrets.equal(request.getHeader("X-Internal-Secret"), config.internalSecret())
+            ? forwarded
+            : request.getRemoteAddr());
+  }
+
+  /**
+   * Адрес литералом в обычной записи; IPv6 — все восемь групп. Не адрес — как есть, до 64 знаков.
+   */
+  public static String full(String address) {
+    if (address == null || address.isBlank()) return null;
+    var text = address.strip();
+    try {
+      return InetAddress.ofLiteral(text).getHostAddress();
+    } catch (IllegalArgumentException e) {
+      return text.substring(0, Math.min(64, text.length()));
+    }
+  }
+
   /** Пришёл ли запрос от нашей службы (бот, музыка): у неё свои пределы по актору. */
   public boolean service(HttpServletRequest request) {
     return InternalKeys.isService(request.getHeader("X-Service-Secret"), config.internalSecret());

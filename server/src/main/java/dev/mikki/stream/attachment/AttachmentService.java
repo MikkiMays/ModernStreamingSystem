@@ -106,13 +106,19 @@ public class AttachmentService {
   private final RoomRepository repository;
   private final StreamProperties config;
   private final TusGateway tus;
+  private final RetentionMeter retention;
 
   public AttachmentService(
-      RoomService rooms, RoomRepository repository, StreamProperties config, TusGateway tus) {
+      RoomService rooms,
+      RoomRepository repository,
+      StreamProperties config,
+      TusGateway tus,
+      RetentionMeter retention) {
     this.rooms = rooms;
     this.repository = repository;
     this.config = config;
     this.tus = tus;
+    this.retention = retention;
   }
 
   private Attachment map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
@@ -149,6 +155,8 @@ public class AttachmentService {
                 a.createdAt() + config.uploadTimeoutSeconds() * 1000L,
                 rooms.expiry(a.createdAt(), room))
             : rooms.expiry(a.createdAt(), room);
+    // Потолок содержимого (Р-134): файл не живёт дольше суток от загрузки ни при каком сроке.
+    expiry = Math.min(expiry, a.createdAt() + config.retention().content().toMillis());
     return Math.min(expiry, a.expiresAt() == 0 ? Long.MAX_VALUE : a.expiresAt());
   }
 
@@ -342,9 +350,13 @@ public class AttachmentService {
     // the active PATCH's completion hook may need that same room lock.
     if (a.uploadId() != null && !tus.terminate(a.uploadId())) return;
     try {
+      // Сначала файл и его описание tusd на томе `uploads`, потом строка: строка без файла — мусор
+      // в базе, файл без строки — содержимое, о котором никто не знает (Р-134).
       Files.deleteIfExists(path(a.id()));
       Files.deleteIfExists(path(a.id()).resolveSibling(a.id() + ".info"));
-      repository.jdbc().sql("DELETE FROM attachments WHERE id=?").param(a.id()).update();
+      retention.deleted(
+          "attachment",
+          repository.jdbc().sql("DELETE FROM attachments WHERE id=?").param(a.id()).update());
     } catch (java.io.IOException e) {
       /* Keep quota reserved; the next sweep retries deletion. */
     }

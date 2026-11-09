@@ -2783,6 +2783,69 @@
         ],
         "type": "object"
       },
+      "MeetingParticipant": {
+        "properties": {
+          "client": {
+            "type": "string"
+          },
+          "door": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "leftAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "mediaNode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "os": {
+            "type": "string"
+          },
+          "participantId": {
+            "type": "string"
+          },
+          "profileHash": {
+            "type": "string"
+          },
+          "roomCode": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MeetingParticipants": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MeetingParticipant"
+            },
+            "type": "array"
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Message": {
         "properties": {
           "createdAt": {
@@ -5469,6 +5532,95 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/Now"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/participants": {
+      "get": {
+        "operationId": "participants",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "room",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ip",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingParticipants"
                 }
               }
             },

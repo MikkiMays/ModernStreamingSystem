@@ -173,7 +173,12 @@ public class BoardRooms {
       try {
         stored =
             store.save(
-                hub.room.roomId(), scene.epoch(), scene.seq(), scene.elements(), clock.millis());
+                hub.room.roomId(),
+                scene.epoch(),
+                scene.seq(),
+                scene.elements(),
+                scene.oldest(),
+                clock.millis());
       } catch (RuntimeException e) {
         saveFailures.incrementAndGet();
         log.warn("Доска {} не записалась: {}", hub.room.roomId(), e.toString());
@@ -234,6 +239,91 @@ public class BoardRooms {
     for (var hub : all()) if (hub.room.dirty()) save(hub);
   }
 
+  /**
+   * Сцена целиком — тем же сообщением, что получает входящий ({@code scene}): поколение, номер,
+   * картинки и элементы с отметками удалённых.
+   */
+  public static String sceneMessage(BoardRoom.Scene scene) {
+    var files = new ArrayList<Map<String, Object>>();
+    for (var file : scene.files())
+      files.add(Map.of("id", file.id(), "mime", file.mime(), "size", file.size()));
+    return "{\"type\":\"scene\",\"epoch\":"
+        + scene.epoch()
+        + ",\"seq\":"
+        + scene.seq()
+        + ",\"files\":"
+        + Json.write(files)
+        + ",\"els\":"
+        + scene.elements()
+        + "}";
+  }
+
+  /** Сколько убрала очистка по сроку: доски, элементы, картинки. */
+  public record Swept(int boards, int elements, int files) {}
+
+  /**
+   * Очистка по сроку (Р-134, раз в час из {@code room.Retention}): с каждой доски, где есть что-то
+   * не новее {@code cutoff}, уходят старые элементы и картинки ({@link BoardRoom#expire}).
+   *
+   * <p>Доски берутся из памяти (там правки свежее базы) и из базы — по {@code content_at} сцены и
+   * времени загрузки картинок; доска не в памяти поднимается тем же путём, что у входящего, и
+   * уходит обратно обычной выгрузкой. Убрано что-то — участникам сразу уходит новая сцена нового
+   * поколения: браузер заменяет ею свою ({@code scene} с другим {@code epoch}), а вернувшийся со
+   * старым поколением возьмёт её целиком. Картинки удаляются из базы, затем сцена записывается.
+   */
+  public Swept expire(long cutoff) {
+    var due = new LinkedHashSet<String>(store.due(cutoff));
+    for (var hub : all()) if (hub.room.oldest() <= cutoff) due.add(hub.room.roomId());
+    int boardsSwept = 0, elements = 0, files = 0;
+    for (var roomId : due) {
+      // Доску, которую поднял сам проход, он же и выгружает: первый проход после выкатки проверяет
+      // все прежние доски, и держать их в памяти разом незачем.
+      boolean loaded = !boards.containsKey(roomId);
+      Hub hub;
+      try {
+        hub = hub(roomId);
+      } catch (RuntimeException e) {
+        log.warn("Доска {} не поднялась для очистки: {}", roomId, e.toString());
+        continue;
+      }
+      BoardRoom.Expired expired;
+      synchronized (hub.room) {
+        expired = hub.room.expire(cutoff);
+        if (expired != null) broadcast(hub, null, sceneMessage(hub.room.scene()));
+      }
+      if (expired == null) {
+        // Убирать нечего (сцена до этого выпуска или правки свежее записи) — запомнить срок, чтобы
+        // следующий проход доску не поднимал.
+        if (!hub.room.dirty()) store.checked(roomId, hub.room.oldest());
+      } else {
+        store.deleteFiles(roomId, expired.files());
+        save(hub);
+        boardsSwept++;
+        elements += expired.elements();
+        files += expired.files().size();
+      }
+      if (loaded) unload(hub);
+    }
+    return new Swept(boardsSwept, elements, files);
+  }
+
+  /** Выгрузить доску, за которой никого нет и в которой нет незаписанного. */
+  private void unload(Hub hub) {
+    synchronized (hub.room) {
+      if (hub.peers.isEmpty() && !hub.room.dirty()) {
+        hub.evicted = true;
+        boards.remove(hub.room.roomId(), hub);
+      }
+    }
+  }
+
+  /** Самое старое на досках в памяти ({@link Long#MAX_VALUE} — пусто). */
+  public long oldestInMemory() {
+    long oldest = Long.MAX_VALUE;
+    for (var hub : all()) oldest = Math.min(oldest, hub.room.oldest());
+    return oldest;
+  }
+
   private Hub load(String roomId) {
     var files = store.files(roomId);
     var room =
@@ -242,10 +332,17 @@ public class BoardRooms {
             .map(
                 saved ->
                     BoardRoom.restore(
-                        roomId, limits, saved.epoch(), saved.seq(), saved.elements(), files))
+                        roomId,
+                        limits,
+                        clock::millis,
+                        saved.epoch(),
+                        saved.seq(),
+                        saved.elements(),
+                        files,
+                        saved.savedAt()))
             .orElseGet(
                 () -> {
-                  var fresh = new BoardRoom(roomId, limits);
+                  var fresh = new BoardRoom(roomId, limits, clock::millis);
                   files.forEach(fresh::addFile);
                   return fresh;
                 });

@@ -324,6 +324,14 @@ class Cinema:
                 ", ".join(sorted(known)),
             )
 
+    def sweep(self) -> dict[str, int]:
+        """Срок памяти кинозала (Р-134, уборка службы): кусочки видео и ответы площадок, чей срок вышел, —
+        прочь, даже если их больше никто не спросит. Сколько забыто по видам."""
+        return {
+            "cinema_segment": self.segments.sweep(),
+            "cinema_answer": self.catalog.sweep() + self.sources.sweep(),
+        }
+
     async def close(self):
         await asyncio.gather(*(gate.close() for gate in self.egress.values()), return_exceptions=True)
         self.rewrites.shutdown(wait=False, cancel_futures=True)

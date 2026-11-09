@@ -158,6 +158,7 @@ public class MaintenanceController {
         Audit.Entry.of("admin.maintenance_window")
             .actor("admin", null, null)
             .from(secrets.address(address.of(http)), null)
+            .ip(address.ip(http))
             .target(window.id())
             .detail("do", action)
             .detail("kind", window.kind())

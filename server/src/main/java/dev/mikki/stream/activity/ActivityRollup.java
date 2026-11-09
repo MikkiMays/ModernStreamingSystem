@@ -2,6 +2,7 @@ package dev.mikki.stream.activity;
 
 import dev.mikki.stream.access.Blocks;
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.room.RetentionMeter;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -23,6 +24,8 @@ public class ActivityRollup {
   private final MeetingStats stats;
   private final Blocks blocks;
   private final Analytics analytics;
+  private final Participants participants;
+  private final RetentionMeter retention;
 
   public ActivityRollup(
       JdbcClient jdbc,
@@ -31,7 +34,11 @@ public class ActivityRollup {
       Audit audit,
       MeetingStats stats,
       Blocks blocks,
-      Analytics analytics) {
+      Analytics analytics,
+      Participants participants,
+      RetentionMeter retention) {
+    this.participants = participants;
+    this.retention = retention;
     this.jdbc = jdbc;
     this.config = config;
     this.clock = clock;
@@ -47,11 +54,18 @@ public class ActivityRollup {
     var today = LocalDate.ofInstant(Instant.ofEpochMilli(now), ZoneOffset.UTC);
     day(today.minusDays(1));
     day(today);
-    audit.sweep(now);
-    jdbc.sql("DELETE FROM meeting_stats WHERE expires_at<=?").param(now).update();
+    // Метаданные (Р-134): срок — от события по нынешней настройке, а не записанный в строку при
+    // вставке: продлённый до года срок аудита касается и строк, вставленных при трёх месяцах.
+    retention.deleted("audit", audit.sweep(now));
+    retention.deleted(
+        "meeting_stats",
+        jdbc.sql("DELETE FROM meeting_stats WHERE expires_at<=? OR started_at<=?")
+            .params(now, now - config.retention().meetingStats().toMillis())
+            .update());
     jdbc.sql("DELETE FROM activity_daily WHERE expires_at<=?").param(now).update();
     blocks.sweep(now);
-    analytics.sweep(now);
+    retention.deleted("analytics", analytics.sweep(now));
+    participants.sweep(now);
   }
 
   private void day(LocalDate day) {

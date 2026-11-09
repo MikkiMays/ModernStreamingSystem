@@ -410,6 +410,7 @@ public class ApiController {
               .actor("participant", reserved.ownerId(), null)
               .target(reserved.id())
               .from(secrets.address(key), null)
+              .ip(address.ip(http))
               .detail("bytes", request.size())
               .detail("executable", reserved.executable() ? true : null));
     return reserved;

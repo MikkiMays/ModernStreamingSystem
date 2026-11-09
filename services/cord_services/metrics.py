@@ -68,4 +68,8 @@ def render(state: SimpleNamespace) -> str:
     sources = getattr(state, "sources", None)
     if sources is not None:
         lines += sources.metric_lines()
+    # Срок содержимого (Р-134): сколько ушло по видам.
+    retention = getattr(state, "retention", None)
+    if retention is not None:
+        lines += retention.metric_lines()
     return "\n".join(lines) + "\n"

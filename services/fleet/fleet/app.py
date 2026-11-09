@@ -406,6 +406,8 @@ def create_app(state: App | None = None) -> FastAPI:
         "meetings": "/api/v1/admin/meetings",
         "quality": "/api/v1/admin/quality",
         "audit": "/api/v1/admin/audit",
+        # Журнал участников встреч (Р-134): кто, откуда (полный адрес), когда; для встречи или за период.
+        "participants": "/api/v1/admin/participants",
         "nodes": "/api/v1/nodes",
     }
 

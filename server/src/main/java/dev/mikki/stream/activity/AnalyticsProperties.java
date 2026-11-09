@@ -21,4 +21,4 @@ import org.springframework.validation.annotation.Validated;
 public record AnalyticsProperties(
     @DefaultValue("true") boolean enabled,
     @DefaultValue("Europe/Moscow") @NotNull ZoneId zone,
-    @DefaultValue("400 days") @NotNull Duration retention) {}
+    @DefaultValue("365 days") @NotNull Duration retention) {}

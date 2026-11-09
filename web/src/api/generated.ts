@@ -175,6 +175,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["participants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/quality": {
         parameters: {
             query?: never;
@@ -1771,6 +1787,28 @@ export interface components {
             token: string;
             url: string;
         };
+        MeetingParticipant: {
+            client?: string;
+            door?: string;
+            id?: string;
+            ip?: string;
+            /** Format: int64 */
+            joinedAt?: number;
+            /** Format: int64 */
+            leftAt?: number;
+            mediaNode?: string;
+            name?: string;
+            os?: string;
+            participantId?: string;
+            profileHash?: string;
+            roomCode?: string;
+            roomId?: string;
+            title?: string;
+        };
+        MeetingParticipants: {
+            items?: components["schemas"]["MeetingParticipant"][];
+            next?: string;
+        };
         Message: {
             /** Format: int64 */
             createdAt: number;
@@ -2759,6 +2797,36 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Now"];
+                };
+            };
+        };
+    };
+    participants: {
+        parameters: {
+            query?: {
+                code?: string;
+                cursor?: string;
+                from?: number;
+                ip?: string;
+                limit?: number;
+                room?: string;
+                to?: number;
+            };
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MeetingParticipants"];
                 };
             };
         };

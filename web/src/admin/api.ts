@@ -122,6 +122,27 @@ export type LiveRoom = {
   mediaNode?: string | null;
 };
 
+/** Строка журнала участников ядра (`GET /api/v1/admin/participants`, Р-134): кто, откуда, с кем и когда. */
+export type MeetingParticipant = {
+  id: string;
+  roomId: string;
+  roomCode: string | null;
+  title: string | null;
+  participantId: string;
+  name: string | null;
+  profileHash: string | null;
+  /** Полный адрес, как его дал шлюз; IPv6 — целиком. `null` — вход службы (бот Telegram). */
+  ip: string | null;
+  client: string;
+  os: string;
+  door: string;
+  mediaNode: string | null;
+  joinedAt: number;
+  leftAt: number | null;
+};
+
+export type ParticipantsPage = { items: MeetingParticipant[]; next: string | null };
+
 export type MaintenanceWindow = {
   id: string;
   kind: string;
@@ -440,7 +461,8 @@ export type SupportTicket = {
   number: string;
   createdAt: number;
   topic: string;
-  message: string;
+  /** `null` — текст стёрт через сутки после решения (Р-134); тема, статус и контакт остаются. */
+  message: string | null;
   contact: string | null;
   diagnostics: string | null;
   issues: string[];
@@ -469,7 +491,8 @@ export type SupportNote = {
   createdAt: number;
   author: string;
   kind: 'note' | 'reply' | 'status' | 'assign' | 'priority' | 'tags';
-  text: string;
+  /** `null` — заметка или ответ стёрты через сутки после решения (Р-134). */
+  text: string | null;
 };
 
 export type SupportInbox = {

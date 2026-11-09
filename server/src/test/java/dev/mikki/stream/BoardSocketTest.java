@@ -187,6 +187,41 @@ class BoardSocketTest {
     return Map.of("type", "ops", "els", List.of(elements), "t", 123);
   }
 
+  /**
+   * Р-134: элемент старше суток уходит почасовой очисткой — и у тех, кто сидит за доской, тоже: им
+   * сразу приходит сцена нового поколения без него, а в базе лежит та же сцена.
+   */
+  @Test
+  void expiredElementsLeaveTheBoardAndSeatedBrowsersGetTheNewGeneration() throws Exception {
+    var host = host();
+    var guest = guest(host);
+    command(host, "board.open", null);
+    var anna = new Client();
+    anna.auth(host, -1, -1);
+    long epoch = anna.await("hello").path("epoch").asLong();
+    var boris = new Client();
+    boris.auth(guest, -1, -1);
+    boris.await("hello");
+    anna.send(ops(rect("old", 1, 1)));
+    now.addAndGet(20 * 3_600_000L);
+    anna.send(ops(rect("fresh", 1, 1)));
+    boris.await("ops", m -> m.path("els").get(0).path("id").asText().equals("fresh"));
+
+    now.addAndGet(5 * 3_600_000L);
+    var swept = boards.expire(now.get() - 24 * 3_600_000L);
+    // Счёт — по всем доскам контекста: соседние тесты оставили свои в памяти.
+    assertThat(swept.elements()).isPositive();
+    for (var client : List.of(anna, boris)) {
+      var scene = client.await("scene", m -> m.path("epoch").asLong() == epoch + 1);
+      var ids = new ArrayList<String>();
+      scene.path("els").forEach(el -> ids.add(el.path("id").asText()));
+      assertThat(ids).containsExactly("fresh");
+    }
+    assertThat(store.load(host.roomId()).orElseThrow().elements())
+        .contains("\"fresh\"")
+        .doesNotContain("\"old\"");
+  }
+
   @Test
   void strokeOfOneReachesTheOtherAndTheAuthorGetsAnAck() throws Exception {
     var host = host();

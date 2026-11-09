@@ -516,10 +516,21 @@ public class Analytics implements RoomObserver {
         && t.integrations == 0;
   }
 
-  /** Забыть строки старше срока ({@code stream.analytics.retention}); сколько забыто. */
+  /**
+   * Забыть строки старше срока ({@code stream.analytics.retention}, срок метаданных — год, Р-134);
+   * сколько забыто. Срок — и записанный в строку, и по нынешней настройке от дня: строки,
+   * вставленные при прежних 400 днях, уходят по году.
+   */
   public int sweep(long now) {
-    int days = jdbc.sql("DELETE FROM visitor_days WHERE expires_at<=?").param(now).update();
-    int visitors = jdbc.sql("DELETE FROM visitors WHERE expires_at<=?").param(now).update();
+    var oldest = day(now - config.retention().toMillis());
+    int days =
+        jdbc.sql("DELETE FROM visitor_days WHERE expires_at<=? OR local_day<?")
+            .params(now, oldest)
+            .update();
+    int visitors =
+        jdbc.sql("DELETE FROM visitors WHERE expires_at<=? OR last_day<?")
+            .params(now, oldest)
+            .update();
     return days + visitors;
   }
 
