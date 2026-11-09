@@ -55,8 +55,13 @@ test("admin console name (R207, R211) gets a certificate, its own gateway port a
   const config = createEdge({ ...hosts, admin: "admin.example.test" });
   assert.deepEqual(config.apps.tls.certificates.automate, [...Object.values(hosts), "admin.example.test"]);
   const routes = config.apps.layer4.servers.main.routes;
-  assert.equal(routes.length, 4);
+  assert.equal(routes.length, 5);
   assert.deepEqual(routes.at(-1).match, [{ tls: { sni: ["admin.example.test"] } }]);
+  // Проверка Let's Encrypt (TLS-ALPN-01) — раньше пульта: только `acme-tls/1`, без сертификата клиента и без прокси,
+  // так что этим рукопожатием до порта пульта не дойти.
+  const acme = routes.at(-2);
+  assert.deepEqual(acme.match, [{ tls: { sni: ["admin.example.test"], alpn: ["acme-tls/1"] } }]);
+  assert.deepEqual(acme.handle, [{ handler: "tls", connection_policies: [{ alpn: ["acme-tls/1"] }] }]);
   // Свой порт шлюза (R211): на порту приложения блока пульта нет, подставленный `Host` до него не дотянется.
   assert.deepEqual(routes.at(-1).handle.at(-1).upstreams, [{ dial: ["127.0.0.1:8092"] }]);
   // TLS к имени пульта — только с клиентским сертификатом нашего центра; у остальных имён проверки нет.
@@ -66,6 +71,7 @@ test("admin console name (R207, R211) gets a certificate, its own gateway port a
   });
   for (const other of routes.slice(0, -1))
     assert.equal(other.handle[0].connection_policies?.[0]?.client_authentication, undefined);
+  for (const other of routes.slice(0, -2)) assert.equal(other.handle.at(-1).handler, "proxy");
   assert.equal(createEdge(hosts).apps.layer4.servers.main.routes.length, 3);
   for (const options of [
     { admin: hosts.app },
