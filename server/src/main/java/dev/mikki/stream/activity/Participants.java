@@ -58,13 +58,13 @@ public class Participants implements RoomObserver {
   private final Object flushing = new Object();
 
   // Под lock: ещё не записанные строки, выходы записанных и кто из записанных сейчас во встрече.
-  private Map<String, Row> pending = new LinkedHashMap<>();
+  private Map<String, MeetingParticipant> pending = new LinkedHashMap<>();
   private Map<String, Long> leaves = new LinkedHashMap<>();
   private final Map<String, Map<String, String>> open = new HashMap<>();
   private long dropped;
 
   /** Строка журнала, как её видит пульт. {@code leftAt} — null, пока человек во встрече. */
-  public record Row(
+  public record MeetingParticipant(
       String id,
       String roomId,
       String roomCode,
@@ -79,8 +79,8 @@ public class Participants implements RoomObserver {
       String mediaNode,
       long joinedAt,
       Long leftAt) {
-    Row left(long at) {
-      return new Row(
+    MeetingParticipant left(long at) {
+      return new MeetingParticipant(
           id,
           roomId,
           roomCode,
@@ -98,7 +98,7 @@ public class Participants implements RoomObserver {
     }
   }
 
-  public record Page(List<Row> items, String next) {}
+  public record MeetingParticipants(List<MeetingParticipant> items, String next) {}
 
   /**
    * Что показать: встреча (номер или код), период входа, адрес (начало), страницы — по {@code
@@ -148,7 +148,7 @@ public class Participants implements RoomObserver {
               .orElse(null);
       var client = kind == null ? ClientKind.UNKNOWN : kind;
       var row =
-          new Row(
+          new MeetingParticipant(
               UUID.randomUUID().toString(),
               admission.roomId(),
               snapshot.code(),
@@ -235,7 +235,7 @@ public class Participants implements RoomObserver {
   /** Записать буфер одной транзакцией; сколько строк записано и закрыто. */
   public int flush() {
     synchronized (flushing) {
-      Map<String, Row> rows;
+      Map<String, MeetingParticipant> rows;
       Map<String, Long> closing;
       synchronized (lock) {
         if (pending.isEmpty() && leaves.isEmpty()) return 0;
@@ -269,7 +269,7 @@ public class Participants implements RoomObserver {
     }
   }
 
-  private void insert(Row row) {
+  private void insert(MeetingParticipant row) {
     jdbc.sql(
             "INSERT INTO meeting_participants(id,room_id,room_code,title,participant_id,"
                 + "display_name,profile_hash,ip,client,os,door,media_node,joined_at,left_at)"
@@ -370,7 +370,7 @@ public class Participants implements RoomObserver {
 
   // ── Чтение ───────────────────────────────────────────────────────────────────────────────────
 
-  public Page query(Filter filter) {
+  public MeetingParticipants query(Filter filter) {
     flush();
     var where = new StringBuilder(" WHERE 1=1");
     var params = new ArrayList<Object>();
@@ -418,11 +418,11 @@ public class Participants implements RoomObserver {
       var last = items.getLast();
       next = last.joinedAt() + "." + last.id();
     }
-    return new Page(items, next);
+    return new MeetingParticipants(items, next);
   }
 
-  private static Row map(java.sql.ResultSet rs, int n) throws java.sql.SQLException {
-    return new Row(
+  private static MeetingParticipant map(java.sql.ResultSet rs, int n) throws java.sql.SQLException {
+    return new MeetingParticipant(
         rs.getString("id"),
         rs.getString("room_id"),
         rs.getString("room_code"),

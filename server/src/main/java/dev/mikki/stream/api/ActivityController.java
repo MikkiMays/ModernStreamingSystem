@@ -194,7 +194,7 @@ public class ActivityController {
    * {@code cursor} из прошлого ответа. Метаданные хранятся год.
    */
   @GetMapping("/participants")
-  public Participants.Page participants(
+  public Participants.MeetingParticipants participants(
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
       @RequestParam(required = false) String room,
       @RequestParam(required = false) String code,
