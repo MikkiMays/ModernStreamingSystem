@@ -74,6 +74,15 @@ class InboxTest(unittest.TestCase):
         self.assertEqual(data["errors"][0]["machine"], "meet")
         self.assertEqual(data["errors"][0]["code"], "CORE_UNREACHABLE")
 
+    def test_a_full_page_of_one_core_means_more_even_if_the_merge_fits(self):
+        # Продукт молчит, стенд отдал ровно страницу: склейка уместилась в limit, но у стенда есть ещё.
+        client, _, _ = build(core=SupportCore(meet_down=True))
+        login(client)
+        data = client.get("/api/fleet/support", params={"limit": "1"}, headers=READ).json()
+        self.assertEqual([t["id"] for t in data["tickets"]], [A_TICKET])
+        self.assertTrue(data["more"])
+        self.assertEqual(client.get("/api/fleet/support", params={"limit": "x"}, headers=READ).status_code, 400)
+
     def test_counts_are_summed_and_stats_kept_per_machine(self):
         client, _, _ = build(core=SupportCore())
         login(client)

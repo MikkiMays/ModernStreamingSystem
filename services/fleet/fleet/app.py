@@ -530,16 +530,26 @@ def create_app(state: App | None = None) -> FastAPI:
         """Ящик всей системы: ядро каждой машины спрашивается с теми же фильтрами, ответы склеиваются."""
         allow(actor, "read")
         params = {k: v for k, v in request.query_params.items() if k in SUPPORT_FILTERS}
-        limit = max(1, min(int(params.get("limit") or 50), 200))
+        try:
+            limit = max(1, min(int(params.get("limit") or 50), 200))
+        except ValueError:
+            raise Problem(400, OPERATION_INVALID, "limit — число") from None
+        if "limit" in params:
+            params["limit"] = str(limit)
         cores = support_cores(machine)
         boxes = await asyncio.gather(*(safe(state.core(m.id).get("/api/v1/admin/support", params)) for m in cores))
         tickets: list[dict[str, Any]] = []
         errors = []
+        # «Ещё» есть, если хоть одно ядро отдало полную страницу: склейка могла уместиться в `limit`, а у
+        # этого ядра остались старые обращения.
+        full = False
         for m, box in zip(cores, boxes):
             if box["error"]:
                 errors.append({"machine": m.id, **box["error"]})
             else:
-                tickets.extend(tag(m, item) for item in box["data"] or [])
+                items = box["data"] or []
+                full = full or len(items) >= limit
+                tickets.extend(tag(m, item) for item in items)
         sort = params.get("sort", "NEW")
         if sort == "OLD":
             tickets.sort(key=lambda t: (t.get("createdAt") or 0, t["id"]))
@@ -548,7 +558,7 @@ def create_app(state: App | None = None) -> FastAPI:
         else:
             tickets.sort(key=lambda t: (-(t.get("createdAt") or 0), t["id"]))
         skipped = [m.id for m in state.machines if m.core and not m.core.kind] if not machine else []
-        return {"tickets": tickets[:limit], "more": len(tickets) > limit, "errors": errors, "skipped": skipped}
+        return {"tickets": tickets[:limit], "more": full or len(tickets) > limit, "errors": errors, "skipped": skipped}
 
     COUNT_KEYS = ("fresh", "open", "waiting", "done", "archived", "breached", "unassigned")
 
