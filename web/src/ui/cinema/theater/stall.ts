@@ -27,12 +27,18 @@ export interface Health {
   loading: boolean;
   /** Сколько миллисекунд назад движок последний раз получил кусок; `null` — ещё ни одного. */
   fedAgoMs: number | null;
+  /**
+   * Сколько миллисекунд идёт загрузка нынешнего куска; `null` — не идёт или движок не знает. Загрузка,
+   * начатая только что, — живая, даже если прошлый кусок пришёл давно: после долгой паузы буфер был
+   * полон, и загружать было нечего.
+   */
+  loadingMs?: number | null;
   /** Качество выбирает автоматика (ступень ниже — её право, а не выбор человека). */
   auto: boolean;
 }
 
 /** Данные впереди — от этого запаса, секунды. */
-const DATA = 0.5;
+export const DATA = 0.5;
 /** Загрузка «идёт», если кусок приходил не раньше этого, мс. */
 const FED_MS = 15_000;
 
@@ -75,7 +81,10 @@ export function nextHeal(input: {
   };
   if (input.audio) return due(SOUND);
   if (health.ahead >= DATA) return due(PIPELINE);
-  const fed = health.loading && health.fedAgoMs !== null && health.fedAgoMs < FED_MS;
+  // Загрузка жива, если кусок приходил недавно или нынешний начали грузить недавно: рвать её на
+  // четвёртой секунде — значит выбросить почти загруженное (перемотка после долгой паузы, слабый канал).
+  const young = health.loadingMs !== undefined && health.loadingMs !== null && health.loadingMs < FED_MS;
+  const fed = health.loading && ((health.fedAgoMs !== null && health.fedAgoMs < FED_MS) || young);
   const fresh = health.loading && health.fedAgoMs === null && stalledMs < FED_MS;
   if (!done.has('kick') && !fed && !fresh && stalledMs >= KICK_STARVED) return 'kick';
   return due(NETWORK);

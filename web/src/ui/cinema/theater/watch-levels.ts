@@ -1,11 +1,18 @@
 import type { Translate } from '../../../i18n';
 
-/** Preserve source codec choices; compare bitrate only within one codec and frame size. */
+/**
+ * Ступень качества так, как её видит меню: высота, битрейт и кодек — из плейлиста.
+ *
+ * `fit: false` — эту ступень человеку не предлагаем: её кодек не тот, на котором играет просмотр
+ * (переключать декодер посреди фильма ради выбора высоты — значит рвать картинку), или устройство не
+ * декодирует её плавно (`MediaCapabilities`, `engines/hls.ts`). Нет поля — не знаем, предлагаем.
+ */
 export interface Level {
   height?: number;
   bitrate?: number;
   videoCodec?: string;
   attrs?: Record<string, string | undefined>;
+  fit?: boolean;
 }
 
 export interface Quality {
@@ -27,44 +34,25 @@ export function levelLabel(t: Translate, level: Level | undefined): string {
     : t(($) => $.cinema.theater.quality.source);
 }
 
-function codec(level: Level): string {
-  const value = level.videoCodec ?? level.attrs?.CODECS ?? '';
-  if (value.includes('avc1')) return 'H.264';
-  if (value.includes('av01')) return 'AV1';
-  if (value.includes('vp09') || value.includes('vp9')) return 'VP9';
-  if (value.includes('hvc1') || value.includes('hev1')) return 'HEVC';
-  return '';
-}
-
+/**
+ * Меню качества (R216, владелец: «давать выбирать только качество, а кодек система должна подбирать
+ * сама»): одна строка на высоту и частоту кадров, без кодеков. За строкой — ступень, которую устройство
+ * потянет: кодек просмотра выбирает движок (`decode.ts`, `device.videoCodecs`) и помечает чужие кодеки и
+ * неплавные ступени `fit: false`; из оставшихся на высоту — лучшая по битрейту.
+ */
 export function qualities(t: Translate, levels: Level[]): Quality[] {
-  const best = new Map<
-    string,
-    { level: number; bitrate: number; height: number; fast: boolean; label: string; codec: string }
-  >();
+  const offered = levels.some((level) => level.fit !== false);
+  const best = new Map<string, { level: number; bitrate: number; height: number; fast: boolean }>();
   levels.forEach((level, index) => {
+    // Помечено всё — значит, пометки врут (кодек без ступеней): лучше меню, чем пустота.
+    if (offered && level.fit === false) return;
     const label = levelLabel(t, level);
-    const family = codec(level);
-    const key = `${label}:${family}`;
     const bitrate = level.bitrate ?? 0;
-    const kept = best.get(key);
+    const kept = best.get(label);
     if (!kept || bitrate > kept.bitrate)
-      best.set(key, {
-        level: index,
-        bitrate,
-        height: level.height ?? 0,
-        fast: smooth(level),
-        label,
-        codec: family,
-      });
+      best.set(label, { level: index, bitrate, height: level.height ?? 0, fast: smooth(level) });
   });
-  const values = [...best.values()];
-  return values
-    .sort((a, b) => b.height - a.height || Number(b.fast) - Number(a.fast) || b.bitrate - a.bitrate)
-    .map((kept) => ({
-      level: kept.level,
-      label:
-        values.filter((v) => v.label === kept.label).length > 1 && kept.codec
-          ? `${kept.label} · ${kept.codec}`
-          : kept.label,
-    }));
+  return [...best.entries()]
+    .sort(([, a], [, b]) => b.height - a.height || Number(b.fast) - Number(a.fast) || b.bitrate - a.bitrate)
+    .map(([label, kept]) => ({ level: kept.level, label }));
 }

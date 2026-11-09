@@ -43,7 +43,7 @@ const file = (url: string): CinemaSource => ({
   poster: null,
 });
 
-function setup() {
+function setup({ buffered = true }: { buffered?: boolean } = {}) {
   const resolve = vi.fn((_p: string, _c: string, _k: string, options?: { refresh?: boolean }) =>
     Promise.resolve(file(options?.refresh ? `/fetch?n=${resolve.mock.calls.length}` : '/fetch?first')),
   );
@@ -63,7 +63,9 @@ function setup() {
   // Загружено далеко вперёд, а позиция стоит: это конвейер (декодер), а не сеть.
   Object.defineProperty(element, 'buffered', {
     configurable: true,
-    value: { length: 1, start: () => 0, end: () => 60 },
+    value: buffered
+      ? { length: 1, start: () => 0, end: () => 60 }
+      : { length: 0, start: () => 0, end: () => 0 },
   });
   let still = 0;
   const playhead = {
@@ -110,7 +112,7 @@ afterEach(() => {
 });
 
 describe('сторож застрявшего плеера в usePlayback (R216)', () => {
-  it('буфер полон, позиция стоит: толчок, поток заново, а через 40 с застревания — отказ с кнопкой', async () => {
+  it('буфер полон, позиция стоит: толчок, поток заново без нового разбора, потом — отказ с кнопкой', async () => {
     const room = setup();
     await pass(0);
     expect(room.hook.result.current.source?.url).toBe('/fetch?first');
@@ -124,25 +126,35 @@ describe('сторож застрявшего плеера в usePlayback (R216)
     expect(pendingFailures()).toEqual([{ place: 'cinema', code: 'cinema-stalled', count: 1 }]);
 
     room.stall(15_000);
-    await pass(1000);
-    // Пересборки у файла нет — дальше по лестнице: поток открывается заново, с `refresh`.
-    expect(room.resolve).toHaveBeenCalledTimes(2);
-    expect(room.resolve.mock.calls[1]![3]).toMatchObject({ refresh: true, adaptive: false });
-    expect(room.hook.result.current.source?.url).toBe('/fetch?n=2');
+    // Ступени — не чаще раза в 2 с, сколько бы ни стояло: каждой — время показать, помогла ли она.
+    await pass(1500);
+    const first = room.hook.result.current.source;
+    await pass(2500);
+    /*
+      Пересборки у файла нет — дальше по лестнице: поток заново. Данные впереди есть — встал конвейер, и
+      площадка ни при чём: новый движок на том же адресе, без нового разбора (каждый разбор YouTube — это
+      запросы yt-dlp с адреса сервера).
+    */
+    expect(room.resolve).toHaveBeenCalledTimes(1);
+    expect(room.hook.result.current.source).not.toBe(first);
+    expect(room.hook.result.current.source?.url).toBe('/fetch?first');
 
-    // Новый поток — новая лестница; не пошло и там — после второго и третьего «заново» честный отказ.
-    for (const url of ['/fetch?n=3']) {
-      act(() => room.hook.result.current.setStatus('ready'));
-      room.stall(15_000);
-      await pass(1500);
-      expect(room.hook.result.current.source?.url).toBe(url);
-    }
+    // Новый движок — новая лестница; не пошло и там — после второго «заново» честный отказ.
     act(() => room.hook.result.current.setStatus('ready'));
     room.stall(15_000);
-    await pass(1500);
+    await pass(5000);
+    expect(room.resolve).toHaveBeenCalledTimes(1);
+    act(() => room.hook.result.current.setStatus('ready'));
+    room.stall(15_000);
+    await pass(5000);
     expect(room.hook.result.current.status).toBe('failed');
     expect(room.hook.result.current.error).toBe('Видео не грузится. Проверьте сеть и попробуйте ещё раз');
     expect(pendingFailures()).toContainEqual({ place: 'cinema', code: 'cinema-heal-failed', count: 1 });
+    // Движок под отказом ожил сам — картинка идёт, отказ снимается, а не висит поверх фильма.
+    room.stall(0);
+    await pass(500);
+    expect(room.hook.result.current.status).toBe('ready');
+    expect(room.hook.result.current.error).toBe('');
   });
 
   it('картинка пошла после лечения — застревание кончилось, и счётчик знает, что вылечили', async () => {
@@ -174,5 +186,60 @@ describe('сторож застрявшего плеера в usePlayback (R216)
     await pass(25_000);
     expect(room.hook.result.current.status).toBe('failed');
     expect(room.hook.result.current.error).toBe('Видео не грузится. Проверьте сеть и попробуйте ещё раз');
+  });
+
+  it('данных нет — поток заново новым разбором у площадки', async () => {
+    const room = setup({ buffered: false });
+    await pass(0);
+    act(() => room.hook.result.current.setStatus('ready'));
+    room.stall(30_000);
+    await pass(8000);
+    expect(room.resolve).toHaveBeenCalledTimes(2);
+    expect(room.resolve.mock.calls[1]![3]).toMatchObject({ refresh: true, adaptive: false });
+    expect(room.hook.result.current.source?.url).toBe('/fetch?n=2');
+  });
+
+  it('скрытая вкладка и пропавшая сеть — не повод лечить: ни толчков, ни переоткрытий, ни отказа', async () => {
+    const room = setup();
+    await pass(0);
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    // «Открываем…» в скрытой вкладке: срок первого кадра не идёт.
+    await pass(60_000);
+    expect(room.resolve).toHaveBeenCalledTimes(1);
+    act(() => room.hook.result.current.setStatus('ready'));
+    room.stall(30_000);
+    await pass(10_000);
+    expect(room.position()).toBe(12);
+    hidden.mockReturnValue(false);
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    await pass(10_000);
+    expect(room.position()).toBe(12);
+    expect(room.resolve).toHaveBeenCalledTimes(1);
+    expect(room.hook.result.current.status).toBe('ready');
+    // Сеть вернулась — лестница продолжает.
+    online.mockReturnValue(true);
+    await pass(500);
+    expect(room.position()).toBeCloseTo(12.05, 6);
+  });
+
+  it('отказ, а потом сеть вернулась — пробуем сами; «Повторить» сразу показывает «Открываем…»', async () => {
+    const room = setup();
+    await pass(0);
+    act(() => {
+      room.hook.result.current.setStatus('failed');
+      room.hook.result.current.setError('Видео не грузится');
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(room.resolve).toHaveBeenCalledTimes(2);
+    expect(room.resolve.mock.calls[1]![3]).toMatchObject({ refresh: true });
+
+    act(() => room.hook.result.current.setStatus('failed'));
+    act(() => room.hook.result.current.retry());
+    expect(room.hook.result.current.status).toBe('loading');
+    await pass(0);
+    expect(room.resolve).toHaveBeenCalledTimes(3);
   });
 });

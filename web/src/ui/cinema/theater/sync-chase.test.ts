@@ -215,8 +215,19 @@ describe('перемотка +15 с у медленного плеера: без
     await run(60_000);
     // Своя перемотка и не больше одной вдогонку (раньше — девятнадцать).
     expect(room.player.moves, room.player.log.join(' | ')).toBeLessThanOrEqual(2);
+    // Комната медленного не ждёт и назад к нему не отскакивает: в неё ушла только его собственная перемотка.
+    expect(room.commands).toEqual([expect.stringMatching(/^watch\.seek /)]);
     expect(room.player.stalled, room.player.log.join(' | ')).toBeLessThanOrEqual(10_000);
     expect(Math.abs(room.drift())).toBeLessThan(JUMP_LIMIT);
+  });
+
+  it('второй только что вышел — правило «комната идёт за одним» ещё не действует: комнату не двигаем', async () => {
+    const room = scenario(tv, { rateSafe: false, solo: true });
+    // Перемотка через секунду после того, как остался один (`SOLO_SETTLE_MS`).
+    await run(1_000);
+    await room.skip();
+    await run(3_000);
+    expect(room.commands).toEqual([expect.stringMatching(/^watch\.seek /)]);
   });
 
   it('канал впритык: не больше двух перемоток вдогонку, и плеер приходит на секунду комнаты', async () => {

@@ -67,6 +67,19 @@ describe('лестница лечения застрявшего плеера (R
     ).toBe('kick');
   });
 
+  it('кусок начали грузить только что, а прошлый пришёл давно (перемотка после паузы) — загрузку не рвём', () => {
+    // После долгой паузы буфер был полон: последний кусок — минуту назад, нынешний грузится 4 с.
+    const slow = health({ loading: true, fedAgoMs: 60_000, loadingMs: 4000 });
+    expect(nextHeal({ stalledMs: 4000, health: slow, done: new Set() })).toBeNull();
+    expect(nextHeal({ stalledMs: 8000, health: { ...slow, loadingMs: 8000 }, done: new Set() })).toBe(
+      'lower',
+    );
+    // Нынешний висит дольше 15 с — тогда уже заново.
+    expect(
+      nextHeal({ stalledMs: 16_000, health: { ...slow, loadingMs: 16_000 }, done: new Set(['lower']) }),
+    ).toBe('kick');
+  });
+
   it('качество, выбранное руками, лечение не трогает', () => {
     expect(ladder(health({ auto: false, loading: true, fedAgoMs: 1000 }), 30_000)).toEqual([
       [22000, 'reopen'],

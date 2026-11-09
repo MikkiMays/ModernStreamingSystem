@@ -11,6 +11,7 @@ const mock = vi.hoisted(() => {
     static isSupported = () => true;
     static Events = {
       MANIFEST_PARSED: 'manifestParsed',
+      LEVELS_UPDATED: 'levelsUpdated',
       LEVEL_SWITCHED: 'levelSwitched',
       AUDIO_TRACKS_UPDATED: 'audioTracksUpdated',
       AUDIO_TRACK_SWITCHED: 'audioTrackSwitched',
@@ -31,6 +32,7 @@ const mock = vi.hoisted(() => {
     levels: { height: number; bitrate?: number }[] = [{ height: 180 }, { height: 144 }];
     bandwidthEstimate = 2_500_000;
     nextLoadLevel = 0;
+    nextLevel = -1;
     autoLevelEnabled = true;
     autoLevelCapping = -1;
     currentLevel = -1;
@@ -284,7 +286,7 @@ describe('HLS через hls.js', () => {
   it('лечение застрявшего плеера: загрузка заново с позиции, пересборка, ступень ниже того же кодека', () => {
     const video = document.createElement('video');
     const engine = attachHls(video, '/x', '', callbacks());
-    expect(engine.health!()).toEqual({ loading: false, fedAgoMs: null, auto: true });
+    expect(engine.health!()).toEqual({ loading: false, fedAgoMs: null, loadingMs: null, auto: true });
     fire('fragLoading');
     expect(engine.health!().loading).toBe(true);
     fire('fragLoaded');
@@ -312,9 +314,98 @@ describe('HLS через hls.js', () => {
     expect(engine.heal!('nudge')).toBe(false);
   });
 
-  it('кодек картинки, выбранный устройством, — с первого куска', () => {
-    attachHls(document.createElement('video'), '/x', '', callbacks(), { videoCodec: 'avc1' });
-    expect(hls().config.videoPreference).toEqual({ videoCodec: 'avc1' });
+  it('кодек картинки — лучший из тех, что устройству по силам и есть в мастере; меню — только его высоты', () => {
+    const report = callbacks();
+    attachHls(document.createElement('video'), '/x', '', report, { codecs: ['av01', 'vp09', 'avc1'] });
+    expect(hls().config.videoPreference).toEqual({ videoCodec: 'av01' });
+    // AV1 в мастере нет — значит, VP9; H.264 в меню не попадает (`fit: false`).
+    hls().levels = [
+      { height: 1080, bitrate: 4_500_000, videoCodec: 'avc1.640028' },
+      { height: 1080, bitrate: 3_000_000, videoCodec: 'vp09.00.40.08' },
+      { height: 720, bitrate: 1_500_000, videoCodec: 'vp09.00.31.08' },
+    ] as never;
+    fire('manifestParsed');
+    expect(hls().config.videoPreference).toEqual({ videoCodec: 'vp09' });
+    const [levels] = report.levels.mock.calls.at(-1)!;
+    expect(levels.map((level: { fit?: boolean }) => level.fit)).toEqual([false, undefined, undefined]);
+    // Ступени hls.js убрал сам — меню перечитывается.
+    fire('levelsUpdated');
+    expect(report.levels).toHaveBeenCalledTimes(2);
+  });
+
+  it('мастер без известных кодеков — выбирает hls.js', () => {
+    attachHls(document.createElement('video'), '/x', '', callbacks(), { codecs: ['vp09', 'avc1'] });
+    hls().levels = [{ height: 720 }, { height: 480 }] as never;
+    fire('manifestParsed');
+    expect(hls().config.videoPreference).toBeUndefined();
+  });
+
+  it('устройство не тянет: та же высота кодеком легче, без переоткрытия; легче нет — ступень ниже у автоматики', () => {
+    const report = callbacks();
+    const engine = attachHls(document.createElement('video'), '/x', '', report, {
+      codecs: ['av01', 'vp09', 'avc1'],
+    });
+    hls().levels = [
+      { height: 1080, bitrate: 4_000_000, videoCodec: 'av01.0.09M.08', attrs: { 'FRAME-RATE': '60' } },
+      { height: 1080, bitrate: 5_000_000, videoCodec: 'vp09.00.41.08', attrs: { 'FRAME-RATE': '60' } },
+      { height: 1080, bitrate: 3_000_000, videoCodec: 'vp09.00.40.08', attrs: { 'FRAME-RATE': '30' } },
+      { height: 1080, bitrate: 6_000_000, videoCodec: 'avc1.64002a', attrs: { 'FRAME-RATE': '60' } },
+      { height: 720, bitrate: 3_000_000, videoCodec: 'avc1.64001f', attrs: { 'FRAME-RATE': '60' } },
+    ] as never;
+    fire('manifestParsed');
+    hls().currentLevel = 0;
+    expect(engine.lighten!()).toEqual({ codec: 'av01' });
+    // 1080p60 VP9, а не 1080p30 VP9 и не H.264: ближайший легче кодек, та же частота кадров.
+    expect(hls().nextLoadLevel).toBe(1);
+    expect(hls().config.videoPreference).toEqual({ videoCodec: 'vp09' });
+    hls().currentLevel = 1;
+    expect(engine.lighten!()).toEqual({ codec: 'vp09' });
+    expect(hls().nextLoadLevel).toBe(3);
+    hls().currentLevel = 3;
+    expect(engine.lighten!()).toEqual({ level: 4 });
+    expect(hls().autoLevelCapping).toBe(4);
+    // Высота, выбранная руками, — тот же кадр легче, и меню отмечает новую ступень той же высоты.
+    hls().currentLevel = 1;
+    hls().autoLevelEnabled = false;
+    expect(engine.lighten!()).toEqual({ codec: 'vp09' });
+    expect(hls().nextLevel).toBe(3);
+    expect(report.levels.mock.calls.at(-1)![1]).toBe(3);
+    hls().currentLevel = 3;
+    expect(engine.lighten!()).toBeNull();
+  });
+
+  it('пересборка ставит `<video>` на паузу без события — играющий плеер запускается сразу', () => {
+    const video = document.createElement('video');
+    const play = vi.fn(() => Promise.resolve());
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => false });
+    video.play = play;
+    const engine = attachHls(video, '/x', '', callbacks());
+    expect(engine.heal!('rebuild')).toBe(true);
+    expect(hls().recoverMediaError).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+
+  it('без сети ошибки сети не тратят попыток и не открывают поток заново', () => {
+    vi.useFakeTimers();
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      const report = { ...callbacks(), reopen: vi.fn(() => true), expired: vi.fn(() => false) };
+      attachHls(document.createElement('video'), '/x', '', report);
+      for (let i = 0; i < 10; i++) {
+        fire('hlsError', { fatal: true, type: 'networkError' });
+        vi.advanceTimersByTime(4000);
+      }
+      expect(report.reopen).not.toHaveBeenCalled();
+      expect(hls().startLoad).toHaveBeenCalledTimes(10);
+      // Сеть вернулась — снова обычный счёт.
+      online.mockReturnValue(true);
+      fire('hlsError', { fatal: true, type: 'networkError' });
+      vi.advanceTimersByTime(1000);
+      expect(hls().startLoad).toHaveBeenCalledTimes(11);
+    } finally {
+      online.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('снаружи — Playback: ступень, голос, субтитры, край эфира и разборка', () => {

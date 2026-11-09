@@ -65,6 +65,21 @@ describe('сторож позиции: идёт ли картинка на са�
     expect(head.resumes).toBe(2);
   });
 
+  it('перемотка на паузе — не ожидание: время паузы в оценку не идёт', () => {
+    const head = new Playhead();
+    const element = video({ ranges: [[0, 20]] });
+    play(head, element, 0, 500);
+    // Комната на паузе, кто-то перемотал за край загруженного, пуск — через 8 с.
+    element.paused = true;
+    element.currentTime = 40;
+    head.seeking(750, element);
+    for (let at = 1000; at <= 9000; at += 250) head.sample(at, element);
+    element.paused = false;
+    play(head, element, 9250, 10_000);
+    expect(head.resumeMs).toBeNull();
+    expect(head.resuming).toBe(false);
+  });
+
   it('оценка ожидания — медиана: одно невезучее ожидание её не уводит', () => {
     const head = new Playhead();
     const element = video({ ranges: [] });

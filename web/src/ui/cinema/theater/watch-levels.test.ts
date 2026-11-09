@@ -46,17 +46,42 @@ describe('меню качества', () => {
     expect(chosen?.level).toBe(6);
   });
 
-  it('сохраняет выбор кодека и лучший битрейт в каждой группе', () => {
+  it('кодеков в меню нет: одна строка на высоту, за ней — ступень кодека просмотра', () => {
+    // Движок пометил чужой кодек `fit: false` (`engines/hls.ts`): просмотр идёт на H.264.
+    const levels: Level[] = [
+      { ...level(1080, 3_000_000), videoCodec: 'vp09.00.40.08', fit: false },
+      { ...level(1080, 4_500_000), videoCodec: 'avc1.640028' },
+      { ...level(1080, 4_000_000), videoCodec: 'avc1.640028' },
+      { ...level(720, 1_500_000), videoCodec: 'vp09.00.31.08', fit: false },
+      { ...level(720, 2_500_000), videoCodec: 'avc1.4d401f' },
+    ];
+    expect(qualities(t, levels)).toEqual([
+      { level: 1, label: '1080p' },
+      { level: 4, label: '720p' },
+    ]);
+  });
+
+  it('высоту, которую устройство не декодирует плавно, не предлагаем', () => {
+    const levels: Level[] = [
+      { ...level(2160, 18_000_000), videoCodec: 'vp09.00.51.08', fit: false },
+      { ...level(1080, 4_000_000), videoCodec: 'vp09.00.40.08', fit: true },
+      { ...level(720, 2_000_000), videoCodec: 'vp09.00.31.08' },
+    ];
+    expect(qualities(t, levels).map((q) => q.label)).toEqual(['1080p', '720p']);
+  });
+
+  it('помечено всё — меню всё равно есть, а не пустое', () => {
+    expect(qualities(t, [{ ...level(480, 900_000), fit: false }])).toEqual([{ level: 0, label: '480p' }]);
+  });
+
+  it('у неизвестного кодека одной высоты — лучший битрейт, по-прежнему одна строка', () => {
     expect(
       qualities(t, [
         { ...level(1440, 3_000_000), videoCodec: 'av01.0.12M.08' },
         { ...level(1440, 2_000_000), videoCodec: 'av01.0.12M.08' },
         { ...level(1440, 6_000_000), videoCodec: 'avc1.640032' },
       ]),
-    ).toEqual([
-      { level: 2, label: '1440p · H.264' },
-      { level: 0, label: '1440p · AV1' },
-    ]);
+    ).toEqual([{ level: 2, label: '1440p' }]);
   });
 
   it('шестьдесят кадров — это отдельное качество, а не то же самое', () => {

@@ -1,3 +1,4 @@
+import type { VideoFamily } from '../decode';
 import type { Health, Heal } from '../stall';
 import type { Level } from '../watch-levels';
 
@@ -32,5 +33,10 @@ export interface Playback {
    * дальше. `reopen` и `fail` решает тот, кто держит плеер (`usePlayback`), а не движок.
    */
   heal?(heal: Exclude<Heal, 'reopen' | 'fail'>): boolean;
+  /**
+   * Устройство не тянет нынешнюю картинку (`decode.ts`): тот же кадр кодеком легче (`codec` — от какого
+   * отказались), а если легче нет — у автоматики ступень ниже (`level`). `null` — облегчать нечего.
+   */
+  lighten?(): { codec: VideoFamily } | { level: number } | null;
   destroy(): void;
 }

@@ -55,6 +55,13 @@ const WAITING_MS = 1000;
 const ANCHOR_WAIT_MS = 3000;
 /** Один в комнате сдвигает её к себе не чаще этого, мс. */
 const ANCHOR_EVERY_MS = 5000;
+/**
+ * Один в комнате — только если так уже столько, мс (R216, владелец: «система не будет ждать… все участники
+ * не будут дожидаться»). Правило «комната идёт за одним» не должно сработать в те секунды, когда второй
+ * только что вышел и вот-вот вернётся (переподключение) или снимок ещё не догнал вошедшего: комната
+ * никогда не ждёт медленного и не отскакивает назад, пока смотрит кто-то ещё.
+ */
+const SOLO_SETTLE_MS = 5000;
 
 /** Окно тишины после своей же команды плееру (см. {@link SUPPRESS_MS}). */
 export interface Echo {
@@ -156,6 +163,8 @@ export function useRoomSync({
   /** Комнату сдвинули к себе: с какой её версии и когда (монотонные часы). */
   const anchoring = useRef<{ revision: number; at: number } | null>(null);
   const anchoredAt = useRef<number | null>(null);
+  /** С какого момента (монотонные часы) в комнате никого, кроме этого зрителя. */
+  const soloSince = useRef<number | null>(null);
 
   const send = useCallback(
     (type: 'watch.play' | 'watch.pause' | 'watch.seek' | 'watch.close', positionMs?: number) => {
@@ -229,7 +238,10 @@ export function useRoomSync({
         Один в комнате и сам перемотал: дождался данных — комната встаёт туда, где он (R216). Отправить это
         можно и в окне тишины: это не ответ плееру, а поправка комнаты.
       */
-      const { solo: alone, live: onAir, canControl: may } = latest.current;
+      const { solo: lonely, live: onAir, canControl: may } = latest.current;
+      if (!lonely) soloSince.current = null;
+      else soloSince.current ??= clock;
+      const alone = lonely && clock - soloSince.current! >= SOLO_SETTLE_MS;
       const anchor = () => {
         send('watch.seek', Math.round(element.currentTime * 1000));
         anchoring.current = { revision: now.revision, at: clock };

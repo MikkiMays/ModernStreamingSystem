@@ -1,6 +1,7 @@
 import Hls from 'hls.js';
 import { t } from '../../../../i18n';
 import { adBreaks, type AdBreak, type AdFragment } from '../ad-breaks';
+import { FAMILIES, familyOf, type VideoFamily } from '../decode';
 import type { Level } from '../watch-levels';
 import { audioChoices, type AudioChoice, type MediaTrack } from '../watch-tracks';
 import { AHEAD_MIN, aheadFor, BEHIND } from './buffer';
@@ -51,10 +52,10 @@ export function attachHls(
   },
   options: {
     /**
-     * Кодек картинки, который брать с первого куска (`device.preferredVideoCodec`): `'avc1'` — H.264, если
-     * VP9 этому устройству не по силам. Пусто — выбирает hls.js.
+     * Кодеки картинки, которые этому устройству по силам, — лучший первым (`device.videoCodecs`): AV1,
+     * VP9, H.264. Играет первый из них, что есть в мастере; пусто — выбирает hls.js.
      */
-    videoCodec?: 'avc1';
+    codecs?: readonly VideoFamily[];
   } = {},
 ): Playback {
   /*
@@ -148,20 +149,80 @@ export function attachHls(
     */
     startFragPrefetch: true,
     /*
-      H.264, если VP9 не по силам (R216, `device.ts`): ступени одного кодека hls.js держит весь просмотр, и
-      выбрать его нужно до первого куска.
+      Кодек по силам устройства (R216, `device.ts`): ступени одного кодека hls.js держит весь просмотр, и
+      выбрать его нужно до первого куска. Здесь — лучший из возможных; какой из них правда есть в мастере,
+      решается по самому мастеру (`MANIFEST_PARSED` ниже), до первой загрузки.
     */
-    ...(options.videoCodec ? { videoPreference: { videoCodec: options.videoCodec } } : {}),
+    ...(options.codecs?.[0] ? { videoPreference: { videoCodec: options.codecs[0] } } : {}),
   });
   // Рисуем реплики сами: браузер кладёт их на нижний край кадра, ровно под пульт с
   // паузой и громкостью. Дорожка при этом остаётся живой — «спрятана» значит «разобрана,
   // но не нарисована», и активные реплики по-прежнему приходят.
   hls.subtitleDisplay = false;
-  const readLevels = () => {
+  /*
+    Кодек этого просмотра (R216, `decode.ts`): первый из `options.codecs`, что есть в мастере. Меню качества
+    показывает высоты только этого кодека (и только те, что устройство декодирует плавно, — `fit`), поэтому
+    выбор высоты руками никогда не переключает декодер посреди фильма.
+  */
+  let family: VideoFamily | '' = '';
+  /** Плеер разобран: поздние ответы и таймеры молчат. */
+  let gone = false;
+  /** Ответы `MediaCapabilities` по ступеням: декодирует ли устройство её плавно. */
+  const verdicts = new WeakMap<object, boolean>();
+  /** Ступени — в меню; `chosen` — какая выбрана руками, если не та, что сейчас у hls.js. */
+  const readLevels = (chosen?: number) => {
     if (!callbacks.alive()) return;
-    callbacks.levels(hls.levels as unknown as Level[], hls.autoLevelEnabled ? -1 : hls.currentLevel);
+    const levels = (hls.levels as unknown as (Level & { width?: number })[]).map((level) => {
+      const own = familyOf(level.videoCodec);
+      const fit = family && own && own !== family ? false : verdicts.get(level);
+      return {
+        height: level.height,
+        bitrate: level.bitrate,
+        videoCodec: level.videoCodec,
+        attrs: level.attrs,
+        ...(fit === undefined ? {} : { fit }),
+      };
+    });
+    callbacks.levels(levels, chosen ?? (hls.autoLevelEnabled ? -1 : hls.currentLevel));
   };
-  hls.on(Hls.Events.MANIFEST_PARSED, readLevels);
+  /** Спросить `MediaCapabilities` о каждой ступени — один раз, все разом, и показать меню заново. */
+  const probe = () => {
+    const capabilities = typeof navigator === 'undefined' ? undefined : navigator.mediaCapabilities;
+    if (!capabilities?.decodingInfo) return;
+    const asked = (hls.levels as unknown as (Level & { width?: number; frameRate?: number })[]).filter(
+      (level) => level.videoCodec && level.height && !verdicts.has(level),
+    );
+    if (!asked.length) return;
+    void Promise.allSettled(
+      asked.map(async (level) => {
+        const height = level.height!;
+        const info = await capabilities.decodingInfo({
+          type: 'media-source',
+          video: {
+            contentType: `video/mp4; codecs="${level.videoCodec}"`,
+            width: level.width || Math.round((height * 16) / 9),
+            height,
+            bitrate: level.bitrate || 1,
+            framerate: level.frameRate || Number(level.attrs?.['FRAME-RATE']) || 30,
+          },
+        });
+        verdicts.set(level, !!(info.supported && info.smooth));
+      }),
+    ).then(() => {
+      if (!gone) readLevels();
+    });
+  };
+  hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    // До первой загрузки (её начинает сам hls.js сразу после этого события): кодек — по самому мастеру.
+    const present = new Set((hls.levels as unknown as Level[]).map((level) => familyOf(level.videoCodec)));
+    family = options.codecs?.find((candidate) => present.has(candidate)) ?? '';
+    if (family) hls.config.videoPreference = { videoCodec: family };
+    else if (options.codecs) delete hls.config.videoPreference;
+    readLevels();
+    probe();
+  });
+  // hls.js сам убирает ступени, которых браузер не умеет: номера сдвигаются — меню перечитывается.
+  hls.on(Hls.Events.LEVELS_UPDATED, () => readLevels());
   /*
     Цель буфера вперёд — по каждому загруженному кусочку: оценка полосы против битрейта той ступени,
     что сейчас играет (`aheadFor`). hls.js читает обе границы из своей настройки на каждом шаге загрузки,
@@ -212,6 +273,11 @@ export function attachHls(
   let loadingAt: number | null = null;
   /** Ступень ниже, поставленная лечением: потолок автоматики и когда его поставили. */
   let cappedAt: number | null = null;
+  /**
+   * Потолок, поставленный потому, что устройство не тянуло картинку (`lighten`): он — на весь просмотр, в
+   * отличие от потолка лечения сети, и снятие того возвращает к этому, а не к «без потолка».
+   */
+  let decodeCap = -1;
   hls.on(Hls.Events.FRAG_LOADING, () => {
     loadingAt = performance.now();
   });
@@ -220,7 +286,7 @@ export function attachHls(
     // Потолок лечения — на минуту ровной загрузки: канал ожил — автоматика снова решает сама.
     if (cappedAt !== null && fedAt - cappedAt > CAP_MS) {
       cappedAt = null;
-      hls.autoLevelCapping = -1;
+      hls.autoLevelCapping = decodeCap;
     }
   });
   /*
@@ -232,7 +298,6 @@ export function attachHls(
   */
   const failures: { network: number[]; media: number[] } = { network: [], media: [] };
   let waiting: ReturnType<typeof setTimeout> | undefined;
-  let gone = false;
   const recent = (list: number[], windowMs: number) => {
     const now = performance.now();
     while (list.length && now - list[0]! > windowMs) list.shift();
@@ -246,6 +311,17 @@ export function attachHls(
     if (!data.fatal || gone) return;
     if ((data.response?.code === 403 || data.response?.code === 410) && callbacks.expired()) return;
     if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+      /*
+        Сети у браузера нет вовсе — это не поток сломался: ждём её, не тратя попыток и не открывая поток
+        заново (новый разбор без сети не выйдет, и плеер упал бы в отказ, хотя сеть через минуту вернётся).
+      */
+      if (offline()) {
+        clearTimeout(waiting);
+        waiting = setTimeout(() => {
+          if (!gone) hls.startLoad();
+        }, NETWORK_DELAYS_MS.at(-1));
+        return;
+      }
       const count = recent(failures.network, NETWORK_WINDOW_MS);
       if (count > NETWORK_DELAYS_MS.length) return giveUp();
       clearTimeout(waiting);
@@ -290,9 +366,11 @@ export function attachHls(
     },
     health() {
       const now = performance.now();
+      const loading = loadingAt !== null && (fedAt === null || loadingAt > fedAt);
       return {
-        loading: loadingAt !== null && (fedAt === null || loadingAt > fedAt),
+        loading,
         fedAgoMs: fedAt === null ? null : now - fedAt,
+        loadingMs: loading && loadingAt !== null ? now - loadingAt : null,
         auto: hls.autoLevelEnabled,
       };
     },
@@ -305,7 +383,13 @@ export function attachHls(
       }
       if (step === 'rebuild') {
         // Новый источник медиа и новые буферы под ту же позицию: так оживает вставший декодер.
+        const playing = !video.paused;
         hls.recoverMediaError();
+        /*
+          Пересборка — это `load()` у `<video>`: он встаёт на паузу без события `pause`. Пуск сразу, а не
+          через окно тишины лечения (4 с), когда комната сама попросила бы играть.
+        */
+        if (playing) resume(video);
         return true;
       }
       if (step === 'lower') {
@@ -319,12 +403,69 @@ export function attachHls(
       }
       return false;
     },
+    lighten() {
+      const levels = hls.levels as unknown as Level[];
+      const playing = hls.currentLevel >= 0 ? hls.currentLevel : hls.nextLoadLevel;
+      const lighter = lighterTwin(levels, playing);
+      const now = familyOf(levels[playing]?.videoCodec);
+      if (lighter >= 0 && now) {
+        // Тот же кадр лёгким кодеком — со следующего куска, без сброса буфера и без переоткрытия.
+        family = familyOf(levels[lighter]!.videoCodec);
+        hls.config.videoPreference = { videoCodec: family };
+        if (hls.autoLevelEnabled) hls.nextLoadLevel = lighter;
+        else hls.nextLevel = lighter;
+        readLevels(hls.autoLevelEnabled ? undefined : lighter);
+        return { codec: now };
+      }
+      // Легче кодека нет — ступень ниже, но только у автоматики: высоту, выбранную руками, не трогаем.
+      const lower = lowerLevel(levels, playing);
+      if (lower < 0 || !hls.autoLevelEnabled) return null;
+      decodeCap = lower;
+      hls.autoLevelCapping = lower;
+      hls.nextLoadLevel = lower;
+      return { level: lower };
+    },
     destroy() {
       gone = true;
       clearTimeout(waiting);
       hls.destroy();
     },
   };
+}
+
+function offline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+/** Пуск без жалоб: `play()` бывает не обещанием (старые движки) и отказывает при политике автозапуска. */
+function resume(video: HTMLVideoElement) {
+  try {
+    void Promise.resolve(video.play()).catch(() => {});
+  } catch {
+    // Движок без `play()` — комната попросит играть сама.
+  }
+}
+
+/**
+ * Та же высота и частота кадров кодеком легче нынешнего (`decode.FAMILIES`: AV1 → VP9 → HEVC → H.264) —
+ * ближайшим легче, лучшая по битрейту; `-1` — легче нет.
+ */
+export function lighterTwin(levels: Level[], current: number): number {
+  const now = levels[current];
+  const from = FAMILIES.indexOf(familyOf(now?.videoCodec) as VideoFamily);
+  if (!now || from < 0) return -1;
+  const fast = (level: Level) => Number(level.attrs?.['FRAME-RATE'] ?? 0) > 35;
+  let best = -1;
+  let rank = Infinity;
+  levels.forEach((level, index) => {
+    const at = FAMILIES.indexOf(familyOf(level.videoCodec) as VideoFamily);
+    if (at <= from || level.height !== now.height || fast(level) !== fast(now)) return;
+    if (at < rank || (at === rank && (level.bitrate ?? 0) > (levels[best]!.bitrate ?? 0))) {
+      best = index;
+      rank = at;
+    }
+  });
+  return best;
 }
 
 /** Паузы перед повторной загрузкой после фатальной ошибки сети, мс; больше попыток за минуту нет. */

@@ -1,4 +1,5 @@
 import type { MediaInfo, MediaPlayerClass, Representation } from 'dashjs';
+import { familyOf, type VideoFamily } from '../decode';
 import type { Level } from '../watch-levels';
 import { audioChoices, type AudioChoice, type MediaTrack } from '../watch-tracks';
 import { AHEAD_MAX, AHEAD_MIN, BEHIND } from './buffer';
@@ -14,6 +15,10 @@ export async function attachDash(
     voices: (voices: AudioChoice[], current: number) => void;
     error: () => void;
   },
+  options: {
+    /** Кодеки картинки по силам устройства, лучший первым (`device.videoCodecs`); пусто — любой. */
+    codecs?: readonly VideoFamily[];
+  } = {},
 ): Promise<Playback | null> {
   const { MediaPlayer } = await import('dashjs');
   if (!callbacks.alive()) return null;
@@ -69,8 +74,11 @@ export async function attachDash(
       },
     },
   });
-  // The engine has already filtered unsupported codecs. Choose the widest supported
-  // video ladder once; keep ABR within that codec to avoid decoder resets during seeks.
+  /*
+    dash.js уже отбросил кодеки, которых браузер не умеет. Из остальных — дорожка кодека, который устройству
+    по силам (R216, `device.videoCodecs`: AV1 и VP9 — только железом, иначе H.264), и в нём — самая широкая
+    лестница; ABR остаётся внутри неё, чтобы декодер не пересобирался на перемотках.
+  */
   player.setCustomInitialTrackSelectionFunction((available) => {
     if (available[0]?.type === 'audio') {
       const original = available.filter((track) => track.roles?.some((role) => role.value === 'main'));
@@ -79,9 +87,13 @@ export async function attachDash(
       return aac.length ? aac : voices;
     }
     if (available[0]?.type !== 'video') return available;
+    const family = options.codecs?.find((wanted) =>
+      available.some((track) => familyOf(track.codec) === wanted),
+    );
+    const fitting = family ? available.filter((track) => familyOf(track.codec) === family) : available;
     const height = (track: MediaInfo) => Math.max(0, ...track.bitrateList.map((r) => r.height ?? 0));
-    const largest = Math.max(...available.map(height));
-    return available.filter((track) => height(track) === largest);
+    const largest = Math.max(...fitting.map(height));
+    return fitting.filter((track) => height(track) === largest);
   });
   if (language) player.setInitialMediaSettingsFor('audio', { lang: language });
   player.on(MediaPlayer.events.STREAM_INITIALIZED, read);

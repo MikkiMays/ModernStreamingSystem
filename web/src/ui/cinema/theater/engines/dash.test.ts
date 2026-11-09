@@ -110,3 +110,19 @@ it('reports engine failure for the owning player to refresh or fall back', async
   mock.listeners.get('error')!();
   expect(error).toHaveBeenCalledOnce();
 });
+
+it('дорожка картинки — кодеком по силам устройства, а не самая широкая (R216)', async () => {
+  await attachDash(
+    document.createElement('video'),
+    '/x',
+    '',
+    { alive: () => true, levels: vi.fn(), voices: vi.fn(), error: vi.fn() },
+    { codecs: ['avc1'] },
+  );
+  const select = mock.player.setCustomInitialTrackSelectionFunction.mock.calls.at(-1)![0];
+  const h264 = { type: 'video', codec: 'video/mp4;codecs="avc1.640028"', bitrateList: [{ height: 1080 }] };
+  const av1 = { type: 'video', codec: 'video/mp4;codecs="av01.0.12M.08"', bitrateList: [{ height: 2160 }] };
+  expect(select([av1, h264])).toEqual([h264]);
+  // Нужного кодека в манифесте нет — как раньше, самая широкая.
+  expect(select([av1])).toEqual([av1]);
+});

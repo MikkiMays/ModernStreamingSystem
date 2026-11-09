@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mediaProfile, preferredVideoCodec } from './device';
+import { mediaProfile, videoCodecs } from './device';
 
 const PITCH = { preservesPitch: true };
 
@@ -12,8 +12,26 @@ describe('что умеет устройство с видео (R216)', () => {
       'Mozilla/5.0 (Linux; Android 10; BRAVIA 4K VH2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 Safari/537.36',
       'Mozilla/5.0 (Linux; Android 9; AFTKA) AppleWebKit/537.36 (KHTML, like Gecko) Silk/112.3.1 like Chrome/112.0 Safari/537.36',
       'Mozilla/5.0 (Linux; Android 11; YNDX-00091) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0 YaBrowser/23.3 Safari/537.36',
+      // Samsung со своим браузером (телевизор владельца, R216): Tizen, SMART-TV, Samsung Internet для ТВ.
+      'Mozilla/5.0 (SMART-TV; Linux; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/5.2 Chrome/94.0.4606.31 TV Safari/537.36',
+      'Mozilla/5.0 (Linux; Tizen 8.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/7.0 Chrome/108.0.5359.1 TV Safari/537.36',
+      'Mozilla/5.0 (Linux; U; Linux) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/6.5 Chrome/103.0 TV Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 9; MIBOX4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0 Safari/537.36',
+      'Mozilla/5.0 (Linux; VIDAA 7.0; Hisense) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0 Safari/537.36',
     ]) {
       expect(mediaProfile({ userAgent, element: PITCH }), userAgent).toEqual({ tv: true, rateSafe: false });
+    }
+  });
+
+  it('телефоны с похожими словами в строке — не телевизоры', () => {
+    for (const userAgent of [
+      'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/23.0 Chrome/115.0.0.0 Mobile Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 10; Hisense E50 Lite) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 9; YNDX-000SB) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0 YaBrowser/23.3 Mobile Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
+    ]) {
+      expect(mediaProfile({ userAgent, element: PITCH }).tv, userAgent).toBe(false);
     }
   });
 
@@ -30,27 +48,32 @@ describe('что умеет устройство с видео (R216)', () => {
     expect(mediaProfile({ userAgent: chrome, element: {} })).toEqual({ tv: false, rateSafe: false });
   });
 
-  it('VP9 — только если железо обещает плавно и экономно; иначе и без ответа — H.264', async () => {
+  it('кодеки — AV1, затем VP9, только если железо обещает плавно и экономно; H.264 — всегда последним', async () => {
     const pc = { tv: false, rateSafe: true };
-    const answer = (info: Partial<MediaCapabilitiesDecodingInfo>) => ({
-      decodingInfo: vi.fn(() => Promise.resolve(info as MediaCapabilitiesDecodingInfo)),
+    const none = new Set<never>();
+    const answer = (by: Record<string, Partial<MediaCapabilitiesDecodingInfo>>) => ({
+      decodingInfo: vi.fn((config: MediaDecodingConfiguration) => {
+        const family = config.video!.contentType.includes('av01') ? 'av01' : 'vp09';
+        return Promise.resolve((by[family] ?? { supported: false }) as MediaCapabilitiesDecodingInfo);
+      }),
     });
+    const hw = { supported: true, smooth: true, powerEfficient: true };
+    const soft = { supported: true, smooth: true, powerEfficient: false };
+    expect(await videoCodecs(pc, answer({ av01: hw, vp09: hw }), none)).toEqual(['av01', 'vp09', 'avc1']);
+    expect(await videoCodecs(pc, answer({ av01: soft, vp09: hw }), none)).toEqual(['vp09', 'avc1']);
+    expect(await videoCodecs(pc, answer({ av01: soft, vp09: soft }), none)).toEqual(['avc1']);
+    expect(await videoCodecs(pc, undefined, none)).toEqual(['avc1']);
     expect(
-      await preferredVideoCodec(pc, answer({ supported: true, smooth: true, powerEfficient: true })),
-    ).toBe(undefined);
-    expect(
-      await preferredVideoCodec(pc, answer({ supported: true, smooth: true, powerEfficient: false })),
-    ).toBe('avc1');
-    expect(
-      await preferredVideoCodec(pc, answer({ supported: false, smooth: false, powerEfficient: false })),
-    ).toBe('avc1');
-    expect(await preferredVideoCodec(pc, undefined)).toBe('avc1');
-    expect(
-      await preferredVideoCodec(pc, { decodingInfo: vi.fn(() => Promise.reject(new TypeError('no'))) }),
-    ).toBe('avc1');
-    // Телевизор — H.264 без вопросов: его обещаниям про VP9 в браузере верить нельзя.
-    const tv = answer({ supported: true, smooth: true, powerEfficient: true });
-    expect(await preferredVideoCodec({ tv: true, rateSafe: false }, tv)).toBe('avc1');
+      await videoCodecs(pc, { decodingInfo: vi.fn(() => Promise.reject(new TypeError('no'))) }, none),
+    ).toEqual(['avc1']);
+    // Кодек, от которого устройство недавно отказалось посреди просмотра (`decode.ts`), не предлагается.
+    expect(await videoCodecs(pc, answer({ av01: hw, vp09: hw }), new Set(['av01'] as const))).toEqual([
+      'vp09',
+      'avc1',
+    ]);
+    // Телевизор — H.264 без вопросов: его обещаниям про VP9 и AV1 в браузере верить нельзя.
+    const tv = answer({ av01: hw, vp09: hw });
+    expect(await videoCodecs({ tv: true, rateSafe: false }, tv, none)).toEqual(['avc1']);
     expect(tv.decodingInfo).not.toHaveBeenCalled();
   });
 
@@ -58,9 +81,9 @@ describe('что умеет устройство с видео (R216)', () => {
     vi.useFakeTimers();
     try {
       const silent = { decodingInfo: vi.fn(() => new Promise<MediaCapabilitiesDecodingInfo>(() => {})) };
-      const asked = preferredVideoCodec({ tv: false, rateSafe: true }, silent);
+      const asked = videoCodecs({ tv: false, rateSafe: true }, silent, new Set());
       await vi.advanceTimersByTimeAsync(400);
-      expect(await asked).toBe('avc1');
+      expect(await asked).toEqual(['avc1']);
     } finally {
       vi.useRealTimers();
     }

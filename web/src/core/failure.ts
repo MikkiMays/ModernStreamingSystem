@@ -79,11 +79,13 @@ export const KINDS = [
   'background-dropped',
   // Микрофон включился медленно (R191): что задержало — в журнале микрофона, человеку ничего.
   'mic-slow',
-  // Кинозал (R216): картинка встала и её лечили, вылечили, не вылечили; звук отстал от картинки.
+  // Кинозал (R216): картинка встала и её лечили, вылечили, не вылечили; звук отстал от картинки;
+  // устройство не тянуло картинку — кодек легче или ступень ниже (`theater/decode.ts`).
   'cinema-stalled',
   'cinema-healed',
   'cinema-heal-failed',
   'cinema-audio',
+  'cinema-decode',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
