@@ -1,6 +1,17 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Badge, Button, Drawer, Field, Input, Segmented, Select, Textarea } from '../../ui/kit';
+import { ChevronRight, Inbox } from 'lucide-react';
+import {
+  Button,
+  Drawer,
+  Field,
+  Input,
+  PHONE_QUERY,
+  Segmented,
+  Select,
+  Textarea,
+  useMediaQuery,
+} from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import {
   fleet,
@@ -14,7 +25,7 @@ import {
   type TicketStatus,
 } from '../api';
 import type { Console } from '../AdminApp';
-import { Empty, ErrorLine, Panel, Skeleton, Tile, duration } from '../parts';
+import { Empty, ErrorLine, Panel, Pill, Skeleton, Stat, Stats, duration, type Tone } from '../parts';
 
 const t = text.support;
 
@@ -22,6 +33,20 @@ type Tab = 'INBOX' | TicketStatus;
 type Sort = 'NEW' | 'OLD' | 'PRIORITY';
 
 const TABS: Tab[] = ['INBOX', 'NEW', 'OPEN', 'WAITING', 'DONE', 'ARCHIVED'];
+const PRIORITY_TONE: Record<TicketPriority, Tone> = {
+  urgent: 'bad',
+  high: 'warn',
+  normal: 'neutral',
+  low: 'neutral',
+};
+const STATUS_TONE: Record<TicketStatus, Tone> = {
+  NEW: 'accent',
+  OPEN: 'warn',
+  WAITING: 'neutral',
+  DONE: 'ok',
+  ARCHIVED: 'neutral',
+};
+
 const COUNT_OF: Record<TicketStatus, keyof SupportCounts> = {
   NEW: 'fresh',
   OPEN: 'open',
@@ -128,81 +153,79 @@ export function Support({ console }: { console: Console }) {
   const errors = pages[0]?.errors ?? [];
   const skipped = pages[0]?.skipped ?? [];
   const now = Date.now();
+  const phone = useMediaQuery(PHONE_QUERY);
+  const filterFields = (
+    <>
+      {cores.length > 1 && (
+        <Field label={t.machine} inline>
+          <Select value={machine} onChange={(event) => setMachine(event.target.value)}>
+            <option value="">{t.allMachines}</option>
+            {cores.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.product ?? m.title}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+      <Field label={t.topic} inline>
+        <Select value={topic} onChange={(event) => setTopic(event.target.value)}>
+          <option value="">{t.anyTopic}</option>
+          {Object.entries(t.topics).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label={t.priority} inline>
+        <Select value={priority} onChange={(event) => setPriority(event.target.value)}>
+          <option value="">{t.anyPriority}</option>
+          {Object.entries(t.priorities).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label={t.assignee} inline>
+        <Select value={assignee} onChange={(event) => setAssignee(event.target.value)}>
+          <option value="">{t.anyone}</option>
+          <option value="-">{t.nobody}</option>
+          <option value="owner">{t.authors.owner}</option>
+          <option value="agent">{t.authors.agent}</option>
+        </Select>
+      </Field>
+      <Field label={t.sort} inline>
+        <Select value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
+          {Object.entries(t.sorts).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    </>
+  );
   return (
     <div className="admin-stack">
-      <Panel title={text.nav.support}>
-        <Segmented<Tab>
-          aria-label={t.all}
-          value={tab}
-          onValueChange={setTab}
-          options={TABS.map((value) => ({
-            value,
-            label:
-              value === 'INBOX'
-                ? t.all
-                : `${t.statuses[value]}${total ? ` · ${total[COUNT_OF[value]]}` : ''}`,
-            title: value === 'INBOX' ? t.allHint : undefined,
-          }))}
-        />
+      <Panel title={text.nav.support} flush>
+        <div className="admin-scroll-x">
+          <Segmented<Tab>
+            aria-label={t.all}
+            value={tab}
+            onValueChange={setTab}
+            options={TABS.map((value) => ({
+              value,
+              label:
+                value === 'INBOX'
+                  ? t.all
+                  : `${t.statuses[value]}${total ? ` · ${total[COUNT_OF[value]]}` : ''}`,
+              title: value === 'INBOX' ? t.allHint : undefined,
+            }))}
+          />
+        </div>
         <div className="admin-filters">
-          {cores.length > 1 && (
-            <Field label={t.machine} inline>
-              <Select value={machine} onChange={(event) => setMachine(event.target.value)}>
-                <option value="">{t.allMachines}</option>
-                {cores.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.product ?? m.title}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
-          <Field label={t.topic} inline>
-            <Select value={topic} onChange={(event) => setTopic(event.target.value)}>
-              <option value="">{t.anyTopic}</option>
-              {Object.entries(t.topics).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t.priority} inline>
-            <Select value={priority} onChange={(event) => setPriority(event.target.value)}>
-              <option value="">{t.anyPriority}</option>
-              {Object.entries(t.priorities).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t.assignee} inline>
-            <Select value={assignee} onChange={(event) => setAssignee(event.target.value)}>
-              <option value="">{t.anyone}</option>
-              <option value="-">{t.nobody}</option>
-              <option value="owner">{t.authors.owner}</option>
-              <option value="agent">{t.authors.agent}</option>
-            </Select>
-          </Field>
-          <Field label={t.sort} inline>
-            <Select value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
-              {Object.entries(t.sorts).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Button
-            variant={overdue ? 'danger' : 'quiet'}
-            size="sm"
-            aria-pressed={overdue}
-            onClick={() => setOverdue(!overdue)}
-          >
-            {t.overdue}
-            {total ? ` · ${total.breached}` : ''}
-          </Button>
           <Field label={t.searchLabel} inline className="admin-search">
             <Input
               type="search"
@@ -211,7 +234,26 @@ export function Support({ console }: { console: Console }) {
               placeholder={t.search}
             />
           </Field>
+          <Button
+            variant={overdue ? 'danger' : 'secondary'}
+            size="sm"
+            aria-pressed={overdue}
+            onClick={() => setOverdue(!overdue)}
+          >
+            {t.overdue}
+            {total ? ` · ${total.breached}` : ''}
+          </Button>
+          {!phone && filterFields}
         </div>
+        {phone && (
+          <details className="admin-more">
+            <summary>
+              <ChevronRight size={16} aria-hidden="true" />
+              {t.filters}
+            </summary>
+            <div className="admin-filters">{filterFields}</div>
+          </details>
+        )}
         {errors.map((error) => (
           <ErrorLine key={error.machine} error={new Error(`${error.machine}: ${error.detail}`)} />
         ))}
@@ -220,16 +262,20 @@ export function Support({ console }: { console: Console }) {
             {t.skipped} {skipped.join(', ')}
           </p>
         )}
-        <ErrorLine error={inbox.error} onRetry={() => void inbox.refetch()} />
+        <ErrorLine
+          error={inbox.error}
+          onRetry={() => void inbox.refetch()}
+          updatedAt={inbox.data ? inbox.dataUpdatedAt : undefined}
+        />
         {inbox.isPending && <Skeleton rows={5} />}
-        {inbox.data && tickets.length === 0 && <Empty>{t.empty}</Empty>}
+        {inbox.data && tickets.length === 0 && <Empty icon={<Inbox />}>{t.empty}</Empty>}
         {tickets.length > 0 && (
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table" data-stack>
               <thead>
                 <tr>
-                  <th>{t.number}</th>
                   <th>{t.message}</th>
+                  <th>{t.number}</th>
                   <th>{t.contact}</th>
                   <th>{t.priority}</th>
                   <th>{t.assignee}</th>
@@ -253,41 +299,41 @@ export function Support({ console }: { console: Console }) {
                         }
                       }}
                     >
-                      <td>
-                        <code>{ticket.number}</code>
-                        <div className="admin-hint">{ticket.product ?? ticket.machineTitle}</div>
-                      </td>
-                      <td className="admin-ticket__summary">
-                        <strong>{t.topics[ticket.topic] ?? ticket.topic}</strong>
-                        {tab === 'INBOX' && <span className="admin-hint"> · {t.status[ticket.status]}</span>}
+                      <td className="admin-ticket__summary" data-primary data-wrap>
+                        <span className="admin-row">
+                          <strong>{t.topics[ticket.topic] ?? ticket.topic}</strong>
+                          {tab === 'INBOX' && (
+                            <Pill tone={STATUS_TONE[ticket.status]}>{t.status[ticket.status]}</Pill>
+                          )}
+                        </span>
                         <div className="admin-ticket__text">
                           {ticket.message || ticket.issues.map((i) => t.issues[i] ?? i).join(', ')}
                         </div>
                         {ticket.tags.length > 0 && (
                           <div className="admin-chips">
                             {ticket.tags.map((tag) => (
-                              <Badge key={tag}>{tag}</Badge>
+                              <Pill key={tag}>{tag}</Pill>
                             ))}
                           </div>
                         )}
                       </td>
-                      <td>{ticket.contact ?? <span className="admin-hint">{t.noContact}</span>}</td>
-                      <td>
-                        <Badge
-                          variant={
-                            ticket.priority === 'urgent'
-                              ? 'danger'
-                              : ticket.priority === 'high'
-                                ? 'accent'
-                                : 'neutral'
-                          }
-                        >
-                          {t.priorities[ticket.priority]}
-                        </Badge>
+                      <td data-label={t.number}>
+                        <code>{ticket.number}</code>
+                        <span className="admin-sub">{ticket.product ?? ticket.machineTitle}</span>
                       </td>
-                      <td>{ticket.assignee ?? <span className="admin-hint">—</span>}</td>
-                      <td data-tone={sla.tone}>{sla.text}</td>
-                      <td>{when(ticket.createdAt)}</td>
+                      <td data-label={t.contact}>
+                        {ticket.contact ?? <span className="admin-hint">{t.noContact}</span>}
+                      </td>
+                      <td data-label={t.priority}>
+                        <Pill tone={PRIORITY_TONE[ticket.priority]}>{t.priorities[ticket.priority]}</Pill>
+                      </td>
+                      <td data-label={t.assignee}>
+                        {ticket.assignee ?? <span className="admin-hint">—</span>}
+                      </td>
+                      <td data-label={t.sla} data-tone={sla.tone}>
+                        {sla.text}
+                      </td>
+                      <td data-label={t.created}>{when(ticket.createdAt)}</td>
                     </tr>
                   );
                 })}
@@ -323,17 +369,17 @@ function StatsPanel({ stats }: { stats?: Record<string, Boxed<SupportStats>> }) 
         return (
           <div key={machine} className="admin-stack">
             {rows.length > 1 && <h3 className="admin-subhead">{machine}</h3>}
-            <div className="admin-tiles">
-              <Tile value={s.created} label={t.statsCreated} />
-              <Tile value={s.resolved} label={t.statsResolved} />
-              <Tile value={minutes(s.firstResponseMedianMinutes)} label={t.statsFirst} compact />
-              <Tile value={minutes(s.resolveMedianMinutes)} label={t.statsResolve} compact />
-              <Tile
+            <Stats>
+              <Stat value={s.created} label={t.statsCreated} />
+              <Stat value={s.resolved} label={t.statsResolved} />
+              <Stat value={minutes(s.firstResponseMedianMinutes)} label={t.statsFirst} compact />
+              <Stat value={minutes(s.resolveMedianMinutes)} label={t.statsResolve} compact />
+              <Stat
                 value={s.withinSla === null ? '—' : `${Math.round(s.withinSla * 100)} %`}
                 label={t.statsWithin}
                 tone={s.withinSla !== null && s.withinSla < 0.8 ? 'warn' : undefined}
               />
-            </div>
+            </Stats>
             {Object.keys(s.topics).length > 0 && (
               <p className="admin-hint">
                 {Object.entries(s.topics)
@@ -421,14 +467,22 @@ function TicketDrawer({
       {current && (
         <div className="admin-stack admin-ticket">
           <div className="admin-row">
-            <Badge variant={current.breached ? 'danger' : 'neutral'}>{t.status[current.status]}</Badge>
+            <Pill tone={current.breached ? 'bad' : STATUS_TONE[current.status]} dot>
+              {t.status[current.status]}
+            </Pill>
+            <Pill tone={PRIORITY_TONE[current.priority]}>{t.priorities[current.priority]}</Pill>
             <span className="admin-hint">
               {current.product ?? current.machineTitle} · {when(current.createdAt)}
             </span>
           </div>
           <div className="admin-actions">
             {current.status !== 'OPEN' && current.status !== 'ARCHIVED' && (
-              <Button size="sm" onClick={() => status.mutate('OPEN')} loading={status.isPending}>
+              <Button
+                size="sm"
+                variant={current.status === 'NEW' ? 'primary' : 'secondary'}
+                onClick={() => status.mutate('OPEN')}
+                loading={status.isPending}
+              >
                 {current.status === 'NEW' ? t.take : t.reopen}
               </Button>
             )}

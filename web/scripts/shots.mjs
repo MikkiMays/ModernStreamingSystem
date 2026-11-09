@@ -12,6 +12,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fleetAnswer, fleetData } from './admin-fixtures.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, value, index, all) => {
@@ -226,7 +227,157 @@ const SCREENS = {
     if (spills.length) throw new Error(`за краем панели: ${spills.join(', ')}`);
     return null;
   },
+  admin: (page, shoot) => admin(page, shoot),
+  server: (page, shoot) => serverSettings(page, shoot),
 };
+
+/**
+ * Пульт флота (R220): каждый раздел на подставной службе `fleet` (`admin-fixtures.mjs`) — пульт за клиентским
+ * сертификатом, поэтому только dev-сервер или сборка (`--base http://127.0.0.1:5199`). Сначала — форма входа (401),
+ * потом разделы переходом внутри страницы (`pushState` + `popstate`), как это делает сама навигация. Раздел — целиком
+ * по высоте (`fullPage`), чтобы на снимке были все панели.
+ */
+const ADMIN_SECTIONS = [
+  ['overview', '/'],
+  ['live', '/live'],
+  ['meetings', '/meetings'],
+  ['support', '/support'],
+  ['nodes', '/nodes'],
+  ['maintenance', '/maintenance'],
+  ['deploys', '/deploys'],
+  ['jobs', '/jobs'],
+  ['job', '/jobs/j-4b0d'],
+  ['analytics', '/analytics'],
+  ['audit', '/audit'],
+  ['metrics', '/metrics'],
+  ['later', '/flags'],
+];
+
+async function admin(page, shoot) {
+  const data = fleetData();
+  let signedIn = false;
+  await page.route('**/api/fleet/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (!signedIn && url.pathname !== '/api/fleet/auth/login')
+      return route.fulfill({ status: 401, json: { status: 401, code: 'AUTH_REQUIRED', detail: '' } });
+    const answer = fleetAnswer(data, url, request.method());
+    if (answer.status === 204) return route.fulfill({ status: 204 });
+    return route.fulfill({ status: answer.status, json: answer.body });
+  });
+  await page.goto(new URL('/admin.html', base).href);
+  await page.getByLabel('Пароль').waitFor({ timeout: 30000 });
+  await page.evaluate(() => document.fonts.ready);
+  await shoot('admin-login');
+  signedIn = true;
+  await page.reload();
+  await page.locator('.admin-main').waitFor({ timeout: 30000 });
+  const settle = async () => {
+    await page.waitForFunction(() => !document.querySelector('.admin-main [aria-busy="true"]'), null, {
+      timeout: 15000,
+    });
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(500);
+  };
+  for (const [name, route] of ADMIN_SECTIONS) {
+    await page.evaluate((next) => {
+      history.pushState(null, '', next);
+      dispatchEvent(new PopStateEvent('popstate'));
+      window.scrollTo(0, 0);
+    }, route);
+    await settle();
+    await shoot(`admin-${name}`, null, { fullPage: true });
+  }
+  // Обращение в выезжающей панели.
+  await page.evaluate(() => {
+    history.pushState(null, '', '/support');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await settle();
+  await page.getByText('7F3A91C2').first().click();
+  await page.getByRole('dialog').waitFor();
+  await page.waitForTimeout(600);
+  await shoot('admin-ticket');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  // Навигация на телефоне — меню разделов.
+  const menu = page.getByRole('button', { name: /Разделы|Ещё|Меню/ }).first();
+  if (page.viewportSize().width < 768 && (await menu.isVisible())) {
+    await menu.click();
+    await page.waitForTimeout(500);
+    await shoot('admin-menu');
+    await page.keyboard.press('Escape');
+  }
+  return null;
+}
+
+/**
+ * «Настройки → Сервер» с тремя узлами (R220): у стенда узел один и неявный, поэтому список узлов и их загрузка
+ * подставлены, а пинг каждого узла отвечает со своей задержкой — замер в настройках показывает настоящие «мс».
+ */
+const SAMPLE_NODES = [
+  { id: 'main', title: { ru: 'Франкфурт', en: 'Frankfurt' }, country: 'DE', ms: 41, level: 2, state: 'ok' },
+  { id: 'hel', title: { ru: 'Хельсинки', en: 'Helsinki' }, country: 'FI', ms: 24, level: 3, state: 'busy' },
+  { id: 'msk', title: { ru: 'Москва', en: 'Moscow' }, country: 'RU', ms: 9, level: 1, state: 'ok' },
+];
+
+async function serverSettings(page, shoot) {
+  await page.route('**/api/v1/capabilities', async (route) => {
+    const response = await route.fetch();
+    const json = await response.json();
+    json.nodes = SAMPLE_NODES.map((n) => ({
+      id: n.id,
+      title: n.title,
+      rtcUrl: `wss://${n.id}.nodes.test`,
+      probeUrl: `https://${n.id}.nodes.test`,
+      stun: null,
+      control: n.id === 'main',
+      country: n.country,
+    }));
+    await route.fulfill({ response, json });
+  });
+  await page.route('**/api/v1/nodes', (route) =>
+    route.fulfill({
+      json: SAMPLE_NODES.map((n) => ({
+        id: n.id,
+        title: n.title,
+        country: n.country,
+        control: n.id === 'main',
+        level: n.level,
+        state: n.state,
+      })),
+    }),
+  );
+  await page.route('https://*.nodes.test/**', async (route) => {
+    const node = SAMPLE_NODES.find((n) => route.request().url().includes(`//${n.id}.`));
+    await new Promise((resolve) => setTimeout(resolve, node?.ms ?? 50));
+    await route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, json: { ok: true } });
+  });
+  await home(page);
+  const burger = page.getByRole('button', { name: 'Открыть меню' });
+  if (await burger.isVisible()) await burger.click();
+  await page
+    .getByRole('button', { name: 'Настройки', exact: true })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const nav = page.getByRole('navigation', { name: 'Разделы настроек' });
+  await nav.locator('.settings-nav__item', { hasText: 'Сервер' }).click();
+  await page.getByText('Узел встречи').first().waitFor();
+  await page.waitForTimeout(1200);
+  await shoot('server');
+  // Новый вид (R220): компактная кнопка с текущим выбором открывает список.
+  const trigger = page.locator('.node-picker__trigger');
+  if (await trigger.count()) {
+    await trigger.click();
+    await page.waitForTimeout(600);
+    await shoot('server-picker');
+    await page.getByRole('option', { name: /Хельсинки/ }).click();
+    await page.waitForTimeout(400);
+    await shoot('server-chosen');
+  }
+  return null;
+}
 
 async function meeting(page) {
   await home(page);
@@ -307,11 +458,12 @@ for (const [screen, open] of Object.entries(SCREENS)) {
       });
       await context.addInitScript((value) => localStorage.setItem('cord:theme', value), theme);
       const page = await context.newPage();
-      const shoot = async (name, element) => {
+      const shoot = async (name, element, options = {}) => {
         const file = path.join(out, `${name}-${size(width)}-${theme}.png`);
-        // Элемент — целиком, даже если он выше окна; без элемента — окно, как его видит человек.
+        // Элемент — целиком, даже если он выше окна; без элемента — окно, как его видит человек
+        // (`fullPage` — вся страница по высоте: разделы пульта длиннее окна).
         if (element) await element.screenshot({ path: file });
-        else await page.screenshot({ path: file });
+        else await page.screenshot({ path: file, fullPage: !!options.fullPage });
         report.push({
           screen: name,
           width,

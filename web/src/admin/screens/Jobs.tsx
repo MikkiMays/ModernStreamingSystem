@@ -1,25 +1,27 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ArrowLeft, Copy, Square } from 'lucide-react';
-import { Badge, Button, useToast } from '../../ui/kit';
+import { ClipboardList, Copy, RotateCcw, Square } from 'lucide-react';
+import { Button, useToast } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type Job, type JobLine } from '../api';
 import type { Console } from '../AdminApp';
-import { Empty, ErrorLine, Panel, Skeleton, when } from '../parts';
+import { Empty, ErrorLine, Panel, Pill, Skeleton, type Tone, when } from '../parts';
 
-const TONE: Record<Job['status'], 'neutral' | 'accent' | 'success' | 'danger'> = {
+const TONE: Record<Job['status'], Tone> = {
   queued: 'neutral',
-  running: 'accent',
-  ok: 'success',
-  failed: 'danger',
+  running: 'warn',
+  ok: 'ok',
+  failed: 'bad',
   cancelled: 'neutral',
 };
 
 export function JobStatus({ job }: { job: Job }) {
   return (
-    <span className="admin-job-status">
-      <Badge variant={TONE[job.status]}>{text.jobs[job.status]}</Badge>
-      {job.dryRun && <Badge variant="soon">{text.jobs.dry}</Badge>}
+    <span className="admin-row">
+      <Pill tone={TONE[job.status]} dot>
+        {text.jobs[job.status]}
+      </Pill>
+      {job.dryRun && <Pill>{text.jobs.dry}</Pill>}
     </span>
   );
 }
@@ -30,18 +32,49 @@ export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
       className="admin-table__row"
       onClick={onOpen}
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onOpen()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
     >
-      <td className="admin-hint">{when(job.createdAt, true)}</td>
-      <td>{job.actor === 'owner' ? text.app.owner : text.app.agent}</td>
-      <td>
+      <td data-primary>
         <code>{job.kind}</code> <span className="admin-hint">{argsText(job.args)}</span>
       </td>
-      <td>{job.machine}</td>
-      <td>
+      <td data-label={text.jobs.machine}>{job.machine}</td>
+      <td data-label={text.jobs.status}>
         <JobStatus job={job} />
       </td>
+      <td data-label={text.jobs.actor}>{job.actor === 'owner' ? text.app.owner : text.app.agent}</td>
+      <td data-label={text.jobs.when} className="admin-hint">
+        {when(job.createdAt, true)}
+      </td>
     </tr>
+  );
+}
+
+/** Таблица задач — одна на обзор, выкатки и список: операция, машина, исход, кто, когда. */
+export function JobsTable({ jobs, console }: { jobs: Job[]; console: Console }) {
+  return (
+    <div className="admin-table-wrap">
+      <table className="admin-table" data-stack>
+        <thead>
+          <tr>
+            <th>{text.jobs.kind}</th>
+            <th>{text.jobs.machine}</th>
+            <th>{text.jobs.status}</th>
+            <th>{text.jobs.actor}</th>
+            <th>{text.jobs.when}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {jobs.map((job) => (
+            <JobRow key={job.id} job={job} onOpen={() => console.go(`/jobs/${job.id}`)} />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -65,30 +98,15 @@ function JobList({ console }: { console: Console }) {
     refetchInterval: 15_000,
   });
   return (
-    <Panel title={text.jobs.title}>
-      <ErrorLine error={jobs.error} onRetry={() => void jobs.refetch()} />
+    <Panel title={text.jobs.title} description={text.jobs.hint} flush>
+      <ErrorLine
+        error={jobs.error}
+        onRetry={() => void jobs.refetch()}
+        updatedAt={jobs.data ? jobs.dataUpdatedAt : undefined}
+      />
       {jobs.isPending && <Skeleton />}
-      {jobs.data && jobs.data.length === 0 && <Empty>{text.jobs.empty}</Empty>}
-      {jobs.data && jobs.data.length > 0 && (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>{text.jobs.when}</th>
-                <th>{text.jobs.actor}</th>
-                <th>{text.jobs.kind}</th>
-                <th>{text.jobs.machine}</th>
-                <th>{text.jobs.status}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.data.map((job) => (
-                <JobRow key={job.id} job={job} onOpen={() => console.go(`/jobs/${job.id}`)} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {jobs.data && jobs.data.length === 0 && <Empty icon={<ClipboardList />}>{text.jobs.empty}</Empty>}
+      {jobs.data && jobs.data.length > 0 && <JobsTable jobs={jobs.data} console={console} />}
     </Panel>
   );
 }
@@ -141,74 +159,81 @@ export function JobView({ id, console }: { id: string; console: Console }) {
     toast.add({ title: text.app.copied });
   };
   return (
-    <Panel
-      title={
-        <>
-          <Button
-            variant="quiet"
-            size="sm"
-            icon={<ArrowLeft size={16} />}
-            onClick={() => console.go('/jobs')}
-          >
-            {text.jobs.back}
-          </Button>{' '}
-          {job ? <code>{job.kind}</code> : id}
-        </>
-      }
-      actions={
-        job && (
-          <>
-            {(job.status === 'running' || job.status === 'queued') && (
-              <Button variant="danger" size="sm" icon={<Square size={16} />} onClick={() => void cancel()}>
-                {text.jobs.cancel}
+    <div className="admin-stack">
+      <Panel
+        title={
+          job ? (
+            <>
+              <code className="admin-code">{job.kind}</code>
+              <JobStatus job={job} />
+            </>
+          ) : (
+            id
+          )
+        }
+        actions={
+          job && (
+            <>
+              {(job.status === 'running' || job.status === 'queued') && (
+                <Button variant="danger" size="sm" icon={<Square size={16} />} onClick={() => void cancel()}>
+                  {text.jobs.cancel}
+                </Button>
+              )}
+              {job.status !== 'running' && job.status !== 'queued' && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<RotateCcw size={16} />}
+                  onClick={() => void repeat()}
+                >
+                  {text.jobs.repeat}
+                </Button>
+              )}
+              <Button variant="quiet" size="sm" icon={<Copy size={16} />} onClick={() => void copy()}>
+                {text.jobs.copy}
               </Button>
+            </>
+          )
+        }
+      >
+        <ErrorLine error={detail.error ?? cancelError} onRetry={() => void detail.refetch()} />
+        {detail.isPending && <Skeleton rows={3} />}
+        {job && (
+          <dl className="admin-dl">
+            <dt>{text.jobs.machine}</dt>
+            <dd>{job.machine}</dd>
+            <dt>{text.jobs.actor}</dt>
+            <dd>{job.actor === 'owner' ? text.app.owner : text.app.agent}</dd>
+            {job.summary && (
+              <>
+                <dt>{text.jobs.summary}</dt>
+                <dd>{job.summary}</dd>
+              </>
             )}
-            {job.status !== 'running' && job.status !== 'queued' && (
-              <Button variant="secondary" size="sm" onClick={() => void repeat()}>
-                {text.jobs.repeat}
-              </Button>
-            )}
-            <Button variant="quiet" size="sm" icon={<Copy size={16} />} onClick={() => void copy()}>
-              {text.jobs.copy}
-            </Button>
-          </>
-        )
-      }
-    >
-      <ErrorLine error={detail.error ?? cancelError} onRetry={() => void detail.refetch()} />
-      {job && (
-        <dl className="admin-dl">
-          <dt>{text.jobs.machine}</dt>
-          <dd>{job.machine}</dd>
-          <dt>{text.jobs.actor}</dt>
-          <dd>{job.actor === 'owner' ? text.app.owner : text.app.agent}</dd>
-          <dt>{text.jobs.status}</dt>
-          <dd>
-            <JobStatus job={job} /> {job.summary && <span className="admin-hint">{job.summary}</span>}
-          </dd>
-          <dt>{text.jobs.started}</dt>
-          <dd>{when(job.startedAt, true)}</dd>
-          <dt>{text.jobs.finished}</dt>
-          <dd>
-            {when(job.finishedAt, true)}
-            {job.exitCode !== null && (
-              <span className="admin-hint">
-                {' '}
-                · {text.jobs.exit} {job.exitCode}
-              </span>
-            )}
-          </dd>
-        </dl>
-      )}
-      <pre className="admin-log" aria-live="polite">
-        {lines.length === 0 ? <span className="admin-hint">{text.jobs.noLines}</span> : null}
-        {lines.map((line) => (
-          <span key={line.n} className="admin-log__line" data-stream={line.stream}>
-            {line.text}
-            {'\n'}
-          </span>
-        ))}
-      </pre>
-    </Panel>
+            <dt>{text.jobs.started}</dt>
+            <dd>{when(job.startedAt, true)}</dd>
+            <dt>{text.jobs.finished}</dt>
+            <dd>
+              {when(job.finishedAt, true)}
+              {job.exitCode !== null && (
+                <span className="admin-hint">
+                  {' '}
+                  · {text.jobs.exit} {job.exitCode}
+                </span>
+              )}
+            </dd>
+          </dl>
+        )}
+        <pre className="admin-log" aria-live="polite" aria-label={text.jobs.output}>
+          {lines.length === 0 ? <span className="admin-hint">{text.jobs.noLines}</span> : null}
+          {lines.map((line) => (
+            <span key={line.n} className="admin-log__line" data-stream={line.stream}>
+              {line.text}
+              {'\n'}
+            </span>
+          ))}
+        </pre>
+      </Panel>
+    </div>
   );
 }

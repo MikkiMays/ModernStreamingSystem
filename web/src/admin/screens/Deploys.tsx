@@ -4,8 +4,9 @@ import { Button, Field, Input, Switch } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type Job, type Machine } from '../api';
 import type { Console } from '../AdminApp';
+import { Rocket } from 'lucide-react';
 import { Confirm, Empty, ErrorLine, Panel, Skeleton, when } from '../parts';
-import { JobRow } from './Jobs';
+import { JobsTable } from './Jobs';
 
 const SERVICES = ['gateway', 'core', 'services'] as const;
 
@@ -48,15 +49,16 @@ export function Deploys({ console }: { console: Console }) {
     setServices((s) => (s.includes(service) ? s.filter((x) => x !== service) : [...s, service]));
   return (
     <div className="admin-stack">
-      <Panel title={text.deploys.title}>
-        <p className="admin-hint">{text.deploys.warning}</p>
+      <Panel title={text.deploys.title} description={text.deploys.warning} flush>
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table" data-stack>
             <thead>
               <tr>
                 <th>{text.deploys.machine}</th>
                 <th>{text.deploys.lastDeploy}</th>
-                <th />
+                <th>
+                  <span className="sr-only">{text.nodes.actions}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -64,29 +66,33 @@ export function Deploys({ console }: { console: Console }) {
                 const last = lastOf(m.id);
                 return (
                   <tr key={m.id}>
-                    <td>
-                      <strong>{m.title}</strong> <span className="admin-hint">{m.installDir}</span>
+                    <td data-primary>
+                      <strong>{m.title}</strong>
+                      {m.product && <span className="admin-hint"> · {m.product}</span>}
+                      <span className="admin-sub">{m.installDir}</span>
                     </td>
-                    <td className="admin-hint">
+                    <td data-label={text.deploys.lastDeploy} className="admin-hint">
                       {last
                         ? `${when(last.createdAt, true)} · ${String(last.args.ref ?? last.args.commit ?? '')} ${(last.args.services as string[] | undefined)?.join(' ') ?? ''}`
                         : text.deploys.none}
                     </td>
-                    <td className="admin-actions">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => setTarget({ machine: m, mode: 'deploy' })}
-                      >
-                        {text.deploys.deploy}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setTarget({ machine: m, mode: 'rollback' })}
-                      >
-                        {text.deploys.rollback}
-                      </Button>
+                    <td data-actions data-num>
+                      <div className="admin-actions">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setTarget({ machine: m, mode: 'deploy' })}
+                        >
+                          {text.deploys.deploy}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setTarget({ machine: m, mode: 'rollback' })}
+                        >
+                          {text.deploys.rollback}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -95,21 +101,11 @@ export function Deploys({ console }: { console: Console }) {
           </table>
         </div>
       </Panel>
-      <Panel title={text.deploys.history}>
+      <Panel title={text.deploys.history} flush>
         <ErrorLine error={history.error ?? rollbacks.error} onRetry={() => void history.refetch()} />
         {history.isPending && <Skeleton />}
-        {history.data && all.length === 0 && <Empty>{text.deploys.noHistory}</Empty>}
-        {all.length > 0 && (
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <tbody>
-                {all.map((job) => (
-                  <JobRow key={job.id} job={job} onOpen={() => console.go(`/jobs/${job.id}`)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {history.data && all.length === 0 && <Empty icon={<Rocket />}>{text.deploys.noHistory}</Empty>}
+        {all.length > 0 && <JobsTable jobs={all} console={console} />}
       </Panel>
       <Confirm
         open={target !== null}

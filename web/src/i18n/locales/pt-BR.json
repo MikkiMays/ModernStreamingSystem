@@ -460,6 +460,8 @@
       "nodeUnknown": "O caminho até os nós ainda não foi medido",
       "auto": "Automático",
       "autoHint": "O nó mais próximo pelo caminho medido deste dispositivo, levando a carga em conta",
+      "autoRecommended": "Automático (recomendado)",
+      "autoNow": "Mais próximo agora: {{node}}",
       "autoCreated": "O nó foi escolhido ao criar a reunião e fica o mesmo durante toda a reunião. Escolha outro para mover a reunião.",
       "manualHint": "A próxima reunião que você criar ficará neste nó. Quem entra pelo link vai para o nó daquela reunião.",
       "thisMeeting": "Nó desta reunião",

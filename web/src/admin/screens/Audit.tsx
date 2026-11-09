@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Download } from 'lucide-react';
-import { Badge, Button, Field, Input, Select, Tab, TabList, TabPanel, Tabs } from '../../ui/kit';
+import { BookOpen, Download, LogOut } from 'lucide-react';
+import { Button, Field, Input, Select, Tab, TabList, TabPanel, Tabs } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type AuditRow, type Session } from '../api';
 import type { Console } from '../AdminApp';
-import { Empty, ErrorLine, Panel, Skeleton, when } from '../parts';
+import { Empty, ErrorLine, Panel, Pill, Skeleton, when } from '../parts';
 
 /** Журнал (§8.12): пульт (с фильтрами и экспортом), ядро выбранной машины, сессии. */
 export function Audit({ console }: { console: Console }) {
@@ -41,9 +41,11 @@ function FleetAudit({ console }: { console: Console }) {
   return (
     <Panel
       title={text.audit.title}
+      description={text.audit.hint}
+      flush
       actions={
         <Button
-          variant="quiet"
+          variant="secondary"
           size="sm"
           icon={<Download size={16} />}
           onClick={() => window.open('/api/fleet/audit/export', '_blank')}
@@ -74,10 +76,10 @@ function FleetAudit({ console }: { console: Console }) {
       </div>
       <ErrorLine error={rows.error} onRetry={() => void rows.refetch()} />
       {rows.isPending && <Skeleton />}
-      {rows.data && rows.data.length === 0 && <Empty>{text.audit.empty}</Empty>}
+      {rows.data && rows.data.length === 0 && <Empty icon={<BookOpen />}>{text.audit.empty}</Empty>}
       {rows.data && rows.data.length > 0 && (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table" data-stack>
             <thead>
               <tr>
                 <th>{text.audit.when}</th>
@@ -93,28 +95,35 @@ function FleetAudit({ console }: { console: Console }) {
                 <tr
                   key={row.id}
                   className={row.jobId ? 'admin-table__row' : undefined}
+                  tabIndex={row.jobId ? 0 : undefined}
                   onClick={() => row.jobId && console.go(`/jobs/${row.jobId}`)}
+                  onKeyDown={(event) => {
+                    if (row.jobId && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      console.go(`/jobs/${row.jobId}`);
+                    }
+                  }}
                 >
-                  <td className="admin-hint">{when(row.ts, true)}</td>
-                  <td>
+                  <td data-label={text.audit.when} className="admin-hint">
+                    {when(row.ts, true)}
+                  </td>
+                  <td data-label={text.audit.actor}>
                     {row.actor === 'owner' ? text.app.owner : text.app.agent}{' '}
                     <span className="admin-hint">{row.ip ?? ''}</span>
                   </td>
-                  <td>
+                  <td data-primary>
                     <code>{row.action}</code>
                   </td>
-                  <td>{row.target ?? ''}</td>
-                  <td>
-                    <Badge
-                      variant={
-                        row.outcome === 'ok' ? 'success' : row.outcome === 'refused' ? 'neutral' : 'danger'
-                      }
-                    >
+                  <td data-label={text.audit.target}>{row.target || null}</td>
+                  <td data-label={text.audit.outcome}>
+                    <Pill tone={row.outcome === 'ok' ? 'ok' : row.outcome === 'refused' ? 'warn' : 'bad'} dot>
                       {text.audit.outcomes[row.outcome]}
-                    </Badge>
+                    </Pill>
                   </td>
-                  <td className="admin-hint">
-                    {row.detail ?? ''} {row.args ? <code>{JSON.stringify(row.args)}</code> : null}
+                  <td data-label={text.audit.detail} data-wrap className="admin-hint">
+                    {[row.detail, row.args && <code key="args">{JSON.stringify(row.args)}</code>]
+                      .filter(Boolean)
+                      .flatMap((part, i) => (i ? [' ', part] : [part]))}
                   </td>
                 </tr>
               ))}
@@ -159,24 +168,34 @@ function CoreAudit({ console }: { console: Console }) {
   if (!id) return <Empty>{text.overview.noCore}</Empty>;
   const events = rows.data?.events ?? [];
   return (
-    <Panel title={`${text.audit.core} — ${console.machine!.product ?? console.machine!.title}`}>
+    <Panel title={`${text.audit.core} — ${console.machine!.product ?? console.machine!.title}`} flush>
       <ErrorLine error={rows.error} onRetry={() => void rows.refetch()} />
       {rows.isPending && <Skeleton />}
-      {rows.data && events.length === 0 && <Empty>{text.audit.empty}</Empty>}
+      {rows.data && events.length === 0 && <Empty icon={<BookOpen />}>{text.audit.empty}</Empty>}
       {events.length > 0 && (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table" data-stack>
+            <thead>
+              <tr>
+                <th>{text.audit.when}</th>
+                <th>{text.audit.action}</th>
+                <th>{text.audit.outcome}</th>
+                <th>{text.audit.target}</th>
+              </tr>
+            </thead>
             <tbody>
               {events.map((event, i) => (
                 <tr key={i}>
-                  <td className="admin-hint">
+                  <td data-label={text.audit.when} className="admin-hint">
                     {when(Math.round(((event.ts ?? event.at ?? 0) as number) / 1000), true)}
                   </td>
-                  <td>
+                  <td data-primary>
                     <code>{event.code ?? event.group ?? ''}</code>
                   </td>
-                  <td>{event.outcome ?? ''}</td>
-                  <td className="admin-hint">{event.room ?? event.ip ?? ''}</td>
+                  <td data-label={text.audit.outcome}>{event.outcome || null}</td>
+                  <td data-label={text.audit.target} className="admin-hint">
+                    {event.room || event.ip || null}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -204,8 +223,15 @@ function Sessions({ console }: { console: Console }) {
   return (
     <Panel
       title={text.audit.sessions}
+      flush
       actions={
-        <Button variant="danger" size="sm" onClick={() => drop.mutate(null)} loading={drop.isPending}>
+        <Button
+          variant="danger"
+          size="sm"
+          icon={<LogOut size={16} />}
+          onClick={() => drop.mutate(null)}
+          loading={drop.isPending}
+        >
           {text.audit.sessionsDropAll}
         </Button>
       }
@@ -214,30 +240,33 @@ function Sessions({ console }: { console: Console }) {
       {sessions.isPending && <Skeleton />}
       {sessions.data && (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table" data-stack>
             <thead>
               <tr>
                 <th>{text.audit.sessionCreated}</th>
                 <th>{text.audit.sessionSeen}</th>
                 <th>{text.audit.ip}</th>
                 <th>{text.audit.device}</th>
-                <th />
+                <th>
+                  <span className="sr-only">{text.nodes.actions}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {sessions.data.map((s) => (
                 <tr key={s.id}>
-                  <td>{when(s.createdAt, true)}</td>
-                  <td>{when(s.lastSeenAt, true)}</td>
-                  <td>{s.ip ?? ''}</td>
-                  <td className="admin-hint">
-                    {s.current && <Badge variant="accent">{text.audit.sessionCurrent}</Badge>}{' '}
-                    {s.userAgent ?? ''}
+                  <td data-label={text.audit.sessionCreated}>{when(s.createdAt, true)}</td>
+                  <td data-label={text.audit.sessionSeen}>{when(s.lastSeenAt, true)}</td>
+                  <td data-label={text.audit.ip}>{s.ip ?? ''}</td>
+                  <td data-label={text.audit.device} className="admin-hint">
+                    {s.current && <Pill tone="ok">{text.audit.sessionCurrent}</Pill>} {s.userAgent ?? ''}
                   </td>
-                  <td>
-                    <Button variant="quiet" size="sm" onClick={() => drop.mutate(s.id)}>
-                      {text.audit.sessionDrop}
-                    </Button>
+                  <td data-actions data-num>
+                    <div className="admin-actions">
+                      <Button variant="quiet" size="sm" onClick={() => drop.mutate(s.id)}>
+                        {text.audit.sessionDrop}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

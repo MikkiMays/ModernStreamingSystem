@@ -212,12 +212,21 @@ describe('пульт флота', () => {
     fireEvent.change(screen.getByLabelText(text.login.code), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: text.login.signIn }));
     await screen.findByText(text.app.executorDry, {}, { timeout: 10_000 });
-    await screen.findByText('A');
+    await screen.findAllByText('A');
     await screen.findByText('CORE_UNREACHABLE', {}, { timeout: 10_000 });
-    expect(screen.getByText(`2 ${text.overview.meetings} · 9 ${text.overview.humans}`)).toBeInTheDocument();
+    expect(screen.getByText('2 встречи · 9 человек')).toBeInTheDocument();
     expect(screen.getByText(text.overview.noJobs)).toBeInTheDocument();
+    // Ядро meet не отвечает — обзор говорит «есть проблемы» и ведёт к машине.
+    expect(screen.getByRole('heading', { name: text.overview.status.bad })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: new RegExp(`meet: ${text.overview.coreDown}`) })).toHaveAttribute(
+      'href',
+      '/live#machine-meet',
+    );
+    // Выбора машины-контекста на обзоре нет: он — у разделов ядра.
+    expect(screen.queryByRole('combobox')).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: text.nav.meetings }));
     // Выбор машины-контекста — только машины с учётными данными ядра.
-    const picker = screen.getByRole('combobox');
+    const picker = await screen.findByRole('combobox', {}, { timeout: 10_000 });
     expect(picker).toHaveDisplayValue('A');
     expect(screen.queryByRole('option', { name: 'meet · cordcam.ru' })).toBeNull();
   });

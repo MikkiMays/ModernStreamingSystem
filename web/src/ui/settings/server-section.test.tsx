@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Meeting } from '../../core/meeting';
 import { MANUAL_NODE_KEY, setManualNode } from '../../core/node-choice';
@@ -7,9 +7,10 @@ import { nodeProbe } from '../../media/node-probe';
 import { ServerSection } from './ServerSection';
 
 /*
-  «Настройки → Сервер» (R200, слова владельца): текста про автоматический выбор нет; по умолчанию
-  «Авто», ниже — список узлов с флагом, городом, замером и загрузкой. Вне встречи выбор — для следующей
-  встречи; во встрече — перевод этой встречи (только создатель), честно про пару секунд разрыва.
+  «Настройки → Сервер» (R200, R220, слова владельца): по умолчанию «Авто»; список узлов сразу не показывается —
+  в строке кнопка с текущим выбором, по нажатию — список с «Авто (рекомендуется)» и узлами: флаг, город, замер,
+  загрузка, текущий отмечен. Вне встречи выбор — для следующей встречи; во встрече — перевод этой встречи (только
+  создатель), честно про пару секунд разрыва.
 */
 
 const NODES = [
@@ -89,51 +90,91 @@ afterEach(() => {
 const show = (meeting: Meeting | null = null) =>
   render(<ServerSection showPing={false} changePing={vi.fn()} meeting={meeting} />);
 
-const group = () => screen.getByRole('radiogroup', { name: 'Узел встречи' });
+/** Кнопка выбора узла: её имя — подпись строки и текущий выбор. */
+const trigger = () => screen.getByRole('button', { name: /Узел встречи/ });
+const list = () => screen.getByRole('listbox', { name: 'Узел встречи' });
+const open = async () => {
+  fireEvent.click(trigger());
+  return await screen.findByRole('listbox', { name: 'Узел встречи' });
+};
+const option = (name: RegExp) => within(list()).getByRole('option', { name });
 
-describe('«Сервер»: Авто и список узлов', () => {
-  it('вне встречи: «Авто» по умолчанию, узлы с флагом, городом, замером и загрузкой; текста про автовыбор нет', async () => {
+describe('«Сервер»: кнопка «Авто» и список узлов по нажатию', () => {
+  it('вне встречи: в строке только «Авто», список — по нажатию: «Авто (рекомендуется)» и узлы с флагом, городом, замером и загрузкой', async () => {
     show();
     expect(screen.queryByText(/менять сервер не нужно/)).not.toBeInTheDocument();
-    const auto = within(group()).getByRole('radio', { name: /Авто/ });
-    expect(auto).toBeChecked();
-    // Порядок — по замеру: Хельсинки 12 мс впереди Франкфурта 41 мс; Москва не отвечает — серая.
-    const radios = within(group()).getAllByRole('radio');
-    expect(radios.map((r) => (r as HTMLInputElement).value)).toEqual(['auto', 'hel', 'fra', 'msk']);
-    expect(screen.getByText('Хельсинки')).toBeInTheDocument();
-    expect(screen.getByText('12 мс')).toBeInTheDocument();
-    expect(screen.getByText('41 мс')).toBeInTheDocument();
+    // Сразу — ни списка, ни городов: только кнопка с текущим выбором.
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('Хельсинки')).not.toBeInTheDocument();
+    expect(trigger()).toHaveAccessibleName('Узел встречи Авто');
+    const box = await open();
+    const options = within(box).getAllByRole('option');
+    // Порядок — «Авто», затем по замеру: Хельсинки 12 мс впереди Франкфурта 41 мс; Москва не отвечает — серая.
+    expect(options.map((o) => o.textContent)).toEqual([
+      expect.stringContaining('Авто (рекомендуется)'),
+      expect.stringContaining('Хельсинки'),
+      expect.stringContaining('Франкфурт'),
+      expect.stringContaining('Москва'),
+    ]);
+    expect(option(/^Авто/)).toHaveAttribute('aria-selected', 'true');
+    expect(option(/^Авто/)).toHaveTextContent('Сейчас ближе всех: Хельсинки · 12 мс');
+    expect(option(/^Хельсинки/)).toHaveTextContent('12 мс');
+    expect(option(/^Франкфурт/)).toHaveTextContent('41 мс');
     expect(document.querySelector('.ui-flag[data-country="FI"]')).not.toBeNull();
-    await screen.findByRole('img', { name: 'Загрузка сервера: высокая' });
-    expect(screen.getByText('не отвечает')).toBeInTheDocument();
-    expect(within(group()).getByRole('radio', { name: /Москва/ })).toBeDisabled();
+    await within(box).findByRole('img', { name: 'Загрузка сервера: высокая' });
+    expect(option(/^Москва/)).toHaveTextContent('не отвечает');
+    expect(option(/^Москва/)).toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('вне встречи выбор узла помнится для следующей встречи, «Авто» сбрасывает', () => {
+  it('вне встречи выбор узла помнится для следующей встречи и виден на кнопке с флагом, «Авто» сбрасывает', async () => {
     show();
-    fireEvent.click(within(group()).getByRole('radio', { name: /Хельсинки/ }));
+    await open();
+    fireEvent.click(option(/^Хельсинки/));
     expect(localStorage.getItem(MANUAL_NODE_KEY)).toBe('hel');
-    expect(within(group()).getByRole('radio', { name: /Хельсинки/ })).toBeChecked();
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+    expect(trigger()).toHaveAccessibleName('Узел встречи Хельсинки');
+    expect(trigger().querySelector('.ui-flag[data-country="FI"]')).not.toBeNull();
     expect(screen.getByText(/Следующая встреча, которую вы создадите/)).toBeInTheDocument();
-    fireEvent.click(within(group()).getByRole('radio', { name: /Авто/ }));
+    await open();
+    expect(option(/^Хельсинки/)).toHaveAttribute('aria-selected', 'true');
+    // Недоступный узел не выбирается.
+    fireEvent.click(option(/^Москва/));
+    expect(localStorage.getItem(MANUAL_NODE_KEY)).toBe('hel');
+    fireEvent.click(option(/^Авто/));
     expect(localStorage.getItem(MANUAL_NODE_KEY)).toBeNull();
+    expect(trigger()).toHaveAccessibleName('Узел встречи Авто');
     expect(screen.queryByText(/Следующая встреча/)).not.toBeInTheDocument();
   });
 
-  it('во встрече создатель переводит её: подтверждение честно говорит про пару секунд, радио встаёт по снимку', async () => {
+  it('клавиатура: фокус на выбранном, стрелки и End ходят мимо недоступного', async () => {
+    show();
+    await open();
+    await waitFor(() => expect(option(/^Авто/)).toHaveFocus());
+    fireEvent.keyDown(list(), { key: 'ArrowDown' });
+    await waitFor(() => expect(option(/^Хельсинки/)).toHaveFocus());
+    fireEvent.keyDown(list(), { key: 'End' });
+    // Москва не отвечает — последним доступным остаётся Франкфурт.
+    await waitFor(() => expect(option(/^Франкфурт/)).toHaveFocus());
+    fireEvent.click(option(/^Франкфурт/));
+    expect(localStorage.getItem(MANUAL_NODE_KEY)).toBe('fra');
+  });
+
+  it('во встрече создатель переводит её: подтверждение честно говорит про пару секунд, кнопка встаёт по снимку', async () => {
     const meeting = fakeMeeting(['media.move'], 'fra');
     show(meeting);
+    expect(trigger()).toHaveAccessibleName('Узел встречи Франкфурт');
+    await open();
     // «Авто» во встрече не предлагается — узел задан; текущий узел первым и отмечен.
-    expect(within(group()).queryByRole('radio', { name: /Авто/ })).not.toBeInTheDocument();
-    const radios = within(group()).getAllByRole('radio');
-    expect((radios[0] as HTMLInputElement).value).toBe('fra');
-    expect(radios[0]).toBeChecked();
-    expect(screen.getByText('Узел этой встречи')).toBeInTheDocument();
-    fireEvent.click(within(group()).getByRole('radio', { name: /Хельсинки/ }));
+    expect(within(list()).queryByRole('option', { name: /Авто/ })).not.toBeInTheDocument();
+    const options = within(list()).getAllByRole('option');
+    expect(options[0]).toHaveTextContent('Франкфурт');
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+    expect(options[0]).toHaveTextContent('Узел этой встречи');
+    fireEvent.click(option(/^Хельсинки/));
     const confirm = screen.getByRole('group', { name: 'Перевести встречу в Хельсинки?' });
     expect(confirm).toHaveTextContent(/пару секунд/);
     // Пока не подтвердили — встреча там же.
-    expect(radios[0]).toBeChecked();
+    expect(trigger()).toHaveAccessibleName('Узел встречи Франкфурт');
     await act(async () => {
       fireEvent.click(within(confirm).getByRole('button', { name: 'Перевести' }));
     });
@@ -142,34 +183,36 @@ describe('«Сервер»: Авто и список узлов', () => {
     act(() => {
       meeting.snapshot.update((s) => ({ ...s, mediaNode: 'hel', mediaMoves: 1 }));
     });
-    expect(within(group()).getByRole('radio', { name: /Хельсинки/ })).toBeChecked();
+    expect(trigger()).toHaveAccessibleName('Узел встречи Хельсинки');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     // Ничего в память устройства: перевод встречи — не выбор узла для следующей.
     expect(localStorage.getItem(MANUAL_NODE_KEY)).toBeNull();
   });
 
-  it('во встрече гость видит узлы, но перевести не может', () => {
+  it('во встрече гость видит узлы, но перевести не может', async () => {
     show(fakeMeeting([], 'fra'));
-    expect(within(group()).getByRole('radio', { name: /Хельсинки/ })).toBeDisabled();
     expect(screen.getByText(/может только её создатель/)).toBeInTheDocument();
+    await open();
+    expect(option(/^Хельсинки/)).toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('отказ ядра — словами под списком, выбор остаётся прежним', async () => {
+  it('отказ ядра — словами под строкой, выбор остаётся прежним', async () => {
     const meeting = fakeMeeting(['media.move'], 'fra');
     meeting.api.moveMedia.mockRejectedValue(new Error('boom'));
     show(meeting);
-    fireEvent.click(within(group()).getByRole('radio', { name: /Хельсинки/ }));
+    await open();
+    fireEvent.click(option(/^Хельсинки/));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Перевести' }));
     });
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(within(group()).getByRole('radio', { name: /Франкфурт/ })).toBeChecked();
+    expect(trigger()).toHaveAccessibleName('Узел встречи Франкфурт');
   });
 
-  it('один узел — выбирать не из чего: строка с узлом, как в 1.2.1', () => {
+  it('один узел — выбирать не из чего: строка с узлом, как в 1.2.1, без кнопки', () => {
     nodeProbe.schedule([NODES[0]!]);
     show();
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Узел встречи/ })).not.toBeInTheDocument();
     expect(screen.getByText('Франкфурт · 41 мс')).toBeInTheDocument();
   });
 

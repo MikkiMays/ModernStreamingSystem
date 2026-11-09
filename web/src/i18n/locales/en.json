@@ -460,6 +460,8 @@
       "nodeUnknown": "The path to the nodes has not been measured yet",
       "auto": "Auto",
       "autoHint": "The nearest node by the path measured from this device, with load in mind",
+      "autoRecommended": "Auto (recommended)",
+      "autoNow": "Nearest right now: {{node}}",
       "autoCreated": "The node was chosen when the meeting was created and stays for the whole meeting. Pick another one to move the meeting.",
       "manualHint": "The next meeting you create will be on this node. People joining by link land on that meeting’s node.",
       "thisMeeting": "This meeting’s node",

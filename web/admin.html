@@ -1,19 +1,23 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-app="admin">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7fa" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111419" />
+    <!-- Пульт красный (R220): полоса браузера на телефоне — тоже, чтобы пульт не спутать с продуктом. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#b5172f" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#4a161d" />
     <meta name="referrer" content="no-referrer" />
     <meta name="robots" content="noindex, nofollow" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/src/admin/icon.svg" />
+    <link rel="apple-touch-icon" href="/src/admin/apple-touch-icon.png" />
     <title>Cord · Пульт</title>
     <!--
       Пульт флота Cord (R207, Р-119): третий HTML-вход сборки рядом с index.html и tg.html. Шлюз отдаёт его
       только на имени ADMIN_HOST (блок `@admin` в infra/Caddyfile); на имени продукта этого файла нет.
       Сцены загрузки нет: пульт — рабочий инструмент владельца, первый кадр — сразу форма входа.
+      Значки — свои, красные (R220), из `src/admin/`: сборка кладёт их в `/assets/` с хешем, а общий
+      `/favicon.svg` продукта (синий) пульт не берёт.
     -->
     <style>
       html,

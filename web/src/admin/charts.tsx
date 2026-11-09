@@ -1,12 +1,15 @@
 import { useId, useState, type ReactNode } from 'react';
 
 /**
- * Графики пульта (R209, R210): свои SVG на токенах набора — одна величина на график, один цвет
- * (`--accent`), подписи — цветом текста, а не ряда. Наведение показывает значение под указателем;
- * у каждого графика есть табличный вид рядом (экраны), поэтому цвет никогда не единственный носитель.
+ * Графики пульта (R209, R210, R220): свои SVG на токенах — одна величина на график, один цвет ряда
+ * (`--admin-series`, красный пульта), подписи — цветом текста, а не ряда. Наведение показывает значение под
+ * указателем; у каждого графика есть табличный вид рядом (экраны), поэтому цвет никогда не единственный носитель.
  */
 
-/** Полоса-индикатор доли 0…1 с порогами: выше `warn` — янтарная, выше `bad` — красная. */
+/**
+ * Полоса-индикатор доли 0…1 с порогами: спокойная — графитовая, выше `warn` — янтарная, выше `bad` — красная
+ * (красный пульта здесь не акцент, а «плохо», поэтому у спокойной шкалы его нет). Число рядом — всегда.
+ */
 export function Meter({
   label,
   value,
@@ -14,6 +17,7 @@ export function Meter({
   bad = 0.9,
   hint,
   suffix,
+  compact,
 }: {
   label: ReactNode;
   value: number | null | undefined;
@@ -21,12 +25,14 @@ export function Meter({
   bad?: number;
   hint?: string;
   suffix?: ReactNode;
+  /** Узкая строка (обзор машин): короткая подпись, мелкий шрифт. */
+  compact?: boolean;
 }) {
   const known = value !== null && value !== undefined && Number.isFinite(value);
   const share = known ? Math.max(0, Math.min(1, value)) : 0;
   const tone = !known ? undefined : value >= bad ? 'bad' : value >= warn ? 'warn' : 'ok';
   return (
-    <div className="admin-meter" data-tone={tone} title={hint}>
+    <div className="admin-meter" data-tone={tone} data-compact={compact || undefined} title={hint}>
       <span className="admin-meter__label">{label}</span>
       <span className="admin-meter__track" aria-hidden="true">
         <span className="admin-meter__fill" style={{ width: `${share * 100}%` }} />
