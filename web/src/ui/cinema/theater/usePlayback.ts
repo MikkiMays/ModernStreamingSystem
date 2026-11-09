@@ -3,13 +3,17 @@ import type { Watch } from '../../../api/types';
 import type { CinemaApi } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import type { Preferences } from '../../../core/preferences';
+import { noteFailure } from '../../../core/failure';
 import { t } from '../../../i18n';
 import { useStore } from '../../primitives';
 import type { AdBreak } from './ad-breaks';
+import { preferredVideoCodec, type MediaProfile } from './device';
 import { attachDash } from './engines/dash';
 import { attachFile } from './engines/file';
 import { attachHls, hlsSupported } from './engines/hls';
 import type { Playback } from './engines/playback';
+import { aheadOf, type Playhead } from './playhead';
+import { nextHeal, type Heal } from './stall';
 import type { Echo } from './useRoomSync';
 import { contentOf, useSource } from './useSource';
 import type { Level } from './watch-levels';
@@ -29,6 +33,8 @@ export function usePlayback({
   video,
   echo,
   preferences,
+  playhead,
+  profile,
 }: {
   meeting: Meeting;
   api: CinemaApi;
@@ -36,6 +42,10 @@ export function usePlayback({
   video: RefObject<HTMLVideoElement | null>;
   echo: Echo;
   preferences: Preferences;
+  /** Сторож позиции (`playhead.ts`): по нему лечится застрявший плеер. Нет — лечения нет. */
+  playhead?: Playhead;
+  /** Что умеет устройство (`device.ts`): кодек картинки. */
+  profile?: MediaProfile;
 }) {
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
@@ -65,7 +75,10 @@ export function usePlayback({
     setAutomatic(-1);
   }, []);
   const player = useSource(api, watch, echo, renewed);
-  const { source, setStatus, setError, renew, expired, dashFailed } = player;
+  const { source, setStatus, setError, renew, expired, dashFailed, recover } = player;
+  // Лечение открывает поток заново через `recover`, а движок живёт в эффекте источника: свежая ссылка.
+  const recovery = useRef(recover);
+  recovery.current = recover;
 
   // Другое видео — другие ступени, озвучки и субтитры. Автоматическую ступень прежнего здесь
   // не сбрасывали и раньше: до первой новой её перепишет сам движок.
@@ -120,22 +133,35 @@ export function usePlayback({
           if (alive) void renew(false);
         });
     } else if (hlsSupported()) {
-      playback.current = attachHls(element, source.url, preferred, {
-        alive: () => alive,
-        levels: (next, chosen) => {
-          setLevels(next);
-          setLevel(chosen);
-        },
-        automatic: setAutomatic,
-        voices: setVoices,
-        wanted: (tracks) => pickAudio(tracks, wantedVoice.current, source.language),
-        voice: setVoice,
-        texts: (tracks) => setTexts(captionChoices(tracks, source.captions)),
-        breaks: setBreaks,
-        liveBreaks: setLiveBreaks,
-        expired,
-        fail,
-      });
+      // Кодек картинки решается до первого куска (`device.ts`): ответ `MediaCapabilities` — миллисекунды.
+      const attach = (videoCodec: 'avc1' | undefined) => {
+        if (!alive) return;
+        playback.current = attachHls(
+          element,
+          source.url,
+          preferred,
+          {
+            alive: () => alive,
+            levels: (next, chosen) => {
+              setLevels(next);
+              setLevel(chosen);
+            },
+            automatic: setAutomatic,
+            voices: setVoices,
+            wanted: (tracks) => pickAudio(tracks, wantedVoice.current, source.language),
+            voice: setVoice,
+            texts: (tracks) => setTexts(captionChoices(tracks, source.captions)),
+            breaks: setBreaks,
+            liveBreaks: setLiveBreaks,
+            expired,
+            reopen: () => alive && recovery.current(),
+            fail,
+          },
+          { videoCodec },
+        );
+      };
+      if (profile) void preferredVideoCodec(profile).then(attach, () => attach('avc1'));
+      else attach(undefined);
     } else if (element.canPlayType('application/vnd.apple.mpegurl')) {
       playback.current = attachFile(element, source.url);
     } else {
@@ -156,6 +182,104 @@ export function usePlayback({
   useEffect(() => {
     if (video.current) setWatchLevel(video.current, watchLevel(preferences.watchVolume, deafened));
   }, [preferences.watchVolume, deafened]);
+
+  /*
+    Сторож застрявшего плеера (R216, `stall.ts`): раз в полсекунды — стоит ли картинка, хотя должна идти,
+    и не пора ли следующей ступени лечения. Каждая ступень — один раз за застревание; пошла картинка —
+    застревание кончилось, и счётчик ядра узнаёт, вылечили ли его (`cinema-healed`).
+  */
+  const statusNow = useRef(player.status);
+  statusNow.current = player.status;
+  useEffect(() => {
+    const element = video.current;
+    if (!source || !element || !playhead) return;
+    let done = new Set<Heal>();
+    let sound = new Set<Heal>();
+    let soundSince: number | null = null;
+    let soundFine: number | null = null;
+    const apply = (step: Heal) => {
+      if (step === 'fail') {
+        noteFailure('cinema', 'cinema-heal-failed');
+        setStatus('failed');
+        setError(t(($) => $.cinema.theater.errors.stalled));
+        return;
+      }
+      // Своё действие с `<video>` — не человек: ни пауза, ни пуск отсюда в комнату не уходят.
+      echo.suppress(HEAL_QUIET_MS);
+      if (step === 'reopen') {
+        if (!recovery.current()) apply('fail');
+        return;
+      }
+      if (playback.current?.heal?.(step)) return;
+      if (step === 'nudge') element.currentTime = element.currentTime + NUDGE_S;
+    };
+    const opened = performance.now();
+    let reopened = false;
+    const timer = setInterval(() => {
+      const now = performance.now();
+      /*
+        Поток выбран, а первого кадра всё нет (первый кусок не приходит): «Открываем…» не должно висеть
+        вечно. Через {@link OPEN_MS} — поток заново; кончились попытки — честный отказ с «Повторить».
+      */
+      if (statusNow.current === 'loading') {
+        if (!reopened && now - opened >= OPEN_MS) {
+          reopened = true;
+          noteFailure('cinema', 'cinema-stalled');
+          apply('reopen');
+        }
+        return;
+      }
+      if (statusNow.current !== 'ready') return;
+      const stalled = playhead.stalledMs(now);
+      const health = {
+        ahead: aheadOf(element),
+        loading: false,
+        fedAgoMs: null,
+        auto: true,
+        ...playback.current?.health?.(),
+      };
+      /*
+        Застревание кончается, когда картинка снова идёт, а не когда она просто перестала стоять: пересборка
+        источника ставит `<video>` на паузу, и по «не стоит» лестница начиналась бы заново по кругу.
+      */
+      if (done.size && playhead.playedMs(now) >= HEALED_MS) {
+        noteFailure('cinema', 'cinema-healed');
+        done = new Set();
+      }
+      if (stalled > 0) {
+        const step = nextHeal({ stalledMs: stalled, health, done });
+        if (step) {
+          if (!done.size) noteFailure('cinema', 'cinema-stalled');
+          done.add(step);
+          apply(step);
+        }
+        return;
+      }
+      // Звук, отставший от идущей картинки, — своей лестницей; толчок сбрасывает замер, а не застревание.
+      if (playhead.audioStalled) {
+        soundFine = null;
+        if (soundSince === null) {
+          soundSince = now;
+          noteFailure('cinema', 'cinema-audio');
+        }
+        const step = nextHeal({ stalledMs: now - soundSince, health, done: sound, audio: true });
+        if (step) {
+          sound.add(step);
+          apply(step);
+        }
+      } else if (soundSince !== null) {
+        soundFine ??= now;
+        if (now - soundFine >= SOUND_FINE_MS) {
+          if (sound.size) noteFailure('cinema', 'cinema-healed');
+          soundSince = null;
+          soundFine = null;
+          sound = new Set();
+        }
+      }
+    }, WATCHDOG_MS);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, playhead]);
 
   /**
    * `<video>` сообщил об ошибке. У HLS и DASH отказ приходит от движка, а у файла — только
@@ -200,6 +324,19 @@ export function usePlayback({
     chooseLevel,
   };
 }
+
+/** Как часто сторож застрявшего плеера смотрит на позицию, мс. */
+const WATCHDOG_MS = 500;
+/** Толчок позиции, секунды: столько, чтобы конвейер пересобрал кадр, и не больше, чтобы этого не было видно. */
+const NUDGE_S = 0.05;
+/** Окно тишины после лечения: пересборка источника рождает паузу и пуск, и это не человек. */
+const HEAL_QUIET_MS = 4000;
+/** Столько ждём первого кадра выбранного потока, прежде чем открыть его заново, мс. */
+const OPEN_MS = 25_000;
+/** Вылечили — когда картинка идёт без остановки столько, мс. */
+const HEALED_MS = 2000;
+/** Звук вылечили — когда он декодируется столько, мс. */
+const SOUND_FINE_MS = 10_000;
 
 /**
  * Громкость и «без звука» плеера (R213, владелец: «нельзя менять/выключать громкость… с телефона»). Safari на iPhone

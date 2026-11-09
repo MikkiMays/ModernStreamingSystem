@@ -2181,8 +2181,10 @@
       "mute": "Mute the video",
       "volume": "Video volume",
       "buffering": "Loading",
+      "slow": "The video is loading slowly…",
       "opening": "Opening…",
       "start": "Watch together",
+      "retry": "Try again",
       "next": "Next episode",
       "nextPlay": "Play the next one for everyone",
       "nextLocked": "Whoever the host allowed to use Cinema will start it",
@@ -2208,7 +2210,8 @@
         "unsupported": "This browser can't play streaming video",
         "streamFailed": "The stream didn't open. Try another video",
         "openFailed": "Couldn't open the video",
-        "renewFailed": "Couldn't refresh the stream"
+        "renewFailed": "Couldn't refresh the stream",
+        "stalled": "The video isn't loading. Check your connection and try again"
       },
       "liveAd": "Ad break on the platform · {{time}}"
     },

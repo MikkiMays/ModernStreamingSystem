@@ -1,3 +1,4 @@
+import type { Health, Heal } from '../stall';
 import type { Level } from '../watch-levels';
 
 /**
@@ -24,5 +25,12 @@ export interface Playback {
   readonly liveSyncPosition?: number | null;
   /** Время эфира у текущего кадра (`EXT-X-PROGRAM-DATE-TIME`); `null` — поток его не пишет. */
   readonly playingDate?: Date | null;
+  /** Что движок знает о своей загрузке — для лестницы лечения (`stall.ts`). Нет — судим по `<video>`. */
+  health?(): Omit<Health, 'ahead'>;
+  /**
+   * Ступень лечения застрявшего плеера (`stall.ts`). `false` — у этого движка такой нет, лестница идёт
+   * дальше. `reopen` и `fail` решает тот, кто держит плеер (`usePlayback`), а не движок.
+   */
+  heal?(heal: Exclude<Heal, 'reopen' | 'fail'>): boolean;
   destroy(): void;
 }

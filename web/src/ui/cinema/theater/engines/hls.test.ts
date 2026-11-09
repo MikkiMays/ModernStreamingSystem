@@ -17,6 +17,8 @@ const mock = vi.hoisted(() => {
       SUBTITLE_TRACKS_UPDATED: 'subtitleTracksUpdated',
       LEVEL_LOADED: 'levelLoaded',
       FRAG_BUFFERED: 'fragBuffered',
+      FRAG_LOADING: 'fragLoading',
+      FRAG_LOADED: 'fragLoaded',
       ERROR: 'hlsError',
     };
     static ErrorTypes = {
@@ -30,6 +32,7 @@ const mock = vi.hoisted(() => {
     bandwidthEstimate = 2_500_000;
     nextLoadLevel = 0;
     autoLevelEnabled = true;
+    autoLevelCapping = -1;
     currentLevel = -1;
     audioTracks: { name: string; lang?: string }[] = [];
     audioTrack = 0;
@@ -51,6 +54,8 @@ const mock = vi.hoisted(() => {
     }
     startLoad = vi.fn((position?: number) => calls.push(`startLoad ${position ?? ''}`.trim()));
     recoverMediaError = vi.fn(() => calls.push('recoverMediaError'));
+    swapAudioCodec = vi.fn(() => calls.push('swapAudioCodec'));
+    stopLoad = vi.fn(() => calls.push('stopLoad'));
     setAudioOption = vi.fn((option: { lang?: string; name?: string }) =>
       calls.push(`setAudioOption ${option.lang}:${option.name}`),
     );
@@ -108,6 +113,7 @@ describe('HLS через hls.js', () => {
       liveMaxLatencyDurationCount: 12,
       audioPreference: { lang: 'ru' },
       enableInterstitialPlayback: false,
+      startFragPrefetch: true,
     });
     expect(hls().subtitleDisplay).toBe(false);
     expect(mock.calls).toEqual(['loadSource /cinema/playlist?u=1', 'attachMedia']);
@@ -209,32 +215,106 @@ describe('HLS через hls.js', () => {
       expect(report[name]).not.toHaveBeenCalled();
   });
 
-  it('ошибки: протухшую подпись обновляет владелец, сеть и декодер лечатся на месте, остальное — отказ', () => {
+  it('ошибки: протухшую подпись обновляет владелец, сеть и декодер лечатся на месте с паузами, потом — заново и отказ', () => {
+    vi.useFakeTimers();
+    try {
+      const report = { ...callbacks(), reopen: vi.fn(() => true) };
+      attachHls(document.createElement('video'), '/x', '', report);
+      fire('hlsError', { fatal: false, type: 'networkError' });
+      expect(report.expired).not.toHaveBeenCalled();
+      expect(hls().startLoad).not.toHaveBeenCalled();
+
+      fire('hlsError', { fatal: true, type: 'networkError', response: { code: 403 } });
+      expect(report.expired).toHaveBeenCalledTimes(1);
+      expect(hls().startLoad).not.toHaveBeenCalled();
+
+      // Сеть (R216): три попытки за минуту — через 1, 2 и 4 с, а не сразу и по кругу.
+      report.expired.mockReturnValue(false);
+      fire('hlsError', { fatal: true, type: 'networkError', response: { code: 410 } });
+      expect(report.expired).toHaveBeenCalledTimes(2);
+      expect(hls().startLoad).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1000);
+      expect(hls().startLoad).toHaveBeenCalledTimes(1);
+      fire('hlsError', { fatal: true, type: 'networkError', response: { code: 500 } });
+      vi.advanceTimersByTime(1999);
+      expect(hls().startLoad).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1);
+      expect(hls().startLoad).toHaveBeenCalledTimes(2);
+      fire('hlsError', { fatal: true, type: 'networkError' });
+      vi.advanceTimersByTime(4000);
+      expect(hls().startLoad).toHaveBeenCalledTimes(3);
+      expect(report.reopen).not.toHaveBeenCalled();
+      // Четвёртая за минуту — уже не мигнувшая сеть: поток открывается заново.
+      fire('hlsError', { fatal: true, type: 'networkError' });
+      vi.advanceTimersByTime(10_000);
+      expect(hls().startLoad).toHaveBeenCalledTimes(3);
+      expect(report.reopen).toHaveBeenCalledTimes(1);
+
+      // Декодер: пересборка, потом пересборка с другим кодеком звука, потом — заново.
+      fire('hlsError', { fatal: true, type: 'mediaError' });
+      expect(hls().recoverMediaError).toHaveBeenCalledTimes(1);
+      expect(hls().swapAudioCodec).not.toHaveBeenCalled();
+      fire('hlsError', { fatal: true, type: 'mediaError' });
+      expect(hls().swapAudioCodec).toHaveBeenCalledTimes(1);
+      expect(hls().recoverMediaError).toHaveBeenCalledTimes(2);
+      fire('hlsError', { fatal: true, type: 'mediaError' });
+      expect(hls().recoverMediaError).toHaveBeenCalledTimes(2);
+      expect(report.reopen).toHaveBeenCalledTimes(2);
+      expect(report.fail).not.toHaveBeenCalled();
+
+      // Открыть заново больше нельзя — честный отказ, а не вечный чёрный кадр.
+      report.reopen.mockReturnValue(false);
+      fire('hlsError', { fatal: true, type: 'otherError' });
+      expect(report.fail).toHaveBeenCalledWith('Поток прервался. Попробуйте открыть видео заново');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('без `reopen` у владельца исчерпанное лечение — сразу честный отказ; после разборки ошибки молчат', () => {
     const report = callbacks();
-    attachHls(document.createElement('video'), '/x', '', report);
-    fire('hlsError', { fatal: false, type: 'networkError' });
-    expect(report.expired).not.toHaveBeenCalled();
-    expect(hls().startLoad).not.toHaveBeenCalled();
-
-    fire('hlsError', { fatal: true, type: 'networkError', response: { code: 403 } });
-    expect(report.expired).toHaveBeenCalledTimes(1);
-    expect(hls().startLoad).not.toHaveBeenCalled();
-
-    report.expired.mockReturnValue(false);
-    fire('hlsError', { fatal: true, type: 'networkError', response: { code: 410 } });
-    expect(report.expired).toHaveBeenCalledTimes(2);
-    expect(hls().startLoad).toHaveBeenCalledTimes(1);
-
-    fire('hlsError', { fatal: true, type: 'networkError', response: { code: 500 } });
-    expect(report.expired).toHaveBeenCalledTimes(2);
-    expect(hls().startLoad).toHaveBeenCalledTimes(2);
-
-    fire('hlsError', { fatal: true, type: 'mediaError' });
-    expect(hls().recoverMediaError).toHaveBeenCalledTimes(1);
-    expect(report.fail).not.toHaveBeenCalled();
-
+    const engine = attachHls(document.createElement('video'), '/x', '', report);
     fire('hlsError', { fatal: true, type: 'otherError' });
-    expect(report.fail).toHaveBeenCalledWith('Поток прервался. Попробуйте открыть видео заново');
+    expect(report.fail).toHaveBeenCalledTimes(1);
+    engine.destroy();
+    fire('hlsError', { fatal: true, type: 'otherError' });
+    expect(report.fail).toHaveBeenCalledTimes(1);
+  });
+
+  it('лечение застрявшего плеера: загрузка заново с позиции, пересборка, ступень ниже того же кодека', () => {
+    const video = document.createElement('video');
+    const engine = attachHls(video, '/x', '', callbacks());
+    expect(engine.health!()).toEqual({ loading: false, fedAgoMs: null, auto: true });
+    fire('fragLoading');
+    expect(engine.health!().loading).toBe(true);
+    fire('fragLoaded');
+    expect(engine.health!()).toMatchObject({ loading: false, auto: true });
+    expect(engine.health!().fedAgoMs).toBeGreaterThanOrEqual(0);
+
+    video.currentTime = 42;
+    expect(engine.heal!('kick')).toBe(true);
+    expect(mock.calls.slice(-2)).toEqual(['stopLoad', 'startLoad 42']);
+    expect(engine.heal!('rebuild')).toBe(true);
+    expect(hls().recoverMediaError).toHaveBeenCalledTimes(1);
+
+    hls().levels = [
+      { height: 360, bitrate: 800_000, videoCodec: 'avc1.4D401E' },
+      { height: 480, bitrate: 1_100_000, videoCodec: 'vp09.00.30.08' },
+      { height: 720, bitrate: 4_500_000, videoCodec: 'avc1.4D4020' },
+    ] as never;
+    hls().currentLevel = 2;
+    expect(engine.heal!('lower')).toBe(true);
+    // Ниже 720p H.264 — 360p H.264, а не 480p VP9: кодек посреди просмотра hls.js не меняет.
+    expect(hls().autoLevelCapping).toBe(0);
+    expect(hls().nextLoadLevel).toBe(0);
+    hls().currentLevel = 0;
+    expect(engine.heal!('lower')).toBe(false);
+    expect(engine.heal!('nudge')).toBe(false);
+  });
+
+  it('кодек картинки, выбранный устройством, — с первого куска', () => {
+    attachHls(document.createElement('video'), '/x', '', callbacks(), { videoCodec: 'avc1' });
+    expect(hls().config.videoPreference).toEqual({ videoCodec: 'avc1' });
   });
 
   it('снаружи — Playback: ступень, голос, субтитры, край эфира и разборка', () => {

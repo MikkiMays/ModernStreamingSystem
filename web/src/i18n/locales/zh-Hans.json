@@ -2156,8 +2156,10 @@
       "mute": "关闭视频声音",
       "volume": "视频音量",
       "buffering": "正在加载",
+      "slow": "视频加载缓慢…",
       "opening": "正在打开…",
       "start": "一起看",
+      "retry": "重试",
       "next": "下一集",
       "nextPlay": "为所有人播放下一集",
       "nextLocked": "由主持人允许使用影院的人播放",
@@ -2183,7 +2185,8 @@
         "unsupported": "此浏览器无法播放流媒体视频",
         "streamFailed": "视频流无法打开。请换一个视频",
         "openFailed": "无法打开视频",
-        "renewFailed": "无法刷新视频流"
+        "renewFailed": "无法刷新视频流",
+        "stalled": "视频无法加载。请检查网络后重试"
       },
       "liveAd": "平台正在播放广告 · {{time}}"
     },

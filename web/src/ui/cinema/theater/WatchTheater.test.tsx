@@ -313,3 +313,54 @@ it('досмотрели серию по ссылке — «Включить с�
     contentId: nextId,
   });
 });
+
+/*
+  Честный кружок (R216). Телевизор прислал `waiting` после перемотки, а `playing` — нет: кадр шёл, а кружок
+  крутился посреди него. Кружок теперь смотрит на позицию `<video>`, а не на события.
+*/
+it('кружок — только пока позиция правда стоит: `waiting` у идущей картинки его не включает', async () => {
+  answers = [file('/cinema/fetch?sig=old')];
+  const { container } = render(<WatchTheater meeting={meeting()} watch={{ ...WATCH, paused: false }} />);
+  const video = container.querySelector('video')!;
+  await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=old'));
+  let position = 30;
+  Object.defineProperty(video, 'currentTime', {
+    configurable: true,
+    get: () => position,
+    set: (value: number) => {
+      position = value;
+    },
+  });
+  Object.defineProperty(video, 'paused', { configurable: true, value: false });
+  fireEvent.loadedMetadata(video);
+  fireEvent.play(video);
+  // Позиция стоит — через полсекунды кружок.
+  expect(await screen.findByRole('status', { name: 'Загружаем' })).toBeVisible();
+  // Позиция пошла — кружок уходит, хотя `playing` браузер так и не прислал, а `waiting` прислал ещё раз.
+  const going = setInterval(() => {
+    position += 0.25;
+  }, 100);
+  try {
+    fireEvent.waiting(video);
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'Загружаем' })).toBeNull());
+  } finally {
+    clearInterval(going);
+  }
+});
+
+it('отказ потока — с кнопкой «Повторить»: она открывает поток заново, с новой подписью', async () => {
+  answers = [file('/cinema/fetch?sig=old'), file('/cinema/fetch?sig=new'), file('/cinema/fetch?sig=again')];
+  const { container } = render(<WatchTheater meeting={meeting()} watch={WATCH} />);
+  const video = container.querySelector('video')!;
+  await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=old'));
+  fireEvent.error(video);
+  await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=new'));
+  fireEvent.error(video);
+  expect(await screen.findByText('Поток не открылся. Попробуйте другое видео')).toBeVisible();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+  await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=again'));
+  expect(asked).toHaveLength(3);
+  expect(asked[2]).toMatchObject({ refresh: true });
+  expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull();
+});

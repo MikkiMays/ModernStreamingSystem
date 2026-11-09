@@ -42,8 +42,20 @@ export function attachHls(
     liveBreaks?: (breaks: AdBreak[]) => void;
     /** Подпись протухла (403/410): `true` — адрес обновляется, лечить на месте не нужно. */
     expired: () => boolean;
+    /**
+     * Лечение на месте не помогло — открыть поток заново (новый разбор, новые адреса, новый движок).
+     * `false` — попытки кончились, и тогда честный отказ.
+     */
+    reopen?: () => boolean;
     fail: (message: string) => void;
   },
+  options: {
+    /**
+     * Кодек картинки, который брать с первого куска (`device.preferredVideoCodec`): `'avc1'` — H.264, если
+     * VP9 этому устройству не по силам. Пусто — выбирает hls.js.
+     */
+    videoCodec?: 'avc1';
+  } = {},
 ): Playback {
   /*
     hls.js идёт первым, и это не вкусовщина.
@@ -131,6 +143,15 @@ export function attachHls(
       дальше. Её адрес к тому же чужой и мимо нашего прокси — CSP его всё равно не пустил бы.
     */
     enableInterstitialPlayback: false,
+    /*
+      Первый кусок — пока `<video>` ещё только подключается к источнику: сотни миллисекунд до первого кадра.
+    */
+    startFragPrefetch: true,
+    /*
+      H.264, если VP9 не по силам (R216, `device.ts`): ступени одного кодека hls.js держит весь просмотр, и
+      выбрать его нужно до первого куска.
+    */
+    ...(options.videoCodec ? { videoPreference: { videoCodec: options.videoCodec } } : {}),
   });
   // Рисуем реплики сами: браузер кладёт их на нижний край кадра, ровно под пульт с
   // паузой и громкостью. Дорожка при этом остаётся живой — «спрятана» значит «разобрана,
@@ -183,14 +204,63 @@ export function attachHls(
   hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_event, data) => {
     if (callbacks.alive()) callbacks.texts(data.subtitleTracks);
   });
+  /*
+    Что знает движок о своей загрузке — для лестницы лечения (`stall.ts`): когда пришёл последний кусок и
+    идёт ли загрузка следующего.
+  */
+  let fedAt: number | null = null;
+  let loadingAt: number | null = null;
+  /** Ступень ниже, поставленная лечением: потолок автоматики и когда его поставили. */
+  let cappedAt: number | null = null;
+  hls.on(Hls.Events.FRAG_LOADING, () => {
+    loadingAt = performance.now();
+  });
+  hls.on(Hls.Events.FRAG_LOADED, () => {
+    fedAt = performance.now();
+    // Потолок лечения — на минуту ровной загрузки: канал ожил — автоматика снова решает сама.
+    if (cappedAt !== null && fedAt - cappedAt > CAP_MS) {
+      cappedAt = null;
+      hls.autoLevelCapping = -1;
+    }
+  });
+  /*
+    Фатальные ошибки — лечением с паузами и счётом, а не по кругу (R216). Раньше сеть и декодер «лечились»
+    без конца: `startLoad` и `recoverMediaError` на каждую ошибку, и плеер, у которого не выходило,
+    крутил кружок вечно. Теперь: сеть — три попытки за минуту с паузой 1, 2, 4 с; декодер — пересборка, потом
+    пересборка с другим кодеком звука (так советует сам hls.js); дальше — открыть поток заново
+    (`reopen`), а если и это кончилось — честный отказ. Протухшую подпись чинит переоткрытие сразу.
+  */
+  const failures: { network: number[]; media: number[] } = { network: [], media: [] };
+  let waiting: ReturnType<typeof setTimeout> | undefined;
+  let gone = false;
+  const recent = (list: number[], windowMs: number) => {
+    const now = performance.now();
+    while (list.length && now - list[0]! > windowMs) list.shift();
+    list.push(now);
+    return list.length;
+  };
+  const giveUp = () => {
+    if (!callbacks.reopen?.()) callbacks.fail(t(($) => $.cinema.theater.errors.streamBroken));
+  };
   hls.on(Hls.Events.ERROR, (_event, data) => {
-    if (!data.fatal) return;
+    if (!data.fatal || gone) return;
     if ((data.response?.code === 403 || data.response?.code === 410) && callbacks.expired()) return;
-    // Сеть и декодер лечатся на месте; всё остальное — честный отказ, а не вечный
-    // чёрный кадр. Протухшую подпись чинит переоткрытие: адрес живёт пять часов.
-    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-    else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-    else callbacks.fail(t(($) => $.cinema.theater.errors.streamBroken));
+    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+      const count = recent(failures.network, NETWORK_WINDOW_MS);
+      if (count > NETWORK_DELAYS_MS.length) return giveUp();
+      clearTimeout(waiting);
+      waiting = setTimeout(
+        () => {
+          if (!gone) hls.startLoad();
+        },
+        NETWORK_DELAYS_MS[count - 1],
+      );
+    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+      const count = recent(failures.media, MEDIA_WINDOW_MS);
+      if (count > 2) return giveUp();
+      if (count === 2) hls.swapAudioCodec();
+      hls.recoverMediaError();
+    } else giveUp();
   });
   hls.loadSource(url);
   hls.attachMedia(video);
@@ -218,8 +288,66 @@ export function attachHls(
     get playingDate() {
       return hls.playingDate;
     },
+    health() {
+      const now = performance.now();
+      return {
+        loading: loadingAt !== null && (fedAt === null || loadingAt > fedAt),
+        fedAgoMs: fedAt === null ? null : now - fedAt,
+        auto: hls.autoLevelEnabled,
+      };
+    },
+    heal(step) {
+      if (step === 'kick') {
+        // Загрузка, которая не идёт, — заново с того места, где стоит картинка.
+        hls.stopLoad();
+        hls.startLoad(video.currentTime);
+        return true;
+      }
+      if (step === 'rebuild') {
+        // Новый источник медиа и новые буферы под ту же позицию: так оживает вставший декодер.
+        hls.recoverMediaError();
+        return true;
+      }
+      if (step === 'lower') {
+        const playing = hls.currentLevel >= 0 ? hls.currentLevel : hls.nextLoadLevel;
+        const lower = lowerLevel(hls.levels as unknown as Level[], playing);
+        if (lower < 0 || !hls.autoLevelEnabled) return false;
+        cappedAt = performance.now();
+        hls.autoLevelCapping = lower;
+        hls.nextLoadLevel = lower;
+        return true;
+      }
+      return false;
+    },
     destroy() {
+      gone = true;
+      clearTimeout(waiting);
       hls.destroy();
     },
   };
+}
+
+/** Паузы перед повторной загрузкой после фатальной ошибки сети, мс; больше попыток за минуту нет. */
+const NETWORK_DELAYS_MS = [1000, 2000, 4000];
+const NETWORK_WINDOW_MS = 60_000;
+/** Две пересборки декодера за 30 с — дальше уже не декодер, а поток. */
+const MEDIA_WINDOW_MS = 30_000;
+/** Ступень ниже, поставленная лечением, держится, пока загрузка не пройдёт ровно столько, мс. */
+const CAP_MS = 60_000;
+
+/**
+ * Ступень ниже по битрейту того же кодека, что играет (`current`), — номер в `levels`; `-1` — ниже нет.
+ * Кодек тот же: hls.js не переходит между кодеками посреди просмотра, и ступень другого он не возьмёт.
+ */
+export function lowerLevel(levels: Level[], current: number): number {
+  const now = levels[current];
+  if (!now) return -1;
+  const family = (level: Level) => (level.videoCodec ?? '').slice(0, 4);
+  let best = -1;
+  const rate = (level: Level) => level.bitrate ?? 0;
+  levels.forEach((level, index) => {
+    if (family(level) !== family(now) || !(rate(level) < rate(now))) return;
+    if (best < 0 || rate(level) > rate(levels[best]!)) best = index;
+  });
+  return best;
 }

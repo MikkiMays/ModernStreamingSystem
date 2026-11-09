@@ -2206,8 +2206,10 @@
       "mute": "Couper le son de la vidéo",
       "volume": "Volume de la vidéo",
       "buffering": "Chargement",
+      "slow": "La vidéo se charge lentement…",
       "opening": "Ouverture…",
       "start": "Regarder ensemble",
+      "retry": "Réessayer",
       "next": "Épisode suivant",
       "nextPlay": "Lancer le suivant pour tous",
       "nextLocked": "Le lancera la personne que l'hôte a autorisée à utiliser le cinéma",
@@ -2233,7 +2235,8 @@
         "unsupported": "Ce navigateur ne sait pas lire la vidéo en streaming",
         "streamFailed": "Le flux ne s'est pas ouvert. Essayez une autre vidéo",
         "openFailed": "Impossible d'ouvrir la vidéo",
-        "renewFailed": "Impossible d'actualiser le flux"
+        "renewFailed": "Impossible d'actualiser le flux",
+        "stalled": "La vidéo ne se charge pas. Vérifiez la connexion et réessayez"
       },
       "liveAd": "Pause publicitaire de la plateforme · {{time}}"
     },

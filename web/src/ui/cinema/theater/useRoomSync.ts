@@ -9,8 +9,19 @@ import {
 } from 'react';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
-import { catchUp, correction, finished, targetPosition, type CatchUp } from '../../../core/watch';
+import {
+  CATCH_UP_COOLDOWN,
+  CATCH_UP_LEAD,
+  JUMP_LIMIT,
+  catchUp,
+  catchUpLead,
+  correction,
+  finished,
+  targetPosition,
+  type CatchUp,
+} from '../../../core/watch';
 import type { Playback } from './engines/playback';
+import { aheadOf, type Playhead } from './playhead';
 import { contentOf, type Status } from './useSource';
 import { playLadder } from './autoplay';
 import { skipTarget } from './watch-controls';
@@ -30,11 +41,28 @@ export const SUPPRESS_MS = 1200;
  * же самое по просьбе.
  */
 const LIVE_LAG = 12;
+/**
+ * Свою перемотку один в комнате ждал дольше этого — комната встаёт туда, где он на самом деле (R216).
+ * Иначе после +15 с телевизор, ждавший данные 4 с, оказывался на 4 с позади своей же комнаты и догонял её
+ * второй перемоткой — ещё одно ожидание из-за себя самого.
+ */
+const REANCHOR_MS = 1500;
+/** Опоздавший встаёт на секунду комнаты с запасом на свою первую загрузку, пока её не мерили, мс. */
+const JOIN_GUESS_MS = 1000;
+/** Своя позиция стоит дольше этого — плеер ждёт данные, и догонять комнату сейчас незачем, мс. */
+const WAITING_MS = 1000;
+/** Сдвинув комнату к себе, её нового состояния ждём не дольше этого, мс. */
+const ANCHOR_WAIT_MS = 3000;
+/** Один в комнате сдвигает её к себе не чаще этого, мс. */
+const ANCHOR_EVERY_MS = 5000;
 
 /** Окно тишины после своей же команды плееру (см. {@link SUPPRESS_MS}). */
 export interface Echo {
-  /** Своя команда плееру: ближайшие {@link SUPPRESS_MS} его события — наше эхо, а не человек. */
-  suppress(): void;
+  /**
+   * Своя команда плееру: ближайшие `ms` (по умолчанию {@link SUPPRESS_MS}) его события — наше эхо, а не
+   * человек. Окно только продлевается: короткая команда не обрезает длинное окно лечения.
+   */
+  suppress(ms?: number): void;
   /** Идёт ли окно тишины прямо сейчас. */
   quiet(): boolean;
 }
@@ -42,8 +70,8 @@ export interface Echo {
 function createEcho(): Echo {
   let until = 0;
   return {
-    suppress() {
-      until = Date.now() + SUPPRESS_MS;
+    suppress(ms = SUPPRESS_MS) {
+      until = Math.max(until, Date.now() + ms);
     },
     quiet() {
       return Date.now() < until;
@@ -79,6 +107,9 @@ export function useRoomSync({
   wake,
   setStatus,
   onAutoMuted,
+  playhead,
+  rateSafe = true,
+  solo = false,
 }: {
   meeting: Meeting;
   watch: Watch;
@@ -92,6 +123,12 @@ export function useRoomSync({
   setStatus: Dispatch<SetStateAction<Status>>;
   /** Политика автозапуска дала играть только без звука — плееру показать «Включить звук». */
   onAutoMuted?: () => void;
+  /** Сторож позиции (`playhead.ts`): ждёт ли плеер данные и сколько он их обычно ждёт после перемотки. */
+  playhead?: Playhead;
+  /** Можно ли догонять скоростью (`device.ts`); нет — расхождение до перемотки терпим. */
+  rateSafe?: boolean;
+  /** Смотрит один: свою медленную перемотку он не догоняет, а сдвигает комнату к себе. */
+  solo?: boolean;
 }) {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -107,8 +144,18 @@ export function useRoomSync({
   const sending = useRef(false);
   const started = useRef(false);
   const nudge = useRef<CatchUp | null>(null);
-  const latest = useRef({ watch, canControl, live });
-  latest.current = { watch, canControl, live };
+  const latest = useRef({ watch, canControl, live, rateSafe, solo });
+  latest.current = { watch, canControl, live, rateSafe, solo };
+  /** Последняя перемотка вдогонку (монотонные часы): следующая — не раньше {@link CATCH_UP_COOLDOWN}. */
+  const caughtUp = useRef<number | null>(null);
+  /** Какую версию комнаты плеер уже видел: новая команда — повод встать на место сразу, даже ожидая данные. */
+  const revision = useRef(watch.revision);
+  const commanded = useRef(false);
+  /** Своя перемотка или пуск, которых плеер ещё не дождался: сколько перемоток он дождался до неё. */
+  const driving = useRef<number | null>(null);
+  /** Комнату сдвинули к себе: с какой её версии и когда (монотонные часы). */
+  const anchoring = useRef<{ revision: number; at: number } | null>(null);
+  const anchoredAt = useRef<number | null>(null);
 
   const send = useCallback(
     (type: 'watch.play' | 'watch.pause' | 'watch.seek' | 'watch.close', positionMs?: number) => {
@@ -132,6 +179,10 @@ export function useRoomSync({
     setOver(false);
     started.current = false;
     nudge.current = null;
+    caughtUp.current = null;
+    driving.current = null;
+    anchoring.current = null;
+    anchoredAt.current = null;
   }, [meeting, content]);
 
   // Раз в секунду — и сразу по возвращении на экран: где мы, где комната, и что из этого следует.
@@ -168,7 +219,48 @@ export function useRoomSync({
           element.currentTime = edge;
         }
       }
-      if (echo.quiet() || element.readyState < 2) return;
+      const clock = performance.now();
+      // Новая команда комнаты помнится до первой проверки, которая может её исполнить (не в окне тишины).
+      if (now.revision !== revision.current) {
+        revision.current = now.revision;
+        commanded.current = true;
+      }
+      /*
+        Один в комнате и сам перемотал: дождался данных — комната встаёт туда, где он (R216). Отправить это
+        можно и в окне тишины: это не ответ плееру, а поправка комнаты.
+      */
+      const { solo: alone, live: onAir, canControl: may } = latest.current;
+      const anchor = () => {
+        send('watch.seek', Math.round(element.currentTime * 1000));
+        anchoring.current = { revision: now.revision, at: clock };
+        anchoredAt.current = clock;
+      };
+      if (playhead && driving.current !== null && playhead.resumes > driving.current) {
+        driving.current = null;
+        const waited = playhead.lastResumeMs ?? 0;
+        if (alone && waited > REANCHOR_MS && !now.paused && !onAir && may) anchor();
+      }
+      // Комнату только что сдвинули к себе — до её нового состояния своё старое не исправляем.
+      if (anchoring.current) {
+        if (now.revision === anchoring.current.revision && clock - anchoring.current.at < ANCHOR_WAIT_MS)
+          return;
+        anchoring.current = null;
+      }
+      const room = targetPosition(now, serverNow);
+      const away = Math.abs(element.currentTime * 1000 - room);
+      if (echo.quiet()) return;
+      /*
+        Комнату только что остановили или перемотали далеко — туда сразу, даже если свой плеер ждёт данные
+        старого места: ждать их уже незачем.
+      */
+      const follow = commanded.current && !latest.current.live && (now.paused || away > JUMP_LIMIT);
+      commanded.current = false;
+      if (element.readyState < 2 && !follow) return;
+      /*
+        Свой плеер ждёт данные: комната за это время уходит вперёд, но гнаться за ней сейчас — значит бросить
+        то, что уже грузится, ради места, которого тоже нет (R216). Догоняем, когда картинка пойдёт.
+      */
+      if (!follow && !now.paused && playhead && playhead.stalledMs(clock) > WAITING_MS) return;
       const localMs = element.currentTime * 1000;
       const playing = !element.paused && !element.ended;
       // Подтяжка под присмотром (`catchUp`): её окно помнится между проверками, а не в плеере, и
@@ -179,6 +271,16 @@ export function useRoomSync({
         nudging: !latest.current.live && !now.paused && playing && element.playbackRate !== 1,
       });
       nudge.current = watched.next;
+      // Упреждение вдогонку: загружено ли место приземления и сколько этот плеер обычно ждёт данные.
+      const landing = (room + CATCH_UP_LEAD) / 1000;
+      const leadMs = catchUpLead({
+        buffered: aheadOf(element, landing) > 0.3,
+        resumeMs: playhead?.resumeMs ?? null,
+      });
+      const cooled =
+        caughtUp.current === null ||
+        (clock - caughtUp.current >= CATCH_UP_COOLDOWN &&
+          (playhead?.playedMs(clock) ?? Infinity) >= WAITING_MS);
       const fix = correction({
         watch: now,
         live: latest.current.live,
@@ -188,7 +290,27 @@ export function useRoomSync({
         ended: element.ended,
         rate: element.playbackRate,
         stalled: watched.stalled,
+        rateSafe: latest.current.rateSafe,
+        leadMs,
+        canSeek: follow || cooled,
       });
+      /*
+        Один в комнате (R216): догонять некого — комната идёт за ним. Его ожидание (перемотка, слабый канал)
+        не превращается в погоню за самим собой: разошлись дальше перемотки — комната встаёт туда, где он;
+        меньше — ни скорости, ни перемотки. Пауза и пуск комнаты — как у всех.
+      */
+      if (
+        alone &&
+        may &&
+        !onAir &&
+        !now.paused &&
+        playing &&
+        (fix.action === 'seek' || fix.action === 'rate')
+      ) {
+        if (fix.action === 'rate') element.playbackRate = 1;
+        else if (anchoredAt.current === null || clock - anchoredAt.current >= ANCHOR_EVERY_MS) anchor();
+        return;
+      }
       if (fix.action === 'none') return;
       // Подтяжка скоростью — не команда плееру, а наклон: своё эхо от неё не рождается, и
       // глушить проверку на секунду из-за неё было бы ошибкой (за секунду она и не успеет).
@@ -216,6 +338,7 @@ export function useRoomSync({
       if (fix.action === 'seek') {
         element.playbackRate = 1;
         element.currentTime = fix.positionMs / 1000;
+        if (!follow) caughtUp.current = clock;
       }
     };
     const timer = setInterval(check, 1000);
@@ -229,7 +352,7 @@ export function useRoomSync({
       clearInterval(timer);
       document.removeEventListener('visibilitychange', visible);
     };
-  }, [meeting, video, playback, echo, setStatus, onAutoMuted]);
+  }, [meeting, video, playback, echo, setStatus, onAutoMuted, playhead]);
 
   /** Нажатие пультом: сначала комнате, а плеер догонит себя сам ближайшей проверкой. */
   const command = (type: WatchCommand, positionMs?: number) => {
@@ -247,7 +370,11 @@ export function useRoomSync({
     if (element) element.playbackRate = 1;
     // Заново с начала — уже не «досмотрели»: пульт перестаёт звать это «Включить», не дожидаясь проверки.
     if (again) setOver(false);
-    if ((type === 'watch.seek' || again) && element) element.currentTime = at / 1000;
+    if ((type === 'watch.seek' || again) && element) {
+      // Своя перемотка: дождавшись данных, один в комнате сдвинет её к себе (`REANCHOR_MS`).
+      if (playhead) driving.current = playhead.resumes;
+      element.currentTime = at / 1000;
+    }
     if (type === 'watch.play') void element?.play().catch(() => {});
     if (type === 'watch.pause') element?.pause();
     send(type, Math.max(0, at));
@@ -324,7 +451,12 @@ export function useRoomSync({
     setDuration(Number.isFinite(element.duration) ? element.duration * 1000 : 0);
     if (!latest.current.live) {
       echo.suppress();
-      element.currentTime = targetPosition(latest.current.watch, meeting.serverNow()) / 1000;
+      const room = latest.current.watch;
+      // Комната играет — встаём с запасом на свою первую загрузку: иначе опоздавший начинал с отставания.
+      const lead = room.paused
+        ? 0
+        : catchUpLead({ buffered: false, resumeMs: playhead?.resumeMs ?? JOIN_GUESS_MS });
+      element.currentTime = (targetPosition(room, meeting.serverNow()) + lead) / 1000;
     }
     // Открывший включает, как только его плеер готов: состояние уже у всех, а
     // отставших подтянет обычная проверка расхождения.

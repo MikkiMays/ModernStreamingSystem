@@ -86,6 +86,12 @@
   max-width: 460px;
   line-height: 1.5;
 }
+/* Отказ и «Повторить» — одним блоком посреди кадра, а не по разные стороны сетки слоя. */
+.watch-failed {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+}
 .watch-loading,
 .watch-buffering {
   display: inline-flex;
@@ -103,6 +109,20 @@
 .watch-loading svg,
 .watch-buffering svg {
   animation: watch-spin 900ms linear infinite;
+}
+/* Под кружком, если картинка стоит долго (R216): честно, а не вечное вращение без слов. */
+.watch-buffering {
+  align-content: center;
+  gap: var(--space-2);
+}
+.watch-slow {
+  max-width: min(420px, calc(100% - 32px));
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--stage-veil-3);
+  color: var(--stage-text);
+  font-size: 0.875rem;
+  text-align: center;
 }
 @keyframes watch-spin {
   to {
