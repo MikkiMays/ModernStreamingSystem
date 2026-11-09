@@ -352,7 +352,7 @@ class RetentionTest {
     assertThat(cleared.notes())
         .filteredOn(note -> note.kind().equals("status"))
         .extracting(SupportService.Note::text)
-        .containsExactly("done");
+        .containsExactly("waiting", "done");
     assertThat(support.get(open.id()).ticket().message()).isEqualTo("Эхо у собеседника");
     assertThat(support.forgetResolvedText()).isZero();
   }

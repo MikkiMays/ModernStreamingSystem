@@ -752,9 +752,8 @@ public class SupportService {
    * stream.retention.content}): у обращений в «решено» и «архиве» дольше этого текст, диагностика,
    * заметки и ответы ленты становятся {@code null}, а тема, статус, время, контакт, метки,
    * назначение, записи смены статуса и узел остаются метаданными до {@code
-   * stream.support.retention}. Открытое обращение текст держит — по нему ещё
-   * работают. Вернули из архива в работу — текста уже нет, и это честно: он ушёл в срок. Сколько
-   * обращений очищено.
+   * stream.support.retention}. Открытое обращение текст держит — по нему ещё работают. Вернули из
+   * архива в работу — текста уже нет, и это честно: он ушёл в срок. Сколько обращений очищено.
    */
   @Transactional
   public int forgetResolvedText() {
@@ -774,8 +773,7 @@ public class SupportService {
                   + " WHERE id=?")
           .params(now, id)
           .update();
-      jdbc.sql(
-              "UPDATE support_notes SET text=NULL WHERE ticket_id=? AND kind IN ('note','reply')")
+      jdbc.sql("UPDATE support_notes SET text=NULL WHERE ticket_id=? AND kind IN ('note','reply')")
           .param(id)
           .update();
     }
