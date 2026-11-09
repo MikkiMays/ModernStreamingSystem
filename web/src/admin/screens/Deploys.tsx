@@ -76,21 +76,23 @@ export function Deploys({ console }: { console: Console }) {
                         ? `${when(last.createdAt, true)} · ${String(last.args.ref ?? last.args.commit ?? '')} ${(last.args.services as string[] | undefined)?.join(' ') ?? ''}`
                         : text.deploys.none}
                     </td>
-                    <td className="admin-actions" data-num>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => setTarget({ machine: m, mode: 'deploy' })}
-                      >
-                        {text.deploys.deploy}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setTarget({ machine: m, mode: 'rollback' })}
-                      >
-                        {text.deploys.rollback}
-                      </Button>
+                    <td data-actions data-num>
+                      <div className="admin-actions">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setTarget({ machine: m, mode: 'deploy' })}
+                        >
+                          {text.deploys.deploy}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setTarget({ machine: m, mode: 'rollback' })}
+                        >
+                          {text.deploys.rollback}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -409,7 +409,7 @@ function Shell({ me }: { me: Me }) {
                 >
                   {text.nav.jobs}
                 </a>
-                <ChevronRight size={14} aria-hidden="true" />
+                <ChevronRight size={16} aria-hidden="true" />
               </p>
             ) : null}
             <h1 ref={heading} tabIndex={-1}>

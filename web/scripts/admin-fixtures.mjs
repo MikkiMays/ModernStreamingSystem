@@ -837,7 +837,11 @@ export function fleetAnswer(data, url, method = 'GET') {
     const kind = q.get('kind');
     return ok(kind ? data.jobs.filter((j) => j.kind === kind) : data.jobs);
   }
-  if (/^\/jobs\/[^/]+$/.test(path)) return ok(data.jobDetail);
+  if (/^\/jobs\/[^/]+$/.test(path)) {
+    // Как служба: только строки после `after` — экран задачи дописывает хвост.
+    const after = Number(q.get('after') ?? 0);
+    return ok({ ...data.jobDetail, lines: data.jobDetail.lines.filter((line) => line.n > after) });
+  }
   if (path === '/audit') return ok(data.audit);
   return { status: 404, body: { status: 404, code: 'NOT_FOUND', detail: path } };
 }

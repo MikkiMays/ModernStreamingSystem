@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Plus, Server } from 'lucide-react';
-import { Button, Dialog, Field, Flag, Input, LoadBars, Switch, useToast, type LoadState } from '../../ui/kit';
+import { Button, Dialog, Field, Flag, Input, Switch, useToast } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type AddServerPlan, type Job, type NodesView, type RegistryNode } from '../api';
 import type { Console } from '../AdminApp';
@@ -17,13 +17,30 @@ const STATE_TONE: Record<string, Tone> = {
   drained: 'neutral',
 };
 
-const STATE: Record<string, LoadState> = {
-  ok: 'ok',
-  busy: 'busy',
-  full: 'full',
-  down: 'unknown',
-  drained: 'maintenance',
-};
+/**
+ * Ступень загрузки узла палочками, как у людей в выборе узла (`LoadBars` набора), но с подписью пульта: слой
+ * переводов приложения пульт не поднимает, и подпись набора осталась бы пустой.
+ */
+function Level({ level, state }: { level: number; state: string }) {
+  const known = level >= 1 && level <= 4 && state !== 'down' && state !== 'drained';
+  const filled = known ? level : 0;
+  const label = `${text.nodes.level}: ${known ? `${level} ${text.nodes.of} 4` : (text.nodes.states[state] ?? state)}`;
+  return (
+    <span
+      className="ui-load"
+      role="img"
+      aria-label={label}
+      title={label}
+      data-tone={known ? (filled >= 4 ? 'danger' : filled === 3 ? 'warning' : 'success') : undefined}
+    >
+      <span className="ui-load__bars" aria-hidden="true">
+        {[1, 2, 3, 4].map((bar) => (
+          <span key={bar} className="ui-load__bar" data-on={bar <= filled || undefined} />
+        ))}
+      </span>
+    </span>
+  );
+}
 
 /** Узлы выбранной машины-ядра (§8.2): реестр + ступени ядра; действия — задачи каталога. */
 export function Nodes({ console }: { console: Console }) {
@@ -153,7 +170,7 @@ export function Nodes({ console }: { console: Console }) {
                         )}
                       </td>
                       <td data-label={text.nodes.level}>
-                        {level ? <LoadBars level={level.level} state={STATE[level.state] ?? 'ok'} /> : '—'}
+                        {level ? <Level level={level.level} state={level.state} /> : '—'}
                       </td>
                       <td data-num data-label={text.nodes.rooms}>
                         {node.maxRooms ?? '—'}
@@ -164,58 +181,60 @@ export function Nodes({ console }: { console: Console }) {
                       <td data-num data-label={text.nodes.cores}>
                         {node.cores ?? '—'}
                       </td>
-                      <td className="admin-actions">
-                        {!node.control && (
-                          <>
-                            <Button
-                              variant="quiet"
-                              size="sm"
-                              onClick={() => setPending({ node, action: 'check' })}
-                            >
-                              {text.nodes.check}
-                            </Button>
-                            <Button
-                              variant="quiet"
-                              size="sm"
-                              onClick={() => setPending({ node, action: 'logs' })}
-                            >
-                              {text.nodes.logs}
-                            </Button>
-                            {drained ? (
+                      <td data-actions>
+                        <div className="admin-actions">
+                          {!node.control && (
+                            <>
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                onClick={() => setPending({ node, action: 'check' })}
+                              >
+                                {text.nodes.check}
+                              </Button>
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                onClick={() => setPending({ node, action: 'logs' })}
+                              >
+                                {text.nodes.logs}
+                              </Button>
+                              {drained ? (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => setPending({ node, action: 'undrain' })}
+                                >
+                                  {text.nodes.undrain}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => setPending({ node, action: 'drain' })}
+                                >
+                                  {text.nodes.drain}
+                                </Button>
+                              )}
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => setPending({ node, action: 'undrain' })}
+                                onClick={() => setPending({ node, action: 'update' })}
                               >
-                                {text.nodes.undrain}
+                                {text.nodes.update}
                               </Button>
-                            ) : (
                               <Button
-                                variant="secondary"
+                                variant="danger"
                                 size="sm"
-                                onClick={() => setPending({ node, action: 'drain' })}
+                                disabled={!drained}
+                                title={drained ? undefined : text.nodes.removeHint}
+                                onClick={() => setPending({ node, action: 'remove' })}
                               >
-                                {text.nodes.drain}
+                                {text.nodes.remove}
                               </Button>
-                            )}
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => setPending({ node, action: 'update' })}
-                            >
-                              {text.nodes.update}
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              disabled={!drained}
-                              title={drained ? undefined : text.nodes.removeHint}
-                              onClick={() => setPending({ node, action: 'remove' })}
-                            >
-                              {text.nodes.remove}
-                            </Button>
-                          </>
-                        )}
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -331,6 +350,7 @@ export function AddServer({
       open={open}
       onOpenChange={onOpenChange}
       title={text.nodes.form.title}
+      closeLabel={text.app.close}
       size="lg"
       footer={
         <>

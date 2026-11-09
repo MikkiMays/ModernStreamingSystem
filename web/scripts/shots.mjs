@@ -249,6 +249,7 @@ const ADMIN_SECTIONS = [
   ['job', '/jobs/j-4b0d'],
   ['analytics', '/analytics'],
   ['audit', '/audit'],
+  ['metrics', '/metrics'],
   ['later', '/flags'],
 ];
 

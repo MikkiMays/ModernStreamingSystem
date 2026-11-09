@@ -367,7 +367,12 @@ function Metric({
 
 function DaysTable({ data }: { data: AnalyticsReport }) {
   return (
-    <div className="admin-table-wrap admin-table-wrap--tall">
+    <div
+      className="admin-table-wrap admin-table-wrap--tall"
+      tabIndex={0}
+      role="region"
+      aria-label={`${t.byDays}: ${t.scrollTable}`}
+    >
       <table className="admin-table admin-days">
         <thead>
           <tr>
@@ -415,7 +420,12 @@ function RetentionTable({ cohorts, total }: { cohorts: Cohort[]; total: Cohort }
       ? dayLabel(cohort.since)
       : `${dayLabel(cohort.since)} — ${dayLabel(cohort.until)}`;
   return (
-    <div className="admin-table-wrap">
+    <div
+      className="admin-table-wrap"
+      tabIndex={0}
+      role="region"
+      aria-label={`${t.retentionTotal}: ${t.scrollTable}`}
+    >
       <table className="admin-table admin-retention">
         <thead>
           <tr>

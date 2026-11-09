@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Flag, Switch } from '../../ui/kit';
+import { ChevronRight } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Flag, PHONE_QUERY, Switch, useMediaQuery } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import { fleet, type Live as LiveData, type LiveHistory, type LiveMachine, type LiveRoom } from '../api';
 import { Meter, Sparkline } from '../charts';
@@ -202,66 +204,83 @@ function MachineCard({
           <Meter label={t.load1} value={load.load1} warn={0.8} bad={1.2} />
           <Meter label={t.psi} value={load.psiCpu} warn={0.1} bad={0.25} hint={t.psiHint} />
         </div>
-        <dl className="admin-dl admin-dl--compact">
-          <dt>{t.network}</dt>
-          <dd>
-            {t.in} {mbps(load.netInMbps)} · {t.out} {mbps(load.netOutMbps)} {text.units.mbps}
-          </dd>
-          <dt>{t.tcp}</dt>
-          <dd>{count(load.tcpEstablished)}</dd>
-          <dt>{t.netErrors}</dt>
-          <dd data-tone={load.netErrorsPerSec ? 'bad' : undefined}>{fixed(load.netErrorsPerSec, 2)}</dd>
-          <dt>{t.diskIo}</dt>
-          <dd>
-            {fixed(load.diskReadMBps, 1)} / {fixed(load.diskWriteMBps, 1)} {text.units.mbs}
-          </dd>
-          <dt>
-            {t.swap} · {t.iowait}
-          </dt>
-          <dd>
-            {gigabytes(load.swapUsedBytes)} · {percent(load.iowait)}
-          </dd>
-        </dl>
-        {history && (
-          <div className="admin-sparks">
-            <Sparkline points={history.cpu} label={t.historyCpu} format={(v) => percent(v)} max={1} />
-            <Sparkline points={history.netOutMbps} label={t.historyOut} format={(v) => mbps(v)} />
-            {m.core && (
-              <Sparkline points={history.connected} label={t.historyPeople} format={(v) => count(v)} />
-            )}
-          </div>
-        )}
         {mediaNode && <NodeLink machine={m} states={states} product={product} />}
         {m.core && <CoreBlock core={m.core} states={states} />}
-        {(m.sfu || m.gateway) && (
-          <dl className="admin-dl admin-dl--compact admin-block">
-            {m.sfu && (
-              <>
-                <dt>{t.sfu}</dt>
-                <dd>
-                  {count(m.sfu.rooms)} {t.sfuRooms} · {count(m.sfu.participants)} {t.sfuParticipants} · {t.in}{' '}
-                  {mbps(m.sfu.inMbps)} · {t.out} {mbps(m.sfu.outMbps)} {text.units.mbps}
-                  {m.sfu.lossPercent !== null && ` · ${t.loss} ${fixed(m.sfu.lossPercent, 1)} %`}
-                  {m.sfu.rttMs !== null && ` · ${t.rtt} ${Math.round(m.sfu.rttMs)} ${text.units.ms}`}
-                </dd>
-              </>
-            )}
-            {m.gateway && (
-              <>
-                <dt>{t.gateway}</dt>
-                <dd>
-                  {fixed(m.gateway.rps, 1)} {t.rps} · {count(m.gateway.inFlight)} {t.inFlight}
-                  {m.gateway.errorsPerSec !== null &&
-                    ` · ${fixed(m.gateway.errorsPerSec, 2)} ${t.gatewayErrors}`}
-                </dd>
-              </>
-            )}
+        <More>
+          <dl className="admin-dl admin-dl--compact">
+            <dt>{t.network}</dt>
+            <dd>
+              {t.in} {mbps(load.netInMbps)} · {t.out} {mbps(load.netOutMbps)} {text.units.mbps}
+            </dd>
+            <dt>{t.tcp}</dt>
+            <dd>{count(load.tcpEstablished)}</dd>
+            <dt>{t.netErrors}</dt>
+            <dd data-tone={load.netErrorsPerSec ? 'bad' : undefined}>{fixed(load.netErrorsPerSec, 2)}</dd>
+            <dt>{t.diskIo}</dt>
+            <dd>
+              {fixed(load.diskReadMBps, 1)} / {fixed(load.diskWriteMBps, 1)} {text.units.mbs}
+            </dd>
+            <dt>
+              {t.swap} · {t.iowait}
+            </dt>
+            <dd>
+              {gigabytes(load.swapUsedBytes)} · {percent(load.iowait)}
+            </dd>
           </dl>
-        )}
-        <Containers machine={m} />
-        <MeetingsNow machine={m} />
+          {history && (
+            <div className="admin-sparks">
+              <Sparkline points={history.cpu} label={t.historyCpu} format={(v) => percent(v)} max={1} />
+              <Sparkline points={history.netOutMbps} label={t.historyOut} format={(v) => mbps(v)} />
+              {m.core && (
+                <Sparkline points={history.connected} label={t.historyPeople} format={(v) => count(v)} />
+              )}
+            </div>
+          )}
+          {(m.sfu || m.gateway) && (
+            <dl className="admin-dl admin-dl--compact admin-block">
+              {m.sfu && (
+                <>
+                  <dt>{t.sfu}</dt>
+                  <dd>
+                    {count(m.sfu.rooms)} {t.sfuRooms} · {count(m.sfu.participants)} {t.sfuParticipants} ·{' '}
+                    {t.in} {mbps(m.sfu.inMbps)} · {t.out} {mbps(m.sfu.outMbps)} {text.units.mbps}
+                    {m.sfu.lossPercent !== null && ` · ${t.loss} ${fixed(m.sfu.lossPercent, 1)} %`}
+                    {m.sfu.rttMs !== null && ` · ${t.rtt} ${Math.round(m.sfu.rttMs)} ${text.units.ms}`}
+                  </dd>
+                </>
+              )}
+              {m.gateway && (
+                <>
+                  <dt>{t.gateway}</dt>
+                  <dd>
+                    {fixed(m.gateway.rps, 1)} {t.rps} · {count(m.gateway.inFlight)} {t.inFlight}
+                    {m.gateway.errorsPerSec !== null &&
+                      ` · ${fixed(m.gateway.errorsPerSec, 2)} ${t.gatewayErrors}`}
+                  </dd>
+                </>
+              )}
+            </dl>
+          )}
+          <Containers machine={m} />
+          <MeetingsNow machine={m} />
+        </More>
       </div>
     </section>
+  );
+}
+
+/** Подробности машины: на компьютере — сразу, на телефоне — под «Подробнее», чтобы флот читался одним экраном. */
+function More({ children }: { children: ReactNode }) {
+  const phone = useMediaQuery(PHONE_QUERY);
+  if (!phone) return <>{children}</>;
+  return (
+    <details className="admin-more">
+      <summary>
+        <ChevronRight size={16} aria-hidden="true" />
+        {t.details}
+      </summary>
+      <div className="admin-more__body">{children}</div>
+    </details>
   );
 }
 

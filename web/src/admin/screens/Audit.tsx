@@ -259,10 +259,12 @@ function Sessions({ console }: { console: Console }) {
                   <td data-label={text.audit.device} className="admin-hint">
                     {s.current && <Pill tone="ok">{text.audit.sessionCurrent}</Pill>} {s.userAgent ?? ''}
                   </td>
-                  <td className="admin-actions" data-num>
-                    <Button variant="quiet" size="sm" onClick={() => drop.mutate(s.id)}>
-                      {text.audit.sessionDrop}
-                    </Button>
+                  <td data-actions data-num>
+                    <div className="admin-actions">
+                      <Button variant="quiet" size="sm" onClick={() => drop.mutate(s.id)}>
+                        {text.audit.sessionDrop}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

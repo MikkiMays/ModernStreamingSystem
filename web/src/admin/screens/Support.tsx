@@ -477,7 +477,12 @@ function TicketDrawer({
           </div>
           <div className="admin-actions">
             {current.status !== 'OPEN' && current.status !== 'ARCHIVED' && (
-              <Button size="sm" onClick={() => status.mutate('OPEN')} loading={status.isPending}>
+              <Button
+                size="sm"
+                variant={current.status === 'NEW' ? 'primary' : 'secondary'}
+                onClick={() => status.mutate('OPEN')}
+                loading={status.isPending}
+              >
                 {current.status === 'NEW' ? t.take : t.reopen}
               </Button>
             )}

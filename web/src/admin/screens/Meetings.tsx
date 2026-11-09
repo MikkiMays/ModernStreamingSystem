@@ -112,10 +112,12 @@ function LiveMeetings({ id, title }: { id: string; title: string }) {
                         ? duration(Math.max(0, (data!.serverTime - room.startedAt) / 1000))
                         : '—'}
                     </td>
-                    <td className="admin-actions" data-num>
-                      <Button variant="danger" size="sm" onClick={() => setClosing(room)}>
-                        {text.meetings.close}
-                      </Button>
+                    <td data-actions data-num>
+                      <div className="admin-actions">
+                        <Button variant="danger" size="sm" onClick={() => setClosing(room)}>
+                          {text.meetings.close}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

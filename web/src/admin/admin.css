@@ -256,8 +256,8 @@
 }
 
 .admin-nav__icon > svg {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   stroke-width: var(--icon-stroke);
 }
 
@@ -476,7 +476,7 @@
   padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--warning) 14%, transparent);
-  color: var(--warning);
+  color: color-mix(in srgb, var(--warning) 72%, var(--text));
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
   white-space: nowrap;
@@ -687,7 +687,7 @@
 .admin-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   height: 22px;
   padding: 0 var(--space-2);
   border-radius: var(--radius-full);
@@ -706,8 +706,9 @@
 }
 
 .admin-pill[data-tone='warn'] {
-  background: color-mix(in srgb, var(--warning) 16%, transparent);
-  color: var(--warning);
+  /* Янтарь на своей подложке темнее/светлее к цвету текста — 4,5:1 в обеих темах (сам `--warning` на подложке — 3,9). */
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: color-mix(in srgb, var(--warning) 72%, var(--text));
 }
 
 .admin-pill[data-tone='bad'] {
@@ -876,6 +877,11 @@
   overflow-x: auto;
 }
 
+.admin-table-wrap[tabindex]:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset-inset);
+}
+
 .admin-table {
   width: 100%;
   border-collapse: collapse;
@@ -913,6 +919,11 @@
 .admin-table td[data-num],
 .admin-table th[data-num] {
   text-align: right;
+}
+
+.admin-table td[data-actions] .admin-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
 .admin-table td[data-wrap] {
@@ -1049,15 +1060,12 @@ dd[data-tone='ok'] {
     display: none;
   }
 
-  .admin-table[data-stack] td.admin-actions,
-  .admin-panel[data-flush] .admin-table[data-stack] td.admin-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
+  .admin-table[data-stack] td[data-actions],
+  .admin-panel[data-flush] .admin-table[data-stack] td[data-actions] {
     padding-top: var(--space-2);
   }
 
-  .admin-table[data-stack] td.admin-actions:empty {
+  .admin-table[data-stack] td[data-actions]:not(:has(button)) {
     display: none;
   }
 }
@@ -1152,6 +1160,12 @@ dd[data-tone='ok'] {
   font-weight: var(--weight-medium);
   cursor: pointer;
   list-style: none;
+}
+
+.admin-more__body {
+  display: grid;
+  gap: var(--space-5);
+  padding-bottom: var(--space-2);
 }
 
 .admin-more > summary::-webkit-details-marker {
@@ -1307,7 +1321,7 @@ dd[data-tone='ok'] {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: var(--space-0-5);
   border: 0;
   background: none;
   color: var(--muted);
@@ -1323,8 +1337,8 @@ dd[data-tone='ok'] {
 }
 
 .admin-tab .admin-nav__icon > svg {
-  width: 22px;
-  height: 22px;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
 }
 
 .admin-tab .admin-nav__label {
@@ -1350,15 +1364,11 @@ dd[data-tone='ok'] {
 
 .admin-tab .admin-count-badge {
   position: absolute;
-  top: 6px;
-  left: calc(50% + 6px);
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  font-size: 11px;
+  top: var(--space-1);
+  left: calc(50% + var(--space-2));
 }
 
-.admin-sheet .admin-nav__heading:first-child {
+.admin-sheet .admin-nav__group:first-child .admin-nav__heading {
   margin-top: 0;
 }
 
@@ -1406,11 +1416,11 @@ dd[data-tone='ok'] {
     margin-inline: var(--space-4);
   }
 
-  .admin-panel[data-flush] .admin-table :is(th, td):first-child {
+  .admin-panel[data-flush] .admin-table:not([data-stack]) :is(th, td):first-child {
     padding-left: var(--space-4);
   }
 
-  .admin-panel[data-flush] .admin-table :is(th, td):last-child {
+  .admin-panel[data-flush] .admin-table:not([data-stack]) :is(th, td):last-child {
     padding-right: var(--space-4);
   }
 
@@ -1460,8 +1470,8 @@ dd[data-tone='ok'] {
 }
 
 .admin-status__icon > svg {
-  width: 28px;
-  height: 28px;
+  width: var(--icon-xl);
+  height: var(--icon-xl);
 }
 
 .admin-status__title {
@@ -1532,8 +1542,8 @@ dd[data-tone='ok'] {
 }
 
 .admin-attention__icon > svg {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .admin-attention__item[data-tone='bad'] .admin-attention__icon {
@@ -1901,7 +1911,7 @@ dd[data-tone='ok'] {
 .admin-sources li {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .admin-block {
@@ -2056,7 +2066,7 @@ dd[data-tone='ok'] {
 
 .admin-links svg {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   color: var(--muted);
 }
