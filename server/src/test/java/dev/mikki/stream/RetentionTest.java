@@ -344,7 +344,15 @@ class RetentionTest {
     assertThat(cleared.ticket().topic()).isEqualTo("camera");
     assertThat(cleared.ticket().contact()).isEqualTo("@anna");
     assertThat(cleared.ticket().status()).isEqualTo(SupportService.Status.DONE);
-    assertThat(cleared.notes()).isNotEmpty().allSatisfy(note -> assertThat(note.text()).isNull());
+    assertThat(cleared.notes())
+        .filteredOn(note -> note.kind().equals("reply"))
+        .singleElement()
+        .satisfies(note -> assertThat(note.text()).isNull());
+    // Смена статуса — метаданные: запись остаётся словом.
+    assertThat(cleared.notes())
+        .filteredOn(note -> note.kind().equals("status"))
+        .extracting(SupportService.Note::text)
+        .containsExactly("done");
     assertThat(support.get(open.id()).ticket().message()).isEqualTo("Эхо у собеседника");
     assertThat(support.forgetResolvedText()).isZero();
   }

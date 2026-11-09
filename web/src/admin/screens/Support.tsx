@@ -512,7 +512,9 @@ function TicketDrawer({
             )}
           </div>
           <ErrorLine error={status.error ?? update.error} />
-          <p className="admin-ticket__message">{current.message}</p>
+          <p className="admin-ticket__message">
+            {current.message ?? <span className="admin-hint">{t.textCleared}</span>}
+          </p>
           {current.issues.length > 0 && (
             <p>
               <strong>{t.issuesTitle}:</strong> {current.issues.map((i) => t.issues[i] ?? i).join(', ')}
@@ -593,11 +595,15 @@ function TicketDrawer({
                       {when(n.createdAt)} · {t.authors[n.author] ?? n.author} · {t.kinds[n.kind] ?? n.kind}
                     </span>
                     <div>
-                      {n.kind === 'status'
-                        ? (t.status[n.text.toUpperCase()] ?? n.text)
-                        : n.kind === 'priority'
-                          ? (t.priorities[n.text] ?? n.text)
-                          : n.text}
+                      {n.text === null ? (
+                        <span className="admin-hint">{t.noteCleared}</span>
+                      ) : n.kind === 'status' ? (
+                        (t.status[n.text.toUpperCase()] ?? n.text)
+                      ) : n.kind === 'priority' ? (
+                        (t.priorities[n.text] ?? n.text)
+                      ) : (
+                        n.text
+                      )}
                     </div>
                   </li>
                 ))}

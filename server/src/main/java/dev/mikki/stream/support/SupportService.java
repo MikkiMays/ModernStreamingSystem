@@ -749,9 +749,10 @@ public class SupportService {
 
   /**
    * Текст решённого обращения — до решения и ещё сутки (Р-134 (в), {@code
-   * stream.retention.content}): у обращений в «решено» и «архиве» дольше этого текст, диагностика и
-   * тексты ленты становятся {@code null}, а тема, статус, время, контакт, метки и узел остаются
-   * метаданными до {@code stream.support.retention}. Открытое обращение текст держит — по нему ещё
+   * stream.retention.content}): у обращений в «решено» и «архиве» дольше этого текст, диагностика,
+   * заметки и ответы ленты становятся {@code null}, а тема, статус, время, контакт, метки,
+   * назначение, записи смены статуса и узел остаются метаданными до {@code
+   * stream.support.retention}. Открытое обращение текст держит — по нему ещё
    * работают. Вернули из архива в работу — текста уже нет, и это честно: он ушёл в срок. Сколько
    * обращений очищено.
    */
@@ -773,13 +774,16 @@ public class SupportService {
                   + " WHERE id=?")
           .params(now, id)
           .update();
-      jdbc.sql("UPDATE support_notes SET text=NULL WHERE ticket_id=?").param(id).update();
+      jdbc.sql(
+              "UPDATE support_notes SET text=NULL WHERE ticket_id=? AND kind IN ('note','reply')")
+          .param(id)
+          .update();
     }
     // Заметка, дописанная к уже очищенному решённому обращению, живёт сутки от записи.
     jdbc.sql(
-            "UPDATE support_notes SET text=NULL WHERE text IS NOT NULL AND created_at<=? AND"
-                + " ticket_id IN (SELECT id FROM support_tickets WHERE content_cleared_at IS NOT"
-                + " NULL)")
+            "UPDATE support_notes SET text=NULL WHERE text IS NOT NULL AND kind IN ('note','reply')"
+                + " AND created_at<=? AND ticket_id IN (SELECT id FROM support_tickets WHERE"
+                + " content_cleared_at IS NOT NULL)")
         .param(before)
         .update();
     return ids.size();

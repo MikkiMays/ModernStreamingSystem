@@ -45,7 +45,8 @@ CREATE INDEX room_boards_content ON room_boards(content_at);
 CREATE INDEX room_board_files_age ON room_board_files(created_at);
 
 -- Текст обращения в поддержку живёт до решения и ещё сутки (Р-134 (в)); затем остаются тема, статус, время, контакт и
--- узел, а текст, диагностика и тексты ленты становятся NULL. `content_cleared_at` — когда это случилось.
+-- узел, а текст, диагностика, заметки и ответы ленты становятся NULL (записи смены статуса, назначения и меток —
+-- метаданные, остаются). `content_cleared_at` — когда это случилось.
 ALTER TABLE support_tickets ALTER COLUMN message DROP NOT NULL;
 ALTER TABLE support_tickets ADD COLUMN content_cleared_at BIGINT;
 ALTER TABLE support_notes ALTER COLUMN text DROP NOT NULL;
