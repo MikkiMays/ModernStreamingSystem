@@ -255,6 +255,8 @@ class RetentionTest {
     var saved = boardStore.load(id).orElseThrow();
     assertThat(Json.tree(saved.elements())).isEmpty();
     assertThat(saved.epoch()).isEqualTo(4);
+    // Доску поднял сам проход — он же её и выгрузил: прежние доски не копятся в памяти.
+    assertThat(boards.existing(id)).isEmpty();
     assertThat(
             count(
                 "SELECT COUNT(*) FROM room_boards WHERE room_id=? AND (content_at IS NULL OR"

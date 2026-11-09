@@ -195,8 +195,8 @@ public class Lifecycle {
       gone += avatars;
       dirty = true;
     }
-    int before = room.messages.size();
-    if (room.messages.removeIf(message -> message.createdAt() <= cutoff)) {
+    int before = room.messages == null ? 0 : room.messages.size();
+    if (before > 0 && room.messages.removeIf(message -> message.createdAt() <= cutoff)) {
       retention.deleted("message", before - room.messages.size());
       gone += before - room.messages.size();
       dirty = true;

@@ -276,6 +276,9 @@ public class BoardRooms {
     for (var hub : all()) if (hub.room.oldest() <= cutoff) due.add(hub.room.roomId());
     int boardsSwept = 0, elements = 0, files = 0;
     for (var roomId : due) {
+      // Доску, которую поднял сам проход, он же и выгружает: первый проход после выкатки проверяет
+      // все прежние доски, и держать их в памяти разом незачем.
+      boolean loaded = !boards.containsKey(roomId);
       Hub hub;
       try {
         hub = hub(roomId);
@@ -292,15 +295,26 @@ public class BoardRooms {
         // Убирать нечего (сцена до этого выпуска или правки свежее записи) — запомнить срок, чтобы
         // следующий проход доску не поднимал.
         if (!hub.room.dirty()) store.checked(roomId, hub.room.oldest());
-        continue;
+      } else {
+        store.deleteFiles(roomId, expired.files());
+        save(hub);
+        boardsSwept++;
+        elements += expired.elements();
+        files += expired.files().size();
       }
-      store.deleteFiles(roomId, expired.files());
-      save(hub);
-      boardsSwept++;
-      elements += expired.elements();
-      files += expired.files().size();
+      if (loaded) unload(hub);
     }
     return new Swept(boardsSwept, elements, files);
+  }
+
+  /** Выгрузить доску, за которой никого нет и в которой нет незаписанного. */
+  private void unload(Hub hub) {
+    synchronized (hub.room) {
+      if (hub.peers.isEmpty() && !hub.room.dirty()) {
+        hub.evicted = true;
+        boards.remove(hub.room.roomId(), hub);
+      }
+    }
   }
 
   /** Самое старое на досках в памяти ({@link Long#MAX_VALUE} — пусто). */
