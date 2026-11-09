@@ -75,6 +75,31 @@ class MediaNodesIntegrationTest {
     registry.add("stream.nodes-file", () -> REGISTRY.toString());
   }
 
+  /**
+   * Была ли открыта транзакция, когда переезд разослал {@code room.changed}: замок строки комнаты
+   * держится, только пока транзакция открыта.
+   */
+  static final List<Boolean> MOVE_IN_TRANSACTION =
+      new java.util.concurrent.CopyOnWriteArrayList<>();
+
+  static volatile boolean watchMoves;
+
+  @org.springframework.boot.test.context.TestConfiguration
+  static class MoveWatch {
+    @org.springframework.context.annotation.Bean
+    dev.mikki.stream.room.RoomObserver moveWatch() {
+      return new dev.mikki.stream.room.RoomObserver() {
+        @Override
+        public void changed(RoomState room, String event, long now) {
+          if (watchMoves && "room.changed".equals(event))
+            MOVE_IN_TRANSACTION.add(
+                org.springframework.transaction.support.TransactionSynchronizationManager
+                    .isActualTransactionActive());
+        }
+      };
+    }
+  }
+
   @Autowired RoomService rooms;
   @Autowired RoomRepository repository;
   @Autowired MediaService media;
@@ -164,7 +189,16 @@ class MediaNodesIntegrationTest {
         .isEqualTo(RoomState.Status.CONNECTED);
 
     nodes.down("hel", true);
-    media.evacuate("hel");
+    MOVE_IN_TRANSACTION.clear();
+    watchMoves = true;
+    try {
+      media.evacuate("hel");
+    } finally {
+      watchMoves = false;
+    }
+    // Переезд — под замком строки комнаты: в транзакции, а не мимо прокси (вход или выход во время
+    // переезда иначе затирается).
+    assertThat(MOVE_IN_TRANSACTION).isNotEmpty().containsOnly(true);
 
     var moved = rooms.read(host.roomId());
     assertThat(moved.mediaNode).isEqualTo("fra");
