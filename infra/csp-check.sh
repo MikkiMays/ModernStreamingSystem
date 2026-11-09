@@ -20,6 +20,11 @@ printf '<!doctype html><title>index</title>CORD-INDEX\n' >"$site/index.html"
 printf '<!doctype html><title>tg</title>CORD-TG\n' >"$site/tg.html"
 printf '<!doctype html><title>admin</title>CORD-ADMIN\n' >"$site/admin.html"
 chmod 644 "$site"/*.html
+# Модуль сборки — настоящий файл: путь /assets/x.js проверяет политику у отданного модуля. Модуля прежней сборки
+# (`gone`) нет — шлюз отвечает 404, а не index.html (1.3.6: иначе HTML залипал в кэше под именем модуля).
+mkdir -m 755 "$site/assets"
+printf 'export {};\n' >"$site/assets/x.js"
+chmod 644 "$site/assets/x.js"
 
 paths=(/ /tg /tg/ /tg.html /tgx /room/00000000-0000-0000-0000-000000000000 /download /join/123456789 /assets/x.js)
 
@@ -47,6 +52,11 @@ output="$(
         head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
         rm -f /tmp/body
       done
+      # BusyBox wget на ответ с ошибкой печатает только строку статуса — её и сверяем.
+      echo "== stale-asset"
+      wget -S -O /tmp/body --header "Host: cord.test" "http://127.0.0.1:18091/assets/gone-0000.js" 2>&1 | grep -E "HTTP/1" | head -1 || true
+      head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
+      rm -f /tmp/body
       echo "== spoofed-host:/"
       wget -S -O /tmp/body --header "Host: admin.cord.test" "http://127.0.0.1:18091/" 2>&1 | grep -iE "^ +(content-security-policy|x-frame-options):" || true
       head -c 200 /tmp/body 2>/dev/null | tr -d "\n"; echo
@@ -98,6 +108,10 @@ for path in "${paths[@]}"; do
       ;;
   esac
 done
+
+stale="$(block stale-asset)"
+check stale-asset "модуль прежней сборки — 404" has "$stale" "404"
+check stale-asset "не index.html под именем модуля" lacks "$stale" "CORD-INDEX"
 
 for path in / /nodes /admin.html; do
   headers="$(block "admin:$path")"
