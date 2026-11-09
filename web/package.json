@@ -1,7 +1,7 @@
 {
   "name": "@modern-streaming/web",
   "private": true,
-  "version": "1.3.4",
+  "version": "1.3.5",
   "author": "@nikgers (https://t.me/nikgers)",
   "type": "module",
   "scripts": {
@@ -23,7 +23,7 @@
     "@tanstack/react-query": "5.102.8",
     "@tma.js/sdk": "3.3.0",
     "dashjs": "5.2.1",
-    "hls.js": "1.6.15",
+    "hls.js": "1.7.3",
     "i18next": "26.5.2",
     "i18next-resources-to-backend": "1.2.3",
     "livekit-client": "2.22.4",
@@ -54,7 +54,7 @@
     "prettier": "3.9.6",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vite": "8.2.2",
+    "vite": "8.3.1",
     "vitest": "5.0.0"
   }
 }

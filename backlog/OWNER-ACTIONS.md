@@ -54,40 +54,12 @@
 12. **Магазины приложений** — только если понадобятся: Apple Developer ($99/год) для TestFlight/iOS,
     Google Play Console ($25) для публикации Android. Сейчас APK собирает CI.
     Ответ:
-13. **ivi на сервере вне России (R172).** ivi отдаёт бесплатное (AVOD) только адресам в России, а стенд
-    `cord.nikg.tech` — во Франкфурте: `geocheck/whoami` отвечает `DE`, бесплатный каталог отсюда пуст. С R172 ivi
-    здесь честно погашена: плитка и сцена говорят «ivi работает только с серверов в России» и страну сервера.
-    На сервере в России (`cordcam.ru` — Москва) прокси не нужен: там нужна только выкатка R172. Чтобы ivi
-    работала здесь, нужен выход через Россию — всё ivi пойдёт через него: каталог, проверка страны, плеерное API
-    (`api.ivi.ru/light/`), сами файлы фильмов (кусками по 2 МБ через прокси кинозала), постеры и проба автомата.
-    Полоса прокси — 3–6 Мбит/с на каждого смотрящего ivi.
-    1. На VPS с российским адресом (не обязательно отдельном) — HTTP-прокси с паролем, открытый только стенду:
-       ```bash
-       apt install -y squid apache2-utils
-       htpasswd -bc /etc/squid/passwd cord '<пароль>'
-       cat > /etc/squid/squid.conf <<'CONF'
-       http_port 3128
-       auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd
-       acl stand src 108.165.32.75/32
-       acl authed proxy_auth REQUIRED
-       acl CONNECT method CONNECT
-       acl SSL_ports port 443
-       http_access deny CONNECT !SSL_ports
-       http_access allow stand authed
-       http_access deny all
-       cache deny all
-       CONF
-       systemctl restart squid && ufw allow from 108.165.32.75 to any port 3128 proto tcp
-       ```
-    2. Проверка с этой машины: `curl -x 'http://cord:<пароль>@<IP>:3128' 'https://api.ivi.ru/mobileapi/geocheck/whoami/v6/?app_version=870'`
-       — в ответе `"country_code":"RU"`.
-    3. В `/opt/ModernStreamingSystem/.env` — строка `CINEMA_PROXY_IVI=http://cord:<пароль>@<IP>:3128` (SOCKS5 тоже
-       можно: `socks5h://…`), затем `backlog/bin/deploy.sh services` — переменная читается при старте службы.
-    4. Проверка: Интеграции → Кинозал → плитка ivi активна, во «Фильмах» есть постеры, фильм открывается. Не
-       открылся — в `docker compose logs services | grep 'ivi '` строка с причиной (форматы, хост файлов, отказ
-       площадки); хост файлов вне `*.ivi.ru`/`*.ivi.tv` — дописать в `Ivi.hosts` (`providers/ivi.py`).
-    DRM, платное и вход не обходятся: показывается только то, что ivi сама отдаёт бесплатно с рекламой в России.
-    Ответ:
+13. ~~**ivi на сервере вне России (R172).**~~ — **сделано 09.11.2026** (владелец: «в инфраструктуре же есть Российский
+    сервер, настрой и исправь»). Выход в ivi — через узел `msk` (157.22.241.114, geocheck ivi: `RU`; meet — `DE`):
+    squid по `infra/ivi-proxy/install.sh` — только домены `ivi.ru`/`ivi.tv`, только с адресов meet и стенда (squid и
+    ufw), с паролем (`/root/cord-ivi/password` на `msk`), без кэша и журнала адресов. `CINEMA_PROXY_IVI` — в `.env`
+    продукта и стенда. Проверено вживую: каталог 29 карточек с постерами, серия играет 1280×720. Полоса — 3–6 Мбит/с на
+    каждого смотрящего ivi через `msk`. Переедет ядро в Россию — переменную можно убрать.
 
 14. **Нагрузка и рост (T09, 02.11.2026)** — отчёт `docs/load/2026-11-02-load-report.md`, раздел 15. Нужны решения:
     (1) **Р-32** — оставить «камера одним слоем» или принять «слой по размеру плитки у зрителя, сеть выбранное не
