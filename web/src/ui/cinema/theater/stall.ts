@@ -1,0 +1,96 @@
+/**
+ * Лестница лечения застрявшего плеера (R216): что делать, когда картинка стоит, хотя комната играет.
+ *
+ * ПОЧЕМУ ЛЕСТНИЦА. hls.js сам переживает короткие заминки: повторяет кусок, перескакивает дыру, переходит
+ * ниже по качеству. Но кое-что он не лечит никогда: декодер телевизора, вставший на полном буфере
+ * (данных впереди полно, позиция не двигается, загружать нечего — тишина в сети до конца просмотра,
+ * ровно так 08.11 22:09:30 UTC и было), загрузку, которая молча висит, и звук, который отстал от
+ * картинки. Раньше на это не смотрел никто, и кружок крутился вечно. Теперь каждая ступень дешевле
+ * следующей и даётся один раз за одно застревание:
+ *
+ * - **данные впереди есть, а позиция стоит** — конвейер: толкнуть позицию (`nudge`, 2,5 с), пересобрать
+ *   источник медиа (`rebuild`, 6 с), открыть поток заново (`reopen`, 15 с);
+ * - **данных нет** — сеть: загрузку, которая не идёт (или идёт дольше 15 с без единого куска), начать
+ *   заново (`kick`, 4 с); у автоматического качества — ступенью ниже (`lower`, 8 с); открыть поток заново
+ *   (`reopen`, 22 с);
+ * - **звук не декодируется при идущей картинке** — толкнуть позицию (`nudge`), потом пересобрать;
+ * - ничего не помогло за 45 с — честный отказ с кнопкой «Повторить» (`fail`), а не вечный кружок.
+ */
+
+export type Heal = 'nudge' | 'kick' | 'lower' | 'rebuild' | 'reopen' | 'fail';
+
+/** Что движок знает о себе (`Playback.health`). */
+export interface Health {
+  /** Загружено впереди позиции, секунды. */
+  ahead: number;
+  /** Идёт ли загрузка куска прямо сейчас. */
+  loading: boolean;
+  /** Сколько миллисекунд назад движок последний раз получил кусок; `null` — ещё ни одного. */
+  fedAgoMs: number | null;
+  /**
+   * Сколько миллисекунд идёт загрузка нынешнего куска; `null` — не идёт или движок не знает. Загрузка,
+   * начатая только что, — живая, даже если прошлый кусок пришёл давно: после долгой паузы буфер был
+   * полон, и загружать было нечего.
+   */
+  loadingMs?: number | null;
+  /** Качество выбирает автоматика (ступень ниже — её право, а не выбор человека). */
+  auto: boolean;
+}
+
+/** Данные впереди — от этого запаса, секунды. */
+export const DATA = 0.5;
+/** Загрузка «идёт», если кусок приходил не раньше этого, мс. */
+const FED_MS = 15_000;
+
+const PIPELINE: [number, Heal][] = [
+  [2_500, 'nudge'],
+  [6_000, 'rebuild'],
+  [15_000, 'reopen'],
+  [40_000, 'fail'],
+];
+const NETWORK: [number, Heal][] = [
+  [8_000, 'lower'],
+  [22_000, 'reopen'],
+  [45_000, 'fail'],
+];
+const SOUND: [number, Heal][] = [
+  [0, 'nudge'],
+  [5_000, 'rebuild'],
+  [15_000, 'reopen'],
+];
+/** Загрузку, которая не идёт, начинаем заново через столько, мс. */
+const KICK_STARVED = 4_000;
+
+/**
+ * Следующая ступень: `stalledMs` — сколько стоит картинка (или, при `audio`, сколько молчит звук), `done` —
+ * что уже сделано за это застревание. `null` — пока ждём.
+ */
+export function nextHeal(input: {
+  stalledMs: number;
+  health: Health;
+  done: ReadonlySet<Heal>;
+  audio?: boolean;
+}): Heal | null {
+  const { stalledMs, health, done } = input;
+  const due = (ladder: [number, Heal][]) => {
+    for (const [after, heal] of ladder) {
+      if (stalledMs < after) return null;
+      if (!done.has(heal) && (heal !== 'lower' || health.auto)) return heal;
+    }
+    return null;
+  };
+  if (input.audio) return due(SOUND);
+  if (health.ahead >= DATA) return due(PIPELINE);
+  // Загрузка жива, если кусок приходил недавно или нынешний начали грузить недавно: рвать её на
+  // четвёртой секунде — значит выбросить почти загруженное (перемотка после долгой паузы, слабый канал).
+  const young = health.loadingMs !== undefined && health.loadingMs !== null && health.loadingMs < FED_MS;
+  const fed = health.loading && ((health.fedAgoMs !== null && health.fedAgoMs < FED_MS) || young);
+  const fresh = health.loading && health.fedAgoMs === null && stalledMs < FED_MS;
+  if (!done.has('kick') && !fed && !fresh && stalledMs >= KICK_STARVED) return 'kick';
+  return due(NETWORK);
+}
+
+/** Браузер знает, что сети нет вовсе (`navigator.onLine` врёт только в сторону «есть»). */
+export function offline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}

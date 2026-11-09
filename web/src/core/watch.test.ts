@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { Watch } from '../api/types';
-import { catchUp, correction, JUMP_LIMIT, NUDGE, NUDGE_PATIENCE, nudgeRate, targetPosition } from './watch';
+import {
+  CATCH_UP_LEAD,
+  catchUp,
+  catchUpLead,
+  correction,
+  JUMP_LIMIT,
+  MAX_LEAD,
+  NUDGE,
+  NUDGE_PATIENCE,
+  nudgeRate,
+  targetPosition,
+} from './watch';
 
 const video = (patch: Partial<Watch> = {}): Watch => ({
   provider: 'youtube',
@@ -223,6 +234,41 @@ describe('подтяжка под присмотром', () => {
     expect(catchUp({ since: T, driftMs: 800 }, { now: T + 6000, driftMs: 900, nudging: true })).toEqual({
       next: null,
       stalled: true,
+    });
+  });
+});
+
+describe('догоняя комнату у медленного плеера (R216)', () => {
+  const now = 1_000_000 + 10_000;
+
+  it('упреждение: в загруженное — 400 мс, за край загруженного — сколько этот плеер ждёт данные', () => {
+    expect(catchUpLead({ buffered: true, resumeMs: 4000 })).toBe(CATCH_UP_LEAD);
+    expect(catchUpLead({ buffered: false, resumeMs: null })).toBe(CATCH_UP_LEAD);
+    expect(catchUpLead({ buffered: false, resumeMs: 4000 })).toBe(4400);
+    expect(catchUpLead({ buffered: false, resumeMs: 50 })).toBe(450);
+    expect(catchUpLead({ buffered: false, resumeMs: 60_000 })).toBe(MAX_LEAD);
+  });
+
+  it('перемотка вдогонку целится туда, где комната будет, когда плеер дождётся данных', () => {
+    const fix = correction({ watch: video(), serverNow: now, localMs: 60_000, playing: true, leadMs: 4400 });
+    expect(fix).toEqual({ action: 'seek', positionMs: 70_000 + 4400 });
+  });
+
+  it('только что догоняли — второй перемотки нет: скорость там, где она честная, иначе ждём', () => {
+    const behind = { watch: video(), serverNow: now, localMs: 60_000, playing: true, canSeek: false };
+    expect(correction(behind)).toEqual({ action: 'rate', rate: 1 + NUDGE });
+    expect(correction({ ...behind, rateSafe: false })).toEqual({ action: 'none' });
+    expect(correction({ ...behind, rateSafe: false, rate: 1.1 })).toEqual({ action: 'rate', rate: 1 });
+  });
+
+  it('где скорость не честная (телевизор), расхождение до перемотки терпят, а дальше — перемотка', () => {
+    const tv = { watch: video(), serverNow: now, playing: true, rateSafe: false };
+    expect(correction({ ...tv, localMs: 70_000 - 2000 })).toEqual({ action: 'none' });
+    expect(correction({ ...tv, localMs: 70_000 + 2000 })).toEqual({ action: 'none' });
+    expect(correction({ ...tv, localMs: 70_000 - 2000, rate: 1.05 })).toEqual({ action: 'rate', rate: 1 });
+    expect(correction({ ...tv, localMs: 70_000 - JUMP_LIMIT - 1 })).toEqual({
+      action: 'seek',
+      positionMs: 70_000 + CATCH_UP_LEAD,
     });
   });
 });

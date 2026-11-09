@@ -2181,8 +2181,10 @@
       "mute": "Videoton ausschalten",
       "volume": "Videolautstärke",
       "buffering": "Wird geladen",
+      "slow": "Das Video lädt langsam…",
       "opening": "Wird geöffnet…",
       "start": "Gemeinsam ansehen",
+      "retry": "Erneut versuchen",
       "next": "Nächste Folge",
       "nextPlay": "Nächste Folge für alle starten",
       "nextLocked": "Starten kann, wem der Host das Kino erlaubt hat",
@@ -2208,7 +2210,8 @@
         "unsupported": "Dieser Browser kann kein Streaming-Video abspielen",
         "streamFailed": "Der Stream ließ sich nicht öffnen. Versuch ein anderes Video",
         "openFailed": "Video konnte nicht geöffnet werden",
-        "renewFailed": "Stream konnte nicht aktualisiert werden"
+        "renewFailed": "Stream konnte nicht aktualisiert werden",
+        "stalled": "Das Video lädt nicht. Prüfe die Verbindung und versuche es erneut"
       },
       "liveAd": "Werbepause der Plattform · {{time}}"
     },

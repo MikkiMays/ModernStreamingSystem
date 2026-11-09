@@ -81,8 +81,30 @@ const SETTLED = 120;
 /**
  * Догоняя перемоткой, целимся чуть вперёд: пока перемотка доедет и плеер добуферизует, уйдёт
  * ещё несколько долей секунды, и приземление ровно в цель означает снова отставать.
+ *
+ * Это упреждение — для места, которое уже загружено. Место за краем загруженного плеер ждёт столько,
+ * сколько ему нужно на сеть и декодер (`catchUpLead`): телевизору — секунды. Упреждение в 400 мс там
+ * означало вечную погоню (R216): плеер вставал на новое место через 4 с, комната уходила на 4 с вперёд,
+ * перемотка снова — 19 перемоток и 74 с ожидания из 90 в замере `watch.test.ts`.
  */
-const CATCH_UP_LEAD = 400;
+export const CATCH_UP_LEAD = 400;
+/** Дальше этого упреждения не целимся: восемь секунд ожидания — это уже не догонялки, а беда сети. */
+export const MAX_LEAD = 8000;
+/**
+ * После перемотки вдогонку следующая — не раньше чем через столько миллисекунд игры (R216): если оценка
+ * ожидания ошиблась, перемотки не идут очередью, а каждая следующая целится по свежему замеру.
+ */
+export const CATCH_UP_COOLDOWN = 6000;
+
+/**
+ * Упреждение перемотки вдогонку: место уже загружено — {@link CATCH_UP_LEAD}; нет — сколько этот плеер
+ * обычно ждёт данные после перемотки (`resumeMs`, замер своего плеера), с тем же запасом, но не больше
+ * {@link MAX_LEAD}.
+ */
+export function catchUpLead(input: { buffered: boolean; resumeMs: number | null }): number {
+  if (input.buffered || input.resumeMs === null) return CATCH_UP_LEAD;
+  return Math.round(Math.min(MAX_LEAD, Math.max(CATCH_UP_LEAD, input.resumeMs + CATCH_UP_LEAD)));
+}
 /**
  * Сколько подтяжке дают, чтобы показать, что она тянет.
  *
@@ -161,9 +183,22 @@ export function correction(input: {
   rate?: number;
   /** Подтяжка не тянет ({@link catchUp}): вместо неё — перемотка. */
   stalled?: boolean;
+  /**
+   * Можно ли на этом устройстве догонять скоростью (R216). Телевизоры (Tizen, webOS) играют скорость ≠ 1
+   * как «перемотку с просмотром» и глушат звук, старые движки меняют её без сохранения высоты тона: там
+   * расхождение до {@link JUMP_LIMIT} терпят, а дальше — перемотка.
+   */
+  rateSafe?: boolean;
+  /** Упреждение перемотки вдогонку, мс ({@link catchUpLead}); по умолчанию — {@link CATCH_UP_LEAD}. */
+  leadMs?: number;
+  /** Перемотка вдогонку сейчас разрешена: прошлая была давно ({@link CATCH_UP_COOLDOWN}). */
+  canSeek?: boolean;
 }): Correction {
   const { watch, serverNow, localMs, playing } = input;
   const rate = input.rate ?? 1;
+  const rateSafe = input.rateSafe ?? true;
+  const lead = input.leadMs ?? CATCH_UP_LEAD;
+  const canSeek = input.canSeek ?? true;
   const ordinary = (): Correction => (rate === 1 ? { action: 'none' } : { action: 'rate', rate: 1 });
   /*
     Живой эфир не двигают: общей позиции у него нет, а перемотка к «краю» — это бесконечная
@@ -177,7 +212,7 @@ export function correction(input: {
   if (input.live || watch.kind !== 'video') return playing ? ordinary() : { action: 'play' };
   const target = targetPosition(watch, serverNow);
   // Отставшего догоняем с запасом: пока перемотка доедет, комната уйдёт ещё немного вперёд.
-  const reach = (drift: number) => (drift < 0 ? target + CATCH_UP_LEAD : target);
+  const reach = (drift: number) => (drift < 0 ? target + lead : target);
   if (watch.paused) {
     if (playing) return { action: 'pause', positionMs: target };
     if (localMs !== null && Math.abs(localMs - target) > JUMP_LIMIT)
@@ -200,8 +235,15 @@ export function correction(input: {
   }
   if (localMs === null) return { action: 'none' };
   const drift = localMs - target;
-  if (Math.abs(drift) > JUMP_LIMIT || (input.stalled && Math.abs(drift) > DRIFT_LIMIT))
-    return { action: 'seek', positionMs: reach(drift) };
+  if (Math.abs(drift) > JUMP_LIMIT || (input.stalled && Math.abs(drift) > DRIFT_LIMIT)) {
+    if (canSeek) return { action: 'seek', positionMs: reach(drift) };
+    // Только что догоняли: ждём, пока плеер покажет, где он на самом деле. Скорость — там, где она честная.
+    if (!rateSafe || input.stalled) return ordinary();
+    const wanted = nudgeRate(drift);
+    return Math.abs(rate - wanted) < 0.01 ? { action: 'none' } : { action: 'rate', rate: wanted };
+  }
+  // Скорость здесь не честная — расхождение до перемотки терпим, как терпит его сам плеер.
+  if (!rateSafe) return ordinary();
   // Подтяжка не тянет, но и расхождение уже в пределах «не трогать»: без толку разгонять дальше.
   if (input.stalled) return ordinary();
   if (Math.abs(drift) > DRIFT_LIMIT) {

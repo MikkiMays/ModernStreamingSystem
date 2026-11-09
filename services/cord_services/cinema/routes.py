@@ -198,10 +198,13 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
 
     # Сегмент фильма — по номеру в уже разобранном плейлисте. Имя плейлиста подписано тем же
     # ключом, а сам список составлен нами и содержит только адреса, разрешённые его площадке.
+    # Следующий кусок того же списка служба читает вперёд, пока зритель забирает этот (`Cinema.ahead`).
     @signed.get(PREFIX + "/seg/{key}/{index}")
     async def segment(key: str, index: int, range: str | None = Header(default=None)):
         reel = cinema.reels.find(key, index)
         traffic.admit("")
+        if range is None:
+            cinema.ahead(key, index)
         return traffic.wrap(
             await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or ""), ""
         )
@@ -271,6 +274,8 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
     async def room_segment(room: str, key: str, index: int, range: str | None = Header(default=None)):
         await admitted(room)
         reel = cinema.reels.find(key, index)
+        if range is None:
+            cinema.ahead(key, index)
         return traffic.wrap(
             await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or ""), room
         )

@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { NUDGE } from '../../../core/watch';
+import { CATCH_UP_COOLDOWN, NUDGE } from '../../../core/watch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
@@ -31,7 +31,7 @@ function element(patch: Partial<Record<string, unknown>> = {}) {
     ended: false,
     readyState: 4,
     playbackRate: 1,
-    buffered: { length: 1, end: () => 90 },
+    buffered: { length: 1, start: () => 0, end: () => 90 },
     play: vi.fn(() => {
       video.paused = false;
       return Promise.resolve();
@@ -114,7 +114,12 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     expect(video.currentTime).toBe(50);
 
     await pass(1000);
-    expect(video.currentTime).toBeCloseTo(63.4, 6);
+    // Только что догоняли (R216): следующая перемотка — не раньше CATCH_UP_COOLDOWN, а не очередью раз в
+    // секунду. Пока — скорость (если она честная), картинка остаётся там, где её уже грузят.
+    expect(video.currentTime).toBe(50);
+    expect(video.playbackRate).toBeCloseTo(1 + NUDGE, 6);
+    await pass(CATCH_UP_COOLDOWN - 2000);
+    expect(video.currentTime).toBeCloseTo(67.4, 6);
   });
 
   it('разошлись меньше чем на 2,5 с — подтяжка скоростью, и окна тишины после неё нет', async () => {

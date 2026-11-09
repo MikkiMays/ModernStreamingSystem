@@ -2206,8 +2206,10 @@
       "mute": "Silenciar o vídeo",
       "volume": "Volume do vídeo",
       "buffering": "Carregando",
+      "slow": "O vídeo está carregando devagar…",
       "opening": "Abrindo…",
       "start": "Assistir juntos",
+      "retry": "Tentar de novo",
       "next": "Próximo episódio",
       "nextPlay": "Pôr o próximo para todos",
       "nextLocked": "Quem o anfitrião autorizou a usar o cinema vai iniciar",
@@ -2233,7 +2235,8 @@
         "unsupported": "Este navegador não reproduz vídeo por streaming",
         "streamFailed": "A transmissão não abriu. Tente outro vídeo",
         "openFailed": "Não foi possível abrir o vídeo",
-        "renewFailed": "Não foi possível atualizar a transmissão"
+        "renewFailed": "Não foi possível atualizar a transmissão",
+        "stalled": "O vídeo não está carregando. Verifique a conexão e tente de novo"
       },
       "liveAd": "Intervalo comercial da plataforma · {{time}}"
     },

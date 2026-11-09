@@ -105,6 +105,21 @@ FILE_CHUNK = 2 * 1024 * 1024
 # Сколько чужих ответов подходящего размера (`Segments.largest`, 12 МБ) читается в общую память разом: каждый
 # — до двух своих размеров в памяти, пока читается. Остальные в этот миг идут к зрителю потоком, мимо памяти.
 FOREIGN_READS = 8
+# Целый кусочек (HLS) — со своими сроками, а не с общими (`net.TIMEOUT`: соединение 20 с, чтение 60 с).
+# Пока кусочек качается, его ждут все зрители комнаты (`Segments.lock`), а плеер спрашивает заново через
+# 10 с без первого байта: застрявшее на минуту чтение держало бы всю комнату на крутящемся кружке, а
+# повтор плеера вставал бы в очередь за ним же. Живой YouTube отдаёт кусок за 0,1–0,3 с (замер с машины
+# ядра, 09.11.2026), самый тяжёлый (1080p60, 4–5 МБ) — за секунду; пауза в 8 с посреди тела — это уже
+# обрыв, а не медленная площадка. Сорвалось тело — ещё одна попытка новым соединением (`SEGMENT_TRIES`).
+SEGMENT_TIMEOUT = httpx.Timeout(8.0, connect=5.0)
+SEGMENT_DEADLINE = 25.0
+SEGMENT_TRIES = 2
+# Чтение вперёд (`Cinema.ahead`): плеер спросил кусок N — следующий (N+1) качается в общую память сразу, а
+# не когда плеер его попросит. Ответ к зрителю идёт после того, как кусок целиком у нас: без чтения вперёд
+# каждый кусок стоил зрителю загрузки с площадки и затем своей, с ним — только своей. Особенно после
+# перемотки: первый кусок нового места — две загрузки, следующие — уже одна. Одновременно — не больше
+# `AHEAD_LIMIT` на сервер; только у площадок каталога (у чужих страниц своя память, `FOREIGN_READS`).
+AHEAD_LIMIT = 8
 REWRITES_BUSY = "Сервер сейчас занят видео других комнат — попробуйте ещё раз"
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
 DENIED_HOST = "Ссылки с этого сайта владелец сервера закрыл"
@@ -252,6 +267,10 @@ class Cinema:
         self.rewriting = 0
         # Чтения чужих ответов в общую память (`fetch`): не больше `FOREIGN_READS` разом.
         self.foreign_reads = asyncio.Semaphore(FOREIGN_READS)
+        # Чтение вперёд (`ahead`): идущие задачи — чтобы их не собрал сборщик мусора, — и сколько их.
+        self._ahead: set[asyncio.Task[None]] = set()
+        # Сколько кусочков прочитано вперёд и сколько из них потом спросил зритель (метрики).
+        self.read_ahead = 0
         self.catalog = Memo()
         self.sources = Memo(capacity=64)
         self.resolves = Window(
@@ -403,6 +422,12 @@ class Cinema:
             f"# HELP {name} Повторы запроса к площадке за сегментом или плейлистом после сбоя (`_open`).",
             f"# TYPE {name} counter",
             f"{name} {self.retries}",
+        ]
+        name = "cord_cinema_read_ahead_total"
+        lines += [
+            f"# HELP {name} Кусочки HLS, прочитанные вперёд в общую память до вопроса плеера (`ahead`).",
+            f"# TYPE {name} counter",
+            f"{name} {self.read_ahead}",
         ]
         return lines
 
@@ -968,8 +993,27 @@ class Cinema:
             cached = self.segments.get(url)
             if cached:
                 return _kept(*cached)
-            upstream = await self._open(client, url, {}, provider, profile)
-            foreign = self._foreign(provider)
+            try:
+                async with asyncio.timeout(SEGMENT_DEADLINE):
+                    found = await self._whole(client, url, provider, profile)
+            except TimeoutError:
+                raise HTTPException(504, "Площадка не отдала кусок видео вовремя") from None
+            if isinstance(found, Relay):
+                return found
+            return _kept(*found)
+
+    async def _whole(
+        self, client: httpx.AsyncClient, url: str, provider: str, profile: Profile | None
+    ) -> tuple[bytes, str] | Relay:
+        """
+        Целый кусочек — в общую память (вид для зрителя и байты) или, если туда он не ляжет, потоком к
+        зрителю. Свои сроки (`SEGMENT_TIMEOUT`), и сорванное на середине тело — ещё раз новым соединением
+        (`SEGMENT_TRIES`): кусок HLS, сорвавшийся у нас, плеер иначе ждал бы до своего повтора, а комната —
+        с ним.
+        """
+        foreign = self._foreign(provider)
+        for attempt in range(SEGMENT_TRIES):
+            upstream = await self._open(client, url, {}, provider, profile, timeout=SEGMENT_TIMEOUT)
             if not self._storable(upstream) or (foreign and self.foreign_reads.locked()):
                 # В общую память такой ответ не ляжет, поэтому и в нашу целиком не читается: он
                 # идёт к зрителю потоком, как ответ на `Range`. Ждущие за этим замком пойдут
@@ -979,14 +1023,54 @@ class Cinema:
                 return self._stream(upstream, "video/mp2t")
             async with self.foreign_reads if foreign else contextlib.nullcontext():
                 try:
-                    body = await self._read(upstream)
+                    body = await self._read(upstream, broken=attempt + 1 < SEGMENT_TRIES)
+                except _Broken:
+                    self.retries += 1
+                    continue
                 finally:
                     await upstream.aclose()
             # В общую память — уже вид для зрителя (`relay.media_type`): чужой `text/html` не должен
             # дождаться там второго зрителя.
             kind = media_type(upstream.headers.get("content-type"), "video/mp2t")
             self.segments.put(url, body, kind)
-            return _kept(body, kind)
+            return body, kind
+        # Недостижимо: последняя попытка читает без `_Broken`.
+        raise HTTPException(502, "Площадка не отдала данные")
+
+    def ahead(self, key: str, index: int) -> None:
+        """
+        Следующий кусок списка (`index + 1`) — в общую память заранее (`AHEAD_LIMIT`). Только у площадок
+        каталога, только если его там ещё нет и никто его уже не качает. Ошибка здесь — не ошибка зрителя:
+        спросит сам плеер, и тогда кусок пойдёт обычным путём.
+        """
+        if len(self._ahead) >= AHEAD_LIMIT:
+            return
+        try:
+            reel = self.reels.find(key, index + 1)
+        except HTTPException:
+            return
+        if self._foreign(reel.provider) or reel.profile or self.segments.get(reel.url) is not None:
+            return
+        if self.segments.lock(reel.url).locked():
+            return
+        task = asyncio.get_running_loop().create_task(self._read_ahead(reel.url, reel.provider))
+        self._ahead.add(task)
+        task.add_done_callback(self._ahead.discard)
+
+    async def _read_ahead(self, url: str, provider: str) -> None:
+        async with self.segments.lock(url):
+            if self.segments.get(url) is not None:
+                return
+            try:
+                async with asyncio.timeout(SEGMENT_DEADLINE):
+                    found = await self._whole(self.net.client_for(provider), url, provider, None)
+            except (HTTPException, TimeoutError, httpx.HTTPError):
+                return
+            if isinstance(found, Relay):
+                # Не ляжет в память — значит, и вперёд его не читаем: соединение закрывается непрочитанным.
+                await found.upstream.aclose()
+                return
+            self.read_ahead += 1
 
     async def _open(
         self,
@@ -995,12 +1079,14 @@ class Cinema:
         headers: dict[str, str],
         provider: str = "",
         profile: Profile | None = None,
+        *,
+        timeout: httpx.Timeout | None = None,
     ) -> httpx.Response:
         """
-        Ответ площадки с непрочитанным телом. Переадресацию прокси проходит сам и только у площадок,
-        которым это нужно (`Provider.follows_redirects`), каждым шагом по их политике хостов. Поток плеера
-        страниц, которому сайт отказал (`REFUSING`), — 410: его профиль устарел, и плеер комнаты попросит
-        поток заново.
+        Ответ площадки с непрочитанным телом (`timeout` — свои сроки запроса вместо общих клиента).
+        Переадресацию прокси проходит сам и только у площадок, которым это нужно
+        (`Provider.follows_redirects`), каждым шагом по их политике хостов. Поток плеера страниц, которому
+        сайт отказал (`REFUSING`), — 410: его профиль устарел, и плеер комнаты попросит поток заново.
 
         Сбой сети или 5xx площадки — не сразу отказ зрителю: ещё три попытки через 200/400/800 мс
         (`RETRY_DELAYS`, R04 «деградация без обрыва»). Сегмент HLS живёт секунды, и мигнувшая сеть до
@@ -1009,7 +1095,7 @@ class Cinema:
         """
         for attempt, delay in enumerate((*RETRY_DELAYS, None)):
             try:
-                upstream = await self._send(client, url, headers, provider, profile)
+                upstream = await self._send(client, url, headers, provider, profile, timeout)
             except httpx.HTTPError:
                 if delay is None:
                     raise HTTPException(502, "Площадка не отдала данные") from None
@@ -1035,6 +1121,7 @@ class Cinema:
         headers: dict[str, str],
         provider: str,
         profile: Profile | None = None,
+        timeout: httpx.Timeout | None = None,
     ) -> httpx.Response:
         """
         Запрос к площадке. Сам httpx переадресацию не проходит никогда: у площадки, которой она нужна,
@@ -1046,7 +1133,8 @@ class Cinema:
         follow = source is not None and source.follows_redirects
         for _ in range(REDIRECTS + 1):
             extra = profile.headers_for(url) if profile is not None else {}
-            request = client.build_request("GET", url, headers={**extra, **headers})
+            asked = {"timeout": timeout} if timeout is not None else {}
+            request = client.build_request("GET", url, headers={**extra, **headers}, **asked)
             response = await client.send(request, stream=True, follow_redirects=False)
             location = response.headers.get("location")
             if not (follow and response.is_redirect and location):
@@ -1067,12 +1155,15 @@ class Cinema:
         length = upstream.headers.get("content-length", "")
         return length.isdigit() and int(length) <= self.segments.largest and _plain(upstream)
 
-    async def _read(self, upstream: httpx.Response, limit: int | None = None) -> bytes:
+    async def _read(
+        self, upstream: httpx.Response, limit: int | None = None, *, broken: bool = False
+    ) -> bytes:
         """Тело целиком — но не больше предела памяти, что бы площадка ни объявила.
 
         Сжатое тело сюда не попадает: кусочек видео — по `_storable`, субтитры спрашиваются
         несжатыми и сжатые отвергаются (`subtitles`), — поэтому байты те же, что пришли по сети, и
-        предел — это ровно столько памяти, сколько занято."""
+        предел — это ровно столько памяти, сколько занято. `broken` — сорванное на середине тело
+        (обрыв, пауза дольше срока чтения) не отказ, а `_Broken`: спросивший попробует ещё раз."""
         largest = self.segments.largest if limit is None else limit
         body = bytearray()
         try:
@@ -1081,6 +1172,8 @@ class Cinema:
                 if len(body) > largest:
                     raise HTTPException(502, "Площадка не отдала данные")
         except httpx.HTTPError:
+            if broken:
+                raise _Broken() from None
             raise HTTPException(502, "Площадка не отдала данные") from None
         return bytes(body)
 
@@ -1099,6 +1192,10 @@ class Cinema:
         passed["Cache-Control"] = "private, max-age=600"
         passed.update(SEALED)
         return Relay(upstream, status_code=upstream.status_code, headers=passed)
+
+
+class _Broken(Exception):
+    """Тело ответа площадки сорвалось на середине — стоит спросить ещё раз (`Cinema._whole`)."""
 
 
 def chunked(range_header: str) -> str:

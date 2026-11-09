@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LoaderCircle, Play, SkipForward, VolumeX } from 'lucide-react';
+import { LoaderCircle, Play, RotateCcw, SkipForward, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
@@ -11,10 +11,12 @@ import { useStore } from '../../primitives';
 import { useStageExit } from '../../stage-context';
 import { adAt, skipRank, SKIP_STEP_MS } from './ad-breaks';
 import { Chrome } from './Chrome';
+import { deviceProfile } from './device';
 import type { QualityPage } from './menus/QualityMenu';
 import { useCaptions } from './useCaptions';
 import { allowed } from '../../../core/permissions';
 import { usePlayback } from './usePlayback';
+import { usePlayhead } from './playhead';
 import { nextDue, useNextEpisode } from './useNextEpisode';
 import { useEcho, useRoomSync } from './useRoomSync';
 import { useWatchKeys } from './useWatchKeys';
@@ -77,7 +79,6 @@ export function WatchTheater({
    */
   const canControl = allowed(snapshot, meeting.admission.participantId, 'watch.control');
   const [playing, setPlaying] = useState(false);
-  const [waiting, setWaiting] = useState(false);
   const [idle, setIdle] = useState(false);
   const [menu, setMenu] = useState(false);
   /** Какая страница открыта в шестерёнке: сам список разделов, качество или язык звука. */
@@ -138,7 +139,13 @@ export function WatchTheater({
     element.addEventListener('webkitendfullscreen', ended);
     return () => element.removeEventListener('webkitendfullscreen', ended);
   }, [echo]);
-  const player = usePlayback({ meeting, api, watch, video, echo, preferences });
+  /*
+    Идёт ли картинка на самом деле — по позиции, а не по событиям (R216, `playhead.ts`): кружок, лечение
+    застрявшего плеера и синхронизация с комнатой смотрят сюда. Что умеет устройство — `device.ts`.
+  */
+  const { playhead, stalledMs } = usePlayhead(video);
+  const profile = useMemo(deviceProfile, []);
+  const player = usePlayback({ meeting, api, watch, video, echo, preferences, playhead, profile });
   const { source, status, setStatus, error } = player;
   const live = watch.kind === 'channel' || !!source?.live;
   const captions = useCaptions({
@@ -180,6 +187,8 @@ export function WatchTheater({
       document.removeEventListener('keydown', unmute, options);
     };
   }, [autoMuted, unmute]);
+  // Смотрит один — его медленная перемотка двигает комнату к нему, а не его за комнатой (R216).
+  const solo = snapshot.participants.length <= 1;
   const sync = useRoomSync({
     meeting,
     watch,
@@ -191,6 +200,9 @@ export function WatchTheater({
     wake,
     setStatus,
     onAutoMuted,
+    playhead,
+    rateSafe: profile.rateSafe,
+    solo,
   });
   const { command } = sync;
 
@@ -294,7 +306,8 @@ export function WatchTheater({
       .catch((e) => meeting.media.report(e));
   };
 
-  const behind = !live && Math.abs(sync.drift) > VISIBLE_DRIFT;
+  // Одного в комнате ничто не догоняет — комната идёт за ним, и «Догоняем комнату…» было бы неправдой.
+  const behind = !live && !solo && Math.abs(sync.drift) > VISIBLE_DRIFT;
   // Когда пульт виден — правило в `watch-controls.ts`: по бездействию он уходит и на паузе.
   const showControls = controlsShown({
     idle,
@@ -332,7 +345,6 @@ export function WatchTheater({
           }}
           onPlay={() => {
             setPlaying(true);
-            setWaiting(false);
             setStatus((current) => (current === 'blocked' ? 'ready' : current));
             sync.played();
           }}
@@ -344,8 +356,6 @@ export function WatchTheater({
           onSeeked={() => {
             if (nativeFullscreenVideo() === video.current) sync.seeked();
           }}
-          onWaiting={() => setWaiting(true)}
-          onPlaying={() => setWaiting(false)}
           onLoadedMetadata={() => {
             setStatus('ready');
             sync.loaded();
@@ -380,9 +390,11 @@ export function WatchTheater({
             ))}
           </div>
         )}
-        {status === 'ready' && waiting && playing && (
+        {/* Кружок — только пока картинка правда стоит (R216): события `waiting`/`playing` у телевизоров врут. */}
+        {status === 'ready' && playing && stalledMs > 0 && (
           <div className="watch-buffering" role="status" aria-label={t(($) => $.cinema.theater.buffering)}>
             <LoaderCircle size={32} />
+            {stalledMs >= SLOW_MS && <span className="watch-slow">{t(($) => $.cinema.theater.slow)}</span>}
           </div>
         )}
         {next && due && (
@@ -435,7 +447,15 @@ export function WatchTheater({
                 <Play size={20} /> {t(($) => $.cinema.theater.start)}
               </button>
             )}
-            {status === 'failed' && <span className="watch-error">{error}</span>}
+            {/* Отказ — с выходом: «Повторить» открывает поток заново, а не оставляет кадр с текстом (R216). */}
+            {status === 'failed' && (
+              <div className="watch-failed">
+                <span className="watch-error">{error}</span>
+                <button className="button" onClick={player.retry}>
+                  <RotateCcw size={16} /> {t(($) => $.cinema.theater.retry)}
+                </button>
+              </div>
+            )}
           </div>
         )}
         <Chrome
@@ -471,6 +491,9 @@ export function WatchTheater({
     </section>
   );
 }
+
+/** Стоит дольше этого — под кружком честно: «Видео грузится медленно…», мс. */
+const SLOW_MS = 8000;
 
 /*
   Ленивая загрузка: hls.js весит больше всего остального интерфейса вместе взятого, а нужен

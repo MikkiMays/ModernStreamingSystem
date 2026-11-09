@@ -33,6 +33,8 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
   const asking = useRef<AbortController | null>(null);
   const sourceGeneration = useRef(0);
   const renewals = useRef(0);
+  /** Когда лечение открывало поток заново (`recover`): не больше {@link REOPENS} за {@link REOPEN_WINDOW_MS}. */
+  const reopened = useRef<number[]>([]);
   const latest = useRef(watch);
   latest.current = watch;
 
@@ -42,6 +44,7 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
     let alive = true;
     sourceGeneration.current++;
     renewals.current = 0;
+    reopened.current = [];
     refreshing.current = false;
     setStatus('loading');
     setError('');
@@ -152,5 +155,64 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
     return true;
   };
 
-  return { source, status, setStatus, error, setError, renew: renewSource, expired, dashFailed, fileFailed };
+  /**
+   * Лечение на месте не помогло (R216, `stall.ts`): открыть поток заново. Не больше {@link REOPENS} раз за
+   * {@link REOPEN_WINDOW_MS}: поток, который не играет и после этого, — честный отказ, а не круг
+   * переоткрытий. `false` — попытки кончились.
+   *
+   * `fresh` — новый разбор с `refresh` (новые адреса у площадки): когда не приходят данные. Встал декодер при
+   * полном буфере (данные есть, позиция стоит) — адреса ни при чём: новый движок на том же адресе, без
+   * разбора. Каждый разбор YouTube — это запросы yt-dlp с адреса сервера, и лишние ведут к «подтвердите,
+   * что вы не бот» для всех комнат сразу.
+   */
+  const recover = (fresh = true) => {
+    // Поток уже открывается заново (срок подписи, 403, «Повторить») — это и есть переоткрытие: попытку не тратим.
+    if (refreshing.current) return true;
+    const now = Date.now();
+    reopened.current = reopened.current.filter((at) => now - at < REOPEN_WINDOW_MS);
+    if (reopened.current.length >= REOPENS) return false;
+    reopened.current.push(now);
+    if (fresh || !source) {
+      void renewSource(source?.kind !== 'file' && typeof MediaSource !== 'undefined');
+      return true;
+    }
+    // Тот же адрес новым объектом — эффект плеера разберёт движок и соберёт новый.
+    echo.suppress();
+    renewed();
+    setStatus('loading');
+    setSource({ ...source });
+    return true;
+  };
+
+  /** «Повторить» после отказа: всё с начала — и счёт попыток тоже; DASH — только где есть MSE. */
+  const retry = () => {
+    if (refreshing.current) return;
+    renewals.current = 0;
+    reopened.current = [];
+    setError('');
+    /*
+      Сразу «Открываем…»: новый разбор длится секунды, и всё это время отказ с кнопкой звал бы нажать её
+      ещё раз — а каждое нажатие стоило бы нового разбора у площадки.
+    */
+    setStatus('loading');
+    void renewSource(typeof MediaSource !== 'undefined');
+  };
+
+  return {
+    source,
+    status,
+    setStatus,
+    error,
+    setError,
+    renew: renewSource,
+    expired,
+    dashFailed,
+    fileFailed,
+    recover,
+    retry,
+  };
 }
+
+/** Сколько раз лечение может открыть поток заново за {@link REOPEN_WINDOW_MS}. */
+export const REOPENS = 2;
+export const REOPEN_WINDOW_MS = 10 * 60_000;
