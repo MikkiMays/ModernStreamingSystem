@@ -242,14 +242,15 @@ test('имя пульта (R207): --admin пишет ADMIN_HOST и маршру�
     assert.match(env, /^ADMIN_HOST=admin.example.test$/m);
     assert.equal(env.match(/^ADMIN_HOST=/gm).length, 1);
     const edge = JSON.parse(await readFile(join(directory, 'infra/generated/edge.json'), 'utf8'));
-    assert.equal(edge.apps.layer4.servers.main.routes.length, 4);
+    // Пульт — два маршрута: проверка Let's Encrypt (acme-tls/1, без прокси) и сам пульт по сертификату.
+    assert.equal(edge.apps.layer4.servers.main.routes.length, 5);
     assert.deepEqual(edge.apps.tls.certificates.automate.at(-1), 'admin.example.test');
     const stored = JSON.parse(await readFile(join(directory, 'infra/generated/topology.json'), 'utf8'));
     assert.equal(stored.admin, 'admin.example.test');
     // Следующий перевыпуск без --admin помнит имя из topology.json.
     const again = run('--refresh');
     assert.equal(again.status, 0, again.stderr);
-    assert.equal(JSON.parse(await readFile(join(directory, 'infra/generated/edge.json'), 'utf8')).apps.layer4.servers.main.routes.length, 4);
+    assert.equal(JSON.parse(await readFile(join(directory, 'infra/generated/edge.json'), 'utf8')).apps.layer4.servers.main.routes.length, 5);
   } finally {
     const child = relative(root, resolve(directory));
     assert(child.startsWith('streaming-config-') && !child.includes(sep) && !child.includes('..'));

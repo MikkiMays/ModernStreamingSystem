@@ -217,7 +217,16 @@ export function createEdge(args) {
     routes = [route([turn], 5349), route([app], gateway, true), route([rtc], gateway, true)];
     // Пульт (R207, R211) — на своём порту шлюза: блок пульта живёт только там, и подставленный `Host` на имени
     // приложения до него не дотянется. TLS к имени пульта — только с клиентским сертификатом нашего центра.
-    if (admin) routes.push(route([admin], ports["admin-gateway-port"], true, ADMIN_CA));
+    // Проверка Let's Encrypt (TLS-ALPN-01, HTTP-01 выключен) — рукопожатие без клиентского сертификата, и требование
+    // сертификата на имени пульта её роняет. Её рукопожатие пускаем отдельным маршрутом раньше пульта: только `acme-tls/1`,
+    // без сертификата клиента и без прокси — после рукопожатия соединение закрывается, до порта пульта не доходит ничего.
+    if (admin) {
+      routes.push({
+        match: [{ tls: { sni: [admin], alpn: ["acme-tls/1"] } }],
+        handle: [{ handler: "tls", connection_policies: [{ alpn: ["acme-tls/1"] }] }],
+      });
+      routes.push(route([admin], ports["admin-gateway-port"], true, ADMIN_CA));
+    }
   }
   else if (mode === "simple") routes = [route([app], gateway, true)];
   else routes = [];

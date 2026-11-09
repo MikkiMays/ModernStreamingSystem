@@ -19,6 +19,9 @@ ENV FLEET_DATA=/tmp/fleet
 CMD ["python", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"]
 
 FROM base AS fleet
+# Каталог тома — пользователя службы: пустой именованный том при первом подключении берёт владельца из образа, а без
+# каталога в образе он root:root 755, и SQLite не открывает базу («unable to open database file»).
+RUN install -d -o 10001 -g 10001 -m 0700 /data
 USER 10001:10001
 # Состояние — том `fleet-data` (/data); ключи SSH — том `/keys` только для чтения (Р-120).
 CMD ["python", "-m", "fleet.app"]
