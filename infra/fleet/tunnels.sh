@@ -3,16 +3,20 @@
 #   цели: 0 — node-exporter (19100), 1 — cAdvisor (19101), 2 — ядро Cord (8080), 4 — метрики шлюза (2019).
 set -euo pipefail
 install -d -m 700 /etc/cord-fleet
-machine() { # id ip key prefix
-  local id=$1 ip=$2 key=$3 p=$4
+machine() { # id ip key prefix [core]
+  local id=$1 ip=$2 key=$3 p=$4 core=${5:-}
+  # Ядро Cord (цель 2) — только у машины продукта: медиаузел ядра не держит, и проброс в пустой порт был бы вечной
+  # целью `down`.
+  local forwards="-L 127.0.0.1:${p}0:127.0.0.1:19100 -L 127.0.0.1:${p}1:127.0.0.1:19101 -L 127.0.0.1:${p}4:127.0.0.1:2019"
+  [ "$core" = core ] && forwards="$forwards -L 127.0.0.1:${p}2:127.0.0.1:8080"
   cat > /etc/cord-fleet/$id.env <<ENV
 HOST=$ip
 KEY=$key
-FORWARDS=-L 127.0.0.1:${p}0:127.0.0.1:19100 -L 127.0.0.1:${p}1:127.0.0.1:19101 -L 127.0.0.1:${p}2:127.0.0.1:8080 -L 127.0.0.1:${p}4:127.0.0.1:2019
+FORWARDS=$forwards
 ENV
   chmod 600 /etc/cord-fleet/$id.env
 }
-machine fra 108.165.32.23 /root/.ssh/cord_fra 1911
+machine fra 108.165.32.23 /root/.ssh/cord_fra 1911 core
 machine msk 157.22.241.114 /root/.ssh/cord_msk 1912
 machine hel 152.234.227.199 /root/.ssh/cord_fi 1913
 # Цели для VictoriaMetrics (задание `nodes`, file_sd): метки machine/kind/role, у ядра — свой путь метрик.
@@ -23,7 +27,7 @@ import json, sys
 from pathlib import Path
 out = Path(sys.argv[1])
 for mid, p, title, role, core in (("fra", "1911", "meet · Франкфурт", "product+media", True),
-                                  ("msk", "1912", "cordcam · Москва", "media", True),
+                                  ("msk", "1912", "cordcam · Москва", "media", False),
                                   ("hel", "1913", "Хельсинки", "media", False)):
     groups = [{"targets": [f"127.0.0.1:{p}{n}"], "labels": {"machine": mid, "title": title, "role": role, "kind": kind}}
               for n, kind in (("0", "node"), ("1", "containers"), ("4", "gateway"))]
