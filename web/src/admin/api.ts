@@ -198,7 +198,6 @@ export type RegistryNode = {
   title?: Record<string, string>;
   country?: string;
   enabled?: boolean;
-  maxRooms?: number;
   uplinkMbps?: number;
   cores?: number;
   app?: string;

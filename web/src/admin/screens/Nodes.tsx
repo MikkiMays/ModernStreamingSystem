@@ -137,7 +137,6 @@ export function Nodes({ console }: { console: Console }) {
                   <th>{text.nodes.node}</th>
                   <th>{text.nodes.state}</th>
                   <th>{text.nodes.level}</th>
-                  <th data-num>{text.nodes.rooms}</th>
                   <th data-num>{text.nodes.uplink}</th>
                   <th data-num>{text.nodes.cores}</th>
                   <th>{text.nodes.actions}</th>
@@ -171,9 +170,6 @@ export function Nodes({ console }: { console: Console }) {
                       </td>
                       <td data-label={text.nodes.level}>
                         {level ? <Level level={level.level} state={level.state} /> : '—'}
-                      </td>
-                      <td data-num data-label={text.nodes.rooms}>
-                        {node.maxRooms ?? '—'}
                       </td>
                       <td data-num data-label={text.nodes.uplink}>
                         {node.uplinkMbps ?? '—'}
@@ -279,7 +275,6 @@ type Form = {
   app: string;
   rtc: string;
   turn: string;
-  maxRooms: string;
   uplinkMbps: string;
   cores: string;
   ssh: string;
@@ -314,7 +309,6 @@ export function AddServer({
     app: '',
     rtc: '',
     turn: '',
-    maxRooms: '4',
     uplinkMbps: '500',
     cores: '2',
     ssh: '',
@@ -330,7 +324,6 @@ export function AddServer({
     turn: form.turn || undefined,
     ssh: form.ssh || undefined,
     sshKey: form.sshKey || undefined,
-    maxRooms: Number(form.maxRooms),
     uplinkMbps: Number(form.uplinkMbps),
     cores: Number(form.cores),
   });
@@ -416,9 +409,6 @@ export function AddServer({
         </Field>
         <Field label={text.nodes.form.turn}>
           <Input value={form.turn} onChange={set('turn')} placeholder={`turn-${preview}`} />
-        </Field>
-        <Field label={text.nodes.form.maxRooms}>
-          <Input inputMode="numeric" value={form.maxRooms} onChange={set('maxRooms')} />
         </Field>
         <Field label={text.nodes.form.uplinkMbps}>
           <Input inputMode="numeric" value={form.uplinkMbps} onChange={set('uplinkMbps')} />

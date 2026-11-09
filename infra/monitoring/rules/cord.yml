@@ -210,11 +210,24 @@ groups:
 
       # Узел на ступени 4 минуту (R200, server-selection.md §3.4): новые встречи на него не ставятся,
       # идущие не трогаются — SFU сам снижает слои картинки. Ведущий видит «мест нет» в настройках.
-      - alert: NodeSaturated
-        expr: cord_node_level >= 4
-        for: 1m
+      # Р-135: встреча идёт на ближайший узел с запасом (ЦП, канал, память, память SFU, диск); перегретый узел новых
+      # встреч не берёт — они уходят на соседний. Пределов по числу встреч нет.
+      - alert: NodeHot
+        expr: cord_node_hot == 1
+        for: 5m
         labels: { severity: warn }
-        annotations: { summary: 'Медиаузел {{ $labels.node }} заполнен (ступень 4) больше минуты: новые встречи идут на другие узлы' }
+        annotations: { summary: 'Медиаузел {{ $labels.node }} перегружен 5 минут: новые встречи идут на соседние узлы' }
+
+      - alert: NodesSaturated
+        expr: cord_nodes_saturated == 1
+        for: 2m
+        labels: { severity: page }
+        annotations: { summary: 'Все медиаузлы перегружены: встречи создаются без запаса — нужна ёмкость (новый узел)' }
+
+      - alert: MeetingsPlacedWithoutHeadroom
+        expr: sum(increase(cord_node_choice_total{reason=~".*-saturated"}[10m])) > 0
+        labels: { severity: info }
+        annotations: { summary: 'За 10 минут встречи ставились на узлы без запаса: {{ $value }}' }
 
       # Остался один живой узел — не авария, но резерва для переезда нет.
       - alert: NodeSingle

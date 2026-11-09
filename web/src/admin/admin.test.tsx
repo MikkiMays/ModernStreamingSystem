@@ -212,7 +212,7 @@ describe('пульт флота', () => {
     fireEvent.change(screen.getByLabelText(text.login.code), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: text.login.signIn }));
     await screen.findByText(text.app.executorDry, {}, { timeout: 10_000 });
-    await screen.findAllByText('A');
+    await screen.findAllByText('A', {}, { timeout: 10_000 });
     await screen.findByText('CORE_UNREACHABLE', {}, { timeout: 10_000 });
     expect(screen.getByText('2 встречи · 9 человек')).toBeInTheDocument();
     expect(screen.getByText(text.overview.noJobs)).toBeInTheDocument();
