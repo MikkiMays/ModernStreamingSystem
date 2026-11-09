@@ -37,6 +37,9 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: {
+      // Стенд «разных адресов» (scripts/test-addresses): каждое соединение браузера — со своего адреса пула, как у
+      // разных людей; защита от злоупотреблений на стенде не ослабляется.
+      ...(process.env.CORD_TEST_PROXY ? { proxy: { server: process.env.CORD_TEST_PROXY } } : {}),
       args: [
         '--use-fake-device-for-media-stream',
         '--use-fake-ui-for-media-stream',

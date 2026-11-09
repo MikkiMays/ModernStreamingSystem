@@ -23,6 +23,19 @@ PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test e2e/meeting.spec.ts 
 Конфиг уже даёт `--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream` и автоселект
 экрана. Свой сценарий — файл в `web/e2e/` (или временный в `web/.verify/`), два `browser.newContext()`.
 
+### Разные адреса, как у живых людей
+
+Много встреч и участников с одной машины упираются в защиту (10 новых встреч в час с адреса, 6 с устройства). Пределы
+не трогать — каждому браузеру свой адрес (владелец 09.11):
+
+```bash
+sudo bash scripts/test-addresses/test-addresses.sh up 200     # интерфейс cordtest0, адреса 10.77.x.x, прокси :18299
+CORD_TEST_PROXY=http://127.0.0.1:18299 PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test …
+```
+
+Каждое соединение уходит со следующего адреса пула; путь тот же — TLS, edge, шлюз, ядро. Только для стенда на этой
+машине: на продукт так не выйти (адреса не маршрутизируются наружу) — там нагрузка с нескольких машин флота.
+
 ## Что мерить
 
 - **Размер своего захвата** — `videoHeight` у `video[aria-label="Камера: <имя>"]`.
