@@ -331,9 +331,7 @@ function Participants({ id, code, onCode }: { id: string; code: string; onCode: 
                 <th>{text.meetings.meeting}</th>
                 <th>{text.meetings.ip}</th>
                 <th>{text.meetings.client}</th>
-                <th>{text.meetings.node}</th>
-                <th>{text.meetings.joined}</th>
-                <th>{text.meetings.left}</th>
+                <th>{text.meetings.when}</th>
               </tr>
             </thead>
             <tbody>
@@ -371,7 +369,13 @@ function ParticipantRow({ row }: { row: MeetingParticipant }) {
       </td>
       <td data-label={t.meeting} data-wrap>
         <code>{row.roomCode ?? '—'}</code>
-        {row.title && <span className="admin-hint"> · {row.title}</span>}
+        {row.title && <span> · {row.title}</span>}
+        {row.mediaNode && (
+          <span className="admin-hint">
+            {' '}
+            · {t.node} {row.mediaNode}
+          </span>
+        )}
       </td>
       <td data-label={t.ip}>
         {row.ip ? <code>{row.ip}</code> : <span className="admin-hint">{t.noIp}</span>}
@@ -379,14 +383,11 @@ function ParticipantRow({ row }: { row: MeetingParticipant }) {
       <td data-label={t.client}>
         {t.clients[row.client] ?? row.client} · {t.systems[row.os] ?? row.os}
       </td>
-      <td data-label={t.node}>{row.mediaNode ?? '—'}</td>
-      <td data-label={t.joined} className="admin-hint">
-        {when(Math.round(row.joinedAt / 1000), true)}
-      </td>
-      <td data-label={t.left}>
+      <td data-label={t.when}>
+        {when(Math.round(row.joinedAt / 1000), true)}{' '}
         {row.leftAt ? (
           <span className="admin-hint">
-            {when(Math.round(row.leftAt / 1000), true)} ·{' '}
+            → {when(Math.round(row.leftAt / 1000))} ·{' '}
             {duration(Math.max(0, (row.leftAt - row.joinedAt) / 1000))}
           </span>
         ) : (

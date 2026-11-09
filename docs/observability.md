@@ -385,13 +385,20 @@ CREATE INDEX audit_expiry ON audit_events(expires_at);
 
 ```yaml
   retention:
-    # Журнал аудита: кто что сделал во встрече. Трёх месяцев хватает на разбор жалобы.
-    audit: ${AUDIT_RETENTION:3 months}
-    # Строки встреч для графиков «за период». Год — чтобы сравнивать с прошлым сезоном.
-    meeting-stats: ${MEETING_STATS_RETENTION:1 year}
+    # Метаданные (Р-134): журнал участников с полным IP, аудит, итоги встреч, аналитика — год.
+    metadata: ${METADATA_RETENTION:1 year}
+    # Журнал аудита: кто что сделал во встрече, с полным адресом и отпечатком для блоков.
+    audit: ${AUDIT_RETENTION:${stream.retention.metadata}}
+    # Строки встреч для графиков «за период».
+    meeting-stats: ${MEETING_STATS_RETENTION:${stream.retention.metadata}}
     # Итоги дня — только числа, без людей.
     activity-daily: ${ACTIVITY_DAILY_RETENTION:never}
 ```
+
+С Р-134 (09.11.2026) журнал хранит **полный IP-адрес** (`audit_events.ip`) рядом с отпечатком (`ip_hash`, по
+нему ставятся блоки), а сроки считаются от события по нынешней настройке. Содержимое и его очистка —
+`docs/architecture/data-retention.md`; метрики очистки — `cord_retention_deleted_total{kind}`,
+`cord_retention_oldest_content_seconds{kind}`, `cord_retention_last_sweep_timestamp_seconds`.
 
 Сроки профиля `monitoring` — тоже словами в `.env` (`METRICS_RETENTION=3 months`, `LOGS_RETENTION=14 days`);
 `configure.mjs` переводит их во флаги `-retentionPeriod=3` / `14d` и добавляет журналам потолок 2 ГиБ.

@@ -451,8 +451,10 @@ docker compose up -d --no-deps --force-recreate core
 | Ключ | Переменная | По умолчанию | Что хранит |
 | --- | --- | --- | --- |
 | `stream.admin-password` | `ADMIN_PASSWORD` | пусто | пароль страницы «Активность»; пусто — выключена |
-| `stream.retention.audit` | `AUDIT_RETENTION` | `3 months` | журнал аудита: входы, отказы, исключения, рычаги владельца; имя участника и отпечаток адреса |
-| `stream.retention.meeting-stats` | `MEETING_STATS_RETENTION` | `1 year` | строки встреч: длительность, пик, человеко-секунды, интеграции — без названий и текста |
+| `stream.retention.content` | `CONTENT_RETENTION` | `24 hours` | потолок содержимого (Р-134): чат, вложения, доска и её картинки, кино и музыка, итоги игр; больше суток не ставится — ядро не поднимется |
+| `stream.retention.metadata` | `METADATA_RETENTION` | `1 year` | срок метаданных (Р-134): журнал участников с полным IP, аудит, итоги встреч, аналитика, обращения без текста |
+| `stream.retention.audit` | `AUDIT_RETENTION` | срок метаданных | журнал аудита: входы, отказы, исключения, рычаги владельца; имя участника, полный адрес и его отпечаток (для блоков) |
+| `stream.retention.meeting-stats` | `MEETING_STATS_RETENTION` | срок метаданных | строки встреч: длительность, пик, человеко-секунды, интеграции — без текста |
 | `stream.retention.activity-daily` | `ACTIVITY_DAILY_RETENTION` | `never` | итоги дня — только числа |
 
 **Профиль `monitoring`** — VictoriaMetrics, vmalert, Alertmanager, Grafana OSS, экспортеры машины,
@@ -541,16 +543,20 @@ Cord. Ни одна из строк не растёт сама по себе —
 
 | Ключ | По умолчанию | Что это |
 | --- | --- | --- |
-| `saved-room` | `7 days` | сохранённая встреча без единого входа |
+| `saved-room` | `7 days` | сохранённая встреча без единого входа (сама встреча — метаданные; её чат, доска и очереди — не дольше суток) |
 | `unsaved-room` | `immediately` | завершённая встреча, которую никто не сохранил |
-| `closed-history` | `1 hour` | переписка и события после завершения |
-| `messages` | `1 day` | сообщения, расписки, приглашения и вложения идущей встречи |
+| `closed-history` | `1 hour` | переписка и события после завершения; не больше `content` |
+| `messages` | `1 day` | сообщения, расписки, приглашения и вложения идущей встречи; не больше `content` |
+| `content` | `24 hours` | потолок всего содержимого (Р-134); больше суток не ставится |
+| `metadata` | `1 year` | метаданные: журнал участников, аудит, итоги встреч, аналитика (Р-134) |
 
 Понимаются `7 days`, `2 weeks`, `3 months`, `month`, `90m`, `never` и `immediately`; окончание
 `s` необязательно, `m` — это **минуты**, а месяц — `mo` или `month` (месяц и год считаются как
 30 и 365 дней). Непонятная строка не игнорируется: сервер не поднимется и скажет, что именно
 не разобрал. Каждый ключ переопределяется переменной окружения — `SAVED_ROOM_RETENTION`,
-`UNSAVED_ROOM_RETENTION`, `CLOSED_HISTORY_RETENTION`, `MESSAGE_RETENTION`.
+`UNSAVED_ROOM_RETENTION`, `CLOSED_HISTORY_RETENTION`, `MESSAGE_RETENTION`, `CONTENT_RETENTION`,
+`METADATA_RETENTION`. Срок содержимого дольше суток (`MESSAGE_RETENTION=2 days` и т. п.) ядро не примет и не
+поднимется: правило Р-134, `docs/architecture/data-retention.md`.
 
 `unsaved-room: immediately` — это ещё и окно на «я случайно вышел»: пока срок не истёк,
 встреча открывается по прежней ссылке из списка недавних. Поставьте `1 hour`, если такое окно
