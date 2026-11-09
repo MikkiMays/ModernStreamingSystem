@@ -41,8 +41,11 @@ class BoardRoomTest {
     return Json.tree("[" + String.join(",", elements) + "]");
   }
 
+  /** Часы ядра в тестах сцены — одни и те же: время правки ставит ядро ({@code updated}). */
+  static final long NOW = 1_800_000_000_000L;
+
   static BoardRoom room() {
-    return new BoardRoom("room", BoardProperties.defaults());
+    return new BoardRoom("room", BoardProperties.defaults(), () -> NOW);
   }
 
   static BoardRoom room(int maxElements, int maxIds, long maxSceneBytes, int maxFiles) {
@@ -62,7 +65,8 @@ class BoardRoomTest {
             d.outboxBytes(),
             d.flushMs(),
             d.idleMs(),
-            d.sendTimeoutMs()));
+            d.sendTimeoutMs()),
+        () -> NOW);
   }
 
   static Map<String, JsonNode> scene(BoardRoom room) {
@@ -160,17 +164,21 @@ class BoardRoomTest {
     // ядра.
     var small = room(100, 100, 600, 32);
     var big = ",\"text\":\"" + "я".repeat(150) + "\"";
+    // Текст у удалённого ядро стирает (Р-134), поэтому груз — в поле, которого оно не знает.
+    var heavy = ",\"customData\":{\"pad\":\"" + "я".repeat(150) + "\"}";
     assertThat(small.apply(batch(el("t", 1, 1, false, "text", big)), "anna").accepted())
         .isEqualTo(1);
-    assertThat(small.apply(batch(el("ghost", 1, 1, true, "text", big)), "anna").rejected())
+    assertThat(small.apply(batch(el("ghost", 1, 1, true, "text", heavy)), "anna").rejected())
         .extracting(BoardRoom.Rejected::code)
         .containsExactly("BOARD_FULL");
     // А удалить живой элемент полной сцены — можно: удаление почти не меняет его размер.
     assertThat(small.apply(batch(el("t", 2, 1, true, "text", big)), "anna").accepted())
         .isEqualTo(1);
+    // От удалённого остался след без текста: удалённое — не содержимое.
+    assertThat(scene(small).get("t").path("text").asText()).isEmpty();
     // Удалённый же расти дальше не может.
-    var bigger = ",\"text\":\"" + "я".repeat(400) + "\"";
-    assertThat(small.apply(batch(el("t", 3, 1, true, "text", bigger)), "anna").rejected())
+    var heavier = ",\"customData\":{\"pad\":\"" + "я".repeat(400) + "\"}";
+    assertThat(small.apply(batch(el("t", 3, 1, true, "text", heavier)), "anna").rejected())
         .extracting(BoardRoom.Rejected::code)
         .containsExactly("BOARD_FULL");
   }
@@ -231,7 +239,7 @@ class BoardRoomTest {
   void clearStartsANewGenerationWithAnEmptyScene() {
     var room = room();
     room.apply(batch(el("a", 1, 1)), "anna");
-    room.addFile(new BoardRoom.FileMeta("f1", "image/png", 10));
+    room.addFile(new BoardRoom.FileMeta("f1", "image/png", 10, 0));
     long before = room.epoch();
     long seq = room.seq();
     assertThat(room.clear()).isEqualTo(before + 1);
@@ -252,10 +260,12 @@ class BoardRoomTest {
         BoardRoom.restore(
             "room",
             BoardProperties.defaults(),
+            System::currentTimeMillis,
             saved.epoch(),
             saved.seq(),
             saved.elements(),
-            List.of(new BoardRoom.FileMeta("f", "image/png", 3)));
+            List.of(new BoardRoom.FileMeta("f", "image/png", 3, 0)),
+            System.currentTimeMillis());
     assertThat(scene(again)).isEqualTo(scene(room));
     assertThat(again.live()).isEqualTo(1);
     assertThat(again.seq()).isEqualTo(room.seq());
@@ -267,15 +277,107 @@ class BoardRoomTest {
   @Test
   void fullBoardFreesFilesThatNoVisibleImageUses() {
     var room = room(100, 100, 1 << 20, 2);
-    room.addFile(new BoardRoom.FileMeta("used", "image/png", 1));
-    room.addFile(new BoardRoom.FileMeta("gone", "image/png", 1));
+    room.addFile(new BoardRoom.FileMeta("used", "image/png", 1, 0));
+    room.addFile(new BoardRoom.FileMeta("gone", "image/png", 1, 0));
     room.apply(batch(el("i", 1, 1, false, "image", ",\"fileId\":\"used\"")), "anna");
     room.apply(batch(el("j", 1, 1, true, "image", ",\"fileId\":\"gone\"")), "anna");
     assertThat(room.makeRoomForFile()).containsExactly("gone");
     assertThat(room.hasFile("gone")).isFalse();
-    room.addFile(new BoardRoom.FileMeta("next", "image/png", 1));
+    room.addFile(new BoardRoom.FileMeta("next", "image/png", 1, 0));
     room.apply(batch(el("k", 1, 1, false, "image", ",\"fileId\":\"next\"")), "anna");
     assertThat(room.makeRoomForFile()).isNull();
+  }
+
+  // Срок содержимого (Р-134) ------------------------------------------------------------------
+
+  static final long HOUR = 3_600_000L;
+  static final long DAY = 24 * HOUR;
+
+  /** Время правки — по часам ядра: {@code updated} из будущего от браузера элемент не продлит. */
+  @Test
+  void theCoreStampsEveryEditWithItsOwnClock() {
+    var room = room();
+    room.apply(batch(el("a", 1, 1, false, "rectangle", ",\"updated\":99999999999999")), "anna");
+    assertThat(scene(room).get("a").path("updated").asLong()).isEqualTo(NOW);
+    assertThat(room.oldest()).isEqualTo(NOW);
+  }
+
+  /**
+   * Каждый элемент — не дольше суток от добавления или правки, картинка — от загрузки, вместе с
+   * элементами, что на неё ссылаются; текст уходит с рамкой. Убрано — новое поколение.
+   */
+  @Test
+  void expiryDropsWhatIsOlderThanADayAndStartsANewGeneration() {
+    var clock = new java.util.concurrent.atomic.AtomicLong(NOW);
+    var room = new BoardRoom("room", BoardProperties.defaults(), clock::get);
+    room.apply(batch(el("old", 1, 1)), "anna");
+    room.apply(
+        batch(el("frame", 1, 1), el("label", 1, 1, false, "text", ",\"containerId\":\"frame\"")),
+        "anna");
+    room.addFile(new BoardRoom.FileMeta("pic", "image/png", 1, NOW));
+    clock.set(NOW + 20 * HOUR);
+    room.apply(batch(el("label", 2, 1, false, "text", ",\"containerId\":\"frame\"")), "anna");
+    room.apply(batch(el("img", 1, 1, false, "image", ",\"fileId\":\"pic\"")), "anna");
+    room.apply(batch(el("fresh", 1, 1)), "anna");
+    room.apply(batch(el("gone", 1, 1)), "anna");
+    room.apply(batch(el("gone", 2, 1, true, "rectangle", "")), "anna");
+    long epoch = room.epoch();
+    long seq = room.seq();
+    room.saved(seq, epoch);
+
+    clock.set(NOW + DAY + HOUR);
+    var expired = room.expire(clock.get() - DAY);
+    assertThat(expired.files()).containsExactly("pic");
+    // «old» и «frame» — сутки без правки; «label» — без своей рамки; «img» — с ушедшей картинкой.
+    assertThat(expired.elements()).isEqualTo(4);
+    assertThat(scene(room).keySet()).containsExactlyInAnyOrder("fresh", "gone");
+    assertThat(room.live()).isEqualTo(1);
+    assertThat(room.hasFile("pic")).isFalse();
+    assertThat(room.epoch()).isEqualTo(epoch + 1);
+    assertThat(room.seq()).isGreaterThan(seq);
+    assertThat(room.since(epoch, seq)).isEmpty();
+    assertThat(room.dirty()).isTrue();
+    assertThat(room.expire(clock.get() - DAY)).isNull();
+
+    clock.set(NOW + 20 * HOUR + DAY + HOUR);
+    assertThat(room.expire(clock.get() - DAY).elements()).isEqualTo(2);
+    assertThat(scene(room)).isEmpty();
+    assertThat(room.oldest()).isEqualTo(Long.MAX_VALUE);
+  }
+
+  /**
+   * Сцена до Р-134: время правки ставил браузер. Записанное после времени записи не верится —
+   * старое уходит в свой срок, а не живёт по часам браузера.
+   */
+  @Test
+  void aRestoredSceneTrustsNoEditLaterThanItsSave() {
+    long savedAt = NOW;
+    var elements =
+        "["
+            + el("future", 1, 1, false, "rectangle", ",\"updated\":" + (NOW + 365 * DAY))
+            + ","
+            + el("past", 1, 1, false, "rectangle", ",\"updated\":" + (NOW - 2 * DAY))
+            + ","
+            + el("none", 1, 1)
+            + "]";
+    var room =
+        BoardRoom.restore(
+            "room",
+            BoardProperties.defaults(),
+            () -> NOW + DAY + HOUR,
+            1,
+            7,
+            elements,
+            List.of(new BoardRoom.FileMeta("f", "image/png", 3, NOW - DAY)),
+            savedAt);
+    assertThat(room.oldest()).isEqualTo(NOW - 2 * DAY);
+    var expired = room.expire(NOW - DAY / 2);
+    assertThat(expired.elements()).isEqualTo(1);
+    assertThat(expired.files()).containsExactly("f");
+    assertThat(scene(room).keySet()).containsExactlyInAnyOrder("future", "none");
+    // «Из будущего» живёт не дольше суток от записи сцены, как и элемент без времени.
+    assertThat(room.oldest()).isEqualTo(savedAt);
+    assertThat(room.expire(savedAt).elements()).isEqualTo(2);
   }
 
   @Test

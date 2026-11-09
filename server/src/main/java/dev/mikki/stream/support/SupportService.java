@@ -2,6 +2,7 @@ package dev.mikki.stream.support;
 
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
+import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.shared.Problem;
 import java.text.Normalizer;
 import java.time.Clock;
@@ -238,14 +239,21 @@ public class SupportService {
   private final RateLimits limits;
   private final Secrets secrets;
   private final Clock clock;
+  private final StreamProperties stream;
 
   public SupportService(
-      JdbcClient jdbc, SupportProperties config, RateLimits limits, Secrets secrets, Clock clock) {
+      JdbcClient jdbc,
+      SupportProperties config,
+      RateLimits limits,
+      Secrets secrets,
+      Clock clock,
+      StreamProperties stream) {
     this.jdbc = jdbc;
     this.config = config;
     this.limits = limits;
     this.secrets = secrets;
     this.clock = clock;
+    this.stream = stream;
   }
 
   public boolean enabled() {
@@ -626,7 +634,9 @@ public class SupportService {
     if (status == Status.DONE || status == Status.ARCHIVED) {
       sql.append(", resolved_at=COALESCE(resolved_at, ?)");
       params.add(now);
-    } else sql.append(", resolved_at=NULL");
+    } else
+      // Вернули в работу — новые заметки снова живут до решения и суток после него (Р-134).
+      sql.append(", resolved_at=NULL, content_cleared_at=NULL");
     if (status == Status.ARCHIVED) {
       sql.append(", archived_at=?");
       params.add(now);
@@ -737,6 +747,44 @@ public class SupportService {
     return new Moved(id, number(id), status);
   }
 
+  /**
+   * Текст решённого обращения — до решения и ещё сутки (Р-134 (в), {@code
+   * stream.retention.content}): у обращений в «решено» и «архиве» дольше этого текст, диагностика и
+   * тексты ленты становятся {@code null}, а тема, статус, время, контакт, метки и узел остаются
+   * метаданными до {@code stream.support.retention}. Открытое обращение текст держит — по нему ещё
+   * работают. Вернули из архива в работу — текста уже нет, и это честно: он ушёл в срок. Сколько
+   * обращений очищено.
+   */
+  @Transactional
+  public int forgetResolvedText() {
+    long now = clock.millis();
+    long before = now - stream.retention().content().toMillis();
+    var ids =
+        jdbc.sql(
+                "SELECT id FROM support_tickets WHERE status IN ('done','archived') AND"
+                    + " content_cleared_at IS NULL AND COALESCE(resolved_at, archived_at, status_at)"
+                    + " <= ?")
+            .param(before)
+            .query(String.class)
+            .list();
+    for (var id : ids) {
+      jdbc.sql(
+              "UPDATE support_tickets SET message=NULL, diagnostics=NULL, content_cleared_at=?"
+                  + " WHERE id=?")
+          .params(now, id)
+          .update();
+      jdbc.sql("UPDATE support_notes SET text=NULL WHERE ticket_id=?").param(id).update();
+    }
+    // Заметка, дописанная к уже очищенному решённому обращению, живёт сутки от записи.
+    jdbc.sql(
+            "UPDATE support_notes SET text=NULL WHERE text IS NOT NULL AND created_at<=? AND"
+                + " ticket_id IN (SELECT id FROM support_tickets WHERE content_cleared_at IS NOT"
+                + " NULL)")
+        .param(before)
+        .update();
+    return ids.size();
+  }
+
   /** Забыть обращения старше срока хранения вместе с их лентой; сколько забыто. */
   @Transactional
   public int forgetOld() {
@@ -790,7 +838,7 @@ public class SupportService {
     if (!issues.isEmpty())
       out.append("\nЧто не так: ")
           .append(String.join(", ", issues.stream().map(i -> ISSUES.getOrDefault(i, i)).toList()));
-    if (!message.isEmpty()) out.append("\n\n").append(message);
+    if (message != null && !message.isEmpty()) out.append("\n\n").append(message);
     out.append("\n\nКонтакт: ").append(contact == null ? "не оставлен" : contact);
     if (diagnostics != null) out.append("\n\nДиагностика:\n").append(diagnostics);
     if (out.length() <= TELEGRAM_LIMIT) return out.toString();

@@ -26,8 +26,8 @@ import org.springframework.stereotype.Repository;
 public class BoardStore {
   private final JdbcClient jdbc;
 
-  /** Записанная сцена: поколение, номер правки и элементы JSON-массивом. */
-  public record Saved(long epoch, long seq, String elements) {}
+  /** Записанная сцена: поколение, номер правки, элементы JSON-массивом и когда записана. */
+  public record Saved(long epoch, long seq, String elements, long savedAt) {}
 
   /** Картинка: тип и байты. */
   public record FileData(String mime, byte[] data) {}
@@ -37,28 +37,37 @@ public class BoardStore {
   }
 
   public Optional<Saved> load(String roomId) {
-    return jdbc.sql("SELECT scene, seq, epoch FROM room_boards WHERE room_id=?")
+    return jdbc.sql("SELECT scene, seq, epoch, updated_at FROM room_boards WHERE room_id=?")
         .param(roomId)
         .query(
             (rs, n) ->
-                new Saved(rs.getLong("epoch"), rs.getLong("seq"), gunzip(rs.getBytes("scene"))))
+                new Saved(
+                    rs.getLong("epoch"),
+                    rs.getLong("seq"),
+                    gunzip(rs.getBytes("scene")),
+                    rs.getLong("updated_at")))
         .optional();
   }
 
   /**
-   * Записать сцену. {@code false} — комнаты уже нет (её удалили, пока доска жила в памяти): писать
-   * некуда, и доску пора забыть.
+   * Записать сцену. {@code oldest} — самое старое на ней ({@link BoardRoom#oldest()}): по нему
+   * почасовая очистка находит доски, где есть что убрать. {@code false} — комнаты уже нет (её
+   * удалили, пока доска жила в памяти): писать некуда, и доску пора забыть.
    */
-  public boolean save(String roomId, long epoch, long seq, String elements, long now) {
+  public boolean save(String roomId, long epoch, long seq, String elements, long oldest, long now) {
     var scene = gzip(elements);
     int updated =
-        jdbc.sql("UPDATE room_boards SET scene=?, seq=?, epoch=?, updated_at=? WHERE room_id=?")
-            .params(scene, seq, epoch, now, roomId)
+        jdbc.sql(
+                "UPDATE room_boards SET scene=?, seq=?, epoch=?, updated_at=?, content_at=? WHERE"
+                    + " room_id=?")
+            .params(scene, seq, epoch, now, oldest, roomId)
             .update();
     if (updated > 0) return true;
     try {
-      jdbc.sql("INSERT INTO room_boards(room_id, scene, seq, epoch, updated_at) VALUES(?,?,?,?,?)")
-          .params(roomId, scene, seq, epoch, now)
+      jdbc.sql(
+              "INSERT INTO room_boards(room_id, scene, seq, epoch, updated_at, content_at)"
+                  + " VALUES(?,?,?,?,?,?)")
+          .params(roomId, scene, seq, epoch, now, oldest)
           .update();
       return true;
     } catch (DataIntegrityViolationException e) {
@@ -68,13 +77,35 @@ public class BoardStore {
 
   public List<BoardRoom.FileMeta> files(String roomId) {
     return jdbc.sql(
-            "SELECT file_id, mime, size_bytes FROM room_board_files WHERE room_id=? ORDER BY created_at, file_id")
+            "SELECT file_id, mime, size_bytes, created_at FROM room_board_files WHERE room_id=? ORDER BY created_at, file_id")
         .param(roomId)
         .query(
             (rs, n) ->
                 new BoardRoom.FileMeta(
-                    rs.getString("file_id"), rs.getString("mime"), rs.getInt("size_bytes")))
+                    rs.getString("file_id"),
+                    rs.getString("mime"),
+                    rs.getInt("size_bytes"),
+                    rs.getLong("created_at")))
         .list();
+  }
+
+  /**
+   * Доски, где в базе есть что-то не новее {@code cutoff} (Р-134): элемент сцены или картинка. У
+   * сцен, записанных до этого выпуска, времени нет ({@code content_at IS NULL}) — их проверит
+   * первый же проход.
+   */
+  public List<String> due(long cutoff) {
+    return jdbc.sql(
+            "SELECT room_id FROM room_boards WHERE content_at IS NULL OR content_at<=? UNION"
+                + " SELECT DISTINCT room_id FROM room_board_files WHERE created_at<=?")
+        .params(cutoff, cutoff)
+        .query(String.class)
+        .list();
+  }
+
+  /** Проверенная доска, где убирать было нечего: запомнить, когда в ней срок у самого старого. */
+  public void checked(String roomId, long oldest) {
+    jdbc.sql("UPDATE room_boards SET content_at=? WHERE room_id=?").params(oldest, roomId).update();
   }
 
   public Optional<FileData> file(String roomId, String fileId) {

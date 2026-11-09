@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.mikki.stream.shared.Json;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 
 /**
@@ -26,6 +27,13 @@ import java.util.regex.Pattern;
  * <p>НОМЕР ПРАВКИ И ПОКОЛЕНИЕ. Каждая принятая пачка получает следующий {@code seq}; последние
  * пачки лежат в кольце, и вернувшийся сокет получает только пропущенное. Очистка начинает новое
  * поколение ({@code epoch}): у кого оно старое, тот берёт сцену целиком и забывает своё.
+ *
+ * <p>СРОК (Р-134). Каждый элемент живёт не дольше {@code stream.retention.content} (сутки) от
+ * добавления или последней правки, картинка — столько же от загрузки. Время правки ставит ядро
+ * своими часами в поле Excalidraw {@code updated} — присланному браузером не верим: иначе элемент с
+ * {@code updated} из будущего жил бы вечно. Удалённый элемент приходит без текста и ссылки: от него
+ * остаётся след для слияния, а не содержимое. Почасовая очистка ({@link #expire}) убирает старое и
+ * начинает новое поколение — у всех участников сцена сходится к оставшемуся.
  *
  * <p>Методы синхронизированы на самой доске: сокет держит тот же замок, пока раскладывает пачку по
  * очередям участников, — поэтому у каждого сокета правки идут строго по номерам.
@@ -54,6 +62,7 @@ public final class BoardRoom {
 
   private final String roomId;
   private final BoardProperties limits;
+  private final LongSupplier clock;
   private long epoch;
   private long seq;
   private final LinkedHashMap<String, Element> elements = new LinkedHashMap<>();
@@ -64,13 +73,19 @@ public final class BoardRoom {
   private final LinkedHashMap<String, FileMeta> files = new LinkedHashMap<>();
   private boolean dirty;
 
-  /** Элемент сцены: то, что нужно слиянию и пределам, и сам JSON ({@code size} — его байты). */
+  /**
+   * Элемент сцены: то, что нужно слиянию, пределам и сроку, и сам JSON ({@code size} — его байты).
+   * {@code stamp} — когда ядро приняло последнюю правку (мс), {@code containerId} — рамка, к
+   * которой привязан текст.
+   */
   record Element(
       String id,
       long version,
       long versionNonce,
       boolean deleted,
       String fileId,
+      String containerId,
+      long stamp,
       String json,
       int size) {}
 
@@ -79,8 +94,13 @@ public final class BoardRoom {
    */
   public record Batch(long seq, String from, int count, String elements) {}
 
-  /** Картинка доски: что лежит в {@code room_board_files}. */
-  public record FileMeta(String id, String mime, int size) {}
+  /** Картинка доски: что лежит в {@code room_board_files}; {@code createdAt} — когда загружена. */
+  public record FileMeta(String id, String mime, int size, long createdAt) {}
+
+  /**
+   * Что убрала очистка по сроку: сколько элементов (вместе со следами удалённых) и какие картинки.
+   */
+  public record Expired(int elements, List<String> files) {}
 
   /** Почему элемент не принят: {@code BOARD_FULL} (пределы) или {@code BOARD_INVALID}. */
   public record Rejected(String id, long version, String code) {}
@@ -95,27 +115,44 @@ public final class BoardRoom {
     }
   }
 
-  /** Сцена для записи и для того, кто входит: поколение, номер и все элементы. */
-  public record Scene(long epoch, long seq, String elements, List<FileMeta> files) {}
+  /**
+   * Сцена для записи и для того, кто входит: поколение, номер, все элементы и картинки; {@code
+   * oldest} — самое старое на ней ({@link #oldest()}).
+   */
+  public record Scene(long epoch, long seq, String elements, List<FileMeta> files, long oldest) {}
 
   public BoardRoom(String roomId, BoardProperties limits) {
-    this.roomId = roomId;
-    this.limits = limits;
+    this(roomId, limits, System::currentTimeMillis);
   }
 
-  /** Доска из базы: элементы — как записаны, без повторной проверки пределов. */
+  /** {@code clock} — часы ядра: по ним ставится время правки элемента. */
+  public BoardRoom(String roomId, BoardProperties limits, LongSupplier clock) {
+    this.roomId = roomId;
+    this.limits = limits;
+    this.clock = clock;
+  }
+
+  /**
+   * Доска из базы: элементы — как записаны, без повторной проверки пределов. Время правки — {@code
+   * updated} элемента, но не позже {@code savedAt}, когда сцену записали: у досок до Р-134 это
+   * время ставил браузер, а позже записи правки быть не может. Нет поля — время записи.
+   */
   public static BoardRoom restore(
       String roomId,
       BoardProperties limits,
+      LongSupplier clock,
       long epoch,
       long seq,
       String elements,
-      List<FileMeta> files) {
-    var room = new BoardRoom(roomId, limits);
+      List<FileMeta> files,
+      long savedAt) {
+    var room = new BoardRoom(roomId, limits, clock);
     room.epoch = epoch;
     room.seq = seq;
     for (var node : Json.tree(elements)) {
-      var element = element(node, Json.write(node));
+      var updated = node.path("updated");
+      long stamp = updated.isIntegralNumber() ? Math.min(updated.asLong(), savedAt) : savedAt;
+      var element = element(node, Json.write(node), stamp);
       if (element == null) continue;
       room.elements.put(element.id(), element);
       room.bytes += element.size();
@@ -149,6 +186,50 @@ public final class BoardRoom {
   /** Сцена записана — отметка снимается, если с тех пор ничего не принято. */
   public synchronized void saved(long savedSeq, long savedEpoch) {
     if (seq == savedSeq && epoch == savedEpoch) dirty = false;
+  }
+
+  /**
+   * Самое старое на доске: время правки самого давнего элемента или загрузки самой давней картинки;
+   * {@link Long#MAX_VALUE} — доска пуста.
+   */
+  public synchronized long oldest() {
+    long oldest = Long.MAX_VALUE;
+    for (var element : elements.values()) oldest = Math.min(oldest, element.stamp());
+    for (var file : files.values()) oldest = Math.min(oldest, file.createdAt());
+    return oldest;
+  }
+
+  /**
+   * Убрать всё, что старше {@code cutoff} (Р-134): элементы, правленные последний раз не позже
+   * него, картинки, загруженные не позже него, элементы с такими картинками и текст, чья рамка
+   * ушла. Следы удалённых живут тем же сроком. Что-то убрано — новое поколение: кольцо пачек
+   * забыто, и у каждого, кто вернётся или получит сцену, она та же, что здесь. {@code null} —
+   * убирать нечего.
+   */
+  public synchronized Expired expire(long cutoff) {
+    var files = new ArrayList<String>();
+    for (var file : this.files.values()) if (file.createdAt() <= cutoff) files.add(file.id());
+    var gone = new HashSet<String>();
+    for (var element : elements.values())
+      if (element.stamp() <= cutoff
+          || (element.fileId() != null && files.contains(element.fileId()))) gone.add(element.id());
+    // Текст в рамке без рамки — висящая подпись: уходит вместе с ней.
+    for (var element : elements.values())
+      if (element.containerId() != null && gone.contains(element.containerId()))
+        gone.add(element.id());
+    if (gone.isEmpty() && files.isEmpty()) return null;
+    for (var id : gone) {
+      var element = elements.remove(id);
+      bytes -= element.size();
+      if (!element.deleted()) live--;
+    }
+    files.forEach(this.files::remove);
+    ring.clear();
+    ringBytes = 0;
+    epoch++;
+    seq++;
+    dirty = true;
+    return new Expired(gone.size(), List.copyOf(files));
   }
 
   /**
@@ -225,7 +306,7 @@ public final class BoardRoom {
       first = false;
     }
     text.append(']');
-    return new Scene(epoch, seq, text.toString(), List.copyOf(files.values()));
+    return new Scene(epoch, seq, text.toString(), List.copyOf(files.values()), oldest());
   }
 
   /**
@@ -297,16 +378,26 @@ public final class BoardRoom {
     var link = node.get("link");
     if (link != null && !link.isNull() && !safeLink(link)) return null;
     var object = (ObjectNode) node;
-    if (object.path("isDeleted").asBoolean(false) && POINTED.contains(object.path("type").asText()))
-      object = trace(object);
+    if (object.path("isDeleted").asBoolean(false)) object = trace(object);
+    // Время правки — по часам ядра (Р-134): по нему считается срок элемента.
+    long stamp = clock.getAsLong();
+    object.put("updated", stamp);
     var json = Json.write(object);
-    var element = element(object, json);
+    var element = element(object, json, stamp);
     if (element == null || element.size() > limits.maxElementBytes()) return null;
     return element;
   }
 
+  /**
+   * След удалённого элемента: у штриха и линии — две крайние точки, у текста — без текста, ссылки
+   * нет ни у кого (Р-134: удалённое — не содержимое). Элемент остаётся целым для Excalidraw.
+   */
   private static ObjectNode trace(ObjectNode node) {
     var copy = node.deepCopy();
+    if (copy.has("text")) copy.put("text", "");
+    if (copy.has("originalText")) copy.put("originalText", "");
+    if (copy.hasNonNull("link")) copy.putNull("link");
+    if (!POINTED.contains(node.path("type").asText())) return copy;
     var points = node.path("points");
     if (points.isArray() && points.size() > 2) {
       var ends = JsonNodeFactory.instance.arrayNode();
@@ -319,7 +410,7 @@ public final class BoardRoom {
   }
 
   /** Поля слияния из JSON элемента, или null — если их нет или они не того вида. */
-  private static Element element(JsonNode node, String json) {
+  private static Element element(JsonNode node, String json, long stamp) {
     var id = node.path("id");
     var version = node.path("version");
     var nonce = node.path("versionNonce");
@@ -334,12 +425,15 @@ public final class BoardRoom {
       if (!ID.matcher(fileId.asText()).matches()) return null;
       file = fileId.asText();
     } else if (!fileId.isMissingNode() && !fileId.isNull()) return null;
+    var container = node.path("containerId");
     return new Element(
         id.asText(),
         version.asLong(),
         nonce.asLong(),
         deleted.asBoolean(false),
         file,
+        container.isTextual() ? container.asText() : null,
+        stamp,
         json,
         json.getBytes(StandardCharsets.UTF_8).length);
   }

@@ -298,20 +298,7 @@ public class BoardSocket extends TextWebSocketHandler {
       peer.send(Json.write(Map.of("type", "synced", "seq", hub.room().seq())));
       return;
     }
-    var scene = hub.room().scene();
-    var files = new ArrayList<Map<String, Object>>();
-    for (var file : scene.files())
-      files.add(Map.of("id", file.id(), "mime", file.mime(), "size", file.size()));
-    peer.send(
-        "{\"type\":\"scene\",\"epoch\":"
-            + scene.epoch()
-            + ",\"seq\":"
-            + scene.seq()
-            + ",\"files\":"
-            + Json.write(files)
-            + ",\"els\":"
-            + scene.elements()
-            + "}");
+    peer.send(BoardRooms.sceneMessage(hub.room().scene()));
   }
 
   private void ops(Peer peer, JsonNode body) {

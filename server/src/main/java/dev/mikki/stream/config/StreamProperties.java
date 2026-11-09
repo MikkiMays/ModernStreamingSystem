@@ -255,7 +255,36 @@ public record StreamProperties(
       // Строки встреч для «Активности» за период: длительность, пик, человеко-минуты.
       @NotNull Duration meetingStats,
       // Итоги дня — только числа, без людей.
-      @NotNull Duration activityDaily) {}
+      @NotNull Duration activityDaily,
+      // Содержимое (Р-134): чат, вложения, доска и её картинки, кино и музыка встречи, итоги игр —
+      // не дольше этого от добавления. Жёсткий потолок — сутки ({@link #CONTENT_CEILING}): больше
+      // поставить нельзя, меньше — можно.
+      @NotNull Duration content,
+      // Метаданные (Р-134): журнал участников, аудит, итоги встреч, аналитика, обращения без
+      // текста — год.
+      @NotNull Duration metadata) {}
+
+  /** Дольше суток содержимое не живёт ни при какой настройке (Р-134). */
+  public static final Duration CONTENT_CEILING = Duration.ofHours(24);
+
+  /**
+   * Содержимое не переживает сутки (Р-134): ни потолок {@code content}, ни сроки, что под ним, —
+   * сообщения, события и вложения идущей встречи ({@code messages}) и переписка после конца ({@code
+   * closed-history}) — не ставятся больше. Сервер с такой настройкой не поднимается: молча хранить
+   * дольше обещанного хуже, чем не запуститься.
+   */
+  @AssertTrue(
+      message =
+          "stream.retention: content must not exceed 24 hours, and messages and closed-history must"
+              + " not exceed content (Р-134)")
+  public boolean isContentCeilingValid() {
+    var keep = retention();
+    return keep != null
+        && keep.content().compareTo(CONTENT_CEILING) <= 0
+        && !keep.content().isNegative()
+        && keep.messages().compareTo(keep.content()) <= 0
+        && keep.closedHistory().compareTo(keep.content()) <= 0;
+  }
 
   @AssertTrue(message = "File quota must not exceed room quota, which must not exceed total quota")
   public boolean isQuotaOrderValid() {

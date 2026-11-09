@@ -100,6 +100,7 @@ public class BlockGuard extends OncePerRequestFilter {
                 audit.record(
                     Audit.Entry.of("block.auto")
                         .from(secrets.address(key), null)
+                        .ip(address.ip(request))
                         .target(block.id())
                         .detail("code", code)
                         .detail("until", block.expiresAt()));

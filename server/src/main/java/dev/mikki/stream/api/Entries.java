@@ -8,6 +8,7 @@ import dev.mikki.stream.activity.Audit;
 import dev.mikki.stream.activity.ClientKind;
 import dev.mikki.stream.activity.MeetingStats;
 import dev.mikki.stream.activity.Metrics;
+import dev.mikki.stream.activity.Participants;
 import dev.mikki.stream.config.Rate;
 import dev.mikki.stream.room.Contracts;
 import dev.mikki.stream.shared.Problem;
@@ -26,6 +27,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>ОТКАЗ — метр с кодом отказа и строка журнала с исходом {@code denied}, но не чаще раза в
  * минуту на адрес и код: скрипт, получающий тысячу 429 в минуту, не должен писать тысячу строк.
+ *
+ * <p>ЖУРНАЛ УЧАСТНИКОВ (Р-134) — строка удачного входа с полным адресом, клиентом, узлом и
+ * названием встречи ({@link Participants}): после фиксации входа, в буфер, — вход его не ждёт.
  */
 @Component
 public class Entries {
@@ -38,6 +42,7 @@ public class Entries {
   private final Secrets secrets;
   private final RateLimits limits;
   private final ClientAddress address;
+  private final Participants participants;
 
   public Entries(
       Audit audit,
@@ -46,7 +51,9 @@ public class Entries {
       MeetingStats stats,
       Secrets secrets,
       RateLimits limits,
-      ClientAddress address) {
+      ClientAddress address,
+      Participants participants) {
+    this.participants = participants;
     this.audit = audit;
     this.analytics = analytics;
     this.metrics = metrics;
@@ -61,6 +68,8 @@ public class Entries {
       String door, HttpServletRequest http, Supplier<Contracts.Admission> enter) {
     var key = address.entrant(http);
     var ip = secrets.address(key);
+    // Полный адрес — для журнала и журнала участников (Р-134); отпечаток `ip` — для блоков.
+    var full = address.ip(http);
     var profile = Identity.profileHash(http.getHeader(Identity.PROFILE));
     var action = door.equals("create") ? "room.created" : "participant.joined";
     var client = key != null && key.startsWith("actor:") ? "telegram" : null;
@@ -77,6 +86,7 @@ public class Entries {
                 .denied(refused.code())
                 .actor("anonymous", null, null)
                 .from(ip, profile)
+                .ip(full)
                 .detail("door", door)
                 .detail("client", client));
       throw refused;
@@ -84,6 +94,7 @@ public class Entries {
     metrics.joined(door, "ok");
     stats.device(profile != null ? profile : ip);
     analytics.entered(profile, key, kind, door, true);
+    participants.joined(door, admission, full, profile, kind);
     var snapshot = admission.snapshot();
     var name =
         snapshot.participants().stream()
@@ -98,6 +109,7 @@ public class Entries {
             .actor(
                 door.equals("create") ? "creator" : "participant", admission.participantId(), name)
             .from(ip, profile)
+            .ip(full)
             .detail("door", door)
             .detail("client", client));
     return admission;

@@ -18,9 +18,12 @@ import org.springframework.stereotype.Component;
  * Подробности ({@code details}) — только перечислимые поля и числа: вид, причина, размер.
  *
  * <p>ЧЕГО НЕТ И НЕ БУДЕТ (П8). Текста сообщений, имён и содержимого файлов, ссылок и названий
- * кинозала и музыки, названий встреч, ходов игр. Адрес — только отпечатком ({@code
- * Secrets.address}), профиль — хэшем. Имя участника — на момент события и на срок журнала ({@code
- * stream.retention.audit}): по нему владелец разбирает жалобу.
+ * кинозала и музыки, ходов игр. Профиль — хэшем. Имя участника — на момент события и на срок
+ * журнала ({@code stream.retention.audit}): по нему владелец разбирает жалобу.
+ *
+ * <p>АДРЕС (Р-134). Полный IP-адрес ({@code ip}, как его дал шлюз; IPv6 — целиком) — это метаданные
+ * и хранится год, как всё о том, кто и откуда. Рядом — отпечаток ключа адреса ({@code ip_hash},
+ * {@code Secrets.address}: IPv4 или сеть /64): по нему ставятся блоки.
  *
  * <p>Пишется в транзакции того, кто зовёт: откатился вход — откатилась и строка о нём.
  */
@@ -51,6 +54,7 @@ public class Audit implements RoomObserver {
     private String actorId;
     private String actorName;
     private String ipHash;
+    private String ip;
     private String profileHash;
     private final Map<String, Object> details = new LinkedHashMap<>();
 
@@ -96,6 +100,12 @@ public class Audit implements RoomObserver {
       return this;
     }
 
+    /** Полный адрес того, кто действовал ({@code ClientAddress.ip}); у службы — null. */
+    public Entry ip(String ip) {
+      this.ip = ip == null ? null : ip.substring(0, Math.min(64, ip.length()));
+      return this;
+    }
+
     public Entry detail(String key, Object value) {
       if (value != null) details.put(key, value);
       return this;
@@ -116,6 +126,7 @@ public class Audit implements RoomObserver {
       String actorId,
       String actorName,
       String ipHash,
+      String ip,
       String profileHash,
       Map<String, Object> details) {}
 
@@ -123,7 +134,8 @@ public class Audit implements RoomObserver {
 
   /**
    * Что показать: период, группа действий ({@code room}, {@code participant}, {@code admin}, {@code
-   * block}, …), код встречи, исход, отпечаток адреса; страницы — по {@code (at, id)} назад.
+   * block}, …), код встречи, исход, адрес (начало полного адреса или отпечатка); страницы — по
+   * {@code (at, id)} назад.
    */
   public record Filter(
       Long from,
@@ -144,8 +156,8 @@ public class Audit implements RoomObserver {
     if (details != null && details.length() > 1000) details = "{\"truncated\":true}";
     jdbc.sql(
             "INSERT INTO audit_events(happened_at,expires_at,action,outcome,code,room_id,room_code,"
-                + "target_id,actor_kind,actor_id,actor_name,ip_hash,profile_hash,details)"
-                + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                + "target_id,actor_kind,actor_id,actor_name,ip_hash,ip,profile_hash,details)"
+                + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .params(
             now,
             now + config.retention().audit().toMillis(),
@@ -159,6 +171,7 @@ public class Audit implements RoomObserver {
             e.actorId,
             e.actorName,
             e.ipHash,
+            e.ip,
             e.profileHash,
             details)
         .update();
@@ -191,7 +204,11 @@ public class Audit implements RoomObserver {
       where.append(" AND outcome=?");
       params.add(filter.outcome());
     }
-    if (filter.ipHash() != null && filter.ipHash().matches("[A-Za-z0-9_-]{6,64}")) {
+    if (filter.ipHash() != null
+        && filter.ipHash().matches("[0-9A-Fa-f]{0,4}[.:][0-9A-Fa-f.:]{0,60}")) {
+      where.append(" AND ip LIKE ?");
+      params.add(filter.ipHash() + "%");
+    } else if (filter.ipHash() != null && filter.ipHash().matches("[A-Za-z0-9_-]{6,64}")) {
       where.append(" AND ip_hash LIKE ?");
       params.add(filter.ipHash() + "%");
     }
@@ -244,8 +261,14 @@ public class Audit implements RoomObserver {
         .single();
   }
 
+  /**
+   * Забыть строки старше {@code stream.retention.audit} (срок метаданных, Р-134) — от события по
+   * нынешней настройке: продлённый срок касается и прежних строк. Сколько забыто.
+   */
   public int sweep(long now) {
-    return jdbc.sql("DELETE FROM audit_events WHERE expires_at<=?").param(now).update();
+    return jdbc.sql("DELETE FROM audit_events WHERE happened_at<=?")
+        .param(now - config.retention().audit().toMillis())
+        .update();
   }
 
   /** Окно технических работ само началось или истекло: кто — сервер, номер окна и сроки. */
@@ -302,6 +325,7 @@ public class Audit implements RoomObserver {
         rs.getString("actor_id"),
         rs.getString("actor_name"),
         rs.getString("ip_hash"),
+        rs.getString("ip"),
         rs.getString("profile_hash"),
         details == null ? Map.of() : Json.read(details, Map.class));
   }

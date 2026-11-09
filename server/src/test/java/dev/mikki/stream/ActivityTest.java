@@ -80,6 +80,7 @@ class ActivityTest {
   @Autowired RateLimits limits;
   @Autowired ClientAddress address;
   @Autowired dev.mikki.stream.room.Maintenance maintenance;
+  @Autowired dev.mikki.stream.activity.Participants participants;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
@@ -173,8 +174,9 @@ class ActivityTest {
   // Журнал аудита -------------------------------------------------------------------------------
 
   /**
-   * Журнал знает, кто вошёл, откуда (отпечатком) и под каким именем, — и не знает ни названия
-   * встречи, ни слова из переписки. Отказ во входе — тоже строка, с кодом.
+   * Журнал знает, кто вошёл, откуда (полным адресом — Р-134 — и отпечатком для блоков) и под каким
+   * именем, — и не знает ни названия встречи, ни слова из переписки. Отказ во входе — тоже строка,
+   * с кодом.
    */
   @Test
   void theJournalKnowsWhoEnteredButNotWhatWasSaid() {
@@ -204,6 +206,7 @@ class ActivityTest {
     assertThat(joined.actorName()).isEqualTo("Гость");
     assertThat(joined.targetId()).isEqualTo(guest.participantId());
     assertThat(joined.ipHash()).isEqualTo(secrets.address(where));
+    assertThat(joined.ip()).isEqualTo(where);
     assertThat(joined.roomCode()).isEqualTo(guest.snapshot().code());
     var denied =
         page.items().stream().filter(e -> "denied".equals(e.outcome())).findFirst().orElseThrow();
@@ -212,10 +215,7 @@ class ActivityTest {
     var everything =
         jdbc.sql("SELECT * FROM audit_events").query().listOfRows().toString()
             + jdbc.sql("SELECT * FROM meeting_stats").query().listOfRows();
-    assertThat(everything)
-        .doesNotContain("Секретная встреча")
-        .doesNotContain("пароль от сейфа")
-        .doesNotContain(where.split("/")[0]);
+    assertThat(everything).doesNotContain("Секретная встреча").doesNotContain("пароль от сейфа");
   }
 
   // Блокировки ----------------------------------------------------------------------------------
@@ -334,7 +334,8 @@ class ActivityTest {
         secrets,
         config,
         metrics,
-        maintenance);
+        maintenance,
+        participants);
   }
 
   /**

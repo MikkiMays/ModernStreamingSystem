@@ -64,6 +64,7 @@ class ReliabilityTest {
   @Autowired RoomService rooms;
   @Autowired ApiController api;
   @Autowired Maintenance maintenance;
+  @Autowired dev.mikki.stream.activity.Participants participants;
   @Autowired MeterRegistry registry;
   @Autowired JdbcClient jdbc;
   @Autowired ActivityReport report;
@@ -113,7 +114,8 @@ class ReliabilityTest {
         secrets,
         config,
         metrics,
-        maintenance);
+        maintenance,
+        participants);
   }
 
   /**
