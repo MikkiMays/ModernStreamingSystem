@@ -114,14 +114,16 @@ function FleetAudit({ console }: { console: Console }) {
                   <td data-primary>
                     <code>{row.action}</code>
                   </td>
-                  <td data-label={text.audit.target}>{row.target ?? ''}</td>
+                  <td data-label={text.audit.target}>{row.target || null}</td>
                   <td data-label={text.audit.outcome}>
                     <Pill tone={row.outcome === 'ok' ? 'ok' : row.outcome === 'refused' ? 'warn' : 'bad'} dot>
                       {text.audit.outcomes[row.outcome]}
                     </Pill>
                   </td>
                   <td data-label={text.audit.detail} data-wrap className="admin-hint">
-                    {row.detail ?? ''} {row.args ? <code>{JSON.stringify(row.args)}</code> : null}
+                    {[row.detail, row.args && <code key="args">{JSON.stringify(row.args)}</code>]
+                      .filter(Boolean)
+                      .flatMap((part, i) => (i ? [' ', part] : [part]))}
                   </td>
                 </tr>
               ))}
@@ -190,9 +192,9 @@ function CoreAudit({ console }: { console: Console }) {
                   <td data-primary>
                     <code>{event.code ?? event.group ?? ''}</code>
                   </td>
-                  <td data-label={text.audit.outcome}>{event.outcome ?? ''}</td>
+                  <td data-label={text.audit.outcome}>{event.outcome || null}</td>
                   <td data-label={text.audit.target} className="admin-hint">
-                    {event.room ?? event.ip ?? ''}
+                    {event.room || event.ip || null}
                   </td>
                 </tr>
               ))}

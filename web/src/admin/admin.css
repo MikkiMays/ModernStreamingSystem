@@ -1051,12 +1051,15 @@ dd[data-tone='ok'] {
     white-space: nowrap;
   }
 
+  /* Заголовок строки — первым, где бы ни стоял столбец на компьютере (журнал: «когда», «кто», потом действие). */
   .admin-table[data-stack] td[data-primary] {
+    order: -1;
     margin-bottom: var(--space-1);
     font-size: var(--text-base);
   }
 
-  .admin-table[data-stack] td:empty {
+  .admin-table[data-stack] td:empty,
+  .admin-panel[data-flush] .admin-table[data-stack] td:empty {
     display: none;
   }
 
@@ -1065,7 +1068,8 @@ dd[data-tone='ok'] {
     padding-top: var(--space-2);
   }
 
-  .admin-table[data-stack] td[data-actions]:not(:has(button)) {
+  .admin-table[data-stack] td[data-actions]:not(:has(button)),
+  .admin-panel[data-flush] .admin-table[data-stack] td[data-actions]:not(:has(button)) {
     display: none;
   }
 }
