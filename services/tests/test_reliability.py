@@ -6,6 +6,7 @@
 """
 
 import asyncio
+import contextlib
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -231,6 +232,75 @@ class MusicWatchdogTests(Fixture):
         ):
             self.assertIn(line + "\n", text)
         self.assertNotIn(ROOM, text)
+
+
+class MusicNodeTests(Fixture):
+    """
+    Издатель музыки — в SFU узла комнаты (R195, R228): встреча на `msk` получала «Играет» без звука,
+    потому что бот публиковал в SFU узла управления (10.11.2026).
+    """
+
+    def test_publisher_url(self):
+        player = Music(self.store, self.core, "http://127.0.0.1:7880", "wss://cordcam.ru")
+        self.assertEqual(player.publisher_url({"url": "wss://rtc-msk.cordcam.ru"}), "wss://rtc-msk.cordcam.ru")
+        self.assertEqual(player.publisher_url({"url": "https://rtc-hel.cordcam.ru"}), "wss://rtc-hel.cordcam.ru")
+        # Свой узел — свой SFU по внутреннему адресу, а не по кругу через edge; без адреса — тоже он.
+        self.assertEqual(player.publisher_url({"url": "wss://cordcam.ru"}), "ws://127.0.0.1:7880")
+        self.assertEqual(player.publisher_url({}), "ws://127.0.0.1:7880")
+        # Установка без LIVEKIT_URL (разработка) верит адресу ядра.
+        bare = Music(self.store, self.core, "http://127.0.0.1:7880")
+        self.assertEqual(bare.publisher_url({"url": "wss://rtc-msk.cordcam.ru"}), "wss://rtc-msk.cordcam.ru")
+
+    async def test_the_publisher_joins_the_sfu_of_the_room_node(self):
+        state = self.store.get(ROOM)
+        state.update(
+            enabled=True,
+            admission={"roomId": ROOM, "participantId": BOT, "credential": "bot.secret"},
+        )
+        self.store.save(state)
+        urls = []
+
+        class FakePublisher:
+            connected = True
+
+            @classmethod
+            async def start(cls, url, token, name="Музыка"):
+                urls.append(url)
+                return cls()
+
+            async def play(self, path, position, epoch):
+                pass
+
+            async def pause(self):
+                pass
+
+            async def event(self, timeout):
+                await asyncio.sleep(timeout)
+                return None
+
+            async def close(self):
+                pass
+
+        async def core_request(method, path, data=None, credential=None, headers=None):
+            if path.endswith("/media/token"):
+                return {"token": "test", "url": "wss://rtc-msk.cordcam.ru", "expiresAt": 0}
+            raise AssertionError(path)
+
+        self.core.request = AsyncMock(side_effect=core_request)
+        self.core.command = AsyncMock(return_value={})
+        player = Music(self.store, self.core, "http://127.0.0.1:7880", "wss://cordcam.ru")
+        with patch("cord_services.music.Publisher", FakePublisher):
+            task = asyncio.create_task(player.run(ROOM))
+            try:
+                for _ in range(300):
+                    if urls:
+                        break
+                    await asyncio.sleep(0.01)
+            finally:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await task
+        self.assertEqual(urls, ["wss://rtc-msk.cordcam.ru"])
 
 
 class MusicStartRetryTests(Fixture):

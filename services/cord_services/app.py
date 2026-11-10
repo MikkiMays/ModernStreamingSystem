@@ -107,7 +107,10 @@ def create_app(
         os.environ.get("INTERNAL_SECRET", ""),
     )
     music = Music(
-        store, core, os.environ.get("LIVEKIT_INTERNAL_URL", "http://127.0.0.1:7880")
+        store,
+        core,
+        os.environ.get("LIVEKIT_INTERNAL_URL", "http://127.0.0.1:7880"),
+        os.environ.get("LIVEKIT_URL", ""),
     )
     # Адрес этой установки пишет `scripts/configure.mjs` в `.env`, compose передаёт его сюда; своего
     # адреса по умолчанию у службы нет — без PUBLIC_URL запросы с чужим Origin не пропускаются вовсе.

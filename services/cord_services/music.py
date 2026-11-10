@@ -6,6 +6,7 @@ import logging
 import random
 import uuid
 from collections import defaultdict
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 
 from fastapi import HTTPException
@@ -95,11 +96,18 @@ class Counters:
     skipped: int = 0
 
 
+def _ws(url: str) -> str:
+    return url.replace("http://", "ws://").replace("https://", "wss://")
+
+
 class Music:
-    def __init__(self, store: Store, core: Core, rtc_url: str):
+    def __init__(self, store: Store, core: Core, rtc_url: str, public_rtc_url: str = ""):
         self.store = store
         self.core = core
-        self.rtc_url = rtc_url.replace("http://", "ws://").replace("https://", "wss://")
+        self.rtc_url = _ws(rtc_url)
+        # Публичный адрес SFU узла управления (`LIVEKIT_URL`): по нему видно, что комната живёт здесь же и
+        # издателю короче идти в локальный SFU (`rtc_url`), а не по кругу через edge.
+        self.public_host = urlsplit(_ws(public_rtc_url)).hostname if public_rtc_url else None
         self.locks = defaultdict(asyncio.Lock)
         self.tasks: dict[str, asyncio.Task] = {}
         self.stopping = False
@@ -363,7 +371,7 @@ class Music:
                     f"/api/v1/rooms/{room_id}/media/token",
                     credential=admission["credential"],
                 )
-            publisher = await self.start_publisher(token["token"])
+            publisher = await self.start_publisher(token["token"], self.publisher_url(token))
             link = Link(publisher)
             state = self.store.get(room_id)
             state.update(status="idle", error=None)
@@ -555,7 +563,20 @@ class Music:
                 state["status"] = "disabled"
             self.store.save(state)
 
-    async def start_publisher(self, token: str) -> Publisher:
+    def publisher_url(self, token: dict) -> str:
+        """
+        Куда подключать издателя: в SFU узла комнаты (R195, R228). Ядро кладёт адрес узла в ответ на
+        `media/token` (`MediaToken.url`). Раньше издатель всегда шёл в SFU узла управления: встреча на
+        другом узле (из Москвы — `msk`) получала «Играет» без звука — бот публиковал в пустую комнату на
+        чужом SFU (10.11.2026, владелец: «пропал звук в интеграции музыки»). Узел управления — свой SFU по
+        внутреннему адресу, как прежде; адреса нет (старое ядро, тесты) — тоже он.
+        """
+        url = _ws(str(token.get("url") or ""))
+        if not url or urlsplit(url).hostname == self.public_host:
+            return self.rtc_url
+        return url
+
+    async def start_publisher(self, token: str, url: str | None = None) -> Publisher:
         """Первый издатель — с повторами (R04).
 
         На замирающем хосте вход в SFU иногда не укладывается в срок готовности издателя (стенд
@@ -564,7 +585,7 @@ class Music:
         """
         for attempt in range(1, START_ATTEMPTS + 1):
             try:
-                return await asyncio.wait_for(Publisher.start(self.rtc_url, token), 30)
+                return await asyncio.wait_for(Publisher.start(url or self.rtc_url, token), 30)
             except (ConnectionError, TimeoutError) as error:
                 if attempt == START_ATTEMPTS:
                     raise
@@ -584,7 +605,7 @@ class Music:
             f"/api/v1/rooms/{room_id}/media/token",
             credential=admission["credential"],
         )
-        return await asyncio.wait_for(Publisher.start(self.rtc_url, token["token"]), 30)
+        return await asyncio.wait_for(Publisher.start(self.publisher_url(token), token["token"]), 30)
 
     async def expected_end(self, room_id: str) -> str | None:
         """Почему оборвалась связь: встречи больше нет — или это всё-таки сбой.
