@@ -293,8 +293,9 @@ export function noteFailure(place: Place, code: string, error?: unknown): void {
   }
   count(place, code);
   // Аналитика (R239): та же ошибка — событием сессии, с областью и именем ошибки браузера. Отказ по правилам
-  // игры («не ваш ход», «ставка мала») — не сбой, а ход игры: в ошибки аналитики он не идёт.
-  if (GAME_RULE.test(code)) return;
+  // игры («не ваш ход», «ставка мала») — не сбой, а ход игры; отметка «восстановилось» (`camera-healed`,
+  // `cinema-healed`) — конец сбоя, а не новый сбой: в ошибки аналитики они не идут (счётчик ядра их считает).
+  if (GAME_RULE.test(code) || code.endsWith('-healed')) return;
   trackError({
     code,
     scope: SCOPES[place] ?? 'app',

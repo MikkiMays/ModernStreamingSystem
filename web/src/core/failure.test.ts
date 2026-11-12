@@ -13,6 +13,7 @@ import {
   startFailureReports,
   watchFailures,
 } from './failure';
+import { flush as flushInsight, resetInsightForTest } from './insight';
 import { recentErrors } from './support';
 
 /*
@@ -137,6 +138,28 @@ describe('учёт', () => {
       { place: 'camera', code: 'denied', count: 2 },
       { place: 'join', code: 'ROOM_FULL', count: 1 },
     ]);
+  });
+
+  it('в ошибки аналитики не идут ходы по правилам игр и отметки «восстановилось»; сам сбой — идёт', async () => {
+    const sent = vi.fn(async (_url: string, _init?: RequestInit) => new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', sent);
+    resetInsightForTest();
+    noteFailure('games', 'DURAK_TURN');
+    noteFailure('camera', 'camera-healed');
+    noteFailure('cinema', 'cinema-healed');
+    noteFailure('camera', 'camera-stalled');
+    await flushInsight();
+    const codes = sent.mock.calls
+      .filter(([url]) => url === '/api/v1/t')
+      .flatMap(
+        ([, init]) =>
+          (JSON.parse(String(init?.body)) as { events: { n: string; p: { code?: string } }[] }).events,
+      )
+      .filter((event) => event.n === 'error')
+      .map((event) => event.p.code);
+    expect(codes).toEqual(['camera-stalled']);
+    vi.unstubAllGlobals();
+    resetInsightForTest();
   });
 
   it('незнакомый код — `other`: метка счётчика только из известного списка', () => {
