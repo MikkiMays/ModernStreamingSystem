@@ -1,6 +1,7 @@
 package dev.mikki.stream.api;
 
 import dev.mikki.stream.access.RateLimits;
+import dev.mikki.stream.activity.InsightFacts;
 import dev.mikki.stream.activity.RxQuality;
 import dev.mikki.stream.config.Rate;
 import dev.mikki.stream.room.RoomService;
@@ -13,8 +14,9 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Сводки приёма раз в десять секунд ({@link RxQuality}): пропуск участника, не чаще раза в {@link
- * #WINDOW} с одного входа ({@code 429 RATE_LIMITED}) и 60 в минуту с адреса. Сводка ложится только
- * в метры — ответ никому не нужен.
+ * #WINDOW} с одного входа ({@code 429 RATE_LIMITED}) и 60 в минуту с адреса. Сводка ложится в метры
+ * и — от человека — фактом {@code quality} в аналитику встреч ({@link InsightFacts}); ответ никому
+ * не нужен.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -29,13 +31,19 @@ public class QualityController {
   private final RateLimits limits;
   private final ClientAddress address;
   private final RxQuality quality;
+  private final InsightFacts facts;
 
   public QualityController(
-      RoomService rooms, RateLimits limits, ClientAddress address, RxQuality quality) {
+      RoomService rooms,
+      RateLimits limits,
+      ClientAddress address,
+      RxQuality quality,
+      InsightFacts facts) {
     this.rooms = rooms;
     this.limits = limits;
     this.address = address;
     this.quality = quality;
+    this.facts = facts;
   }
 
   @PostMapping("/rooms/{id}/quality")
@@ -50,5 +58,6 @@ public class QualityController {
     var member = rooms.authenticate(room, credential);
     limits.member("quality:" + room.id + ":" + member.id, WINDOW);
     quality.record(summary);
+    if (member.human()) facts.quality(room.id, room.profiles.get(member.id), summary);
   }
 }

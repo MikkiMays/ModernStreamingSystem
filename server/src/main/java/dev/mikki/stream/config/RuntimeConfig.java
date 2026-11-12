@@ -22,7 +22,7 @@ public class RuntimeConfig {
    * на задачу ни одна не ждёт другую. Новая задача — число растёт вместе с ней: за этим следит
    * {@code SchedulerTest}.
    */
-  public static final int SCHEDULER_THREADS = 16;
+  public static final int SCHEDULER_THREADS = 20;
 
   @Bean
   public ThreadPoolTaskScheduler taskScheduler() {

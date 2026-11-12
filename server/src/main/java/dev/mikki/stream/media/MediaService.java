@@ -180,7 +180,7 @@ public class MediaService {
   public void moveRoom(String roomId, String from, String to) {
     var room = rooms.lock(roomId);
     if (room.closedAt != null || !nodes.resolve(room.mediaNode).id().equals(from)) return;
-    reassign(room, from, to, "dead node");
+    reassign(room, from, to, "dead");
   }
 
   /**
@@ -198,7 +198,8 @@ public class MediaService {
         member.recoveryDeadline = deadline;
         member.mediaSid = null;
       }
-    log.warn("room {} moved from {} {} to {}", room.id, why, from, to);
+    log.warn("room {} moved from {} ({}) to {}", room.id, from, why, to);
+    rooms.moved(room, from, to, why);
     rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
     repository.save(room, rooms.now());
   }
@@ -239,7 +240,7 @@ public class MediaService {
             throw new Problem(
                 429, "MEDIA_MOVE_RATE", "Переводить встречу можно не чаще раза в минуту");
           room.mediaMovedAt = now;
-          reassign(room, from, to, "by creator");
+          reassign(room, from, to, "manual");
           return new Contracts.Ack(commandId, true, room.sequence, to);
         });
   }

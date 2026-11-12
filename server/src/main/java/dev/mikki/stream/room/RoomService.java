@@ -213,6 +213,7 @@ public class RoomService {
           var member = newMember(room, request.name(), true, request.commandId(), entrant);
           var url = invite(room);
           rooms.insert(room, now());
+          for (var observer : observers) observer.opened(room, entrant.profileHash(), now());
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
           if (address != null) limits.hit("rooms:ip:" + address, hour.perIp().roomsCreated());
@@ -482,6 +483,11 @@ public class RoomService {
             room.openedAt = now();
             room.endsAt = null;
             room.cinemaTraffic = null;
+            var opener =
+                entrant.profileHash() != null
+                    ? entrant.profileHash()
+                    : room.profiles.get(previous.id);
+            for (var observer : observers) observer.opened(room, opener, now());
           }
           requireOpen(room);
           if (previous.replacedBy != null)
@@ -1238,7 +1244,12 @@ public class RoomService {
         () -> {
           String value = null;
           switch (command.type()) {
-            case "leave" -> depart(member);
+            case "leave" -> {
+              depart(member);
+              // Бот музыки уходит по слову службы: музыку выключил человек — запуск «убран».
+              if ("music".equals(member.service) && !room.integrations().contains("music"))
+                endRun(room, "music", "closed");
+            }
             case "profile.avatar" -> {
               member.avatar = avatar(command.text());
               emit(room, "room.changed", EventPayload.changed());
@@ -1401,6 +1412,9 @@ public class RoomService {
               if (command.kind().equals("channel")
                   && !WATCH_LIVE_PROVIDERS.contains(command.provider()))
                 throw new Problem(400, "WATCH_INVALID", "Нечего открывать");
+              // Открыли другое на месте идущего — прежний запуск кончился заменой, новый получит
+              // свой номер при объявлении перемены.
+              if (room.watch != null) endRun(room, "watch", "replaced");
               var watch = new RoomState.Watch();
               watch.provider = command.provider();
               watch.kind = command.kind();
@@ -1446,6 +1460,7 @@ public class RoomService {
               requireActive(room, member);
               Permissions.require(room, member, Action.WATCH_CLOSE);
               room.watch = null;
+              endRun(room, "watch", "closed");
             }
             /*
              Покер. Сцена в комнате одна, и стол занимает её целиком — как кинозал. Поэтому
@@ -1478,6 +1493,7 @@ public class RoomService {
               // бы стереть то, что за ним происходило полчаса.
               archiveGame(room, "closed", now());
               room.poker = null;
+              endRun(room, "poker", "closed");
             }
             case "poker.sit" ->
                 table(room).sit(member.id, member.name, command.seat(), active(room, member));
@@ -1538,6 +1554,7 @@ public class RoomService {
               // Доигранная партия остаётся в истории, даже если стол унесли сразу после неё.
               archiveDurak(room, now());
               room.durak = null;
+              endRun(room, "durak", "closed");
             }
             case "durak.sit" ->
                 durak(room).sit(member.id, member.name, command.seat(), active(room, member));
@@ -1572,6 +1589,7 @@ public class RoomService {
               chessHost(room, member);
               gameIdentity(chess(room).id, command.contentId());
               room.chess = null;
+              endRun(room, "chess", "closed");
             }
             case "chess.sit" -> {
               requireActive(room, member);
@@ -1637,6 +1655,7 @@ public class RoomService {
                 case "gartic.close" -> {
                   Permissions.require(room, member, Action.GARTIC_MANAGE);
                   room.gartic = null;
+                  endRun(room, "gartic", "closed");
                 }
                 case "gartic.join" -> drawing.join(member.id, member.name, now());
                 case "gartic.leave" -> drawing.leave(member.id, now());
@@ -1699,6 +1718,7 @@ public class RoomService {
               board(room);
               Permissions.require(room, member, Action.BOARD_CLOSE);
               room.board = null;
+              endRun(room, "board", "closed");
               events.publishEvent(new BoardChanged(room.id));
             }
             case "board.settings" -> {
@@ -2119,6 +2139,9 @@ public class RoomService {
     room.presence.clear();
     room.presenceAsked.clear();
     room.idleSince = null;
+    // Запуски интеграций кончаются вместе со встречей — и до неё: наблюдатели узнают о них раньше,
+    // чем о конце самой встречи.
+    syncRuns(room);
     for (var observer : observers) observer.closed(room, reason, room.closedAt);
   }
 
@@ -2161,6 +2184,64 @@ public class RoomService {
           .update();
   }
 
+  /**
+   * Номера запусков интеграций — по тому, что во встрече идёт сейчас (R239, {@link
+   * RoomState#runs}).
+   *
+   * <p>ОДНО МЕСТО НА ВСЕ НАЧАЛА И КОНЦЫ. Интеграция появляется во встрече командой, а исчезает
+   * десятком путей: её убрали, встреча кончилась, зал опустел, вышел срок пустого стола, содержимое
+   * ушло по сроку, бот музыки потерял связь. Всё это кончается объявлением перемены ({@link
+   * #emit}), и здесь, перед ним, карта номеров сверяется с комнатой: появилось — запуск получает
+   * номер и наблюдатели узнают о начале; исчезло — номер снимается с причиной «кончилось» ({@code
+   * ended}). Кто знает причину точнее — человек убрал, открыли другое, — снимает номер сам ({@link
+   * #endRun}) до объявления, и сюда такой запуск уже не доходит.
+   *
+   * <p>Бот музыки, пропавший без прощания (связь потеряна и не восстановилась, так и не вышел на
+   * связь), — отказ интеграции: наблюдатели узнают и об ошибке, и о конце запуска с причиной {@code
+   * error}.
+   */
+  private void syncRuns(RoomState room) {
+    var live = room.integrations();
+    if (room.runs.isEmpty() && live.isEmpty()) return;
+    for (var kind : List.copyOf(room.runs.keySet())) {
+      if (live.contains(kind)) continue;
+      // Бот именно этого запуска — последний вошедший: прежние, давно ушедшие, не в счёт.
+      boolean lost =
+          room.closedAt == null
+              && "music".equals(kind)
+              && room.members.values().stream()
+                  .filter(m -> "music".equals(m.service))
+                  .reduce((earlier, later) -> later.joinedAt >= earlier.joinedAt ? later : earlier)
+                  .map(m -> m.status == EXPIRED)
+                  .orElse(false);
+      if (lost)
+        for (var observer : observers)
+          observer.integrationFailed(room, kind, room.runs.get(kind), "MUSIC_BOT_LOST", now());
+      endRun(room, kind, lost ? "error" : "ended");
+    }
+    for (var kind : live) {
+      if (room.runs.containsKey(kind)) continue;
+      var run = UUID.randomUUID().toString();
+      room.runs.put(kind, run);
+      for (var observer : observers) observer.integrationOpened(room, kind, run, now());
+    }
+  }
+
+  /** Запуск интеграции {@code kind} кончился: номер снят, наблюдатели знают причину. */
+  private void endRun(RoomState room, String kind, String reason) {
+    var run = room.runs.remove(kind);
+    if (run == null) return;
+    for (var observer : observers) observer.integrationClosed(room, kind, run, reason, now());
+  }
+
+  /**
+   * Встреча переехала на другой медиаузел ({@code MediaService}): наблюдатели узнают откуда, куда и
+   * почему — {@code dead} или {@code manual}.
+   */
+  public void moved(RoomState room, String from, String to, String reason) {
+    for (var observer : observers) observer.moved(room, from, to, reason, now());
+  }
+
   public void emit(RoomState room, String type, EventPayload payload) {
     // Keep persisted view state valid after leave, timeout, removal or screen stop.
     for (var member : room.members.values()) {
@@ -2179,6 +2260,7 @@ public class RoomService {
                           && p.screenId.equals(member.viewingScreenId)))
         member.viewingScreenId = null;
     }
+    syncRuns(room);
     var event = new Event(1, UUID.randomUUID().toString(), ++room.sequence, type, payload, now());
     rooms
         .jdbc()

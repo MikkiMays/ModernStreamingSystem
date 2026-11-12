@@ -34,4 +34,33 @@ public interface RoomObserver {
    */
   default void acted(
       RoomState room, RoomState.Member actor, String action, RoomState.Member target, long now) {}
+
+  /**
+   * Встреча открыта: создана или открыта заново из избранного. {@code profileHash} — хэш профиля
+   * того, кто открыл, или {@code null}.
+   */
+  default void opened(RoomState room, String profileHash, long now) {}
+
+  /**
+   * Встреча переехала на другой медиаузел: {@code reason} — {@code dead} (узел умер) или {@code
+   * manual} (перевёл создатель).
+   */
+  default void moved(RoomState room, String from, String to, String reason, long now) {}
+
+  /**
+   * Во встрече началась интеграция {@code kind} (слово из {@link RoomState#integrations}); {@code
+   * run} — номер этого запуска ({@link RoomState#runs}).
+   */
+  default void integrationOpened(RoomState room, String kind, String run, long now) {}
+
+  /**
+   * Запуск интеграции кончился: {@code reason} — {@code closed} (убрал человек), {@code replaced}
+   * (открыли другое на его месте), {@code ended} (кончилась встреча или вышел срок простоя), {@code
+   * error} (интеграция пропала сама).
+   */
+  default void integrationClosed(
+      RoomState room, String kind, String run, String reason, long now) {}
+
+  /** Интеграция отказала: {@code code} — что случилось, словом для статистики. */
+  default void integrationFailed(RoomState room, String kind, String run, String code, long now) {}
 }

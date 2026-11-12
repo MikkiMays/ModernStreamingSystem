@@ -77,7 +77,7 @@ stream:
     # больше поставить нельзя (сервер не поднимется), меньше — можно.
     content: ${CONTENT_RETENTION:24 hours}
     # Метаданные (Р-134): кто, откуда (полный IP), с кем, когда, узел — журнал участников, аудит, итоги встреч,
-    # аналитика, обращения без текста. Год.
+    # обращения без текста. Год. Сроки аналитики ведёт служба `insight` (ANALYTICS_RETENTION_*).
     metadata: ${METADATA_RETENTION:1 year}
     # Сколько после завершения хранится переписка и события встречи. Не больше `content`.
     closed-history: ${CLOSED_HISTORY_RETENTION:1 hour}
@@ -161,13 +161,12 @@ stream:
     max-window: 6 hours
     overrun: 1 hour
     warn-before: 15 minutes
-  # Аналитика продукта (R210, docs/architecture/admin-analytics.md): посетитель — HMAC профиля устройства, дни —
-  # по поясу владельца; посетитель, не появлявшийся `retention`, забывается вместе со всеми своими днями (Р-121).
-  # Срок — метаданных (Р-134): год.
-  analytics:
-    enabled: ${ANALYTICS_ENABLED:true}
-    zone: ${ANALYTICS_ZONE:Europe/Moscow}
-    retention: ${ANALYTICS_RETENTION:${stream.retention.metadata}}
+  # Аналитика (R239, docs/architecture/analytics-v2.md): ядро само ничего не считает — шлёт факты (вход, связь,
+  # встреча, качество, интеграция, отказ защиты) службе `insight` на петле этой машины и пересылает пульту её
+  # отчёты (`GET /api/v1/admin/insight/...`). Пусто — аналитики нет: факты не собираются, отчёты отвечают
+  # `503 INSIGHT_UNAVAILABLE`. Ключ службы — назначение `insight` из INTERNAL_SECRET (contracts/insight.md §4).
+  insight:
+    url: ${INSIGHT_URL:}
   # Обращения в поддержку (E13): форма на странице «Помощь» и в окне «?». Обращение хранится в базе,
   # бот доносит его в Telegram владельца Cord: `SUPPORT_TELEGRAM_CHAT_ID`, без него — чат оповещений
   # мониторинга (`ALERT_TELEGRAM_CHAT_ID`, E10); нет обоих — обращения только в базе.

@@ -97,16 +97,23 @@ public class RxQuality {
       @NotNull @Pattern(regexp = SWITCH_CODECS) String to,
       @NotNull @Pattern(regexp = SWITCH_REASONS) String reason) {}
 
+  /** Потолок счётчика байт в сводке: десять секунд на гигабитном канале — на два порядка меньше. */
+  public static final long MAX_BYTES = 100_000_000_000L;
+
   /**
    * Сводка за окно. {@code tx} и {@code switches} пришли с R152 и необязательны: веб старее ядра
-   * (пока выкатка идёт) шлёт только приём.
+   * (пока выкатка идёт) шлёт только приём. {@code bytesUp} и {@code bytesDown} (R239) — сколько
+   * байт клиент отдал и принял с прошлой сводки; тоже необязательны и идут только в факт {@code
+   * quality} для аналитики встреч.
    */
   public record RxSummary(
       @NotNull @Size(max = MAX_TRACKS) List<@Valid RxTrack> tracks,
       @Size(max = MAX_TX) List<@Valid TxTrack> tx,
-      @Size(max = MAX_SWITCHES) List<@Valid TxSwitch> switches) {
+      @Size(max = MAX_SWITCHES) List<@Valid TxSwitch> switches,
+      @Min(0) @Max(MAX_BYTES) Long bytesUp,
+      @Min(0) @Max(MAX_BYTES) Long bytesDown) {
     public RxSummary(List<RxTrack> tracks) {
-      this(tracks, null, null);
+      this(tracks, null, null, null, null);
     }
   }
 

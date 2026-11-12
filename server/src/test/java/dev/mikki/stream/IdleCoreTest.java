@@ -19,8 +19,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Ядро в простое не работает впустую ({@code docs/architecture/core-scale.md} §3.1): сверка с
- * медиаузлом не переписывает комнату, в которой ничего не изменилось; память о встрече уходит с её
- * концом. Редкий проход сокетов — {@code RoomSocketSweepTest}.
+ * медиаузлом не переписывает комнату, в которой ничего не изменилось; просроченные сообщения уходят
+ * по индексам; память о встрече уходит с её концом. Редкий проход сокетов — {@code
+ * RoomSocketSweepTest}.
  *
  * <p>Контекст тот же, что у {@link AbuseLimitsTest}, — Spring поднимает его один раз на оба класса.
  */
@@ -36,6 +37,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class IdleCoreTest {
   @Autowired RoomService rooms;
   @Autowired MediaService media;
+  @Autowired Lifecycle lifecycle;
+  @Autowired dev.mikki.stream.config.StreamProperties config;
   @Autowired JdbcClient jdbc;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
@@ -111,6 +114,57 @@ class IdleCoreTest {
     var settled = row(host.roomId());
     media.observe(host.roomId(), Map.of(), now.addAndGet(2000));
     assertThat(row(host.roomId())).isEqualTo(settled);
+  }
+
+  // Срок сообщений ---------------------------------------------------------------------------
+
+  void message(String roomId, String text, long createdAt, Long expiresAt) {
+    jdbc.sql(
+            "INSERT INTO messages(id,room_id,participant_id,display_name,content,created_at,"
+                + "expires_at) VALUES(?,?,?,?,?,?,?)")
+        .params(UUID.randomUUID().toString(), roomId, "p", "Хозяин", text, createdAt, expiresAt)
+        .update();
+  }
+
+  /**
+   * Секундный проход убирает сообщения двумя удалениями — по возрасту и по своему сроку, — и у
+   * каждого условия свой индекс (V19): раньше одно удаление с «или» просматривало всю переписку.
+   */
+  @Test
+  void expiredMessagesGoByAgeAndByTheirOwnTermEachWithAnIndex() {
+    var host = create();
+    long day = config.retention().messages().toMillis();
+    message(host.roomId(), "свежее", now.get() - 1000, null);
+    message(host.roomId(), "свежее со сроком", now.get() - 1000, now.get() + 60_000);
+    message(host.roomId(), "старше срока хранения", now.get() - day - 1, null);
+    message(host.roomId(), "свой срок вышел", now.get() - 1000, now.get() - 1);
+    lifecycle.sweepLedger();
+    assertThat(
+            jdbc.sql("SELECT content FROM messages WHERE room_id=? ORDER BY content")
+                .param(host.roomId())
+                .query(String.class)
+                .list())
+        .containsExactly("свежее", "свежее со сроком");
+    assertThat(
+            jdbc.sql(
+                    "SELECT LOWER(index_name) FROM information_schema.indexes WHERE"
+                        + " LOWER(table_name)='messages'")
+                .query(String.class)
+                .list())
+        .contains("message_expiry", "message_created");
+  }
+
+  /** Таблиц прежней аналитики больше нет (V19, Р-136): считать посетителей ядру негде и незачем. */
+  @Test
+  void theOldAnalyticsTablesAreGone() {
+    assertThat(
+            jdbc.sql(
+                    "SELECT LOWER(table_name) FROM information_schema.tables WHERE"
+                        + " LOWER(table_name) IN ('visitors','visitor_days','meeting_stats',"
+                        + "'meeting_participants','audit_events')")
+                .query(String.class)
+                .list())
+        .containsExactlyInAnyOrder("meeting_stats", "meeting_participants", "audit_events");
   }
 
   // Память о встрече -------------------------------------------------------------------------

@@ -65,6 +65,7 @@ public class RoomSocket extends TextWebSocketHandler {
   private final StreamProperties config;
   private final CommandDispatcher commands;
   private final ClientAddress addresses;
+  private final dev.mikki.stream.activity.InsightFacts facts;
 
   public RoomSocket(
       RoomService rooms,
@@ -73,7 +74,8 @@ public class RoomSocket extends TextWebSocketHandler {
       StringRedisTemplate redis,
       StreamProperties config,
       CommandDispatcher commands,
-      ClientAddress addresses) {
+      ClientAddress addresses,
+      dev.mikki.stream.activity.InsightFacts facts) {
     this.rooms = rooms;
     this.limits = limits;
     this.validator = validator;
@@ -81,6 +83,7 @@ public class RoomSocket extends TextWebSocketHandler {
     this.config = config;
     this.commands = commands;
     this.addresses = addresses;
+    this.facts = facts;
   }
 
   /**
@@ -105,6 +108,7 @@ public class RoomSocket extends TextWebSocketHandler {
     if (limits.exceeded("socket-open:" + address, abuse.socketOpens())
         || sockets.values().stream().filter(c -> address.equals(c.address)).count()
             >= abuse.sockets()) {
+      facts.refused("RATE_LIMITED", 429);
       socket.close(CloseStatus.POLICY_VIOLATION);
       return;
     }
@@ -143,6 +147,9 @@ public class RoomSocket extends TextWebSocketHandler {
           throw new Problem(
               400, "UNKNOWN_COMMAND", "Сервер не знает этого действия. Обновите страницу");
       } catch (Problem e) {
+        // Отказы защиты по сокету фильтр запросов не видит — в итог минуты аналитики их кладёт
+        // сокет.
+        facts.refused(e.code(), e.status());
         send(c, Map.of("type", "error", "code", e.code(), "message", e.getMessage()));
         if (e.status() == 403 || e.status() == 410) c.socket.close(CloseStatus.POLICY_VIOLATION);
       } catch (IllegalArgumentException e) {
@@ -189,6 +196,7 @@ public class RoomSocket extends TextWebSocketHandler {
           Map.of("type", "authenticated", "participantId", member.id, "liveAfter", room.sequence));
       flush(c);
     } catch (Problem e) {
+      facts.refused(e.code(), e.status());
       // Вошедшему отказ после входа (первая рассылка) сокет не отнимает — как у команд.
       if (c.credential != null && e.status() != 403 && e.status() != 410) {
         send(c, Map.of("type", "error", "code", e.code(), "message", e.getMessage()));
