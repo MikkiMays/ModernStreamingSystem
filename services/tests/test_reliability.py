@@ -241,15 +241,15 @@ class MusicNodeTests(Fixture):
     """
 
     def test_publisher_url(self):
-        player = Music(self.store, self.core, "http://127.0.0.1:7880", "wss://cordcam.ru")
-        self.assertEqual(player.publisher_url({"url": "wss://rtc-msk.cordcam.ru"}), "wss://rtc-msk.cordcam.ru")
-        self.assertEqual(player.publisher_url({"url": "https://rtc-hel.cordcam.ru"}), "wss://rtc-hel.cordcam.ru")
+        player = Music(self.store, self.core, "http://127.0.0.1:7880", "wss://cord.online")
+        self.assertEqual(player.publisher_url({"url": "wss://rtc-msk.cord.online"}), "wss://rtc-msk.cord.online")
+        self.assertEqual(player.publisher_url({"url": "https://rtc-hel.cord.online"}), "wss://rtc-hel.cord.online")
         # Свой узел — свой SFU по внутреннему адресу, а не по кругу через edge; без адреса — тоже он.
-        self.assertEqual(player.publisher_url({"url": "wss://cordcam.ru"}), "ws://127.0.0.1:7880")
+        self.assertEqual(player.publisher_url({"url": "wss://cord.online"}), "ws://127.0.0.1:7880")
         self.assertEqual(player.publisher_url({}), "ws://127.0.0.1:7880")
         # Установка без LIVEKIT_URL (разработка) верит адресу ядра.
         bare = Music(self.store, self.core, "http://127.0.0.1:7880")
-        self.assertEqual(bare.publisher_url({"url": "wss://rtc-msk.cordcam.ru"}), "wss://rtc-msk.cordcam.ru")
+        self.assertEqual(bare.publisher_url({"url": "wss://rtc-msk.cord.online"}), "wss://rtc-msk.cord.online")
 
     async def test_the_publisher_joins_the_sfu_of_the_room_node(self):
         state = self.store.get(ROOM)
@@ -283,12 +283,12 @@ class MusicNodeTests(Fixture):
 
         async def core_request(method, path, data=None, credential=None, headers=None):
             if path.endswith("/media/token"):
-                return {"token": "test", "url": "wss://rtc-msk.cordcam.ru", "expiresAt": 0}
+                return {"token": "test", "url": "wss://rtc-msk.cord.online", "expiresAt": 0}
             raise AssertionError(path)
 
         self.core.request = AsyncMock(side_effect=core_request)
         self.core.command = AsyncMock(return_value={})
-        player = Music(self.store, self.core, "http://127.0.0.1:7880", "wss://cordcam.ru")
+        player = Music(self.store, self.core, "http://127.0.0.1:7880", "wss://cord.online")
         with patch("cord_services.music.Publisher", FakePublisher):
             task = asyncio.create_task(player.run(ROOM))
             try:
@@ -300,7 +300,7 @@ class MusicNodeTests(Fixture):
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await task
-        self.assertEqual(urls, ["wss://rtc-msk.cordcam.ru"])
+        self.assertEqual(urls, ["wss://rtc-msk.cord.online"])
 
 
 class MusicStartRetryTests(Fixture):

@@ -28,7 +28,7 @@ import { AudioFields, QualityFields } from './Settings';
 import { SettingGroup, SettingRow } from './settings/Row';
 import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
-import { noteVisit } from '../core/analytics';
+import { notePrejoin } from '../core/insight';
 import { beginInviteCopy, inviteLink } from '../core/invite-copy';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
@@ -63,7 +63,7 @@ export function Prejoin({
   const [title, setTitle] = useState(() => readCreateTitle() ?? t(($) => $.prejoin.defaultTitle));
   useEffect(() => clearCreateTitle(), []);
   // Воронка аналитики (R210): дошёл до предвхода — один раз на сессию.
-  useEffect(() => noteVisit('prejoin'), []);
+  useEffect(() => notePrejoin(), []);
   const [settings, setSettings] = useState(false);
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [integrationsAllowed, setIntegrationsAllowed] = useState(true);

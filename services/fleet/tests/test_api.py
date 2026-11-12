@@ -70,7 +70,7 @@ def build(settings=None, machines_json=None, core=None, registry_dir=None):
     machines_json = machines_json or json.dumps(
         [
             {"id": "a", "role": "dev+admin", "host": "127.0.0.1", "installDir": "/opt/ModernStreamingSystem", "core": {"url": "http://127.0.0.1:8080"}, "nodeId": "fra", "registry": registry},
-            {"id": "meet", "role": "product-core", "host": "108.165.32.23", "ssh": "root@108.165.32.23", "sshKey": "/keys/cord_fra", "installDir": "/opt/meet/ModernStreamingSystem", "core": {"url": "http://127.0.0.1:28080"}, "product": "cordcam.ru"},
+            {"id": "meet", "role": "product-core", "host": "108.165.32.23", "ssh": "root@108.165.32.23", "sshKey": "/keys/cord_fra", "installDir": "/opt/meet/ModernStreamingSystem", "core": {"url": "http://127.0.0.1:28080"}, "product": "cord.online"},
         ]
     )
     settings = settings or Settings(
@@ -329,10 +329,10 @@ class JobsApiTest(unittest.TestCase):
             drained = client.post("/api/fleet/nodes/a/msk/drain", json={"dryRun": True}, headers=HEADERS)
             self.assertEqual(drained.status_code, 200, drained.text)
             self.assertEqual(drained.json()["kind"], "node.drain")
-            form = {"id": "hel", "ip": "152.234.227.199", "product": "cordcam.ru", "country": "FI", "titleRu": "Хельсинки", "titleEn": "Helsinki", "maxRooms": 2, "uplinkMbps": 1000, "cores": 2, "dnsReady": True}
+            form = {"id": "hel", "ip": "152.234.227.199", "product": "cord.online", "country": "FI", "titleRu": "Хельсинки", "titleEn": "Helsinki", "maxRooms": 2, "uplinkMbps": 1000, "cores": 2, "dnsReady": True}
             plan = client.post("/api/fleet/nodes/a/add", json={"form": form, "dryRun": True}, headers=HEADERS)
             self.assertEqual(plan.status_code, 200, plan.text)
-            self.assertEqual(plan.json()["dns"][0]["name"], "hel.cordcam.ru")
+            self.assertEqual(plan.json()["dns"][0]["name"], "hel.cord.online")
             self.assertEqual(len(plan.json()["plan"]), 5)
             self.assertIsNone(plan.json()["job"])
             taken = client.post("/api/fleet/nodes/a/add", json={"form": {**form, "id": "msk"}, "dryRun": True}, headers=HEADERS)

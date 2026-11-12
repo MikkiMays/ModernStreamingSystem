@@ -19,7 +19,7 @@ import {
  * Медиаузел как код (R195). Запускается на узле управления (A) из корня репозитория, где лежит `.env`.
  *
  *   node scripts/node-config.mjs --node=hel --ip=152.234.227.199 \
- *     --app=hel.cordcam.ru --rtc=rtc-hel.cordcam.ru --turn=turn-hel.cordcam.ru \
+ *     --app=hel.cord.online --rtc=rtc-hel.cord.online --turn=turn-hel.cord.online \
  *     --title-ru=Хельсинки --title-en=Helsinki --country=FI --uplink-mbps=1000 --cores=2 \
  *     --ssh=root@152.234.227.199 --ssh-key=/root/.ssh/cord_fi
  *   node scripts/node-config.mjs --node=hel --mode=ip --ip=…        # до DNS: самоподписанный сертификат
@@ -159,7 +159,7 @@ if (args.node) {
   if (args.enabled !== undefined) node.enabled = args.enabled !== "false";
   if (args.ssh) node.ssh = args.ssh;
   if (args["ssh-key"]) node.sshKey = args["ssh-key"];
-  // Чужие сайты на машине узла (например, сайт владельца на cordcam): edge узла пропускает их TLS по SNI на локальный
+  // Чужие сайты на машине узла (например, сайт владельца на машине узла): edge узла пропускает их TLS по SNI на локальный
   // порт, не вскрывая (`edge-config.mjs`, `--legacy-hosts`). Пустое значение — убрать.
   if (args["legacy-hosts"] !== undefined) {
     if (args["legacy-hosts"]) node.legacyHosts = args["legacy-hosts"].split(",");

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
  *   node scripts/fleet-setup.mjs --allow=203.0.113.0/24,198.51.100.7/32   # список адресов для входа
  *   node scripts/fleet-setup.mjs --admin=admin.callcord.ru                # имя пульта (проверка Origin)
  *   node scripts/fleet-setup.mjs --machines=/data/machines.json           # откуда список машин
- *   node scripts/fleet-setup.mjs --executor=ssh --ssh-machines=meet,cordcam   # ВКЛЮЧИТЬ управление вживую
+ *   node scripts/fleet-setup.mjs --executor=ssh --ssh-machines=meet,msk   # ВКЛЮЧИТЬ управление вживую
  *   node scripts/fleet-setup.mjs --executor=dry-run                           # вернуть сухой прогон
  *   node scripts/fleet-setup.mjs --core=a=password:<пароль стенда>            # учётные данные ядра машины
  *

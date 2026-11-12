@@ -29,7 +29,7 @@ import json, sys
 from pathlib import Path
 out, sfu = Path(sys.argv[1]), Path(sys.argv[2])
 for mid, p, title, role, core in (("fra", "1911", "meet · Франкфурт", "product+media", True),
-                                  ("msk", "1912", "cordcam · Москва", "media", False),
+                                  ("msk", "1912", "msk · Москва", "media", False),
                                   ("hel", "1913", "Хельсинки", "media", False)):
     groups = [{"targets": [f"127.0.0.1:{p}{n}"], "labels": {"machine": mid, "title": title, "role": role, "kind": kind}}
               for n, kind in (("0", "node"), ("1", "containers"), ("4", "gateway"))]

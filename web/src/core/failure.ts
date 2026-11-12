@@ -1,4 +1,5 @@
 import { i18next, SOURCE_LANGUAGE, t } from '../i18n';
+import { noteError as trackError } from './insight';
 import { noteError } from './support';
 
 /*
@@ -291,7 +292,31 @@ export function noteFailure(place: Place, code: string, error?: unknown): void {
     noteError(`${place} ${code}${detail}`);
   }
   count(place, code);
+  // Аналитика (R239): та же ошибка — событием сессии, с областью и именем ошибки браузера.
+  trackError({
+    code,
+    scope: SCOPES[place] ?? 'app',
+    detail: error instanceof Error || error instanceof DOMException ? error.name : undefined,
+  });
 }
+
+/** Место ошибки → область аналитики (`contracts/insight.md`, событие `error`). */
+const SCOPES: Partial<Record<Place, Parameters<typeof trackError>[0]['scope']>> = {
+  connect: 'join',
+  join: 'join',
+  meeting: 'media',
+  call: 'media',
+  speaker: 'media',
+  camera: 'device',
+  microphone: 'device',
+  screen: 'device',
+  chat: 'chat',
+  files: 'chat',
+  board: 'board',
+  cinema: 'cinema',
+  music: 'music',
+  games: 'game',
+};
 
 function count(place: Place, code: string) {
   const label = (KINDS as readonly string[]).includes(code) || knownCode(code) ? code : 'other';

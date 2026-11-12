@@ -66,7 +66,7 @@ const machines = [
     installDir: '/opt/meet',
     ssh: true,
     nodeId: 'fra',
-    product: 'cordcam.ru',
+    product: 'cord.online',
     core: { url: 'http://127.0.0.1:19112', credential: 'key' },
   },
   {
@@ -217,7 +217,7 @@ describe('каркас пульта R220', () => {
     await waitFor(() => expect(location.pathname).toBe(sectionPath('meetings')));
     expect(document.title).toBe(`${text.nav.meetings} — ${text.app.title}`);
     expect(screen.getByRole('heading', { level: 1, name: text.nav.meetings })).toHaveFocus();
-    expect(await screen.findByRole('combobox')).toHaveDisplayValue('meet · cordcam.ru');
+    expect(await screen.findByRole('combobox')).toHaveDisplayValue('meet · cord.online');
   });
 
   it('тема пульта: три значка, выбор ставит data-theme и помнится', async () => {
@@ -398,7 +398,7 @@ describe('«Флот — live»: медиаузел и ядро продукта
       expect(within(card).getByText(`${text.live.registry}: ${text.nodes.states.busy}`)).toBeInTheDocument(),
     );
     expect(within(card).getByText(`${text.live.backbone}: ${text.live.backboneUp}`)).toBeInTheDocument();
-    expect(within(card).getByText(`→ ${text.live.linkCore} meet · cordcam.ru`)).toBeInTheDocument();
+    expect(within(card).getByText(`→ ${text.live.linkCore} meet · cord.online`)).toBeInTheDocument();
     // Своего ядра у узла нет — и строки «ядро» среди источников тоже.
     expect(
       within(within(card).getByRole('list', { name: text.live.sourcesTitle })).queryByText(

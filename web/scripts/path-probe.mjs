@@ -11,7 +11,7 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const base = args.base ?? 'https://cordcam.ru';
+const base = args.base ?? 'https://cord.online';
 // Только UDP этого зонда (его cgroup): сервер на той же машине и его TURN этого правила не видят.
 const own = readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1];
 // `--block all` — весь UDP зонда, кроме DNS: сервер на той же машине отвечает и с внутренних адресов.

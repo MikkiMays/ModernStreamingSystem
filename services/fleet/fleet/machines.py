@@ -8,7 +8,7 @@ JSON, а в `FLEET_CORE_<ID>` (`password:…` для стенда, `key:…` д�
       "core": {"url": "http://127.0.0.1:8080"}, "nodeId": "fra", "registry": "/nodes/registry.json"},
      {"id": "meet", "role": "product-core", "host": "108.165.32.23", "ssh": "root@108.165.32.23",
       "sshKey": "/keys/cord_fra", "installDir": "/opt/meet/ModernStreamingSystem",
-      "core": {"url": "http://127.0.0.1:28080"}, "nodeId": "fra", "product": "cordcam.ru"}]
+      "core": {"url": "http://127.0.0.1:28080"}, "nodeId": "fra", "product": "cord.online"}]
 """
 
 from __future__ import annotations

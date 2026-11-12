@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { retryCatalog } from './core/cinema/reach';
+import { noteScreen } from './core/insight';
 import { useTranslation } from 'react-i18next';
 import type { Admission } from './api/types';
 import { RoomApi } from './api/client';
@@ -140,6 +141,8 @@ function Workspace() {
     setDestination(cached ? { kind: 'recent', admission: cached } : next);
     setPage('prejoin');
   };
+  // Аналитика (R239): какой экран видит человек — главная, предвход или встреча.
+  useEffect(() => noteScreen(page === 'room' ? 'meeting' : page), [page]);
   useEffect(() => {
     document.documentElement.dataset.desktop = String(isDesktop());
     // Язык интерфейса — в том же сообщении (R103): на нём оболочка пишет меню трея.

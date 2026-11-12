@@ -65,7 +65,7 @@ const machines = [
     installDir: '/opt/meet',
     ssh: true,
     nodeId: 'fra',
-    product: 'cordcam.ru',
+    product: 'cord.online',
     core: { url: 'http://127.0.0.1:19112', credential: 'key' },
   },
 ];
@@ -294,7 +294,7 @@ function ticket(overrides: Partial<SupportTicket> = {}): SupportTicket {
     slaMet: null,
     machine: 'meet',
     machineTitle: 'Продукт',
-    product: 'cordcam.ru',
+    product: 'cord.online',
     ...overrides,
   };
 }
@@ -344,7 +344,7 @@ function routes(url: URL, init: RequestInit) {
         ],
         more: false,
         errors: [
-          { machine: 'cordcam', status: 502, code: 'CORE_UNREACHABLE', detail: 'Ядро cordcam не отвечает' },
+          { machine: 'msk', status: 502, code: 'CORE_UNREACHABLE', detail: 'Ядро msk не отвечает' },
         ],
         skipped: [],
       },
@@ -451,7 +451,7 @@ describe('экраны пульта R209/R210/R215', () => {
     render(<AdminApp />);
     await screen.findByText('AAAAAAAA', {}, { timeout: 10_000 });
     expect(screen.getByText('BBBBBBBB')).toBeInTheDocument();
-    expect(screen.getByText(/cordcam: Ядро cordcam не отвечает/)).toBeInTheDocument();
+    expect(screen.getByText(/msk: Ядро msk не отвечает/)).toBeInTheDocument();
     expect(screen.getByText(/просрочено/)).toBeInTheDocument();
     await screen.findByText(text.support.stats);
 

@@ -7,6 +7,7 @@ import { allowed } from '../core/permissions';
 import { Modal, useStore } from './primitives';
 import { formatCode } from './Home';
 import { failureText } from '../core/failure';
+import { noteInvite } from '../core/insight';
 
 export function Invite({
   meeting,
@@ -74,6 +75,7 @@ export function Invite({
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(link);
+                noteInvite('copy');
                 setCopied(true);
               } catch {
                 setError(t(($) => $.invite.dialog.copyManually));

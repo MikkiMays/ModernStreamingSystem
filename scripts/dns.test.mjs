@@ -80,17 +80,11 @@ test("тело запроса: CAA — полями, TXT — в кавычках
   assert.equal(payload({ type: "A", name: "c.example", content: "192.0.2.1", ttl: 60, proxied: false }).proxied, false);
 });
 
-test("файл зон в репозитории разворачивается: продукт — cord.online, у прежнего имени те же узлы", async () => {
+test("файл зон в репозитории разворачивается: продукт — cord.online, пульт и стенд — в своей зоне", async () => {
   const zones = await load();
-  assert.deepEqual(Object.keys(zones), ["cord.online", "cordcam.ru", "callcord.ru"]);
+  assert.deepEqual(Object.keys(zones), ["cord.online", "callcord.ru"]);
   const names = (zone) => zones[zone].filter((record) => record.type === "A").map((record) => record.name);
   assert.ok(names("cord.online").includes("rtc-msk.cord.online"));
-  // Прежнее имя живёт, пока по нему ходят люди: тот же набор, что у продукта.
-  assert.deepEqual(
-    names("cordcam.ru").map((name) => name.replace("cordcam.ru", "cord.online")),
-    names("cord.online"),
-  );
-  // Пульт и стенд — на своей машине и только в своей зоне.
   assert.ok(names("callcord.ru").includes("admin.callcord.ru"));
   assert.ok(!names("cord.online").some((name) => name.startsWith("admin.")));
 });

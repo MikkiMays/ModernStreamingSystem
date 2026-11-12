@@ -11,7 +11,7 @@ global:
   scrape_timeout: 10s
 
 # Метка `machine` — у каждой цели (R208): `a` — эта машина (стенд разработки и пульт), удалённые — из
-# `infra/generated/scrape-nodes/fleet-*.json` (fra — продукт cordcam.ru, msk, hel). Дашборды делят по ней dev и прод.
+# `infra/generated/scrape-nodes/fleet-*.json` (fra — продукт cord.online, msk, hel). Дашборды делят по ней dev и прод.
 scrape_configs:
   # Ядро: встречи, люди, входы, отказы, блоки (cord_*), JVM, HTTP, пул базы.
   - job_name: core

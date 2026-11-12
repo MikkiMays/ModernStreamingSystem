@@ -4,7 +4,7 @@
 //   node scripts/set-server.mjs                                   # проверить: адрес продукта из репозитория
 //   CORD_ANDROID_SERVER=https://meet.example.com node scripts/set-server.mjs   # другая установка
 //
-// Продукт один — `https://cordcam.ru` (R200, Р-110): он и записан в capacitor.config.json (`server.url`) и в
+// Продукт один — `https://cord.online` (R200, Р-110): он и записан в capacitor.config.json (`server.url`) и в
 // кнопке «Повторить» страницы offline.html, CI собирает APK с ним без переменных. Другая установка задаёт
 // свой адрес переменной CORD_ANDROID_SERVER (или аргументом) — скрипт пишет его в оба файла. Без адреса
 // скрипт ничего не пишет: сверяет, что оба файла называют один https-origin, и печатает его.

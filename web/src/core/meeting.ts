@@ -36,6 +36,7 @@ import {
 } from './desktop-notify';
 import { t } from '../i18n';
 import { meetingEnded, meetingStarted } from './live-meetings';
+import { noteFeature, noteLeave } from './insight';
 
 /** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
 const CLOCK_MEMORY = 10 * 60_000;
@@ -45,6 +46,8 @@ const CLOCK_SAMPLES = 32;
 const CLOCK_JUMP = 1000;
 
 export class Meeting {
+  /** Когда встреча открыта на этой странице — для длительности участия в аналитике (R239). */
+  private readonly openedAt = performance.now();
   readonly api: RoomApi;
   readonly snapshot: Store<Snapshot>;
   readonly viewing = new Store<{ screenId: string; participantId: string } | null>(null);
@@ -554,6 +557,8 @@ export class Meeting {
       targetId,
       ...extra,
     });
+    // Аналитика (R239): чем пользуются — группой команды; служебные (`leave`) и поток штрихов не считаются.
+    if (type !== 'leave' && type !== 'gartic.draw') noteFeature(type === 'message.send' ? 'chat' : type.split('.')[0]!);
     if (type === 'invite.create' && ack.value) this.invite.set(ack.value);
     if (type === 'invite.revoke') this.invite.set(null);
     // Своя команда — в снимке с номером не меньше ответа. Он уже здесь или едет запросом, который
@@ -788,6 +793,11 @@ export class Meeting {
     const first = !this.ended.get();
     const snapshot = this.snapshot.get();
     const byMaintenance = snapshot.endReason === 'maintenance';
+    if (first)
+      noteLeave(
+        own ? 'user' : snapshot.closedAt || byMaintenance ? 'ended' : 'removed',
+        (performance.now() - this.openedAt) / 1000,
+      );
     if (byMaintenance) reason = t(($) => $.meeting.end.maintenance);
     else if (snapshot.closedAt) reason = t(($) => $.meeting.end.closed);
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);

@@ -33,9 +33,9 @@ test("apply — только названные поля, с проверкой"
   assert.throws(() => apply(current, { executor: "bash" }), /dry-run или ssh/);
   assert.throws(() => apply(current, { executor: "ssh" }), /ssh-machines/);
   assert.throws(() => apply(current, { core: ["a=plain"] }), /password:/);
-  const live = apply(current, { executor: "ssh", "ssh-machines": "meet,cordcam" });
+  const live = apply(current, { executor: "ssh", "ssh-machines": "meet,msk" });
   assert.equal(live.FLEET_EXECUTOR, "ssh");
-  assert.equal(live.FLEET_SSH_MACHINES, "meet,cordcam");
+  assert.equal(live.FLEET_SSH_MACHINES, "meet,msk");
   assert.equal(apply(live, { executor: "dry-run" }).FLEET_EXECUTOR, "dry-run");
 });
 

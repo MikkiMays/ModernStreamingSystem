@@ -1,4 +1,5 @@
 import type { Admission } from '../api/types';
+import { noteInvite } from './insight';
 
 /**
  * Ссылка на новую встречу — в буфер сразу при создании (R142, «ВАЖНО» владельца 31.10).
@@ -40,6 +41,7 @@ export async function copyWhenReady(text: Promise<string | null>): Promise<boole
     blob.catch(() => {});
     try {
       await clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+      noteInvite('copy');
       return true;
     } catch {
       // Обещание в `ClipboardItem` не берут или запись отклонена — пробуем текстом.
@@ -49,6 +51,7 @@ export async function copyWhenReady(text: Promise<string | null>): Promise<boole
     const value = await text;
     if (!value) return false;
     await clipboard.writeText(value);
+    noteInvite('copy');
     return true;
   } catch {
     return false;

@@ -337,7 +337,7 @@ export function AddServer({
     await navigator.clipboard?.writeText(result.plan.join('\n'));
     toast.add({ title: text.app.copied });
   };
-  const preview = `${form.id || 'id'}.${form.product || 'cordcam.ru'}`;
+  const preview = `${form.id || 'id'}.${form.product || 'cord.online'}`;
   return (
     <Dialog
       open={open}
@@ -386,7 +386,7 @@ export function AddServer({
           <Input value={form.ip} onChange={set('ip')} placeholder="152.234.227.199" autoComplete="off" />
         </Field>
         <Field label={text.nodes.form.product}>
-          <Input value={form.product} onChange={set('product')} placeholder="cordcam.ru" />
+          <Input value={form.product} onChange={set('product')} placeholder="cord.online" />
         </Field>
         <Field label={text.nodes.form.country}>
           <Input value={form.country} onChange={set('country')} placeholder="FI" maxLength={2} />

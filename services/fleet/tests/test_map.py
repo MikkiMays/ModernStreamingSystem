@@ -18,7 +18,7 @@ MACHINES = parse(
         [
             {"id": "a", "role": "dev+admin", "host": "127.0.0.1", "installDir": "/opt/a", "core": {"url": "http://127.0.0.1:8080"}, "nodeId": "fra", "metrics": {"machine": "a"}},
             {"id": "meet", "role": "product-core", "host": "108.165.32.23", "ssh": "root@108.165.32.23", "installDir": "/opt/meet", "core": {"url": "http://127.0.0.1:19112"}, "nodeId": "fra", "title": "meet", "metrics": {"machine": "fra"}},
-            {"id": "cordcam", "role": "media-node", "host": "157.22.241.114", "ssh": "root@157.22.241.114", "installDir": "/opt/cord/node", "nodeId": "msk", "metrics": {"machine": "msk"}},
+            {"id": "msk", "role": "media-node", "host": "157.22.241.114", "ssh": "root@157.22.241.114", "installDir": "/opt/cord/node", "nodeId": "msk", "metrics": {"machine": "msk"}},
         ]
     ),
     {"a": "password:x", "meet": "key:y"},
@@ -107,7 +107,7 @@ class MapTest(unittest.TestCase):
 
     def test_every_container_of_every_machine_is_on_the_map(self):
         self.assertIsNone(self.data["error"])
-        self.assertEqual([m["id"] for m in self.data["machines"]], ["a", "meet", "cordcam"])
+        self.assertEqual([m["id"] for m in self.data["machines"]], ["a", "meet", "msk"])
         # Свои — первыми и по памяти; чужой контейнер той же машины — в конце и помечен.
         self.assertEqual(
             [(c["name"], c["group"]) for c in self.meet["containers"]],
@@ -218,7 +218,7 @@ class StateTest(unittest.TestCase):
         self.assertEqual([p["level"] for p in got["product"]["problems"]], ["bad", "bad", "warn"])
 
     def test_silent_core_is_bad_and_silent_metrics_are_a_warning(self):
-        got = self.state(nows={"meet": {"data": None, "error": {"code": "CORE_UNREACHABLE"}}, "a": {"data": {}, "error": None}}, node={"cordcam": False})
+        got = self.state(nows={"meet": {"data": None, "error": {"code": "CORE_UNREACHABLE"}}, "a": {"data": {}, "error": None}}, node={"msk": False})
         self.assertEqual(got["product"]["level"], "bad")
         self.assertIn("meet", got["product"]["reason"])
         self.assertEqual([p["kind"] for p in got["product"]["problems"]], ["core", "metrics"])

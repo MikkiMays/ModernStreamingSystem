@@ -42,6 +42,11 @@ async function obtain(fetchChallenge: FetchChallenge): Promise<string | null> {
   return challenge ? solve(challenge) : null;
 }
 
+/** Решить выданную задачу в фоновом потоке — для тех, у кого своя ручка задач (аналитика `insight`, R239). */
+export function solveProof(challenge: Challenge): Promise<string | null> {
+  return solve(challenge);
+}
+
 function solve(challenge: Challenge): Promise<string | null> {
   if (typeof Worker === 'undefined') return Promise.resolve(solveChallenge(challenge));
   return new Promise((resolve) => {

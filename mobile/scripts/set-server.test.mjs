@@ -26,15 +26,15 @@ const run = (dir, env = {}, ...args) =>
     env: { ...process.env, CORD_ANDROID_SERVER: "", ...env },
   });
 
-test("в репозитории — продукт cordcam.ru, и оба файла называют его одинаково (R200, Р-110)", async () => {
+test("в репозитории — продукт cord.online, и оба файла называют его одинаково (R200, Р-110)", async () => {
   const dir = await shell();
   try {
     const config = JSON.parse(await readFile(join(dir, "capacitor.config.json"), "utf8"));
-    assert.equal(config.server.url, "https://cordcam.ru");
-    assert.match(await readFile(join(dir, "www", "offline.html"), "utf8"), /<meta name="cord-server" content="https:\/\/cordcam\.ru\/">/);
+    assert.equal(config.server.url, "https://cord.online");
+    assert.match(await readFile(join(dir, "www", "offline.html"), "utf8"), /<meta name="cord-server" content="https:\/\/cord\.online\/">/);
     const check = run(dir);
     assert.equal(check.status, 0, check.stderr);
-    assert.match(check.stdout, /^set-server: https:\/\/cordcam\.ru \(из репозитория\)/);
+    assert.match(check.stdout, /^set-server: https:\/\/cord\.online \(из репозитория\)/);
   } finally {
     await rm(dir, { recursive: true });
   }
@@ -47,7 +47,7 @@ test("без адреса ничего не пишет, а расхождени�
     assert.equal(run(dir).status, 0);
     assert.equal(await readFile(join(dir, "capacitor.config.json"), "utf8"), before);
     const offline = join(dir, "www", "offline.html");
-    await writeFile(offline, (await readFile(offline, "utf8")).replace("https://cordcam.ru/", "https://other.example.test/"));
+    await writeFile(offline, (await readFile(offline, "utf8")).replace("https://cord.online/", "https://other.example.test/"));
     const broken = run(dir);
     assert.notEqual(broken.status, 0);
     assert.match(broken.stderr, /расходятся/);

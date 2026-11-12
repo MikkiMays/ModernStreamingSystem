@@ -20,7 +20,7 @@ import { installDevicePixel } from './ui/device-pixel';
 import { installScrollActivity } from './ui/scroll-activity';
 import { startFailureReports, watchFailures } from './core/failure';
 import { sendFailures } from './api/client';
-import { noteVisit } from './core/analytics';
+import { noteScreen, startInsight } from './core/insight';
 import { reloadForNewBuild } from './ui/lazy-part';
 unlockNotificationAudio();
 // Кольцо фокуса — только тому, кто ходит клавиатурой (S1, R26).
@@ -33,8 +33,12 @@ installScrollActivity();
 // ошибок клиента уходит ядру сводкой раз в 30 с и при уходе со страницы (R180).
 watchFailures();
 startFailureReports(sendFailures);
-// Аналитика продукта (R210): «открыл Cord» — один раз на сессию вкладки или запуск приложения.
-noteVisit('open');
+// Аналитика продукта (R239): начало сессии — раз на сессию вкладки; «человеком» её делает действие, не загрузка.
+startInsight();
+// Отдельные страницы вне рабочего пространства называют себя сами: у них нет общего эффекта экрана.
+if (location.pathname === '/download') noteScreen('download');
+else if (location.pathname === '/support') noteScreen('support');
+else if (location.pathname === '/activity') noteScreen('activity');
 
 /**
  * Регистрируется после загрузки и только в браузере.
