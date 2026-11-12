@@ -35,6 +35,7 @@ from .errors import (
 from .executor import Executor, Jobs, SshExecutor
 from .machines import Machine, Machines, parse
 from .metrics import Metrics
+from .notify import Daily, Telegram
 from .fleet_map import FleetMap, environment, environment_state
 from .settings import SESSION_LIFETIME, Settings, from_env
 from .store import Store
@@ -121,6 +122,7 @@ class App:
         dry_executor: Executor | None = None,
         metrics: Metrics | None = None,
         core_client: httpx.AsyncClient | None = None,
+        telegram: Telegram | None = None,
     ) -> None:
         self.settings = settings
         self.store = store
@@ -132,16 +134,40 @@ class App:
         self.cores: dict[str, CoreLink] = {}
         self.jobs: Jobs | None = None
         self._live, self._dry = live_executor, dry_executor
+        # Уведомления владельцу (`notify.py`): итоги дня аналитики продукта и сбой задачи пульта.
+        self.telegram = telegram or Telegram(settings.notify_token, settings.notify_chat)
+        self.daily = Daily(
+            self.telegram,
+            self.product_report,
+            hour=settings.digest_hour,
+            offset_hours=settings.digest_offset,
+            marker=settings.data_dir / "digest.day",
+            url=f"https://{settings.admin_host}/analytics" if settings.admin_host else "",
+        )
+        self._tasks: list[asyncio.Task] = []
 
     def start(self) -> None:
         live = self._live or SshExecutor(known_hosts=str(self.settings.data_dir / "known_hosts"))
         self.jobs = Jobs(self.store, self.settings, live, self._dry, on_finish=self._job_finished)
         self.store.audit_prune()
+        if self.daily.enabled:
+            self._tasks.append(asyncio.create_task(self.daily.run(), name="fleet-digest"))
 
     async def close(self) -> None:
+        for task in self._tasks:
+            task.cancel()
+        await asyncio.gather(*self._tasks, return_exceptions=True)
         for link in self.cores.values():
             await link.close()
         await self.metrics.close()
+        await self.telegram.close()
+
+    async def product_report(self, section: str, params: dict[str, str]) -> dict[str, Any]:
+        """Отчёт аналитики продукта — через админ-API его ядра, тем же путём, что читает пульт."""
+        machine = next((m for m in self.machines if m.core and m.core.kind and environment(m) == "product"), None)
+        if not machine:
+            raise Problem(409, MACHINE_NO_CORE, "У продукта нет ядра с учётными данными пульта")
+        return await self.core(machine.id).get("/api/v1/admin/insight/" + section, params)
 
     def with_core(self) -> list[Machine]:
         """Машины, у ядра которых есть учётные данные пульта, — их ящики и рычаги доступны."""
@@ -164,6 +190,12 @@ class App:
             detail=job.summary,
             job_id=job.id,
         )
+        if job.status != "ok" and not job.dry_run:
+            # Сбой настоящей задачи — владельцу сразу: в журнал пульта заглядывают не каждый час.
+            summary = (job.summary or "").strip()[:200]
+            await self.telegram.send(
+                f"Пульт: задача «{job.kind}» на машине {job.machine} не удалась." + (f"\n{summary}" if summary else "")
+            )
         if job.kind == "status" and job.status == "ok" and not job.dry_run:
             self.store.save_machine_state(job.machine, {"lines": [line["text"] for line in self.store.lines(job.id)]})
 

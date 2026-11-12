@@ -14,6 +14,9 @@
     FLEET_DATA            каталог состояния (/data)
     FLEET_INSECURE_DEV    1 — кука без `Secure` и без префикса `__Host-` (только dev по http)
     FLEET_CORE_<ID>       учётные данные ядра машины <ID>: `password:<…>` или `key:<…>`
+    ALERT_TELEGRAM_BOT_TOKEN, ALERT_TELEGRAM_CHAT_ID  бот и чат владельца (`.local/alerts.env`): итоги дня и сбои задач
+    FLEET_DIGEST_HOUR     час итогов дня по поясу аналитики (по умолчанию 9); пусто или -1 — итоги не шлются
+    FLEET_DIGEST_OFFSET   смещение пояса аналитики от UTC в часах (по умолчанию 3 — Москва)
 """
 
 from __future__ import annotations
@@ -52,6 +55,11 @@ class Settings:
     # R211: вход по клиентскому сертификату — его проверяет `edge` на имени пульта, а шлюз пульта ставит
     # `X-Cord-Edge-Cert: verified`. Тогда пароль и код не нужны (владелец 08.11: «только по сертификату»).
     edge_cert: bool = False
+    # Уведомления владельцу в Telegram (`notify.py`): бот оповещений, час итогов дня и пояс аналитики.
+    notify_token: str = ""
+    notify_chat: str = ""
+    digest_hour: int = -1
+    digest_offset: int = 3
 
     @property
     def enabled(self) -> bool:
@@ -108,4 +116,18 @@ def from_env(env: dict[str, str] | None = None) -> Settings:
         insecure_dev=env.get("FLEET_INSECURE_DEV", "") == "1",
         core_credentials=credentials,
         edge_cert=env.get("FLEET_AUTH", "").strip() == "edge-cert",
+        notify_token=env.get("ALERT_TELEGRAM_BOT_TOKEN", "").strip(),
+        notify_chat=env.get("ALERT_TELEGRAM_CHAT_ID", "").strip(),
+        digest_hour=_int(env.get("FLEET_DIGEST_HOUR"), 9),
+        digest_offset=_int(env.get("FLEET_DIGEST_OFFSET"), 3),
     )
+
+
+def _int(value: str | None, fallback: int) -> int:
+    """Целое из окружения: не задано — значение по умолчанию; пусто или не число — «выключено» (-1)."""
+    if value is None:
+        return fallback
+    try:
+        return int(value.strip())
+    except ValueError:
+        return -1

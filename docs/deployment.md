@@ -516,6 +516,7 @@ docker compose up -d --force-recreate livekit
 | `METRICS_RETENTION` | владелец | срок рядов VictoriaMetrics: `90d` (по умолчанию), `6M`, `1y` |
 | `ALERT_TELEGRAM_BOT_TOKEN` | владелец, `.local/alerts.env` | отдельный бот оповещений (файл вне git, права 600); без него — бот Cord из `.local/telegram.env` |
 | `ALERT_TELEGRAM_CHAT_ID` | владелец, `.env` или `.local/alerts.env` | чат для оповещений; найти и записать: владелец нажимает «Запустить» у бота, затем `node scripts/alerts-chat.mjs`; проверка — `node scripts/alerts-chat.mjs --test` |
+| `FLEET_DIGEST_HOUR` | владелец, `.local/fleet.env` | час (по поясу аналитики, по умолчанию `9`), когда пульт шлёт тем же ботом итоги вчерашнего дня продукта: люди, собеседники, разговоры, вход, ошибки, роботы; пусто — не слать. Тем же ботом пульт сообщает о неудавшейся задаче |
 | `HEALTHCHECKS_URL` | владелец | адрес проверки Healthchecks.io: вечный алерт `Watchdog` пингует его раз в минуту — о смерти самой машины скажет он |
 | `GATEWAY_METRICS_PORT` | владелец | порт метрик шлюза на 127.0.0.1, по умолчанию `2019` (поменять, если занят) |
 

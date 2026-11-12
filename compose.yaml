@@ -284,6 +284,9 @@ services:
     env_file:
       - path: .local/fleet.env
         required: false
+      # Бот и чат оповещений владельца (итоги дня, сбои задач) — тот же файл, что читает настройка Alertmanager.
+      - path: .local/alerts.env
+        required: false
     environment:
       FLEET_DATA: /data
       FLEET_LISTEN: 127.0.0.1:18200
