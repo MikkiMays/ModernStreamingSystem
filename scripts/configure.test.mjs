@@ -116,6 +116,16 @@ test('monitoring adds its secrets once, guards SFU metrics with a password and n
     const alerts = JSON.parse(await readFile(join(directory, 'infra/generated/alertmanager.yml'), 'utf8'));
     assert.deepEqual(alerts.receivers.map((r) => r.name), ['owner', 'watchdog']);
     assert.equal(alerts.receivers[0].telegram_configs, undefined);
+    // Срочное — маршрутом по умолчанию; предупреждения и справочные напоминают реже.
+    assert.equal(alerts.route.repeat_interval, '6h');
+    assert.deepEqual(
+      alerts.route.routes.map((r) => [r.matchers[0], r.receiver, r.repeat_interval]),
+      [
+        ['alertname="Watchdog"', 'watchdog', '1m'],
+        ['severity="warn"', 'owner', '24h'],
+        ['severity="info"', 'owner', '72h'],
+      ],
+    );
 
     // Отдельный бот оповещений: токен и чат — в `.local/alerts.env`; он главнее бота Cord.
     await mkdir(join(directory, '.local'), { recursive: true });
