@@ -51,10 +51,13 @@ services:
     command: --config /etc/livekit.json
     volumes: [./livekit.json:/etc/livekit.json:ro]
     # Как на стенде (MEDIA-DIAGNOSIS §6): первым на процессор, последним под ООМ, без swap.
+    # Предел — `SFU_MEMORY` из `.env` узла (на узле с 8 ГБ — `4g`), `SFU_GOMEMLIMIT` чуть ниже него.
     cpu_shares: 4096
     oom_score_adj: -500
-    mem_limit: 1g
-    memswap_limit: 1g
+    mem_limit: ${SFU_MEMORY:-1g}
+    memswap_limit: ${SFU_MEMORY:-1g}
+    environment:
+      GOMEMLIMIT: ${SFU_GOMEMLIMIT:-900MiB}
     ulimits:
       nofile: { soft: 65536, hard: 65536 }
     restart: unless-stopped

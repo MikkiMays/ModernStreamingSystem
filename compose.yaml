@@ -193,7 +193,16 @@ services:
       POSTGRES_DB: streaming
       POSTGRES_USER: streaming
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Run scripts/configure.mjs}
-    command: postgres -c listen_addresses=127.0.0.1 -c log_statement=none -c log_min_error_statement=panic -c log_parameter_max_length_on_error=0
+    # Настройки под SSD и короткие запросы ядра (docs/architecture/core-scale.md §3.1): память — переменными, по
+    # умолчанию скромно (стенд на 8 ГБ); на машине продукта — `PG_SHARED_BUFFERS=1GB`, `PG_EFFECTIVE_CACHE_SIZE=4GB`
+    # в `.env`. Журнал сжимается zstd, контрольные точки реже и ровнее; JIT выключен — запросы ядра короткие, а
+    # компиляция плана давала выбросы задержки.
+    command: >-
+      postgres -c listen_addresses=127.0.0.1 -c log_statement=none -c log_min_error_statement=panic
+      -c log_parameter_max_length_on_error=0
+      -c shared_buffers=${PG_SHARED_BUFFERS:-128MB} -c effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-512MB}
+      -c wal_compression=zstd -c max_wal_size=${PG_MAX_WAL_SIZE:-2GB} -c checkpoint_timeout=15min
+      -c random_page_cost=1.1 -c jit=off
     volumes: [database:/var/lib/postgresql]
     restart: unless-stopped
     healthcheck:
@@ -230,10 +239,14 @@ services:
     # обрывы по 150–400 мс. Вес 4096 против 1024 по умолчанию; от ООМ — последним. Память — гигабайт и
     # без swap (MEDIA-DIAGNOSIS §6 п. 1): SFU на двадцать человек живёт в ~200 МиБ, а страница SFU в swap —
     # это пакет, который ушёл с опозданием на диск.
+    # Предел — переменной `SFU_MEMORY` (на выделенном узле с 8 ГБ — `4g`); `SFU_GOMEMLIMIT` чуть ниже него: сборщик
+    # Go начинает убирать раньше, чем ядро убьёт процесс за превышение (core-scale.md §3.1).
     cpu_shares: 4096
     oom_score_adj: -500
-    mem_limit: 1g
-    memswap_limit: 1g
+    mem_limit: ${SFU_MEMORY:-1g}
+    memswap_limit: ${SFU_MEMORY:-1g}
+    environment:
+      GOMEMLIMIT: ${SFU_GOMEMLIMIT:-900MiB}
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }
