@@ -309,6 +309,80 @@ async fn rule_3a_two_identical_office_computers_online_at_once_are_two_people() 
 }
 
 #[tokio::test]
+async fn rule_3a_a_closed_tab_is_not_online_so_a_return_in_incognito_minutes_later_is_the_same_person() {
+    // Человек закрыл вкладку и через несколько минут открыл сайт в инкогнито: ни куки, ни профиля, тот же
+    // компьютер и сеть. Прежняя сессия ещё не истекла по тишине, но страница сказала, что закрыта.
+    let mut world = world().await;
+    let mut anna = Browser::desktop(1);
+    anna.arrive(&mut world, &sid("c1"), at("2026-11-12 10:00:00"))
+        .await;
+    anna.send(
+        &mut world,
+        &sid("c1"),
+        at("2026-11-12 10:02:00"),
+        serde_json::json!([{"n": "page_hide", "p": {}}]),
+    )
+    .await;
+    let mut incognito = Browser {
+        cookie: None,
+        profile: Some(profile_secret(60)),
+        ..anna.clone()
+    };
+    incognito
+        .arrive(&mut world, &sid("c2"), at("2026-11-12 10:07:00"))
+        .await;
+    world.flush(at("2026-11-12 10:08:00")).await;
+    assert_eq!(people(&world).await, (1, 2));
+    assert_eq!(
+        world
+            .text("SELECT via FROM an_sessions ORDER BY started_at")
+            .await,
+        "new\nfingerprint"
+    );
+    // Сам сигнал — состояние сессии, а не событие отчётов.
+    assert_eq!(
+        world
+            .number("SELECT count(*) FROM an_events WHERE name = 'page_hide'")
+            .await,
+        0
+    );
+
+    // Вкладка вернулась (перезагрузка, «назад»): та же сессия снова на связи, и одинаковый компьютер рядом —
+    // снова другой человек.
+    let mut world = self::world().await;
+    let mut first = Browser::desktop(1);
+    first
+        .arrive(&mut world, &sid("c1"), at("2026-11-12 10:00:00"))
+        .await;
+    first
+        .send(
+            &mut world,
+            &sid("c1"),
+            at("2026-11-12 10:02:00"),
+            serde_json::json!([{"n": "page_hide", "p": {}}]),
+        )
+        .await;
+    first
+        .send(
+            &mut world,
+            &sid("c1"),
+            at("2026-11-12 10:03:00"),
+            serde_json::json!([{"n": "screen", "p": {"name": "home"}}]),
+        )
+        .await;
+    let mut second = Browser {
+        cookie: None,
+        profile: Some(profile_secret(61)),
+        ..first.clone()
+    };
+    second
+        .arrive(&mut world, &sid("c2"), at("2026-11-12 10:07:00"))
+        .await;
+    world.flush(at("2026-11-12 10:08:00")).await;
+    assert_eq!(people(&world).await, (2, 2));
+}
+
+#[tokio::test]
 async fn rule_3a_phones_are_never_merged_by_fingerprint() {
     let mut world = world().await;
     // Два телефона одной модели за одной мобильной сетью: отпечаток и подсеть совпадают.

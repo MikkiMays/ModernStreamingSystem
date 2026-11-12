@@ -157,6 +157,9 @@ struct Live {
     /// Сколько событий сессия прислала.
     events: u32,
     dirty: bool,
+    /// Страница закрыта (`page_hide` последним известием): устройство не «на связи», пока сессия не подаст голос
+    /// снова. Без этого человек, вернувшийся через пять минут в инкогнито, считался бы новым ещё полчаса.
+    gone: bool,
 }
 
 impl Live {
@@ -207,6 +210,7 @@ impl Live {
             names: HashSet::new(),
             events: 0,
             dirty: false,
+            gone: false,
         }
     }
 
@@ -470,6 +474,8 @@ impl Engine {
             return;
         };
         live.last_seen = v.now;
+        // Любая новая пачка — страница жива; закрытой её сделает `page_hide` в конце этой же пачки.
+        live.gone = false;
         live.probe |= v.probe;
         if live.who.is_none() {
             // Браузеру выдана кука в ответе на прошлую пачку — с этой он её предъявляет.
@@ -574,6 +580,11 @@ impl Engine {
                 // Признаки отпечатка сведены в HMAC; сами они не хранятся.
                 "session_start" => {
                     event.props.remove("fp");
+                }
+                // Страница закрыта: это состояние сессии, а не событие для отчётов.
+                "page_hide" => {
+                    live.gone = true;
+                    continue;
                 }
                 _ => {}
             }
@@ -1161,6 +1172,7 @@ impl Engine {
         let session = self.sessions.values().any(|live| {
             live.who.is_some()
                 && live.device == device
+                && !live.gone
                 && now - live.last_seen < Duration::minutes(SESSION_IDLE_MINUTES)
         });
         session || self.meetings.values().any(|m| m.has_device(device))

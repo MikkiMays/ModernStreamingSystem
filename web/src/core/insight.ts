@@ -38,7 +38,8 @@ export type InsightEvent =
   | 'integration_view'
   | 'error'
   | 'invite'
-  | 'leave';
+  | 'leave'
+  | 'page_hide';
 
 export type Landing = 'home' | 'invite' | 'room' | 'app' | 'tg' | 'download' | 'support' | 'other';
 export type ScreenName =
@@ -85,6 +86,8 @@ let lastScreen: string | undefined;
 let stopEngagement: (() => void) | undefined;
 /** `session_start` этой страницы ещё не ушло: собирается отпечаток. */
 let pendingStart = false;
+/** Снять слушателей страницы (нужно тестам: у каждого своя «страница»). */
+let detach: (() => void) | undefined;
 
 function randomId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -358,10 +361,21 @@ export function startInsight(): void {
       });
   }
   if (!current.engaged) watchEngagement();
-  addEventListener('pagehide', () => void flush(true));
-  document.addEventListener('visibilitychange', () => {
+  // Страница закрыта или ушла: служба перестаёт считать устройство «на связи» — и человека, вернувшегося через
+  // пять минут в инкогнито, узнаёт по отпечатку, а не считает новым (`contracts/insight.md` §6.7).
+  const onHide = () => {
+    track('page_hide');
+    void flush(true);
+  };
+  const onVisibility = () => {
     if (document.visibilityState === 'hidden') void flush(true);
-  });
+  };
+  addEventListener('pagehide', onHide);
+  document.addEventListener('visibilitychange', onVisibility);
+  detach = () => {
+    removeEventListener('pagehide', onHide);
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
 }
 
 /** Экран, который видит человек; повтор того же экрана подряд не шлётся. */
@@ -487,6 +501,8 @@ export function resetInsightForTest(): void {
   timer = featureTimer = undefined;
   stopEngagement?.();
   stopEngagement = undefined;
+  detach?.();
+  detach = undefined;
   queue = [];
   sending = false;
   started = false;

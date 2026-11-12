@@ -167,6 +167,19 @@ it('при уходе со страницы остаток уходит одни
   expect(batches()).toHaveLength(0);
 });
 
+it('закрытие страницы: последним в остатке уходит `page_hide` — служба снимает сессию со связи', async () => {
+  startInsight();
+  await vi.advanceTimersByTimeAsync(1_000);
+  beacon.mockClear();
+  track('screen', { name: 'home' });
+  window.dispatchEvent(new Event('pagehide'));
+  await vi.advanceTimersByTimeAsync(10);
+  expect(beacon).toHaveBeenCalledTimes(1);
+  const [, blob] = beacon.mock.calls[0] as unknown as [string, Blob];
+  const body = JSON.parse(await blob.text()) as { events: { n: string }[] };
+  expect(body.events.map((event) => event.n).at(-1)).toBe('page_hide');
+});
+
 it('тот же экран подряд не повторяется; частые возможности уходят счётчиком', async () => {
   noteScreen('settings', 'audio');
   noteScreen('settings', 'audio');
