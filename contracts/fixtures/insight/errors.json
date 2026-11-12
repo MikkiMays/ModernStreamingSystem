@@ -2,18 +2,18 @@
   "data": {
     "by_cause": [
       {
+        "cause": "limit",
+        "events": 74,
+        "groups": 9,
+        "people": 7,
+        "sessions": 8
+      },
+      {
         "cause": "network",
         "events": 74,
         "groups": 1,
         "people": 59,
         "sessions": 74
-      },
-      {
-        "cause": "limit",
-        "events": 68,
-        "groups": 7,
-        "people": 5,
-        "sessions": 5
       },
       {
         "cause": "permission",
@@ -24,10 +24,10 @@
       },
       {
         "cause": "crash",
-        "events": 27,
-        "groups": 4,
-        "people": 24,
-        "sessions": 24
+        "events": 21,
+        "groups": 2,
+        "people": 21,
+        "sessions": 21
       },
       {
         "cause": "version",
@@ -229,7 +229,7 @@
         "version": "services"
       },
       {
-        "cause": "crash",
+        "cause": "limit",
         "code": "CODE_INVALID",
         "events": 3,
         "first_at": "2026-10-23T10:29:11.2+00:00",
@@ -245,7 +245,7 @@
         "version": "1.4"
       },
       {
-        "cause": "crash",
+        "cause": "limit",
         "code": "CODE_INVALID",
         "events": 3,
         "first_at": "2026-09-20T06:12:41+00:00",
