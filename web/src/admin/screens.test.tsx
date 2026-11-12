@@ -275,6 +275,44 @@ function routes(url: URL, init: RequestInit) {
         step: 15,
       },
     };
+  if (path === '/api/fleet/core/meet/server')
+    return {
+      status: 200,
+      body: {
+        shield: true,
+        blocksActive: 1,
+        autoBlockCount: 20,
+        autoBlockWindowMs: 600_000,
+        autoBlockTermMs: 3_600_000,
+        blockDefaultMs: 86_400_000,
+      },
+    };
+  if (path === '/api/fleet/core/meet/blocks')
+    return {
+      status: 200,
+      body: [
+        {
+          id: 'b1',
+          kind: 'ip',
+          subject: '203.0.113.7',
+          reason: 'Пределы адреса',
+          createdBy: 'auto',
+          createdAt: Date.now() - 600_000,
+          expiresAt: Date.now() + 3_000_000,
+        },
+        {
+          id: 'b2',
+          kind: 'ip',
+          subject: '198.51.100.9',
+          reason: 'Снята',
+          createdBy: 'admin',
+          createdAt: Date.now() - 9_000_000,
+          expiresAt: Date.now() + 3_000_000,
+          liftedAt: Date.now() - 60_000,
+        },
+      ],
+    };
+  if (path === '/api/fleet/core/meet/blocks/b1' && init.method === 'DELETE') return { status: 204 };
   if (path.startsWith('/api/fleet/insight/errors/')) return { status: 200, body: insight['errors-detail'] };
   if (path.startsWith('/api/fleet/insight/')) {
     const body = insight[path.slice('/api/fleet/insight/'.length)];
@@ -433,6 +471,33 @@ describe('экраны пульта R209/R210/R215', () => {
     fireEvent.click(screen.getByRole('button', { name: t.back }));
     await screen.findByText(t.blocks.groups!);
   }, 60_000);
+
+  it('«Безопасность»: щит, действующие блокировки со снятием, отказы защиты и роботы за неделю', async () => {
+    history.replaceState(null, '', '/security');
+    const calls = serve(routes);
+    render(<AdminApp />);
+    const t = text.security;
+    await screen.findByText(t.shieldOn, {}, { timeout: 10_000 });
+    // Действующая блокировка — строкой; снятая в список не попадает.
+    await screen.findByText('203.0.113.7');
+    expect(screen.queryByText('198.51.100.9')).toBeNull();
+    expect(screen.getByText(t.by.auto!)).toBeInTheDocument();
+    // Числа недели — из аналитики выбранной среды.
+    await waitFor(() =>
+      expect(
+        calls.some((c) => c.path.startsWith('/api/fleet/insight/quality?') && c.path.includes('env=product')),
+      ).toBe(true),
+    );
+    expect((await screen.findAllByText('RATE_LIMITED')).length).toBeGreaterThan(0);
+    expect(document.querySelector('.an')!.textContent).not.toMatch(/NaN|undefined|\[object/);
+    // Снять блокировку — рычагом ядра этой среды.
+    fireEvent.click(screen.getByRole('button', { name: t.liftOf('203.0.113.7') }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.method === 'DELETE' && c.path === '/api/fleet/core/meet/blocks/b1')).toBe(
+        true,
+      ),
+    );
+  }, 30_000);
 
   it('«Обращения»: ящик всей системы, упавшее ядро — строкой, обращение ведётся рычагами своей машины', async () => {
     history.replaceState(null, '', '/support');

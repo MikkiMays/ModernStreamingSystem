@@ -340,12 +340,17 @@ describe('пульт флота', () => {
     expect(calls.find((c) => c.path === '/api/fleet/auth/logout')?.headers['X-Fleet-Request']).toBe('1');
   });
 
-  it('разделы без кода честно говорят, что в разработке', async () => {
+  it('разделов-заглушек нет: прежний адрес заглушки открывает обзор, в меню — только работающее', async () => {
     signedIn = true;
     history.replaceState(null, '', '/flags');
     serve(fleetRoutes);
     render(<AdminApp />);
-    await screen.findByText(text.later.title, {}, { timeout: 10_000 });
-    expect(screen.getByText(text.later.flags)).toBeInTheDocument();
+    const nav = await screen.findByRole('navigation', { name: text.app.menu }, { timeout: 10_000 });
+    expect(within(nav).getByRole('link', { name: text.nav.overview })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(nav).getByRole('link', { name: text.nav.security })).toBeInTheDocument();
+    expect(within(nav).queryByText('В разработке')).toBeNull();
   });
 });

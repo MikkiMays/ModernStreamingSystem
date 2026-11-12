@@ -257,9 +257,9 @@ const ADMIN_SECTIONS = [
   ['analytics-quality', '/analytics?s=quality'],
   ['analytics-errors', '/analytics?s=errors'],
   ['analytics-traffic', '/analytics?s=traffic'],
+  ['security', '/security'],
   ['audit', '/audit'],
   ['metrics', '/metrics'],
-  ['later', '/flags'],
 ];
 
 async function admin(page, shoot) {

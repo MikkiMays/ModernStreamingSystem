@@ -9,13 +9,11 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  Activity,
   BookOpen,
   ChartColumn,
   ChevronRight,
   ClipboardList,
   ExternalLink,
-  Flag,
   Gauge,
   Inbox,
   LayoutDashboard,
@@ -24,7 +22,6 @@ import {
   Monitor,
   Moon,
   MoreHorizontal,
-  Package,
   Rocket,
   Server,
   ShieldAlert,
@@ -48,7 +45,8 @@ const Meetings = lazyPart(() => import('./screens/Meetings').then((m) => ({ defa
 const Nodes = lazyPart(() => import('./screens/Nodes').then((m) => ({ default: m.Nodes })));
 const Deploys = lazyPart(() => import('./screens/Deploys').then((m) => ({ default: m.Deploys })));
 const Audit = lazyPart(() => import('./screens/Audit').then((m) => ({ default: m.Audit })));
-const Later = lazyPart(() => import('./screens/Later').then((m) => ({ default: m.Later })));
+const Metrics = lazyPart(() => import('./screens/Later').then((m) => ({ default: m.Metrics })));
+const Security = lazyPart(() => import('./screens/Security').then((m) => ({ default: m.Security })));
 const Live = lazyPart(() => import('./screens/Live').then((m) => ({ default: m.Live })));
 const Analytics = lazyPart(() => import('./screens/Analytics').then((m) => ({ default: m.Analytics })));
 const Support = lazyPart(() => import('./screens/Support').then((m) => ({ default: m.Support })));
@@ -63,18 +61,15 @@ export type Section =
   | 'maintenance'
   | 'deploys'
   | 'security'
-  | 'errors'
   | 'metrics'
-  | 'flags'
-  | 'releases'
   | 'jobs'
   | 'audit';
 
-type Group = 'now' | 'operate' | 'insight' | 'planned';
+type Group = 'now' | 'operate' | 'insight';
 
 /**
- * Разделы по задачам владельца (R220): «Сейчас» — что идёт и что горит, «Управление» — рычаги, «Анализ» — что было,
- * «В разработке» — объявленное, но ещё не сделанное (честно отдельно, чтобы не мешало рабочим разделам).
+ * Разделы по задачам владельца (R220): «Сейчас» — что идёт и что горит, «Управление» — рычаги, «Анализ» — что было.
+ * Разделов-заглушек нет: в меню только то, что работает (1.4).
  */
 const SECTIONS: { id: Section; icon: ReactNode; group: Group }[] = [
   { id: 'overview', icon: <LayoutDashboard />, group: 'now' },
@@ -85,16 +80,13 @@ const SECTIONS: { id: Section; icon: ReactNode; group: Group }[] = [
   { id: 'maintenance', icon: <Wrench />, group: 'operate' },
   { id: 'deploys', icon: <Rocket />, group: 'operate' },
   { id: 'jobs', icon: <ClipboardList />, group: 'operate' },
+  { id: 'security', icon: <ShieldAlert />, group: 'operate' },
   { id: 'analytics', icon: <ChartColumn />, group: 'insight' },
   { id: 'audit', icon: <BookOpen />, group: 'insight' },
-  { id: 'security', icon: <ShieldAlert />, group: 'planned' },
-  { id: 'errors', icon: <Activity />, group: 'planned' },
-  { id: 'metrics', icon: <LineChart />, group: 'planned' },
-  { id: 'flags', icon: <Flag />, group: 'planned' },
-  { id: 'releases', icon: <Package />, group: 'planned' },
+  { id: 'metrics', icon: <LineChart />, group: 'insight' },
 ];
 
-const GROUPS: Group[] = ['now', 'operate', 'insight', 'planned'];
+const GROUPS: Group[] = ['now', 'operate', 'insight'];
 
 /** Нижняя полоса телефона: то, что открывают с телефона чаще всего; остальное — «Ещё». */
 const TABS: Section[] = ['overview', 'live', 'support', 'meetings'];
@@ -519,7 +511,9 @@ function Screen({ route, console }: { route: { section: Section; rest: string[] 
       return <Deploys console={console} />;
     case 'audit':
       return <Audit console={console} />;
-    default:
-      return <Later section={route.section} />;
+    case 'security':
+      return <Security console={console} />;
+    case 'metrics':
+      return <Metrics />;
   }
 }

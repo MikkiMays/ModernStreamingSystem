@@ -974,6 +974,41 @@ export function fleetAnswer(data, url, method = 'GET') {
   if (core) {
     const [, machine, rest] = core;
     if (rest === 'now') return ok(machine === 'meet' ? data.nowMeet : data.nowA);
+    if (rest === 'server')
+      return ok({
+        shield: false,
+        blocksActive: machine === 'meet' ? 2 : 0,
+        autoBlockCount: 20,
+        autoBlockWindowMs: 600_000,
+        autoBlockTermMs: 3_600_000,
+        blockDefaultMs: 86_400_000,
+        build: '1.4.0',
+      });
+    if (rest === 'blocks')
+      return ok(
+        machine === 'meet'
+          ? [
+              {
+                id: 'blk-1',
+                kind: 'ip',
+                subject: '203.0.113.47',
+                reason: 'Пределы адреса: 24 отказа за 10 минут',
+                createdBy: 'auto',
+                createdAt: Date.now() - 18 * 60_000,
+                expiresAt: Date.now() + 42 * 60_000,
+              },
+              {
+                id: 'blk-2',
+                kind: 'profile',
+                subject: 'p_7Hq2xLm9',
+                reason: 'Спам в чате встречи',
+                createdBy: 'admin',
+                createdAt: Date.now() - 26 * 3_600_000,
+                expiresAt: Date.now() + 142 * 3_600_000,
+              },
+            ]
+          : [],
+      );
     if (rest === 'meetings') return ok(data.summary);
     if (rest === 'maintenance')
       return ok(machine === 'meet' ? data.maintenanceScheduled : data.maintenanceNone);
