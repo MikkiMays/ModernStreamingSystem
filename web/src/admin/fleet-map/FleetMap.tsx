@@ -32,8 +32,9 @@ const NEIGHBOUR_CAP = 0.34;
 
 const bytes = (value: number | null | undefined): string => {
   if (value === null || value === undefined) return '—';
-  if (value >= 1e9) return `${(value / 1e9).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ГБ`;
-  return `${Math.round(value / 1e6).toLocaleString('ru-RU')} МБ`;
+  if (value >= 1e9)
+    return `${(value / 1e9).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ${text.units.gb}`;
+  return `${Math.round(value / 1e6).toLocaleString('ru-RU')} ${text.units.mb}`;
 };
 const share = (value: number | null | undefined): string =>
   value === null || value === undefined ? '—' : `${Math.round(value * 100)} %`;

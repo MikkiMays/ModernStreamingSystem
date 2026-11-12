@@ -1826,6 +1826,19 @@ export interface components {
             /** @enum {string} */
             status?: "NEW" | "OPEN" | "WAITING" | "DONE" | "ARCHIVED";
         };
+        Net: {
+            /** Format: int32 */
+            freezes?: number;
+            /** Format: double */
+            loss?: number;
+            /** Format: double */
+            micSeconds?: number;
+            /** Format: int32 */
+            reconnects?: number;
+            relay?: boolean;
+            /** Format: int32 */
+            rttMs?: number;
+        };
         NodeFallback: {
             asked: string;
             got: string;
@@ -2138,6 +2151,7 @@ export interface components {
             bytesDown?: number;
             /** Format: int64 */
             bytesUp?: number;
+            net?: components["schemas"]["Net"];
             switches?: components["schemas"]["TxSwitch"][];
             tracks: components["schemas"]["RxTrack"][];
             tx?: components["schemas"]["TxTrack"][];

@@ -292,13 +292,17 @@ export function noteFailure(place: Place, code: string, error?: unknown): void {
     noteError(`${place} ${code}${detail}`);
   }
   count(place, code);
-  // Аналитика (R239): та же ошибка — событием сессии, с областью и именем ошибки браузера.
+  // Аналитика (R239): та же ошибка — событием сессии, с областью и именем ошибки браузера. Отказ по правилам
+  // игры («не ваш ход», «ставка мала») — не сбой, а ход игры: в ошибки аналитики он не идёт.
+  if (GAME_RULE.test(code)) return;
   trackError({
     code,
     scope: SCOPES[place] ?? 'app',
     detail: error instanceof Error || error instanceof DOMException ? error.name : undefined,
   });
 }
+
+const GAME_RULE = /^(DURAK|POKER|CHESS|GARTIC|GAME)_/;
 
 /** Место ошибки → область аналитики (`contracts/insight.md`, событие `error`). */
 const SCOPES: Partial<Record<Place, Parameters<typeof trackError>[0]['scope']>> = {

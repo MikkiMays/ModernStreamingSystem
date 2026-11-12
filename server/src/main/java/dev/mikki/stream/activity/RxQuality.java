@@ -101,19 +101,43 @@ public class RxQuality {
   public static final long MAX_BYTES = 100_000_000_000L;
 
   /**
+   * Путь до медиаузла и свой микрофон за окно (R239) — только для факта {@code quality} аналитики:
+   * доля потерянных пакетов приёма, оборот, шёл ли звонок через TURN, замирания принятого видео,
+   * переподключения и секунды включённого микрофона. Каждое поле необязательно: чего клиент не
+   * измерил, того в факте нет.
+   */
+  public record Net(
+      @DecimalMin("0") @DecimalMax("1") Double loss,
+      @Min(0) @Max(60_000) Integer rttMs,
+      Boolean relay,
+      @Min(0) @Max(100_000) Integer freezes,
+      @Min(0) @Max(1_000) Integer reconnects,
+      @DecimalMin("0") @DecimalMax("60") Double micSeconds) {}
+
+  /**
    * Сводка за окно. {@code tx} и {@code switches} пришли с R152 и необязательны: веб старее ядра
    * (пока выкатка идёт) шлёт только приём. {@code bytesUp} и {@code bytesDown} (R239) — сколько
-   * байт клиент отдал и принял с прошлой сводки; тоже необязательны и идут только в факт {@code
-   * quality} для аналитики встреч.
+   * байт клиент отдал и принял с прошлой сводки, {@code net} — путь до узла и микрофон; тоже
+   * необязательны и идут только в факт {@code quality} для аналитики встреч.
    */
   public record RxSummary(
       @NotNull @Size(max = MAX_TRACKS) List<@Valid RxTrack> tracks,
       @Size(max = MAX_TX) List<@Valid TxTrack> tx,
       @Size(max = MAX_SWITCHES) List<@Valid TxSwitch> switches,
       @Min(0) @Max(MAX_BYTES) Long bytesUp,
-      @Min(0) @Max(MAX_BYTES) Long bytesDown) {
+      @Min(0) @Max(MAX_BYTES) Long bytesDown,
+      @Valid Net net) {
     public RxSummary(List<RxTrack> tracks) {
-      this(tracks, null, null, null, null);
+      this(tracks, null, null, null, null, null);
+    }
+
+    public RxSummary(
+        List<RxTrack> tracks,
+        List<TxTrack> tx,
+        List<TxSwitch> switches,
+        Long bytesUp,
+        Long bytesDown) {
+      this(tracks, tx, switches, bytesUp, bytesDown, null);
     }
   }
 

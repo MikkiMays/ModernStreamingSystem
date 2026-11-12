@@ -290,9 +290,9 @@ export function AudienceSection({ report }: { report: Report<Audience> }) {
             title={t.blocks.dauWauMau!}
             days={days}
             series={[
-              { key: 'dau', label: 'За день', values: series.map((day) => day.dau) },
-              { key: 'wau', label: 'За 7 дней', values: series.map((day) => day.wau) },
-              { key: 'mau', label: 'За 30 дней', values: series.map((day) => day.mau) },
+              { key: 'dau', label: t.perDay, values: series.map((day) => day.dau) },
+              { key: 'wau', label: t.per7, values: series.map((day) => day.wau) },
+              { key: 'mau', label: t.per30, values: series.map((day) => day.mau) },
             ]}
           />
         </Block>
@@ -546,7 +546,7 @@ export function RetentionSection({ report }: { report: Report<Retention> }) {
           label={t.kpi.carried!}
           hint={t.hints.carried}
           value={fmt.share(data.carried.share)}
-          note={`${fmt.count(data.carried.stayed)} из ${fmt.count(data.carried.previous_people)}`}
+          note={t.outOf(fmt.count(data.carried.stayed), fmt.count(data.carried.previous_people))}
         />
       </Kpis>
       <Block
@@ -966,7 +966,7 @@ export function QualitySection({ report }: { report: Report<Quality> }) {
           hint={t.hints.join_success}
           value={fmt.share(data.join.success)}
           change={versus(report, (d) => d.join.success)}
-          note={`${fmt.count(data.join.joined)} из ${fmt.count(data.join.attempts)}`}
+          note={t.outOf(fmt.count(data.join.joined), fmt.count(data.join.attempts))}
         />
         <Kpi
           inverse

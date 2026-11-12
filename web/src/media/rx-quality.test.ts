@@ -201,4 +201,38 @@ describe('сводка приёма раз в 10 с (rooms/{id}/quality)', () =>
     expect(next?.bytesDown).toBe(10_400);
     expect(next).not.toHaveProperty('bytesUp');
   });
+
+  it('путь до узла (R239): потери — долей пакетов, оборот — средним, TURN — если был, замирания, переподключения и секунды микрофона', () => {
+    const rx = new RxQuality();
+    const video = (packetsReceived: number, packetsLost: number, freezeCount: number): RxObservation => ({
+      id: 'TR_video',
+      kind: 'video',
+      sample: sample({ packetsReceived, packetsLost, freezeCount }),
+      targetMs: 0,
+    });
+    rx.observe([video(1_000, 10, 1)], 0);
+    rx.observeLink({ rttMs: 80, relay: false, microphone: true }, 0);
+    rx.observe([video(1_980, 30, 3)], 2_000);
+    rx.observeLink({ rttMs: 120, relay: true, microphone: true }, 2_000);
+    // Микрофон выключили; вкладка спала дольше пяти секунд — этот промежуток в секунды микрофона не идёт.
+    rx.observeLink({ rttMs: null, relay: null, microphone: false }, 4_000);
+    rx.observeLink({ rttMs: 100, relay: false, microphone: true }, 9_500);
+    rx.noteReconnect();
+    const summary = rx.flush(INTERVAL_MS);
+    expect(summary?.net).toEqual({
+      loss: 0.02, // 20 потеряно из 1000 пакетов окна
+      rttMs: 100,
+      relay: true,
+      freezes: 2,
+      reconnects: 1,
+      micSeconds: 2,
+    });
+    // Новое окно без замеров пути: поля нет вовсе, а не нули.
+    rx.observe([video(2_980, 30, 3)], INTERVAL_MS + 2_000);
+    const next = rx.flush(2 * INTERVAL_MS);
+    expect(next?.net).toEqual({ loss: 0 });
+    const idle = new RxQuality();
+    idle.observe([], 0);
+    expect(idle.flush(INTERVAL_MS)).toBeNull();
+  });
 });

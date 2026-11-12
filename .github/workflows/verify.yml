@@ -241,7 +241,7 @@ jobs:
         run: bash infra/csp-check.sh
       - name: Verify production containers boot with private configuration files
         run: |
-          docker compose up -d postgres redis volume-init livekit tusd core services gateway
+          docker compose up -d postgres redis volume-init livekit tusd core insight services gateway
           node scripts/smoke.mjs
       - name: Stop the verification stack
         if: always()

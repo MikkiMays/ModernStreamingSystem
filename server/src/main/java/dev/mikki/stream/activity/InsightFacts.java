@@ -321,9 +321,9 @@ public class InsightFacts {
 
   /**
    * Факт {@code quality} из десятисекундной сводки клиента ({@link RxQuality.RxSummary}): секунды
-   * своей камеры и показа за окно и байты вверх и вниз. Чего в сводке нет — секунд микрофона,
-   * потерь, оборота, замираний, пути через TURN, переподключений, — того нет и в факте: служба
-   * читает отсутствующее поле как ноль.
+   * своей камеры и показа за окно, байты вверх и вниз и путь до узла ({@link RxQuality.Net}:
+   * секунды микрофона, потери, оборот, замирания, TURN, переподключения). Чего клиент не прислал
+   * (старая версия), того нет и в факте: служба читает отсутствующее поле как ноль.
    */
   public void quality(String roomId, String profileHash, RxQuality.RxSummary summary) {
     if (!enabled) return;
@@ -333,14 +333,23 @@ public class InsightFacts {
         if ("camera".equals(tx.source())) camera += tx.seconds();
         else screen += tx.seconds();
       }
-    fact("quality")
-        .put("room", roomId)
-        .profile(profileHash)
-        .put("cam_s", Math.round(camera * 10) / 10.0)
-        .put("screen_s", Math.round(screen * 10) / 10.0)
-        .put("bytes_up", summary.bytesUp())
-        .put("bytes_down", summary.bytesDown())
-        .publish();
+    var net = summary.net();
+    var fact =
+        fact("quality")
+            .put("room", roomId)
+            .profile(profileHash)
+            .put("cam_s", Math.round(camera * 10) / 10.0)
+            .put("screen_s", Math.round(screen * 10) / 10.0)
+            .put("bytes_up", summary.bytesUp())
+            .put("bytes_down", summary.bytesDown());
+    if (net != null)
+      fact.put("mic_s", net.micSeconds())
+          .put("loss", net.loss())
+          .put("rtt", net.rttMs())
+          .put("freezes", net.freezes())
+          .put("relay", net.relay())
+          .put("reconnects", net.reconnects());
+    fact.publish();
   }
 
   // ── Отказы защиты ────────────────────────────────────────────────────────────────────────────

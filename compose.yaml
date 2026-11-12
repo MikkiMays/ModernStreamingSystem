@@ -52,6 +52,8 @@ services:
     environment:
       SERVER_ADDRESS: 127.0.0.1
       SPRINGDOC_API_DOCS_ENABLED: 'false'
+      # Служба аналитики на петле этой же машины (R239): ядро шлёт ей факты и пересылает пульту её отчёты.
+      INSIGHT_URL: http://127.0.0.1:${INSIGHT_PORT:-18300}
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp]

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
+  PROBE_KEY,
   flush,
   insightHooks,
   landingOf,
@@ -26,6 +27,7 @@ interface Batch {
   sid: string;
   profile: string;
   client: { kind: string; version: string };
+  probe?: string;
   events: { n: string; at: number; p: Record<string, unknown> }[];
 }
 const batches = (): Batch[] =>
@@ -112,10 +114,25 @@ it('«человек действовал» — только настоящее 
   const engaged = sent().filter((event) => event.n === 'engaged');
   expect(engaged).toHaveLength(1);
   expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/t/proof')).toBe(true);
+  // Служба засчитывает `engaged` не раньше чем через три секунды после `session_start` — и шлётся оно один раз.
+  const start = sent().find((event) => event.n === 'session_start')!;
+  expect(engaged[0]!.at - start.at).toBeGreaterThanOrEqual(3_000);
   // Второе действие в той же сессии ничего не добавляет.
   window.dispatchEvent(new Event('keydown'));
   await vi.advanceTimersByTimeAsync(10_000);
   expect(sent().filter((event) => event.n === 'engaged')).toHaveLength(1);
+});
+
+it('метка «своя проверка» из хранилища страницы уходит в каждой пачке; без неё поля нет', async () => {
+  track('screen', { name: 'home' });
+  await flush();
+  expect('probe' in batches()[0]!).toBe(false);
+  localStorage.setItem(PROBE_KEY, '20261112.abc');
+  fetchMock.mockClear();
+  track('screen', { name: 'room' });
+  await flush();
+  expect(batches()[0]!.probe).toBe('20261112.abc');
+  localStorage.removeItem(PROBE_KEY);
 });
 
 it('события копятся и уходят пачкой раз в пять секунд; пустые поля не уходят', async () => {

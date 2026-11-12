@@ -999,6 +999,16 @@ export class MediaSession {
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       this.rxQuality.observe(this.playout.samples, Date.now());
+      // Путь до узла и микрофон — в ту же сводку: из них аналитика считает качество по узлам (R239).
+      const link = this.playout.link;
+      this.rxQuality.observeLink(
+        {
+          rttMs: link.rttMs,
+          relay: link.path === 'unknown' ? null : link.path.startsWith('relay'),
+          microphone: this.room.localParticipant.isMicrophoneEnabled,
+        },
+        Date.now(),
+      );
       const summary = this.rxQuality.flush(Date.now());
       if (summary) this.onRxQuality?.(summary);
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
@@ -2190,6 +2200,7 @@ export class MediaSession {
   };
   private lost = () => {
     if (this.disposed) return;
+    this.rxQuality.noteReconnect();
     clearTimeout(this.signalGrace);
     this.liveHealth.clear();
     this.videoSilence.clear();
@@ -3552,6 +3563,8 @@ export class MediaSession {
             codec,
             hw: reading.top.software === null ? 'unknown' : reading.top.software ? 'sw' : 'hw',
             seconds: delta.seconds,
+            // Отданные байты — в сводку качества: из них аналитика считает трафик встреч (R239).
+            bytes: delta.bytes,
             cpuSeconds: delta.limited.cpu,
             bandwidthSeconds: delta.limited.bandwidth,
             otherSeconds: delta.limited.other,

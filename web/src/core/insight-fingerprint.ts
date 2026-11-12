@@ -65,7 +65,10 @@ const FONTS = [
   'Impact',
   'Comic Sans MS',
 ];
-const PROBE = 'mmmmmmmmmmlli Щщ 0O';
+// Пробная строка замера шрифтов — не текст интерфейса: кириллица записана кодами, чтобы замок переводов её не считал.
+const PROBE = 'mmmmmmmmmmlli \u0429\u0449 0O';
+/** Строка для рисунка-отпечатка («Cord — связь» и два знака): латиница, кириллица кодами, эмодзи. */
+const CANVAS_TEXT = 'Cord \u2014 \u0441\u0432\u044f\u0437\u044c \u{1F600} \u2708';
 
 const short = (text: string) => sha256(text).slice(0, HASH);
 
@@ -80,10 +83,10 @@ function canvasHash(): string | undefined {
   context.fillRect(100, 5, 80, 30);
   context.fillStyle = '#069';
   context.font = '15px Arial, sans-serif';
-  context.fillText('Cord — связь 😀 ✈', 4, 22);
+  context.fillText(CANVAS_TEXT, 4, 22);
   context.fillStyle = 'rgba(102, 204, 0, 0.7)';
   context.font = 'italic 17px Georgia, serif';
-  context.fillText('Cord — связь 😀 ✈', 8, 44);
+  context.fillText(CANVAS_TEXT, 8, 44);
   context.globalCompositeOperation = 'multiply';
   context.beginPath();
   context.arc(200, 30, 22, 0, Math.PI * 2);

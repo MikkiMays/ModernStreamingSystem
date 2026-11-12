@@ -57,6 +57,10 @@ const FLUSH_AFTER = 5_000;
 const BATCH = 50;
 const QUEUE_LIMIT = 200;
 const ENGAGE_VISIBLE = 3_000;
+/** `engaged` — не раньше чем через столько мс после `session_start` (служба ждёт 3000; запас — на округление). */
+const ENGAGE_AFTER_START = 3_200;
+/** Подпись «своя проверка» кладут сюда автотесты и дымовые прогоны (`contracts/insight.md` §5). */
+export const PROBE_KEY = 'cord:probe';
 
 interface Session {
   id: string;
@@ -65,6 +69,8 @@ interface Session {
   seen: number;
   /** Событие `engaged` уже ушло. */
   engaged?: boolean;
+  /** Когда ушло `session_start` — мс эпохи: `engaged` служба засчитывает не раньше чем через 3 с после него. */
+  started?: number;
 }
 
 /** Настоящее ли действие: скрипт страницы подделать `isTrusted` не может. Вынесено ради тестов. */
@@ -77,6 +83,8 @@ let sending = false;
 let started = false;
 let lastScreen: string | undefined;
 let stopEngagement: (() => void) | undefined;
+/** `session_start` этой страницы ещё не ушло: собирается отпечаток. */
+let pendingStart = false;
 
 function randomId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -133,12 +141,26 @@ export function track(name: InsightEvent, props: Props = {}): void {
   else timer ??= setTimeout(() => void flush(), FLUSH_AFTER);
 }
 
+/**
+ * Метка «своя проверка» (`contracts/insight.md` §5): автотесты, дымовые и нагрузочные прогоны кладут подпись
+ * в хранилище страницы, и их сессии не попадают в цифры людей. Подпись проверяет служба; чужая строка здесь
+ * ничего не даёт.
+ */
+function probe(): string | undefined {
+  try {
+    return localStorage.getItem(PROBE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function body(events: Queued[]): string {
   return JSON.stringify({
     v: 1,
     sid: session().session.id,
     profile: profileSecret(),
     client: { kind: clientKind(), version: appVersion },
+    probe: probe(),
     events,
   });
 }
@@ -253,7 +275,9 @@ function watchEngagement(): void {
   const visible = () => visibleFor + (visibleSince === null ? 0 : performance.now() - visibleSince);
   const tryEngage = () => {
     if (done || !acted) return;
-    const left = ENGAGE_VISIBLE - visible();
+    // Два условия: страница была видна три секунды и от `session_start` прошло не меньше трёх — раньше служба
+    // событие не засчитает, а шлётся оно один раз (`contracts/insight.md` §6.1).
+    const left = Math.max(ENGAGE_VISIBLE - visible(), sinceStart());
     if (left > 0) {
       setTimeout(tryEngage, left + 20);
       return;
@@ -287,6 +311,14 @@ function watchEngagement(): void {
   };
 }
 
+/** Сколько мс ещё ждать, чтобы `engaged` ушло не раньше чем через три секунды после `session_start`. */
+function sinceStart(): number {
+  const current = session().session;
+  // `session_start` ещё собирается (отпечаток) — заглянуть чуть позже.
+  if (current.started === undefined) return pendingStart ? 250 : 0;
+  return Math.max(0, ENGAGE_AFTER_START - (Date.now() - current.started));
+}
+
 async function engage(): Promise<void> {
   const current = session().session;
   if (current.engaged) return;
@@ -312,13 +344,19 @@ export function startInsight(): void {
   if (started || typeof window === 'undefined') return;
   started = true;
   const { session: current, fresh } = session();
-  if (fresh)
+  if (fresh) {
+    pendingStart = true;
     void collectFingerprint()
       .catch((): Fingerprint => ({}))
       .then((print) => {
         track('session_start', sessionStart(print));
+        pendingStart = false;
+        const live = session().session;
+        live.started = Date.now();
+        writeSession(live);
         void flush();
       });
+  }
   if (!current.engaged) watchEngagement();
   addEventListener('pagehide', () => void flush(true));
   document.addEventListener('visibilitychange', () => {
@@ -455,5 +493,6 @@ export function resetInsightForTest(): void {
   joinStarted = joinAdmitted = undefined;
   lastScreen = undefined;
   memorySession = undefined;
+  pendingStart = false;
   featureCounts.clear();
 }

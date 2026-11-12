@@ -72,8 +72,10 @@ CHANGED="$(git diff --name-only "$BEFORE" "$TARGET" 2>/dev/null || true)"
 touched() { grep -Eq "$1" <<<"$CHANGED"; }
 REBUILD=()
 if (( FORCE )); then
-  REBUILD=(gateway core services sniffer)
+  REBUILD=(insight gateway core services sniffer)
 else
+  # Служба аналитики (R239) — первой: ядро шлёт ей факты, и к его запуску она уже слушает.
+  touched '^(rust/|infra/Dockerfile\.insight)' && REBUILD+=(insight)
   touched '^(web/|infra/Dockerfile\.web|infra/Caddyfile)' && REBUILD+=(gateway)
   touched '^(server/|pom\.xml|infra/Dockerfile\.server)' && REBUILD+=(core)
   # Плеер страниц кинозала собирается из services/ (охраняемый выход у него общий со службой).
@@ -99,7 +101,7 @@ WALL=0; touched '^infra/(cord-sniffer-|sniffer-firewall\.sh)' && WALL=1
 # `docker compose build <служба> && docker compose up -d --no-deps <служба>` (или `./update.sh --force`,
 # но он пересобирает всё и перезапускает SFU).
 INFRA_SERVICES=' edge livekit postgres redis tusd '
-APP_BUILT=' gateway core services sniffer '
+APP_BUILT=' gateway core services sniffer insight '
 config_hashes() {
   git show "$1:compose.yaml" 2>/dev/null \
     | docker compose -f - --project-directory . config --hash '*' 2>/dev/null
@@ -111,7 +113,7 @@ if touched '^compose\.yaml$'; then
   after_hash="$(config_hashes "$TARGET" || true)"
   if [[ -z "$before_hash" || -z "$after_hash" ]]; then
     warn "Не удалось сравнить compose.yaml по службам — обновляется всё, как раньше."
-    changed_services="edge livekit postgres redis tusd gateway core services sniffer volume-init"
+    changed_services="edge livekit postgres redis tusd insight gateway core services sniffer volume-init"
   else
     # Строки «служба хеш», которых не было до: изменённые и новые службы. Убранные — не трогаются.
     changed_services="$(comm -13 <(sort <<<"$before_hash") <(sort <<<"$after_hash") | awk '{print $1}')"
@@ -295,6 +297,14 @@ if (( REGENERATE )) && (( ! KEEP_CALLS )); then
     ENV_RETARGETED=1
     note ".env перенацелен (прежний — $BACKUP/env.before): core, gateway и services будут пересозданы"
   fi
+fi
+
+# Базы адресов службы аналитики (страна, сеть): нет их — скачать сейчас. Не вышло — служба работает без них,
+# страна и сеть будут «неизвестно» (infra/geo/README.md); обновление из-за этого не останавливается.
+if [[ " ${REBUILD[*]} " == *" insight "* ]] && [[ ! -s "${GEO_DIR:-.local/geo}/dbip-country-lite.mmdb" ]]; then
+  step "Базы адресов для аналитики"
+  bash infra/geo/update.sh >/dev/null 2>&1 && note "скачаны в ${GEO_DIR:-.local/geo}" \
+    || warn "Не скачались — позже: bash infra/geo/update.sh"
 fi
 
 if (( ${#REBUILD[@]} )); then

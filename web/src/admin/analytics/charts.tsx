@@ -11,6 +11,7 @@ import './charts.css';
  * У каждого графика есть подсказка под указателем и вид таблицей.
  */
 const t = text.analytics.chart;
+const u = text.units;
 const number = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
 const missing = (value: number | null | undefined): value is null | undefined =>
   value === null || value === undefined;
@@ -18,16 +19,18 @@ const missing = (value: number | null | undefined): value is null | undefined =>
 export const fmt = {
   count: (value: number | null | undefined) => (missing(value) ? '—' : number.format(value)),
   share: (value: number | null | undefined) => (missing(value) ? '—' : `${number.format(value * 100)} %`),
-  hours: (value: number | null | undefined) => (missing(value) ? '—' : `${number.format(value)} ч`),
-  minutes: (value: number | null | undefined) => (missing(value) ? '—' : `${number.format(value)} мин`),
-  ms: (value: number | null | undefined) => (missing(value) ? '—' : `${number.format(value)} мс`),
-  seconds: (ms: number | null | undefined) => (missing(ms) ? '—' : `${number.format(ms / 1000)} с`),
+  hours: (value: number | null | undefined) => (missing(value) ? '—' : `${number.format(value)} ${u.hours}`),
+  minutes: (value: number | null | undefined) =>
+    missing(value) ? '—' : `${number.format(value)} ${u.minutes}`,
+  ms: (value: number | null | undefined) => (missing(value) ? '—' : `${number.format(value)} ${u.ms}`),
+  seconds: (ms: number | null | undefined) =>
+    missing(ms) ? '—' : `${number.format(ms / 1000)} ${u.seconds}`,
   bytes: (value: number | null | undefined) => {
     if (missing(value)) return '—';
-    if (value >= 1e12) return `${number.format(value / 1e12)} ТБ`;
-    if (value >= 1e9) return `${number.format(value / 1e9)} ГБ`;
-    if (value >= 1e6) return `${number.format(value / 1e6)} МБ`;
-    return `${number.format(value / 1e3)} КБ`;
+    if (value >= 1e12) return `${number.format(value / 1e12)} ${u.tb}`;
+    if (value >= 1e9) return `${number.format(value / 1e9)} ${u.gb}`;
+    if (value >= 1e6) return `${number.format(value / 1e6)} ${u.mb}`;
+    return `${number.format(value / 1e3)} ${u.kb}`;
   },
   day: (day: string) =>
     new Date(`${day}T00:00:00`)

@@ -37,6 +37,10 @@ scrape_configs:
   - job_name: services
     static_configs: [{ targets: ['127.0.0.1:18100'], labels: { machine: a, kind: local } }]
 
+  # Аналитика (R239): принятые и отброшенные события, сессии по классам, отставание фактов ядра (insight_*).
+  - job_name: insight
+    static_configs: [{ targets: ['127.0.0.1:18300'], labels: { machine: a, kind: local } }]
+
   # Куратор: синтетический звонок через SFU раз в минуту (`cord-publisher --probe`, W1b).
   - job_name: probe
     static_configs: [{ targets: ['127.0.0.1:9402'], labels: { machine: a, kind: local } }]

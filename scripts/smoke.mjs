@@ -70,4 +70,19 @@ assert([401, 403].includes(signaling.status), "Unauthenticated SFU access must b
 const upload = await get("/uploads/11111111-1111-1111-1111-111111111111", env.APP_HOST, true,
   { Authorization: "Bearer invalid" });
 assert([401, 403].includes(upload.status), "Direct tus downloads must be denied");
-console.log("PASS: database/Redis health, production web/API and integrations through PROXY protocol, signaling access and direct-download gates");
+// Analytics (R239): the gateway hands client events to the `insight` service, and nothing internal leaks out.
+// The service is optional for meetings, so its absence fails only where the stack is expected to run it.
+if (process.env.SMOKE_INSIGHT !== "0") {
+  let proof;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    try {
+      proof = await get("/api/v1/t/proof", env.APP_HOST);
+      if ([200, 204].includes(proof.status)) break;
+    } catch (error) { proof = error; }
+    await delay(250);
+  }
+  assert([200, 204].includes(proof?.status), `Analytics route must answer through the gateway: ${proof?.status ?? proof?.message}`);
+  const internal = await get("/internal/facts", env.APP_HOST);
+  assert(![200, 204].includes(internal.status), "Analytics facts endpoint must not be reachable through the gateway");
+}
+console.log("PASS: database/Redis health, production web/API and integrations through PROXY protocol, signaling access and direct-download gates, analytics route");

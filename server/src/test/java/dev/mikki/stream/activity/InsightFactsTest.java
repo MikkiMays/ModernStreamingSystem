@@ -234,7 +234,10 @@ class InsightFactsTest {
     assertThat(posted.getFirst()).doesNotContain(secret).doesNotContain(hash);
   }
 
-  /** Факт качества: секунды камеры и показа из отдачи, байты вверх и вниз — если клиент прислал. */
+  /**
+   * Факт качества: секунды камеры и показа из отдачи, байты вверх и вниз и путь до узла — если
+   * клиент прислал.
+   */
   @Test
   void theQualityFactCarriesPublishSecondsAndBytes() {
     var facts = facts();
@@ -243,7 +246,13 @@ class InsightFactsTest {
     facts.quality(
         "room-1",
         null,
-        new RxQuality.RxSummary(List.of(), List.of(camera, screen), null, 1_250_000L, 9_000_000L));
+        new RxQuality.RxSummary(
+            List.of(),
+            List.of(camera, screen),
+            null,
+            1_250_000L,
+            9_000_000L,
+            new RxQuality.Net(0.012, 84, true, 2, 1, 9.5)));
     facts.quality("room-1", null, new RxQuality.RxSummary(List.of()));
     facts.flush();
     var sent = factsOf(posted.getFirst());
@@ -254,8 +263,16 @@ class InsightFactsTest {
     assertThat(full.path("screen_s").asDouble()).isEqualTo(4.2);
     assertThat(full.path("bytes_up").asLong()).isEqualTo(1_250_000L);
     assertThat(full.path("bytes_down").asLong()).isEqualTo(9_000_000L);
-    // Старый клиент байт не шлёт — полей нет, а не нули.
+    assertThat(full.path("mic_s").asDouble()).isEqualTo(9.5);
+    assertThat(full.path("loss").asDouble()).isEqualTo(0.012);
+    assertThat(full.path("rtt").asInt()).isEqualTo(84);
+    assertThat(full.path("freezes").asInt()).isEqualTo(2);
+    assertThat(full.path("relay").asBoolean()).isTrue();
+    assertThat(full.path("reconnects").asInt()).isEqualTo(1);
+    // Старый клиент байт и пути не шлёт — полей нет, а не нули.
     assertThat(sent.get(1).has("bytes_up")).isFalse();
     assertThat(sent.get(1).has("bytes_down")).isFalse();
+    assertThat(sent.get(1).has("loss")).isFalse();
+    assertThat(sent.get(1).has("relay")).isFalse();
   }
 }

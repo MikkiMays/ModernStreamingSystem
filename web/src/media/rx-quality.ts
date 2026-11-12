@@ -54,6 +54,34 @@ export interface RxSummary {
    */
   bytesUp?: number;
   bytesDown?: number;
+  /** Путь до медиаузла и свой микрофон за окно (R239); поля нет — измерить было нечем. */
+  net?: RxNet;
+}
+
+/**
+ * Путь до медиаузла за окно — для факта `quality` аналитики (`contracts/insight.md` §2): в разделе «Качество»
+ * из этого складываются потери, оборот, доля звонков через TURN, замирания и переподключения по узлам.
+ */
+export interface RxNet {
+  /** Доля потерянных пакетов приёма, 0…1. */
+  loss?: number;
+  /** Средний оборот до узла, мс. */
+  rttMs?: number;
+  /** Звонок шёл через TURN хотя бы в одном замере окна. */
+  relay?: boolean;
+  /** Замираний принятого видео. */
+  freezes?: number;
+  /** Сколько раз соединение пересобиралось. */
+  reconnects?: number;
+  /** Секунд с включённым микрофоном. */
+  micSeconds?: number;
+}
+
+/** Что известно о пути и микрофоне в момент опроса. */
+export interface LinkObservation {
+  rttMs: number | null;
+  relay: boolean | null;
+  microphone: boolean;
 }
 
 /** Один замер отдачи источника: сколько секунд прошло и сколько из них чем ограничено. */
@@ -119,6 +147,14 @@ export class RxQuality {
   private switches: CodecSwitch[] = [];
   private bytesUp = 0;
   private bytesDown = 0;
+  private packetsLost = 0;
+  private packetsReceived = 0;
+  private freezes = 0;
+  private rtts: number[] = [];
+  private relay: boolean | null = null;
+  private reconnects = 0;
+  private micSeconds = 0;
+  private linkAt: number | null = null;
 
   /** Замер своей отдачи (`MediaSession.sampleUpstream`, раз в 3 с). */
   observeTx(observation: TxObservation) {
@@ -141,6 +177,23 @@ export class RxQuality {
     this.tx.set(key, entry);
   }
 
+  /**
+   * Один опрос пути: оборот, идёт ли звонок через TURN и включён ли микрофон. Секунды микрофона считаются
+   * от прошлого опроса; пауза длиннее пяти секунд (вкладка спала) не засчитывается.
+   */
+  observeLink(link: LinkObservation, now: number) {
+    if (link.rttMs !== null && Number.isFinite(link.rttMs)) this.rtts.push(link.rttMs);
+    if (link.relay !== null) this.relay = this.relay === true || link.relay;
+    const passed = this.linkAt === null ? 0 : (now - this.linkAt) / 1000;
+    this.linkAt = now;
+    if (link.microphone && passed > 0 && passed <= 5) this.micSeconds += passed;
+  }
+
+  /** Соединение с узлом оборвалось и собирается заново. */
+  noteReconnect() {
+    this.reconnects += 1;
+  }
+
   /** Смены кодека отдачи (`CodecPlanner.takeSwitches`). */
   noteSwitches(switches: readonly CodecSwitch[]) {
     this.switches.push(...switches);
@@ -158,6 +211,12 @@ export class RxQuality {
       if (!before) continue;
       // Счётчик дорожки пошёл заново (переподписка) — отрицательная разность не трафик.
       this.bytesDown += Math.max(0, received(sample) - received(before));
+      // Потери — доля пакетов: отчёт без счётчика принятого (не inbound-rtp целиком) в неё не идёт.
+      if (typeof sample.packetsReceived === 'number') {
+        this.packetsLost += delta(sample, before, 'packetsLost');
+        this.packetsReceived += delta(sample, before, 'packetsReceived');
+      }
+      this.freezes += delta(sample, before, 'freezeCount');
       const entry = this.window.get(kind) ?? {
         concealed: 0,
         total: 0,
@@ -215,18 +274,39 @@ export class RxQuality {
     const switches = this.switches.slice(-MAX_SWITCHES);
     const bytesUp = Math.min(MAX_BYTES, Math.round(this.bytesUp));
     const bytesDown = Math.min(MAX_BYTES, Math.round(this.bytesDown));
+    const net = this.takeNet();
     this.tx.clear();
     this.switches = [];
     this.bytesUp = 0;
     this.bytesDown = 0;
-    if (!tracks.length && !tx.length && !switches.length && !bytesUp && !bytesDown) return null;
+    if (!tracks.length && !tx.length && !switches.length && !bytesUp && !bytesDown && !net) return null;
     return {
       tracks,
       ...(tx.length ? { tx } : {}),
       ...(switches.length ? { switches } : {}),
       ...(bytesUp ? { bytesUp } : {}),
       ...(bytesDown ? { bytesDown } : {}),
+      ...(net ? { net } : {}),
     };
+  }
+
+  /** Путь за окно; счётчики окна начинаются заново. Ничего не измерено — `null`. */
+  private takeNet(): RxNet | null {
+    const packets = this.packetsLost + this.packetsReceived;
+    const net: RxNet = {
+      ...(packets > 0 ? { loss: Math.round((this.packetsLost / packets) * 10_000) / 10_000 } : {}),
+      ...(this.rtts.length
+        ? { rttMs: Math.min(60_000, Math.round(this.rtts.reduce((sum, v) => sum + v, 0) / this.rtts.length)) }
+        : {}),
+      ...(this.relay !== null ? { relay: this.relay } : {}),
+      ...(this.freezes > 0 ? { freezes: Math.min(100_000, Math.round(this.freezes)) } : {}),
+      ...(this.reconnects > 0 ? { reconnects: Math.min(1_000, this.reconnects) } : {}),
+      ...(this.micSeconds > 0 ? { micSeconds: Math.round(Math.min(60, this.micSeconds) * 10) / 10 } : {}),
+    };
+    this.packetsLost = this.packetsReceived = this.freezes = this.reconnects = this.micSeconds = 0;
+    this.rtts = [];
+    this.relay = null;
+    return Object.keys(net).length ? net : null;
   }
 
   /** Соединение пересобрано: прежние счётчики ни о чём не говорят, окно начинается заново. */
