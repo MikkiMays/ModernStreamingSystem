@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp } from './AdminApp';
@@ -5,36 +7,36 @@ import { text } from '../i18n/admin/ru';
 import { contactLink, slaText } from './screens/Support';
 import { streams } from './screens/Live';
 import type { SupportTicket } from './api';
-import pulse from '../../../contracts/fixtures/insight/pulse.json';
-import audience from '../../../contracts/fixtures/insight/audience.json';
-import acquisition from '../../../contracts/fixtures/insight/acquisition.json';
-import activation from '../../../contracts/fixtures/insight/activation.json';
-import retention from '../../../contracts/fixtures/insight/retention.json';
-import engagement from '../../../contracts/fixtures/insight/engagement.json';
-import integrations from '../../../contracts/fixtures/insight/integrations.json';
-import quality from '../../../contracts/fixtures/insight/quality.json';
-import errors from '../../../contracts/fixtures/insight/errors.json';
-import errorsDetail from '../../../contracts/fixtures/insight/errors-detail.json';
-import traffic from '../../../contracts/fixtures/insight/traffic.json';
 import type { ErrorDetail, Report, Reports } from './analytics/types';
 
 /**
- * Образцы отчётов службы `insight` — те же файлы, с которыми побайтно сверяется её тест: изменилась форма
- * отчёта — не соберётся это присваивание (типы пульта) или упадёт тест ниже.
+ * Образцы отчётов службы `insight` — те же файлы, с которыми побайтно сверяется её тест
+ * (`contracts/fixtures/insight`): изменилась форма отчёта — упадёт тест ниже. Читаются с диска, а не
+ * импортом: образ веба собирается из одного `web/`, и импорт из соседнего каталога сломал бы сборку.
  */
-const samples: { [S in keyof Reports]: Report<Reports[S]> } = {
-  pulse,
-  audience,
-  acquisition,
-  activation,
-  retention,
-  engagement,
-  integrations,
-  quality,
-  errors,
-  traffic,
-} as { [S in keyof Reports]: Report<Reports[S]> };
-const insight: Record<string, unknown> = { ...samples, 'errors-detail': errorsDetail as Report<ErrorDetail> };
+const sample = <T,>(name: string): T =>
+  JSON.parse(
+    readFileSync(join(process.cwd(), '..', 'contracts', 'fixtures', 'insight', `${name}.json`), 'utf8'),
+  ) as T;
+const SECTIONS = [
+  'pulse',
+  'audience',
+  'acquisition',
+  'activation',
+  'retention',
+  'engagement',
+  'integrations',
+  'quality',
+  'errors',
+  'traffic',
+] as const;
+const samples = Object.fromEntries(SECTIONS.map((name) => [name, sample(name)])) as {
+  [S in keyof Reports]: Report<Reports[S]>;
+};
+const insight: Record<string, unknown> = {
+  ...samples,
+  'errors-detail': sample<Report<ErrorDetail>>('errors-detail'),
+};
 
 /**
  * Три больших экрана пульта (R209, R239, R215) против подменённой службы `fleet`: «Флот — live», «Аналитика» по
