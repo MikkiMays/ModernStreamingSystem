@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { within, act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp, parseRoute } from './AdminApp';
 import { FleetError, failureText } from './api';
@@ -127,6 +127,90 @@ function fleetRoutes(url: URL, init: RequestInit): { status: number; body?: unkn
   }
   if (path === '/api/fleet/machines') return { status: 200, body: machines };
   if (path === '/api/fleet/overview') return { status: 200, body: overview };
+  if (path === '/api/fleet/state')
+    return {
+      status: 200,
+      body: {
+        serverTime: 1,
+        environments: {
+          product: {
+            level: 'bad',
+            reason: 'Ядро на meet не отвечает пульту',
+            since: null,
+            problems: [
+              {
+                level: 'bad',
+                kind: 'core',
+                summary: 'Ядро на meet не отвечает пульту',
+                machine: 'meet',
+                since: null,
+              },
+            ],
+            machines: 1,
+            online: 1,
+          },
+          dev: { level: 'ok', reason: null, since: null, problems: [], machines: 1, online: 1 },
+        },
+        monitoring: { error: null, alerts: null },
+      },
+    };
+  if (path === '/api/fleet/map')
+    return {
+      status: 200,
+      body: {
+        serverTime: 1,
+        error: null,
+        machines: [
+          {
+            id: 'meet',
+            title: 'meet',
+            role: 'product-core',
+            environment: 'product',
+            nodeId: 'fra',
+            host: '108.165.32.23',
+            online: true,
+            sources: { node: true, containers: true, core: false, sfu: true, gateway: true },
+            version: '1.4.0',
+            hardware: { cores: 6, memTotalBytes: 16e9, diskTotalBytes: 120e9, bootTime: 1 },
+            load: { cpu: 0.2, steal: 0.01, memUsed: 0.5, diskUsed: 0.6, netInMbps: 3, netOutMbps: 40 },
+            meetings: { live: 2, people: 9 },
+            containers: [
+              {
+                name: 'modern-streaming-core-1',
+                service: 'core',
+                image: 'core:1.4.0',
+                group: 'cord',
+                cpu: 0.6,
+                cpuShare: 0.1,
+                memBytes: 1e9,
+                memLimitBytes: 2e9,
+                memShare: 0.5,
+                diskBytes: 1e8,
+                startedAt: 1,
+                netInMbps: null,
+                netOutMbps: null,
+              },
+              {
+                name: 'kiki-core',
+                service: null,
+                image: 'kiki:latest',
+                group: 'neighbour',
+                cpu: 0.3,
+                cpuShare: 0.05,
+                memBytes: 3e9,
+                memLimitBytes: null,
+                memShare: 0.19,
+                diskBytes: null,
+                startedAt: null,
+                netInMbps: null,
+                netOutMbps: null,
+              },
+            ],
+            neighbours: { count: 1, cpu: 0.3, memBytes: 3e9 },
+          },
+        ],
+      },
+    };
   if (path === '/api/fleet/jobs' && init.method === 'POST')
     return {
       status: 200,
@@ -212,16 +296,16 @@ describe('пульт флота', () => {
     fireEvent.change(screen.getByLabelText(text.login.code), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: text.login.signIn }));
     await screen.findByText(text.app.executorDry, {}, { timeout: 10_000 });
-    await screen.findAllByText('A', {}, { timeout: 10_000 });
-    await screen.findByText('CORE_UNREACHABLE', {}, { timeout: 10_000 });
-    expect(screen.getByText('2 встречи · 9 человек')).toBeInTheDocument();
-    expect(screen.getByText(text.overview.noJobs)).toBeInTheDocument();
-    // Ядро meet не отвечает — обзор говорит «есть проблемы» и ведёт к машине.
-    expect(screen.getByRole('heading', { name: text.overview.status.bad })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: new RegExp(`meet: ${text.overview.coreDown}`) })).toHaveAttribute(
-      'href',
-      '/live#machine-meet',
-    );
+    // Ядро meet не отвечает — обзор говорит «Сбой» и называет причину; среды не складываются.
+    await screen.findByText(text.pulse.state.bad, {}, { timeout: 10_000 });
+    expect(screen.getAllByText('Ядро на meet не отвечает пульту').length).toBeGreaterThan(0);
+    // Карта флота: машина с её встречами, свой контейнер по имени службы, чужие — одной плиткой «соседи».
+    const machine = await screen.findByRole('region', { name: 'meet' }, { timeout: 10_000 });
+    expect(within(machine).getByText('2 встречи · 9 человек')).toBeInTheDocument();
+    expect(within(machine).getByRole('button', { name: /^core/ })).toBeInTheDocument();
+    expect(
+      within(machine).getByRole('button', { name: new RegExp(text.map.neighbours) }),
+    ).toBeInTheDocument();
     // Выбора машины-контекста на обзоре нет: он — у разделов ядра.
     expect(screen.queryByRole('combobox')).toBeNull();
     fireEvent.click(screen.getByRole('link', { name: text.nav.meetings }));

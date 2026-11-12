@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp, sectionPath } from './AdminApp';
-import { attention } from './screens/Overview';
+import { attentionOf } from './screens/Overview';
 import { DASHBOARDS, dashboardUrl, MAIN_DASHBOARD } from './grafana';
 import { nodeStates } from './nodes';
 import { text } from '../i18n/admin/ru';
@@ -253,34 +253,6 @@ describe('каркас пульта R220', () => {
       '_blank',
     );
   });
-
-  it('обзор: медиаузел — узел ядра продукта со своим состоянием, у ядра — сводка узлов, узел вне связи — в «Требует внимания»', async () => {
-    serve(routes);
-    render(<AdminApp />);
-    const machineLink = (id: string) =>
-      waitFor(
-        () => {
-          const link = document.querySelector<HTMLAnchorElement>(`a[href="/live#machine-${id}"]`);
-          expect(link).not.toBeNull();
-          return link!;
-        },
-        { timeout: 10_000 },
-      );
-    const row = await machineLink('b');
-    await waitFor(() =>
-      expect(row).toHaveTextContent(`${text.overview.nodeOf} meet: ${text.nodes.states.busy}`),
-    );
-    expect(row).toHaveTextContent('1 встреча · 3 человека');
-    expect(row).not.toHaveTextContent(text.overview.noCore);
-    expect(await machineLink('meet')).toHaveTextContent(
-      `${text.nav.nodes}: 2 ${text.overview.of} 3 ${text.overview.nodesOk}`,
-    );
-    expect(screen.getByRole('link', { name: new RegExp(`msk.*${text.overview.nodeDown}`) })).toHaveAttribute(
-      'href',
-      '/nodes',
-    );
-    expect(screen.getByRole('heading', { name: text.overview.status.bad })).toBeInTheDocument();
-  });
 });
 
 const nullLoad = Object.fromEntries(
@@ -414,54 +386,83 @@ describe('«Флот — live»: медиаузел и ядро продукта
 });
 
 describe('что требует внимания', () => {
-  it('худшее сверху, спокойный флот — пустой список', () => {
-    const calm = attention(overview, { ...counts, fresh: 0, breached: 0 }, 0);
-    expect(calm).toEqual([]);
-    const items = attention(
-      {
-        ...overview,
-        alerts: {
-          alerts: [
+  it('худшее сверху, спокойная среда — пустой список; стенд и продукт не смешиваются', () => {
+    const machines = [
+      { id: 'a', role: 'dev+admin' },
+      { id: 'meet', role: 'product-core' },
+    ];
+    const quiet = {
+      level: 'ok' as const,
+      reason: null,
+      since: null,
+      problems: [],
+      machines: 1,
+      online: 1,
+    };
+    const state = {
+      serverTime: 1,
+      environments: {
+        product: {
+          ...quiet,
+          level: 'bad' as const,
+          problems: [
             {
-              name: 'StealHigh',
-              severity: 'warning',
-              node: 'meet',
-              state: 'firing',
-              activeAt: null,
-              summary: null,
+              level: 'warn' as const,
+              kind: 'alert' as const,
+              summary: 'steal 12 %',
+              machine: 'meet',
+              since: null,
+            },
+            {
+              level: 'bad' as const,
+              kind: 'core' as const,
+              summary: 'Ядро не отвечает',
+              machine: 'meet',
+              since: null,
             },
           ],
-          error: null,
         },
-        jobs: [
-          {
-            id: 'j1',
-            kind: 'deploy',
-            machine: 'meet',
-            args: {},
-            actor: 'owner',
-            dryRun: false,
-            status: 'failed',
-            createdAt: 1,
-            startedAt: 1,
-            finishedAt: 2,
-            exitCode: 1,
-            summary: null,
-          },
-        ],
+        dev: quiet,
       },
-      counts,
-      0,
-      { core: null, states: nodeStates(nodes) },
-    );
-    expect(items.map((i) => [i.key, i.tone])).toEqual([
-      ['node-msk', 'bad'],
-      ['job-j1', 'bad'],
-      ['tickets-breached', 'bad'],
-      ['alert-0', 'warn'],
-      ['tickets-new', 'neutral'],
+      monitoring: { error: null, alerts: null },
+    };
+    const job = {
+      id: 'j1',
+      kind: 'deploy',
+      machine: 'meet',
+      args: {},
+      actor: 'owner',
+      dryRun: false,
+      status: 'failed' as const,
+      createdAt: 1,
+      startedAt: 1,
+      finishedAt: 2,
+      exitCode: 1,
+      summary: null,
+    };
+    expect(attentionOf('dev', state, { ...counts, fresh: 0, breached: 0 }, [job], machines)).toEqual([]);
+    const items = attentionOf('product', state, { ...counts, fresh: 2, breached: 1 }, [job], machines);
+    expect(items.map((i) => [i.key, i.level])).toEqual([
+      ['problem-1', 'bad'],
+      ['problem-0', 'warn'],
+      ['job-j1', 'warn'],
+      ['breached', 'warn'],
+      ['fresh', 'note'],
     ]);
     expect(items.find((i) => i.key === 'job-j1')!.to).toBe('/jobs/j1');
+    // Сухой прогон и задача стенда в списке продукта не появляются.
+    expect(
+      attentionOf(
+        'product',
+        undefined,
+        undefined,
+        [
+          { ...job, dryRun: true },
+          { ...job, machine: 'a' },
+        ],
+        machines,
+      ),
+    ).toEqual([]);
   });
 
   it('узел на дренаже — состояние «дренаж», а не «нет связи»', () => {

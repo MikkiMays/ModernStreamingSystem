@@ -1,518 +1,503 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
-  AlertTriangle,
+  ArrowLeft,
   BellRing,
-  CheckCircle2,
-  ChevronRight,
+  CircleCheck,
   Inbox,
   OctagonAlert,
-  RefreshCw,
   ServerCrash,
+  TriangleAlert,
   Unplug,
-  Wrench,
-  XOctagon,
 } from 'lucide-react';
-import { Button, Flag } from '../../ui/kit';
+import { Segmented } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
 import {
   fleet,
-  type Machine,
-  type Overview as OverviewData,
-  type OverviewMachine,
+  type Environment,
+  type FleetMapView,
+  type FleetState,
+  type Job,
+  type Live,
+  type LiveHistory,
+  type LiveMachine,
+  type MapHistory,
+  type MapMachine,
+  type Point,
+  type StateProblem,
   type SupportCounts,
 } from '../api';
-import { NODE_TONE, useProductNodes, type NodeState } from '../nodes';
 import type { Console } from '../AdminApp';
-import { Meter } from '../charts';
 import {
-  Dot,
-  Empty,
-  ErrorLine,
-  Panel,
-  Pill,
-  Skeleton,
-  Stat,
-  Stats,
-  gigabytes,
-  iso,
-  plural,
-  when,
-} from '../parts';
-import { JobsTable } from './Jobs';
-
-const t = text.overview;
-
-type Tone = 'bad' | 'warn' | 'neutral';
-
-export type Attention = {
-  key: string;
-  tone: Tone;
-  icon: ReactNode;
-  title: string;
-  meta?: string;
-  /** Куда ведёт строка; `machine` — сделать машину контекстом раздела ядра перед переходом. */
-  to: string;
-  machine?: string;
-};
-
-const RANK: Record<Tone, number> = { bad: 0, warn: 1, neutral: 2 };
-
-function ago(iso: string | null, now: number): string | undefined {
-  if (!iso) return undefined;
-  const at = Date.parse(iso);
-  if (Number.isNaN(at)) return undefined;
-  const minutes = Math.max(0, Math.round((now - at) / 60_000));
-  return minutes < 60
-    ? `${minutes} ${text.units.minutes} ${t.ago}`
-    : `${Math.floor(minutes / 60)} ${text.units.hours} ${minutes % 60} ${text.units.minutes} ${t.ago}`;
-}
+  FleetMap,
+  mapFormat,
+  tileName,
+  type MapMetric,
+  type MapPath,
+  type MapTint,
+} from '../fleet-map/FleetMap';
+import { Empty, ErrorLine, Skeleton, duration, iso, plural } from '../parts';
+import './overview.css';
 
 /**
- * Что требует внимания (R220): алерты, молчащие ядра и агенты метрик, окна работ, упавшие задачи и обращения — одним
- * списком, худшее сверху. Каждая строка ведёт туда, где с этим разбираются.
+ * Обзор пульта, вторая версия (R240, Р-148…Р-150; `docs/architecture/admin-console-v2.md` §5).
+ *
+ * Один экран без прокрутки отвечает на три вопроса: всё ли работает (состояние среды с причиной), кто что
+ * потребляет (карта флота «машина → контейнер» с провалом) и что требует владельца (оповещения, обращения,
+ * сбои задач). Среды «Продукт» и «Стенд» не складываются: приборы и список считаются по выбранной.
  */
-export function attention(
-  data: OverviewData | undefined,
-  counts: SupportCounts | undefined,
-  now: number,
-  nodes: { core: Machine | null; states: Map<string, NodeState> } = { core: null, states: new Map() },
-): Attention[] {
-  const items: Attention[] = [];
-  // Узел, до которого ядро продукта не достаёт (`down` по реестру и магистрали), — встречи на него не встанут.
-  for (const state of nodes.states.values())
-    if (state.state === 'down')
-      items.push({
-        key: `node-${state.id}`,
-        tone: 'bad',
-        icon: <Unplug />,
-        title: `${state.id}${state.title ? ` (${state.title})` : ''}: ${t.nodeDown}`,
-        meta: nodes.core ? `${text.live.linkCore} ${nodes.core.title}` : undefined,
-        to: '/nodes',
-        machine: nodes.core?.id,
-      });
-  for (const [i, alert] of (data?.alerts.alerts ?? []).entries())
-    items.push({
-      key: `alert-${i}`,
-      tone: alert.severity === 'critical' ? 'bad' : 'warn',
-      icon: <BellRing />,
-      title: `${alert.node ? `${alert.node}: ` : ''}${alert.summary ?? alert.name}`,
-      meta: [`${t.alert} ${alert.name}`, ago(alert.activeAt, now)].filter(Boolean).join(' · '),
-      to: '/live',
-    });
-  for (const m of data?.machines ?? []) {
-    if (m.now?.error)
-      items.push({
-        key: `core-${m.id}`,
-        tone: 'bad',
-        icon: <ServerCrash />,
-        title: `${m.title}: ${t.coreDown}`,
-        meta: m.now.error.detail || m.now.error.code,
-        to: `/live#machine-${m.id}`,
-      });
-    if (m.metrics.error)
-      items.push({
-        key: `metrics-${m.id}`,
-        tone: 'warn',
-        icon: <Unplug />,
-        title: `${m.title}: ${t.metricsDown}`,
-        meta: m.metrics.error,
-        to: `/live#machine-${m.id}`,
-      });
-    const phase = m.maintenance?.data?.phase;
-    if (phase && phase !== 'none') {
-      const window = m.maintenance!.data!.window;
-      items.push({
-        key: `maintenance-${m.id}`,
-        tone: phase === 'scheduled' ? 'warn' : 'bad',
-        icon: <Wrench />,
-        title: `${m.product ?? m.title}: ${t.maintenanceOn} — ${t.phase[phase] ?? phase}`,
-        meta: window ? `${iso(window.startsAt)} — ${iso(window.endsAt)}` : undefined,
-        to: '/maintenance',
-        machine: m.id,
-      });
-    }
+const t = text.pulse;
+const m = text.map;
+
+const ENV_KEY = 'cord:admin:environment';
+const environmentOf = (role: string): Environment => (role === 'dev+admin' ? 'dev' : 'product');
+
+function readEnvironment(): Environment {
+  try {
+    return localStorage.getItem(ENV_KEY) === 'dev' ? 'dev' : 'product';
+  } catch {
+    return 'product';
   }
-  for (const job of data?.jobs ?? [])
-    if (job.status === 'failed')
-      items.push({
-        key: `job-${job.id}`,
-        tone: 'bad',
-        icon: <XOctagon />,
-        title: `${t.jobFailed}: ${job.kind} · ${job.machine}`,
-        meta: [job.summary, when(job.createdAt, true)].filter(Boolean).join(' · '),
-        to: `/jobs/${job.id}`,
-      });
-  if (counts?.breached)
-    items.push({
-      key: 'tickets-breached',
-      tone: 'bad',
-      icon: <Inbox />,
-      title: `${t.ticketsBreached}: ${counts.breached}`,
-      to: '/support',
-    });
-  if (counts?.fresh)
-    items.push({
-      key: 'tickets-new',
-      tone: 'neutral',
-      icon: <Inbox />,
-      title: `${t.ticketsNew}: ${counts.fresh}`,
-      to: '/support',
-    });
-  return items.sort((a, b) => RANK[a.tone] - RANK[b.tone]);
 }
 
-function count(n: number, forms: readonly [string, string, string]): string {
-  return `${n} ${plural(n, forms)}`;
+/** Путь провала карты живёт в адресе: `?m=<машина>&c=<контейнер>` — ссылку можно сохранить. */
+function readPath(): MapPath {
+  const params = new URLSearchParams(location.search);
+  const machine = params.get('m') ?? undefined;
+  return machine ? { machine, container: params.get('c') ?? undefined } : {};
 }
 
-/** Машина на связи: агент метрик отвечает и ядро (если оно есть) — тоже. */
-function online(m: OverviewMachine): boolean | null {
-  if (m.metrics.error && !m.now) return false;
-  if (m.now?.error) return false;
-  if (m.metrics.error) return null;
-  return true;
+function writePath(path: MapPath): void {
+  const params = new URLSearchParams(location.search);
+  params.delete('m');
+  params.delete('c');
+  if (path.machine) params.set('m', path.machine);
+  if (path.machine && path.container) params.set('c', path.container);
+  const query = params.toString();
+  history.replaceState(null, '', location.pathname + (query ? `?${query}` : ''));
 }
 
-/** Обзор (§8.1, R220): ответ «всё ли в порядке» первым, затем что идёт, что требует внимания, машины и задачи. */
-export function Overview({ console }: { console: Console }) {
-  const overview = useQuery({
-    queryKey: ['overview'],
-    queryFn: () => fleet.get<OverviewData>('/overview'),
-    refetchInterval: 15_000,
-  });
-  const counts = useQuery({
-    queryKey: ['support-counts'],
-    queryFn: () => fleet.get<{ total: SupportCounts; machines: Record<string, unknown> }>('/support/counts'),
-    refetchInterval: 60_000,
-  });
-  const data = overview.data;
-  const total = counts.data?.total;
-  const now = Date.now();
-  const nodes = useProductNodes(console.machines);
-  const items = attention(data, total, now, nodes);
-  const tone = items.some((i) => i.tone === 'bad')
-    ? 'bad'
-    : items.some((i) => i.tone === 'warn')
-      ? 'warn'
-      : 'ok';
-  const machines = data?.machines ?? [];
-  const up = machines.filter((m) => online(m) === true).length;
-  const totals = machines.reduce(
-    (sum, m) => {
-      const live = m.now?.data;
-      if (!live) return sum;
-      return {
-        live: sum.live + live.live,
-        humans: sum.humans + live.humans,
-        bots: sum.bots + live.bots,
-        screens: sum.screens + live.screens,
-      };
-    },
-    { live: 0, humans: 0, bots: 0, screens: 0 },
-  );
-  const open = (item: Attention) => {
-    if (item.machine) console.setMachine(item.machine);
-    console.go(item.to);
-  };
+const sum = (values: (number | null | undefined)[]): number | null => {
+  const known = values.filter((value): value is number => typeof value === 'number');
+  return known.length ? known.reduce((a, b) => a + b, 0) : null;
+};
+
+/** Ряд без осей: только форма за последние полчаса, рядом с числом прибора. */
+function Spark({ points }: { points: Point[] }) {
+  const values = points.filter((point): point is [number, number] => point[1] !== null);
+  if (values.length < 2) return null;
+  const max = Math.max(...values.map((point) => point[1]), 1);
+  const [first, last] = [values[0]![0], values.at(-1)![0]];
+  const line = values
+    .map(([time, value], i) => {
+      const x = ((time - first) / (last - first || 1)) * 96;
+      const y = 26 - (value / max) * 24;
+      return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(' ');
   return (
-    <div className="admin-stack">
-      <ErrorLine
-        error={overview.error}
-        onRetry={() => void overview.refetch()}
-        updatedAt={data ? overview.dataUpdatedAt : undefined}
-      />
-      {overview.isPending ? (
-        <div className="admin-status">
-          <Skeleton rows={2} />
-        </div>
-      ) : (
-        <section className="admin-status" data-tone={tone} aria-labelledby="admin-status-title">
-          <span className="admin-status__icon" aria-hidden="true">
-            {tone === 'ok' ? <CheckCircle2 /> : tone === 'warn' ? <AlertTriangle /> : <OctagonAlert />}
-          </span>
-          <div>
-            <h2 className="admin-status__title" id="admin-status-title">
-              {t.status[tone]}
-            </h2>
-            <p className="admin-status__sub">
-              {up} {t.of} {machines.length} {t.machinesUp}
-              {data && ` · ${text.app.updated} ${when(data.serverTime)}`}
-            </p>
-          </div>
-          <Button
-            variant="quiet"
-            size="sm"
-            icon={<RefreshCw size={16} />}
-            loading={overview.isFetching}
-            onClick={() => void overview.refetch()}
-          >
-            {text.app.refresh}
-          </Button>
-          <div className="admin-status__live">
-            <Stats>
-              <Stat value={totals.live} label={text.live.meetings} />
-              <Stat value={totals.humans} label={text.live.humans} />
-              <Stat value={totals.screens} label={text.live.screens} />
-              <Stat value={totals.bots} label={t.botsLabel} />
-            </Stats>
-          </div>
-        </section>
-      )}
-      <div className="admin-grid-2">
-        <Panel title={t.attention} flush>
-          {data && items.length === 0 ? (
-            <Empty icon={<CheckCircle2 />}>{t.calm}</Empty>
-          ) : (
-            <ul className="admin-list">
-              {items.map((item) => (
-                <li key={item.key}>
-                  <a
-                    className="admin-attention__item"
-                    data-tone={item.tone}
-                    href={item.to}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      open(item);
-                    }}
-                  >
-                    <span className="admin-attention__icon" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <span className="admin-attention__text">
-                      <span className="admin-attention__title">{item.title}</span>
-                      {item.meta && <span className="admin-attention__meta">{item.meta}</span>}
-                    </span>
-                    <ChevronRight className="admin-attention__go" size={16} aria-hidden="true" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-          {overview.isPending && <Skeleton rows={3} />}
-          {data?.alerts.error && <p className="admin-hint">{data.alerts.error}</p>}
-        </Panel>
-        <div className="admin-stack">
-          <Panel
-            title={t.support}
-            actions={
-              <Button variant="secondary" size="sm" onClick={() => console.go('/support')}>
-                {t.toSupport}
-              </Button>
-            }
-          >
-            <ErrorLine error={counts.error} onRetry={() => void counts.refetch()} />
-            {counts.isPending && <Skeleton rows={1} />}
-            {total && (
-              <Stats>
-                <Stat value={total.fresh} label={t.supportNew} />
-                <Stat value={total.open} label={t.supportOpen} />
-                <Stat value={total.waiting} label={t.supportWaiting} />
-                <Stat
-                  value={total.breached}
-                  label={t.supportBreached}
-                  tone={total.breached ? 'bad' : undefined}
-                />
-              </Stats>
-            )}
-          </Panel>
-          <Panel
-            title={t.maintenance}
-            actions={
-              <Button variant="secondary" size="sm" onClick={() => console.go('/maintenance')}>
-                {text.nav.maintenance}
-              </Button>
-            }
-          >
-            {overview.isPending && <Skeleton rows={2} />}
-            <ul className="admin-list admin-list--rows">
-              {machines
-                .filter((m) => m.maintenance)
-                .map((m) => {
-                  const status = m.maintenance!.data;
-                  return (
-                    <li key={m.id} className="admin-row">
-                      <span className="admin-strong">{m.product ?? m.title}</span>
-                      {m.maintenance!.error ? (
-                        <Pill tone="bad" title={m.maintenance!.error.detail}>
-                          {m.maintenance!.error.code}
-                        </Pill>
-                      ) : (
-                        <Pill
-                          tone={
-                            status?.phase === 'none'
-                              ? 'neutral'
-                              : status?.phase === 'scheduled'
-                                ? 'warn'
-                                : 'bad'
-                          }
-                          dot
-                        >
-                          {t.phase[status?.phase ?? 'none']}
-                        </Pill>
-                      )}
-                      {status?.window && (
-                        <span className="admin-sub">
-                          {iso(status.window.startsAt)} — {iso(status.window.endsAt)}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-            </ul>
-          </Panel>
-        </div>
-      </div>
-      <Panel
-        title={t.machines}
-        flush
-        actions={
-          <Button variant="quiet" size="sm" onClick={() => console.go('/live')}>
-            {t.toLive}
-          </Button>
-        }
-      >
-        {overview.isPending && <Skeleton rows={4} />}
-        {data && machines.length === 0 && <Empty>{t.noMachines}</Empty>}
-        {machines.length > 0 && (
-          <ul className="admin-list">
-            {machines.map((m) => (
-              <li key={m.id}>
-                <MachineRow
-                  machine={m}
-                  console={console}
-                  states={nodes.states}
-                  product={machines.find((x) => x.id === nodes.core?.id) ?? null}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-      <Panel
-        title={t.jobs}
-        flush
-        actions={
-          <Button variant="quiet" size="sm" onClick={() => console.go('/jobs')}>
-            {text.nav.jobs}
-          </Button>
-        }
-      >
-        {data && data.jobs.length === 0 && <Empty>{t.noJobs}</Empty>}
-        {data && data.jobs.length > 0 && <JobsTable jobs={data.jobs} console={console} />}
-      </Panel>
+    <svg className="pulse__spark" viewBox="0 0 96 28" preserveAspectRatio="none" aria-hidden>
+      <path d={line} />
+    </svg>
+  );
+}
+
+function Instrument({
+  label,
+  value,
+  note,
+  hint,
+  tone,
+  points,
+}: {
+  label: string;
+  value: ReactNode;
+  note?: ReactNode;
+  hint?: string;
+  tone?: 'warn' | 'bad';
+  points?: Point[];
+}) {
+  return (
+    <div className="pulse__instrument" data-tone={tone} title={hint}>
+      <span className="pulse__label">{label}</span>
+      <strong>{value}</strong>
+      {points ? <Spark points={points} /> : note ? <span className="pulse__note">{note}</span> : null}
     </div>
   );
 }
 
-function MachineRow({
-  machine: m,
-  console,
-  states,
-  product,
+const PROBLEM_ICON: Record<StateProblem['kind'], ReactNode> = {
+  core: <ServerCrash />,
+  metrics: <Unplug />,
+  alert: <BellRing />,
+};
+
+type AttentionItem = {
+  key: string;
+  level: 'bad' | 'warn' | 'note';
+  icon: ReactNode;
+  title: string;
+  meta?: string;
+  to?: string;
+};
+
+export function attentionOf(
+  environment: Environment,
+  state: FleetState | undefined,
+  counts: SupportCounts | undefined,
+  jobs: Job[] | undefined,
+  machines: { id: string; role: string; title?: string }[],
+): AttentionItem[] {
+  const items: AttentionItem[] = [];
+  for (const [i, problem] of (state?.environments[environment].problems ?? []).entries())
+    items.push({
+      key: `problem-${i}`,
+      level: problem.level,
+      icon: PROBLEM_ICON[problem.kind],
+      title: problem.summary,
+      meta: problem.since ? iso(problem.since) : undefined,
+    });
+  const mine = new Set(
+    machines.filter((machine) => environmentOf(machine.role) === environment).map((machine) => machine.id),
+  );
+  for (const job of jobs ?? [])
+    if (job.status === 'failed' && !job.dryRun && mine.has(job.machine))
+      items.push({
+        key: `job-${job.id}`,
+        level: 'warn',
+        icon: <TriangleAlert />,
+        title: `${text.overview.jobFailed}: ${job.kind} · ${job.machine}`,
+        meta: job.summary ?? undefined,
+        to: `/jobs/${job.id}`,
+      });
+  // Ящик обращений — общий на среду продукта: стенд обращений людей не принимает.
+  if (environment === 'product' && counts) {
+    if (counts.breached)
+      items.push({
+        key: 'breached',
+        level: 'warn',
+        icon: <Inbox />,
+        title: `${t.tickets}: ${counts.breached} ${t.ticketsOverdue}`,
+        to: '/support',
+      });
+    if (counts.fresh)
+      items.push({
+        key: 'fresh',
+        level: 'note',
+        icon: <Inbox />,
+        title: `${t.tickets}: ${counts.fresh} ${t.ticketsNew}`,
+        to: '/support',
+      });
+  }
+  const rank = { bad: 0, warn: 1, note: 2 };
+  return items.sort((a, b) => rank[a.level] - rank[b.level]);
+}
+
+function Detail({
+  machine,
+  container,
+  onBack,
 }: {
-  machine: OverviewMachine;
-  console: Console;
-  states: Map<string, NodeState>;
-  product: OverviewMachine | null;
+  machine: MapMachine;
+  container?: string;
+  onBack: () => void;
 }) {
-  const now = m.now?.data;
-  const mediaNode = m.role === 'media-node' && !m.core;
-  const node = mediaNode ? states.get(m.nodeId ?? m.id) : undefined;
-  // Комнаты и люди на узле — по встречам ядра продукта (`mediaNode` комнаты).
-  const onNode = (product?.now?.data?.rooms ?? []).filter((r) => r.mediaNode === (m.nodeId ?? m.id));
-  const working = [...states.values()].filter((s) => s.state === 'ok' || s.state === 'busy').length;
-  const metrics = m.metrics;
-  const state = online(m);
-  const stateWord = state === null ? t.unknown : state ? t.online : t.offline;
+  const history = useQuery({
+    queryKey: ['map-history', machine.id, container ?? ''],
+    queryFn: () => fleet.get<MapHistory>('/map/history', { machine: machine.id, container, minutes: 30 }),
+    refetchInterval: 30_000,
+  });
+  const picked = container ? machine.containers.find((item) => item.name === container) : undefined;
+  const rows: [string, string][] = picked
+    ? [
+        [
+          m.metrics.mem,
+          `${mapFormat.bytes(picked.memBytes)} · ${mapFormat.share(picked.memShare)} ${picked.memLimitBytes ? m.ofLimit : m.ofMachine}`,
+        ],
+        [
+          m.metrics.cpu,
+          `${mapFormat.cores(picked.cpu)} · ${mapFormat.share(picked.cpuShare)} ${m.ofMachine}`,
+        ],
+        [m.metrics.disk, mapFormat.bytes(picked.diskBytes)],
+        [
+          m.network,
+          picked.netOutMbps === null
+            ? '—'
+            : `${Math.round(picked.netOutMbps)} / ${Math.round(picked.netInMbps ?? 0)} ${t.mbps}`,
+        ],
+        [m.image, picked.image ?? '—'],
+        [m.since, picked.startedAt ? new Date(picked.startedAt * 1000).toLocaleString('ru-RU') : '—'],
+      ]
+    : [
+        [m.load.cpu, `${mapFormat.share(machine.load.cpu)} · ${machine.hardware.cores ?? '—'} ${m.cores}`],
+        [m.load.steal, mapFormat.share(machine.load.steal)],
+        [
+          m.load.mem,
+          `${mapFormat.share(machine.load.memUsed)} ${t.of} ${mapFormat.bytes(machine.hardware.memTotalBytes)}`,
+        ],
+        [
+          m.load.disk,
+          `${mapFormat.share(machine.load.diskUsed)} ${t.of} ${mapFormat.bytes(machine.hardware.diskTotalBytes)}`,
+        ],
+        [
+          m.load.net,
+          machine.load.netOutMbps === null ? '—' : `${Math.round(machine.load.netOutMbps)} ${t.mbps}`,
+        ],
+        [
+          m.neighbours,
+          machine.neighbours.count
+            ? `${machine.neighbours.count} · ${mapFormat.bytes(machine.neighbours.memBytes)}`
+            : '—',
+        ],
+      ];
   return (
-    <a
-      className="admin-machine"
-      href={`/live#machine-${m.id}`}
-      onClick={(event) => {
-        event.preventDefault();
-        console.go(`/live#machine-${m.id}`);
-      }}
-    >
-      <span className="admin-machine__name">
-        <Dot state={state === null ? 'warn' : state ? 'ok' : 'bad'} label={stateWord} />
-        <span className="admin-machine__title">{m.title}</span>
-        <span className="admin-sub">
-          {t.role[m.role] ?? m.role}
-          {m.nodeId && ` · ${m.nodeId}`} · {m.host}
+    <section className="pulse__detail" aria-label={picked ? picked.name : machine.title}>
+      <header>
+        <button type="button" onClick={onBack} aria-label={m.back}>
+          <ArrowLeft />
+        </button>
+        <div>
+          <strong>{picked ? tileName(picked) : machine.title}</strong>
+          <span>{picked ? picked.name : `${m.roles[machine.role] ?? machine.role} · ${machine.host}`}</span>
+        </div>
+      </header>
+      <dl>
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {picked && picked.netOutMbps === null && <p className="pulse__hint">{m.networkShared}</p>}
+      <div className="pulse__series">
+        {Object.entries(history.data?.series ?? {}).map(([name, points]) => (
+          <figure key={name}>
+            <figcaption>{m.history[name] ?? name}</figcaption>
+            <Spark points={points} />
+          </figure>
+        ))}
+        {history.isPending && <Skeleton rows={2} />}
+      </div>
+    </section>
+  );
+}
+
+function people(machines: LiveMachine[]): number | null {
+  return sum(machines.map((machine) => machine.core?.connected));
+}
+
+export function Overview({ console }: { console: Console }) {
+  const [environment, setEnvironmentState] = useState<Environment>(readEnvironment);
+  const [metric, setMetric] = useState<MapMetric>('mem');
+  const [tint, setTint] = useState<MapTint>('load');
+  const [path, setPathState] = useState<MapPath>(readPath);
+  const setPath = useCallback((next: MapPath) => {
+    setPathState(next);
+    writePath(next);
+  }, []);
+  const setEnvironment = (next: Environment) => {
+    setEnvironmentState(next);
+    try {
+      localStorage.setItem(ENV_KEY, next);
+    } catch {
+      /* Выбор среды живёт до перезагрузки. */
+    }
+  };
+
+  const state = useQuery({
+    queryKey: ['state'],
+    queryFn: () => fleet.get<FleetState>('/state'),
+    refetchInterval: 10_000,
+  });
+  const map = useQuery({
+    queryKey: ['map'],
+    queryFn: () => fleet.get<FleetMapView>('/map'),
+    refetchInterval: 5_000,
+  });
+  const live = useQuery({
+    queryKey: ['live'],
+    queryFn: () => fleet.get<Live>('/live'),
+    refetchInterval: 10_000,
+  });
+  const series = useQuery({
+    queryKey: ['live-history', 30],
+    queryFn: () => fleet.get<LiveHistory>('/live/history', { minutes: 30 }),
+    refetchInterval: 30_000,
+  });
+  // Тот же ключ и та же форма ответа, что у счётчика обращений в навигации: один запрос на двоих.
+  const counts = useQuery({
+    queryKey: ['support-counts'],
+    queryFn: () => fleet.get<{ total: SupportCounts; machines: Record<string, unknown> }>('/support/counts'),
+    refetchInterval: 60_000,
+    select: (answer) => answer.total,
+  });
+  const jobs = useQuery({
+    queryKey: ['jobs', 'recent'],
+    queryFn: () => fleet.get<Job[]>('/jobs', { limit: 10 }),
+    refetchInterval: 30_000,
+  });
+
+  const mine = useMemo(
+    () => (live.data?.machines ?? []).filter((machine) => environmentOf(machine.role) === environment),
+    [live.data, environment],
+  );
+  const current = state.data?.environments[environment];
+  const joins = sum(mine.map((machine) => machine.core?.joinsPerMin));
+  const failures = sum(mine.map((machine) => machine.core?.failuresPerMin));
+  const success =
+    joins !== null && failures !== null && joins + failures > 0 ? joins / (joins + failures) : null;
+  const uplink = sum(mine.map((machine) => machine.sfu?.outMbps ?? machine.load.netOutMbps));
+  const connected = useMemo(() => {
+    // Люди на связи за полчаса: сумма рядов ядер выбранной среды по общим отметкам времени.
+    const total = new Map<number, number>();
+    for (const machine of mine)
+      for (const [time, value] of series.data?.machines[machine.id]?.connected ?? [])
+        if (value !== null) total.set(time, (total.get(time) ?? 0) + value);
+    return [...total.entries()].sort((a, b) => a[0] - b[0]) as Point[];
+  }, [mine, series.data]);
+  const rooms = mine.flatMap((machine) => machine.now?.data?.rooms ?? []).filter((room) => room.startedAt);
+  const attention = attentionOf(environment, state.data, counts.data, jobs.data, console.machines);
+  const opened = map.data?.machines.find((machine) => machine.id === path.machine);
+  const level = current?.level ?? 'ok';
+
+  return (
+    <div className="pulse">
+      <header className="pulse__head" data-level={level} role="status" aria-live="polite">
+        <span className="pulse__state">
+          {level === 'ok' ? <CircleCheck /> : level === 'warn' ? <TriangleAlert /> : <OctagonAlert />}
+          <strong>{state.data ? t.state[level] : text.app.loading}</strong>
+          {current?.reason && <span>{current.reason}</span>}
         </span>
-      </span>
-      <span className="admin-machine__meters">
-        {metrics.error ? (
-          <span className="admin-hint" title={metrics.error}>
-            {t.noMetrics}: {metrics.error}
-          </span>
-        ) : (
-          <>
-            <Meter compact label={t.cpu} value={metrics.cpu} />
-            <Meter
-              compact
-              label={t.steal}
-              value={metrics.steal}
-              warn={0.05}
-              bad={0.1}
-              hint={text.live.stealHint}
+        <Segmented
+          aria-label={text.app.machine}
+          size="sm"
+          value={environment}
+          onValueChange={setEnvironment}
+          options={[
+            { value: 'product', label: t.environments.product },
+            { value: 'dev', label: t.environments.dev },
+          ]}
+        />
+      </header>
+      {state.error && <ErrorLine error={state.error} onRetry={() => void state.refetch()} />}
+
+      <section className="pulse__instruments" aria-label={text.nav.overview}>
+        <Instrument label={t.people} value={people(mine) ?? '—'} points={connected} />
+        <Instrument label={t.meetings} value={sum(mine.map((machine) => machine.core?.live)) ?? '—'} />
+        <Instrument
+          label={t.joinSuccess}
+          value={
+            success === null
+              ? '—'
+              : `${(success * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} %`
+          }
+          hint={t.joinSuccessHint}
+          tone={
+            success !== null && success < 0.9
+              ? 'bad'
+              : success !== null && success < 0.98
+                ? 'warn'
+                : undefined
+          }
+          note={success === null ? t.noData : undefined}
+        />
+        <Instrument label={t.uplink} value={uplink === null ? '—' : Math.round(uplink)} note={t.mbps} />
+        <Instrument
+          label={t.nodes}
+          value={current ? `${current.online} ${t.of} ${current.machines}` : '—'}
+          tone={current && current.online < current.machines ? 'warn' : undefined}
+        />
+        <Instrument
+          label={t.tickets}
+          value={counts.data ? counts.data.fresh + counts.data.open : '—'}
+          note={counts.data?.breached ? `${counts.data.breached} ${t.ticketsOverdue}` : undefined}
+          tone={counts.data?.breached ? 'warn' : undefined}
+        />
+      </section>
+
+      <div className="pulse__body">
+        <section className="pulse__map" aria-label={m.title}>
+          <header>
+            <h2>{m.title}</h2>
+            <Segmented
+              aria-label={m.size}
+              size="sm"
+              value={metric}
+              onValueChange={setMetric}
+              options={(['mem', 'cpu', 'disk'] as const).map((value) => ({ value, label: m.metrics[value] }))}
             />
-            <Meter compact label={t.mem} value={metrics.memUsed} warn={0.8} bad={0.92} />
-            <span className="admin-meter" data-compact="">
-              <span className="admin-meter__label">{t.disk}</span>
-              <span className="admin-meter__text">
-                {gigabytes(metrics.diskFreeBytes)} {t.free}
-              </span>
-            </span>
-          </>
-        )}
-      </span>
-      <span className="admin-machine__side">
-        {mediaNode ? (
-          <>
-            <span className="admin-row">
-              {node?.country && <Flag country={node.country} />}
-              <Pill tone={node?.state ? (NODE_TONE[node.state] ?? 'neutral') : node ? 'neutral' : 'warn'} dot>
-                {node
-                  ? `${t.nodeOf} ${product?.title ?? ''}: ${node.state ? (text.nodes.states[node.state] ?? node.state) : text.nodes.enabled}`
-                  : t.nodeNotLinked}
-              </Pill>
-            </span>
-            {node && (
-              <span className="admin-sub">
-                {count(onNode.length, t.meetingForms)} ·{' '}
-                {count(
-                  onNode.reduce((sum, r) => sum + r.humans, 0),
-                  t.peopleForms,
-                )}
-              </span>
-            )}
-          </>
-        ) : m.now === null ? (
-          <span className="admin-sub">{m.core ? t.noCredential : t.noCore}</span>
-        ) : m.now.error ? (
-          <Pill tone="bad" title={m.now.error.detail}>
-            {m.now.error.code}
-          </Pill>
-        ) : (
-          <>
-            <span className="admin-strong">
-              {count(now!.live, t.meetingForms)} · {count(now!.humans, t.peopleForms)}
-            </span>
-            {m.id === product?.id && states.size > 0 && (
-              <span className="admin-sub">
-                {text.nav.nodes}: {working} {t.of} {states.size} {t.nodesOk}
-              </span>
-            )}
-          </>
-        )}
-        {m.status && (
-          <span className="admin-sub">
-            {m.status.lines[0] ?? ''} · {text.app.updatedAt} {when(m.status.updatedAt)}
-          </span>
-        )}
-      </span>
-    </a>
+            <Segmented
+              aria-label={m.tint}
+              size="sm"
+              value={tint}
+              onValueChange={setTint}
+              options={(['load', 'state'] as const).map((value) => ({ value, label: m.tints[value] }))}
+            />
+          </header>
+          {map.error && <ErrorLine error={map.error} onRetry={() => void map.refetch()} />}
+          {map.data?.error && <p className="pulse__hint">{map.data.error}</p>}
+          {map.data ? (
+            <FleetMap data={map.data} metric={metric} tint={tint} path={path} onPath={setPath} />
+          ) : (
+            map.isPending && <Skeleton rows={6} />
+          )}
+        </section>
+
+        <aside className="pulse__side">
+          {opened ? (
+            <Detail
+              machine={opened}
+              container={path.container}
+              onBack={() => setPath(path.container ? { machine: opened.id } : {})}
+            />
+          ) : (
+            <>
+              <section aria-label={t.attention}>
+                <h2>{t.attention}</h2>
+                {!attention.length && <Empty>{t.calm}</Empty>}
+                <ul className="pulse__attention">
+                  {attention.map((item) => (
+                    <li key={item.key} data-level={item.level}>
+                      {item.icon}
+                      {item.to ? (
+                        <button type="button" onClick={() => console.go(item.to!)}>
+                          {item.title}
+                        </button>
+                      ) : (
+                        <span>{item.title}</span>
+                      )}
+                      {item.meta && <small>{item.meta}</small>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              <section aria-label={t.meetingsNow}>
+                <h2>{t.meetingsNow}</h2>
+                {!rooms.length && <p className="pulse__hint">{t.noMeetings}</p>}
+                <ul className="pulse__rooms">
+                  {rooms.slice(0, 8).map((room) => (
+                    <li key={room.id}>
+                      <strong>{room.code}</strong>
+                      <span>
+                        {room.connected} {plural(room.connected, m.peopleForms)}
+                      </span>
+                      <span>{room.mediaNode ?? ''}</span>
+                      <span>
+                        {room.startedAt
+                          ? duration(
+                              Math.max(0, (live.data?.serverTime ?? 0) - Math.floor(room.startedAt / 1000)),
+                            )
+                          : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          )}
+        </aside>
+      </div>
+    </div>
   );
 }

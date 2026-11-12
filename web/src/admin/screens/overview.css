@@ -1,0 +1,399 @@
+/*
+  Обзор пульта, вторая версия (R240): один экран без прокрутки на окне от 1280 × 720.
+  Сверху вниз: состояние среды, приборы, карта флота и правая колонка — они занимают всю оставшуюся высоту.
+*/
+.pulse {
+  display: grid;
+  /* Одна колонка шириной с рабочую область: без `minmax(0, …)` длинная причина в шапке растягивала бы страницу. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: var(--space-3);
+  /* Высота окна минус полоса шапки пульта и поля рабочей области (сверху `--space-6`, снизу `--space-12`). */
+  height: calc(100dvh - var(--admin-bar-h) - var(--space-6) - var(--space-12));
+  min-height: 560px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pulse h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ── Состояние среды ────────────────────────────────────────────────────────────────────────── */
+.pulse__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--state-ok);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.pulse__head[data-level='warn'] {
+  border-left-color: var(--state-warn);
+}
+
+.pulse__head[data-level='bad'] {
+  border-left-color: var(--state-bad);
+}
+
+.pulse__state {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pulse__state svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--state-ok);
+}
+
+.pulse__head[data-level='warn'] .pulse__state svg {
+  color: var(--state-warn);
+}
+
+.pulse__head[data-level='bad'] .pulse__state svg {
+  color: var(--state-bad);
+}
+
+.pulse__state strong {
+  font-size: 16px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.pulse__state span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Приборы ────────────────────────────────────────────────────────────────────────────────── */
+.pulse__instruments {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.pulse__instrument {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: end;
+  column-gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.pulse__label {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pulse__instrument strong {
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.pulse__instrument[data-tone='warn'] strong {
+  color: var(--state-warn);
+}
+
+.pulse__instrument[data-tone='bad'] strong {
+  color: var(--state-bad);
+}
+
+.pulse__note {
+  padding-bottom: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pulse__spark {
+  width: 96px;
+  height: 28px;
+}
+
+.pulse__spark path {
+  fill: none;
+  stroke: var(--admin-line);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── Карта и правая колонка ─────────────────────────────────────────────────────────────────── */
+.pulse__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.pulse__map,
+.pulse__side > section {
+  min-height: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.pulse__map {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.pulse__map > header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pulse__map > header h2 {
+  margin-right: auto;
+}
+
+.pulse__side {
+  display: grid;
+  grid-auto-rows: minmax(0, auto);
+  align-content: start;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pulse__hint {
+  margin: var(--space-2) 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pulse__attention,
+.pulse__rooms {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pulse__attention li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-2);
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.pulse__attention li:first-child {
+  border-top: 0;
+}
+
+.pulse__attention svg {
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  color: var(--muted);
+}
+
+.pulse__attention li[data-level='bad'] svg {
+  color: var(--state-bad);
+}
+
+.pulse__attention li[data-level='warn'] svg {
+  color: var(--state-warn);
+}
+
+.pulse__attention button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pulse__attention small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pulse__rooms li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 40px auto;
+  gap: var(--space-2);
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pulse__rooms li:first-child {
+  border-top: 0;
+}
+
+.pulse__rooms strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── Провал: машина или контейнер ───────────────────────────────────────────────────────────── */
+.pulse__detail > header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pulse__detail > header button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.pulse__detail > header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pulse__detail > header div {
+  display: grid;
+  min-width: 0;
+}
+
+.pulse__detail > header span {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pulse__detail dl {
+  display: grid;
+  gap: 0;
+  margin: var(--space-3) 0 0;
+}
+
+.pulse__detail dl div {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.pulse__detail dt {
+  color: var(--muted);
+}
+
+.pulse__detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.pulse__series {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.pulse__series figure {
+  margin: 0;
+}
+
+.pulse__series figcaption {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pulse__series .pulse__spark {
+  width: 100%;
+  height: 36px;
+}
+
+/* ── Узкое окно и телефон: приборы в три и в два ряда, колонка — под картой, страница листается ── */
+@media (max-width: 1180px) {
+  .pulse {
+    height: auto;
+    grid-template-rows: auto auto auto;
+  }
+
+  .pulse__instruments {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pulse__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pulse__map {
+    height: 70dvh;
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  .pulse__instruments {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Карта машин столбцом сама задаёт свою высоту. */
+  .pulse__map {
+    height: auto;
+    min-height: 0;
+  }
+
+  /* Причина состояния на телефоне читается целиком, в несколько строк. */
+  .pulse__state {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .pulse__state span {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+
+  .pulse__head {
+    flex-wrap: wrap;
+  }
+
+  .pulse__map > header {
+    flex-wrap: wrap;
+  }
+}

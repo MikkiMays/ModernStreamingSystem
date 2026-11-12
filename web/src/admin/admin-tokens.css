@@ -1,64 +1,74 @@
 /*
-  Пульт — красный (R220, владелец 09.11.2026: «значок у админки вместо синего должен быть красный… везде в целом,
-  это будет явное различие»). Продукт — синий, пульт — сигнальный красный: значок вкладки, марка, кнопки действия,
-  кольцо фокуса, выбранный раздел и ряды графиков.
+  Пульт, вторая версия (R240, Р-147): цвет значит состояние, и больше ничего.
 
-  Только смысловые токены набора поверх `styles/tokens.css`; сам файл токенов продукта не меняется. Слой включает
-  атрибут `data-app="admin"` на `<html>` (`admin.html`), поэтому в приложение он не попадает, даже если CSS окажется
-  в общем чанке. Вес селекторов выше блоков тем продукта: светлый — (0,2,0), тёмный — (0,3,0), вложенная тема —
-  (0,2,0) против (0,1,0). Контраст по WCAG 2.2 AA сверяет `admin-tokens.test.ts` теми же парами, что и
-  `scripts/check-contrast.mjs`.
+  Красный остаётся знаком пульта (владелец 09.11.2026: «значок у админки вместо синего должен быть красный») —
+  в знаке и в отметке выбранного раздела рельса (`--rail-mark`). Действия и фокус — акцент продукта, ряды
+  графиков — синие, сравнение с прошлым периодом — серое. Красное на экране — всегда беда (`--state-bad`).
 
-  Красный пульта — не «ошибка»: ошибку пульт называет значком и словом (`Pill`, `ErrorLine`), а у шкал с порогами
-  спокойное состояние графитовое (`--admin-meter-ok`), красное — только «плохо».
+  Только смысловые токены поверх `styles/tokens.css`; атрибут `data-app="admin"` на `<html>` (`admin.html`)
+  не даёт им попасть в приложение. Тёмная тема записана дважды (ручной выбор и «как в системе») — тест
+  `admin-tokens.test.ts` сверяет, что блоки совпадают, и контраст рядов и состояний на фоне панели.
 */
 :root[data-app='admin'],
 [data-app='admin'] [data-theme='light'] {
-  --accent: #c21f35;
-  --accent-hover: #a3142a;
-  --accent-fill: #d0233b;
-  --accent-fill-hover: #b5172f;
-  --accent-fill-active: #a3142a;
-  --accent-soft: #fdecee;
-  --on-accent: #ffffff;
-  /* Ряд графика — заливка акцента; линия — текстовый акцент (тоньше, ей нужен контраст выше). */
-  --admin-series: var(--accent-fill);
-  --admin-series-hover: var(--accent-fill-hover);
-  --admin-line: var(--accent);
+  /* Ряды графиков и заливки данных — синие: красное на экране пульта значит только «плохо» (Р-147). */
+  --admin-series: #2f6fe4;
+  --admin-series-hover: #1f58c4;
+  --admin-line: #2f6fe4;
+  --admin-compare: #7a8492;
   --admin-meter-ok: color-mix(in srgb, var(--text) 62%, var(--surface-1));
-  --admin-heat: var(--accent-fill);
+  --admin-heat: #2f6fe4;
+  --state-ok: #1e8e66;
+  --state-warn: #a86a00;
+  --state-bad: #c8322b;
+  --state-off: #7a8492;
+  --map-mix: 22%;
+  /* Шкала нагрузки карты флота: от покоя к пределу. В плитке смешивается с фоном панели (`--map-mix`). */
+  --map-load-1: #2f78c4;
+  --map-load-2: #138a82;
+  --map-load-3: #3d8f43;
+  --map-load-4: #a8760a;
+  --map-load-5: #c8451f;
 }
 
 :root[data-app='admin'][data-theme='dark'],
 [data-app='admin'] [data-theme='dark'] {
-  --accent: #ff6b78;
-  --accent-hover: #ff8a95;
-  --accent-fill: #d0233b;
-  --accent-fill-hover: #b5172f;
-  --accent-fill-active: #a3142a;
-  --accent-soft: #3d1419;
-  --on-accent: #ffffff;
-  --admin-series: #e0303f;
-  --admin-series-hover: #ff6b78;
-  --admin-line: var(--accent);
+  --admin-series: #6ca8ff;
+  --admin-series-hover: #94c0ff;
+  --admin-line: #6ca8ff;
+  --admin-compare: #8d99a8;
   --admin-meter-ok: color-mix(in srgb, var(--text) 58%, var(--surface-1));
-  --admin-heat: #e0303f;
+  --admin-heat: #6ca8ff;
+  --state-ok: #3db489;
+  --state-warn: #e2a336;
+  --state-bad: #f0564a;
+  --state-off: #6b7684;
+  --map-mix: 30%;
+  --map-load-1: #4a90d9;
+  --map-load-2: #2aa39a;
+  --map-load-3: #57a55a;
+  --map-load-4: #d9a21b;
+  --map-load-5: #e0562e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root[data-app='admin']:not([data-theme='light']) {
-    --accent: #ff6b78;
-    --accent-hover: #ff8a95;
-    --accent-fill: #d0233b;
-    --accent-fill-hover: #b5172f;
-    --accent-fill-active: #a3142a;
-    --accent-soft: #3d1419;
-    --on-accent: #ffffff;
-    --admin-series: #e0303f;
-    --admin-series-hover: #ff6b78;
-    --admin-line: var(--accent);
+    --admin-series: #6ca8ff;
+    --admin-series-hover: #94c0ff;
+    --admin-line: #6ca8ff;
+    --admin-compare: #8d99a8;
     --admin-meter-ok: color-mix(in srgb, var(--text) 58%, var(--surface-1));
-    --admin-heat: #e0303f;
+    --admin-heat: #6ca8ff;
+    --state-ok: #3db489;
+    --state-warn: #e2a336;
+    --state-bad: #f0564a;
+    --state-off: #6b7684;
+    --map-mix: 30%;
+    --map-load-1: #4a90d9;
+    --map-load-2: #2aa39a;
+    --map-load-3: #57a55a;
+    --map-load-4: #d9a21b;
+    --map-load-5: #e0562e;
   }
 }
 

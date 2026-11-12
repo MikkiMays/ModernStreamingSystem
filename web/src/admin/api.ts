@@ -387,6 +387,89 @@ export type LiveHistory = {
   step: number | null;
 };
 
+// ── Карта флота и состояние среды (R240): `GET /map`, `/map/history`, `/state` — зеркало `fleet_map.py` ──────────
+export type Environment = 'product' | 'dev';
+
+export type MapContainer = {
+  name: string;
+  /** Служба compose (`core`, `livekit`…); у чужих контейнеров может не быть. */
+  service: string | null;
+  image: string | null;
+  /** `cord` — контейнер Cord; `neighbour` — чужой на той же машине. */
+  group: 'cord' | 'neighbour';
+  /** Ядер ЦП в работе за минуту и их доля от ядер машины. */
+  cpu: number | null;
+  cpuShare: number | null;
+  memBytes: number | null;
+  /** Предел памяти контейнера; `null` — предела нет, доля считается от памяти машины. */
+  memLimitBytes: number | null;
+  memShare: number | null;
+  diskBytes: number | null;
+  startedAt: number | null;
+  /** Только там, где трафик считает сама служба (SFU): контейнеры на сети хоста делят счётчики. */
+  netInMbps: number | null;
+  netOutMbps: number | null;
+};
+
+export type MapMachine = {
+  id: string;
+  title: string;
+  role: Machine['role'];
+  environment: Environment;
+  nodeId: string | null;
+  host: string;
+  online: SourceState;
+  sources: Record<'node' | 'containers' | 'core' | 'sfu' | 'gateway', SourceState>;
+  version: string | null;
+  hardware: {
+    cores: number | null;
+    memTotalBytes: number | null;
+    diskTotalBytes: number | null;
+    bootTime: number | null;
+  };
+  load: {
+    cpu: number | null;
+    steal: number | null;
+    memUsed: number | null;
+    diskUsed: number | null;
+    netInMbps: number | null;
+    netOutMbps: number | null;
+  };
+  /** Встречи и люди на медиаузле этой машины. */
+  meetings: { live: number | null; people: number | null };
+  containers: MapContainer[];
+  neighbours: { count: number; cpu: number | null; memBytes: number | null };
+};
+
+export type FleetMapView = { serverTime: number; error: string | null; machines: MapMachine[] };
+
+export type MapHistory = { series: Record<string, Point[]>; step: number | null; error: string | null };
+
+export type StateLevel = 'ok' | 'warn' | 'bad';
+
+export type StateProblem = {
+  level: Exclude<StateLevel, 'ok'>;
+  kind: 'core' | 'metrics' | 'alert';
+  summary: string;
+  machine: string | null;
+  since: string | null;
+};
+
+export type EnvironmentState = {
+  level: StateLevel;
+  reason: string | null;
+  since: string | null;
+  problems: StateProblem[];
+  machines: number;
+  online: number;
+};
+
+export type FleetState = {
+  serverTime: number;
+  environments: Record<Environment, EnvironmentState>;
+  monitoring: { error: string | null; alerts: string | null };
+};
+
 // ── Аналитика (R210): `GET /core/{machine}/analytics` — зеркало `AnalyticsReport.Report` ──────────────
 export type AnalyticsMode = 'actual' | 'ltv';
 export type Share = { kind: string; count: number };

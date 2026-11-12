@@ -413,6 +413,239 @@ export function fleetData(now = Date.now()) {
   };
   const series = (base, spread, scale = 1) =>
     Array.from({ length: 120 }, (_, i) => [sec - (119 - i) * 15, (wave(i, base, spread, 40) * scale) / 100]);
+  // ── Карта флота и состояние среды (R240): `GET /map`, `/map/history`, `/state` ──
+  const box = (name, service, cpu, memMb, limitMb, extra = {}) => ({
+    name,
+    service,
+    image: extra.image ?? `${service ?? name}:1.4.0`,
+    group: extra.group ?? 'cord',
+    cpu,
+    cpuShare: null,
+    memBytes: memMb * 1e6,
+    memLimitBytes: limitMb ? limitMb * 1e6 : null,
+    memShare: null,
+    diskBytes: extra.diskMb ? extra.diskMb * 1e6 : null,
+    startedAt: sec - (extra.up ?? 2 * 86_400),
+    netInMbps: extra.net?.[0] ?? null,
+    netOutMbps: extra.net?.[1] ?? null,
+  });
+  const mapMachine = (
+    id,
+    title,
+    role,
+    environment,
+    nodeId,
+    host,
+    cores,
+    memGb,
+    load,
+    meetings,
+    containers,
+    version = '1.4.0',
+  ) => {
+    const memTotalBytes = memGb * 1e9;
+    for (const c of containers) {
+      c.cpuShare = c.cpu / cores;
+      c.memShare = c.memBytes / (c.memLimitBytes ?? memTotalBytes);
+    }
+    const others = containers.filter((c) => c.group === 'neighbour');
+    return {
+      id,
+      title,
+      role,
+      environment,
+      nodeId,
+      host,
+      online: true,
+      sources: {
+        node: true,
+        containers: true,
+        core: role !== 'media-node' ? true : null,
+        sfu: true,
+        gateway: true,
+      },
+      version: role === 'media-node' ? null : version,
+      hardware: { cores, memTotalBytes, diskTotalBytes: 120e9, bootTime: sec - 17 * 86_400 },
+      load,
+      meetings,
+      containers: containers.sort((x, y) =>
+        x.group === y.group ? y.memBytes - x.memBytes : x.group === 'cord' ? -1 : 1,
+      ),
+      neighbours: {
+        count: others.length,
+        cpu: others.length ? others.reduce((sum, c) => sum + c.cpu, 0) : null,
+        memBytes: others.length ? others.reduce((sum, c) => sum + c.memBytes, 0) : null,
+      },
+    };
+  };
+  const fleetMap = {
+    serverTime: sec,
+    error: null,
+    machines: [
+      mapMachine(
+        'meet',
+        'meet',
+        'product-core',
+        'product',
+        'fra',
+        '108.165.32.23',
+        6,
+        16,
+        { cpu: 0.64, steal: 0.12, memUsed: 0.58, diskUsed: 0.62, netInMbps: 21, netOutMbps: 96 },
+        { live: 2, people: 9 },
+        [
+          box('modern-streaming-core-1', 'core', 0.9, 940, 2048, { diskMb: 40 }),
+          box('modern-streaming-postgres-1', 'postgres', 0.35, 410, null, {
+            image: 'postgres:18.3-alpine',
+            diskMb: 5200,
+          }),
+          box('modern-streaming-livekit-1', 'livekit', 1.6, 310, 1024, {
+            image: 'livekit-server:v1.13.6',
+            net: [21, 96],
+          }),
+          box('modern-streaming-services-1', 'services', 0.5, 520, 1024, { diskMb: 900 }),
+          box('modern-streaming-insight-1', 'insight', 0.05, 38, 128),
+          box('modern-streaming-gateway-1', 'gateway', 0.12, 44, null, { image: 'caddy:2.11.4' }),
+          box('modern-streaming-edge-1', 'edge', 0.2, 52, null, { image: 'caddyl4:v2.11.3' }),
+          box('modern-streaming-redis-1', 'redis', 0.03, 22, null, { image: 'redis:8.6.6-alpine' }),
+          box('modern-streaming-tusd-1', 'tusd', 0.01, 18, null, { image: 'tusd:v2.10.0', diskMb: 300 }),
+          box('modern-streaming-backbone-1', 'backbone', 0.02, 24, 128, { image: 'caddyl4:v2.11.3' }),
+          box('cord-agent', null, 0.01, 9, null, { image: 'cord-agent:1.4.0' }),
+          box('kiki-core', null, 0.4, 3600, null, { group: 'neighbour', image: 'kiki-core:latest' }),
+          box('kiki-postgres', null, 0.1, 380, null, { group: 'neighbour', image: 'postgres:16' }),
+          box('kiki-worker-stt', null, 0.2, 900, null, { group: 'neighbour', image: 'kiki-worker:latest' }),
+          box('kiki-grafana', null, 0.02, 160, null, { group: 'neighbour', image: 'grafana:11' }),
+        ],
+      ),
+      mapMachine(
+        'msk',
+        'msk',
+        'media-node',
+        'product',
+        'msk',
+        '157.22.241.114',
+        2,
+        4,
+        { cpu: 0.22, steal: 0.01, memUsed: 0.31, diskUsed: 0.4, netInMbps: 4, netOutMbps: 18 },
+        { live: 1, people: 2 },
+        [
+          box('cord-node-livekit-1', 'livekit', 0.35, 180, 1024, {
+            image: 'livekit-server:v1.13.6',
+            net: [4, 18],
+          }),
+          box('cord-node-edge-1', 'edge', 0.05, 40, null, { image: 'caddyl4:v2.11.3' }),
+          box('cord-node-backbone-1', 'backbone', 0.01, 20, 128, { image: 'caddyl4:v2.11.3' }),
+          box('cord-agent', null, 0.01, 9, null, { image: 'cord-agent:1.4.0' }),
+          box('ivi-proxy', null, 0.02, 60, null, { group: 'neighbour', image: 'squid:6' }),
+        ],
+      ),
+      mapMachine(
+        'b',
+        'B',
+        'media-node',
+        'product',
+        'hel',
+        '152.234.227.199',
+        2,
+        4,
+        { cpu: 0.87, steal: 0.02, memUsed: 0.44, diskUsed: 0.35, netInMbps: 9, netOutMbps: 61 },
+        { live: 1, people: 3 },
+        [
+          box('cord-node-livekit-1', 'livekit', 1.5, 260, 1024, {
+            image: 'livekit-server:v1.13.6',
+            net: [9, 61],
+          }),
+          box('cord-node-edge-1', 'edge', 0.1, 44, null, { image: 'caddyl4:v2.11.3' }),
+          box('cord-node-backbone-1', 'backbone', 0.01, 20, 128, { image: 'caddyl4:v2.11.3' }),
+          box('cord-agent', null, 0.01, 9, null, { image: 'cord-agent:1.4.0' }),
+          box('youtube-proxy', null, 0.12, 120, null, { group: 'neighbour', image: 'stunnel-squid:1' }),
+        ],
+      ),
+      mapMachine(
+        'a',
+        'A',
+        'dev+admin',
+        'dev',
+        'fra',
+        '108.165.32.75',
+        4,
+        8,
+        { cpu: 0.18, steal: 0.01, memUsed: 0.63, diskUsed: 0.66, netInMbps: 1, netOutMbps: 2 },
+        { live: 0, people: 0 },
+        [
+          box('modern-streaming-core-1', 'core', 0.12, 930, 2048),
+          box('modern-streaming-postgres-1', 'postgres', 0.03, 60, null, {
+            image: 'postgres:18.3-alpine',
+            diskMb: 700,
+          }),
+          box('modern-streaming-livekit-1', 'livekit', 0.04, 90, 1024, {
+            image: 'livekit-server:v1.13.6',
+            net: [0, 0],
+          }),
+          box('modern-streaming-services-1', 'services', 0.03, 80, 1024),
+          box('modern-streaming-victoriametrics-1', 'victoriametrics', 0.08, 130, 256, {
+            image: 'victoria-metrics:v1.154.0',
+            diskMb: 2400,
+          }),
+          box('modern-streaming-grafana-1', 'grafana', 0.03, 250, 384, { image: 'grafana:13.2.4' }),
+          box('modern-streaming-fleet-1', 'fleet', 0.02, 45, 256),
+          box('modern-streaming-gateway-1', 'gateway', 0.01, 30, null, { image: 'caddy:2.11.4' }),
+          box('modern-streaming-edge-1', 'edge', 0.01, 26, null, { image: 'caddyl4:v2.11.3' }),
+          box('modern-streaming-redis-1', 'redis', 0.01, 12, null, { image: 'redis:8.6.6-alpine' }),
+          box('modern-streaming-vmalert-1', 'vmalert', 0.01, 22, 64, { image: 'vmalert:v1.154.0' }),
+          box('modern-streaming-alertmanager-1', 'alertmanager', 0.01, 25, 64, {
+            image: 'alertmanager:v0.34.1',
+          }),
+          box('modern-streaming-gatus-1', 'gatus', 0.01, 20, 64, { image: 'gatus:v5.37.0' }),
+          box('kalkutta-web-1', null, 0.01, 20, null, { group: 'neighbour', image: 'kalkutta-web:latest' }),
+        ],
+      ),
+    ],
+  };
+  const fleetState = {
+    serverTime: sec,
+    environments: {
+      product: {
+        level: 'warn',
+        reason: 'meet: steal 12 % дольше 10 минут — звук может рваться',
+        since: new Date(now - 14 * 60_000).toISOString(),
+        problems: [
+          {
+            level: 'warn',
+            kind: 'alert',
+            summary: 'meet: steal 12 % дольше 10 минут — звук может рваться',
+            machine: 'meet',
+            since: new Date(now - 14 * 60_000).toISOString(),
+          },
+          {
+            level: 'warn',
+            kind: 'alert',
+            summary: 'Узел hel: ЦП 87 % пять минут',
+            machine: 'b',
+            since: new Date(now - 6 * 60_000).toISOString(),
+          },
+        ],
+        machines: 3,
+        online: 3,
+      },
+      dev: { level: 'ok', reason: null, since: null, problems: [], machines: 1, online: 1 },
+    },
+    monitoring: { error: null, alerts: null },
+  };
+  const mapHistory = (names) => ({
+    series: Object.fromEntries(
+      names.map((name, k) => [
+        name,
+        Array.from({ length: 60 }, (_, i) => [
+          sec - (60 - i) * 30,
+          name === 'memBytes' ? 9e8 + wave(i + k, 40, 30) * 1e6 : wave(i + k * 3, 40, 22) / 100,
+        ]),
+      ]),
+    ),
+    step: 30,
+    error: null,
+  });
+
   const liveHistory = {
     machines: {
       meet: {
@@ -751,6 +984,9 @@ export function fleetData(now = Date.now()) {
     overview,
     live,
     liveHistory,
+    fleetMap,
+    fleetState,
+    mapHistory,
     report,
     tickets,
     counts,
@@ -784,6 +1020,16 @@ export function fleetAnswer(data, url, method = 'GET') {
   if (path === '/overview') return ok(data.overview);
   if (path === '/live') return ok(data.live);
   if (path === '/live/history') return ok(data.liveHistory);
+  if (path === '/state') return ok(data.fleetState);
+  if (path === '/map') return ok(data.fleetMap);
+  if (path === '/map/history')
+    return ok(
+      data.mapHistory(
+        url.searchParams.get('container')
+          ? ['cpu', 'memBytes']
+          : ['cpu', 'steal', 'memUsed', 'netOutMbps', 'netInMbps'],
+      ),
+    );
   if (path === '/support') return ok({ tickets: data.tickets, more: false, errors: [], skipped: [] });
   if (path === '/support/counts')
     return ok({ total: data.counts, machines: { meet: { data: data.counts, error: null } } });

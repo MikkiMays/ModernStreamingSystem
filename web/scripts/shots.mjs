@@ -279,7 +279,10 @@ async function admin(page, shoot) {
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(500);
   };
+  // CORD_SHOTS_ADMIN=overview,live — только названные разделы пульта (когда правится один экран).
+  const only = process.env.CORD_SHOTS_ADMIN?.split(',');
   for (const [name, route] of ADMIN_SECTIONS) {
+    if (only && !only.includes(name)) continue;
     await page.evaluate((next) => {
       history.pushState(null, '', next);
       dispatchEvent(new PopStateEvent('popstate'));
