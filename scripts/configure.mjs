@@ -322,14 +322,19 @@ await writeFile(
   ) + "\n",
 );
 /**
- * Куда Alertmanager шлёт оповещения (профиль `monitoring`). Telegram — бот Cord (токен из
- * `.local/telegram.env`) в чат владельца `ALERT_TELEGRAM_CHAT_ID`; без чата или токена оповещения видны
- * только в Grafana. `HEALTHCHECKS_URL` — внешний сторож: вечный алерт `Watchdog` пингует его раз в минуту,
- * и о смерти самой машины скажет он, а не она. JSON — это тоже YAML: файл читает Alertmanager как есть.
+ * Куда Alertmanager шлёт оповещения (профиль `monitoring`). Telegram — отдельный бот оповещений владельца
+ * (`ALERT_TELEGRAM_BOT_TOKEN` в `.local/alerts.env`), а без него — бот Cord (`.local/telegram.env`): оповещения
+ * не должны зависеть от бота встреч. Чат — `ALERT_TELEGRAM_CHAT_ID` из `.env` или из `.local/alerts.env` (туда
+ * его пишет `scripts/alerts-chat.mjs`); без чата или токена оповещения видны только в Grafana.
+ * `HEALTHCHECKS_URL` — внешний сторож: вечный алерт `Watchdog` пингует его раз в минуту, и о смерти самой
+ * машины скажет он, а не она. JSON — это тоже YAML: файл читает Alertmanager как есть.
  */
 const telegramEnv = await readFile(".local/telegram.env", "utf8").catch(() => "");
-const botToken = /^CORD_MEET_TELEGRAM_BOT_TOKEN=(.+)$/m.exec(telegramEnv)?.[1]?.trim();
-const chatId = Number(env.ALERT_TELEGRAM_CHAT_ID);
+const alertsEnv = await readFile(".local/alerts.env", "utf8").catch(() => "");
+const setting = (text, name) => new RegExp(`^${name}=(.+)$`, "m").exec(text)?.[1]?.trim();
+const botToken =
+  setting(alertsEnv, "ALERT_TELEGRAM_BOT_TOKEN") ?? setting(telegramEnv, "CORD_MEET_TELEGRAM_BOT_TOKEN");
+const chatId = Number(env.ALERT_TELEGRAM_CHAT_ID || setting(alertsEnv, "ALERT_TELEGRAM_CHAT_ID"));
 const owner = { name: "owner" };
 if (botToken && Number.isInteger(chatId) && chatId !== 0)
   owner.telegram_configs = [{ bot_token: botToken, chat_id: chatId, send_resolved: true }];

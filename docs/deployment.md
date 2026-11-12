@@ -476,11 +476,12 @@ docker compose up -d --force-recreate livekit
 | `LIVEKIT_METRICS_PASSWORD` | `--monitoring` | пароль метрик LiveKit (порт 6789 слушает 0.0.0.0, как сигналинг; без пароля блока `prometheus` в `livekit.json` нет вовсе) |
 | `GRAFANA_PASSWORD` | `--monitoring` | пароль `admin` в Grafana; без него Grafana не стартует |
 | `METRICS_RETENTION` | владелец | срок рядов VictoriaMetrics: `90d` (по умолчанию), `6M`, `1y` |
-| `ALERT_TELEGRAM_CHAT_ID` | владелец | чат для алертов; бот — тот же бот Cord (`.local/telegram.env`) |
+| `ALERT_TELEGRAM_BOT_TOKEN` | владелец, `.local/alerts.env` | отдельный бот оповещений (файл вне git, права 600); без него — бот Cord из `.local/telegram.env` |
+| `ALERT_TELEGRAM_CHAT_ID` | владелец, `.env` или `.local/alerts.env` | чат для оповещений; найти и записать: владелец нажимает «Запустить» у бота, затем `node scripts/alerts-chat.mjs`; проверка — `node scripts/alerts-chat.mjs --test` |
 | `HEALTHCHECKS_URL` | владелец | адрес проверки Healthchecks.io: вечный алерт `Watchdog` пингует его раз в минуту — о смерти самой машины скажет он |
 | `GATEWAY_METRICS_PORT` | владелец | порт метрик шлюза на 127.0.0.1, по умолчанию `2019` (поменять, если занят) |
 
-После правки `ALERT_TELEGRAM_CHAT_ID` или `HEALTHCHECKS_URL`: `node scripts/configure.mjs --refresh &&
+После правки бота, чата или `HEALTHCHECKS_URL`: `node scripts/configure.mjs --refresh &&
 docker compose up -d --force-recreate alertmanager`.
 
 **Grafana — только через SSH-туннель**, не через шлюз: со своего компьютера `ssh -L
