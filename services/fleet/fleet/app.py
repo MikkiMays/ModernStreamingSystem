@@ -33,6 +33,7 @@ from .errors import (
 from .executor import Executor, Jobs, SshExecutor
 from .machines import Machine, Machines, parse
 from .metrics import Metrics
+from .fleet_map import FleetMap, environment_state
 from .settings import SESSION_LIFETIME, Settings, from_env
 from .store import Store
 
@@ -124,6 +125,7 @@ class App:
         self.auth = Auth(settings, store)
         self.machines = machines
         self.metrics = metrics or Metrics(settings.metrics_url, settings.alerts_url)
+        self.fleet_map = FleetMap(self.metrics)
         self.core_client = core_client
         self.cores: dict[str, CoreLink] = {}
         self.jobs: Jobs | None = None
@@ -505,6 +507,44 @@ def create_app(state: App | None = None) -> FastAPI:
     async def live_history(minutes: int = Query(default=30, ge=5, le=360), actor: Actor = Depends(current)):
         allow(actor, "read")
         return await state.metrics.history(list(state.machines), minutes)
+
+    # ── Состояние среды и карта флота (R240, admin-console-v2.md §4–§5) ──────────────────────────
+    @app.get(PREFIX + "/state")
+    async def environment_states(actor: Actor = Depends(current)):
+        """Одно состояние на среду — «всё работает», «внимание», «сбой» — с причиной (Р-150)."""
+        allow(actor, "read")
+        machines = list(state.machines)
+        cores = state.with_core()
+        snapshot, alerts, *nows = await asyncio.gather(
+            state.metrics.live(machines),
+            state.metrics.alerts(),
+            *(safe(state.core(m.id).get("/api/v1/admin/now")) for m in cores),
+        )
+        boxes = {m.id: box for m, box in zip(cores, nows)}
+        return {
+            "serverTime": int(time.time()),
+            "environments": environment_state(machines, snapshot, alerts, boxes),
+            "monitoring": {"error": snapshot["error"], "alerts": alerts["error"]},
+        }
+
+    @app.get(PREFIX + "/map")
+    async def fleet_map(actor: Actor = Depends(current)):
+        """Все машины и все их контейнеры одним ответом — карта главного экрана (Р-148)."""
+        allow(actor, "read")
+        return await state.fleet_map.snapshot(list(state.machines))
+
+    @app.get(PREFIX + "/map/history")
+    async def fleet_map_history(
+        machine: str = Query(max_length=16),
+        container: str | None = Query(default=None, max_length=128),
+        minutes: int = Query(default=30, ge=5, le=360),
+        actor: Actor = Depends(current),
+    ):
+        allow(actor, "read")
+        try:
+            return await state.fleet_map.history(state.machines.get(machine), container, minutes)
+        except ValueError:
+            raise Problem(400, OPERATION_INVALID, "Имя контейнера — латиница, цифры, точка, дефис и подчёркивание") from None
 
     # ── Обращения всей системы (R215) ────────────────────────────────────────────────────────────
     SUPPORT_FILTERS = ("status", "topic", "q", "assignee", "priority", "overdue", "sort", "before", "limit")
