@@ -343,9 +343,7 @@ function routes(url: URL, init: RequestInit) {
           }),
         ],
         more: false,
-        errors: [
-          { machine: 'msk', status: 502, code: 'CORE_UNREACHABLE', detail: 'Ядро msk не отвечает' },
-        ],
+        errors: [{ machine: 'msk', status: 502, code: 'CORE_UNREACHABLE', detail: 'Ядро msk не отвечает' }],
         skipped: [],
       },
     };
