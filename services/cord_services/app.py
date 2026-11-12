@@ -21,6 +21,7 @@ from .cinema import routes as cinema_routes
 from .cinema.net import NetConfig
 from .cinema.sniffer import Sniffer, key_for
 from .core import Core
+from .insight import Usage
 from .media import MAX_FILE, probe
 from .metrics import render as render_metrics
 from .music import Music
@@ -112,6 +113,10 @@ def create_app(
         os.environ.get("LIVEKIT_INTERNAL_URL", "http://127.0.0.1:7880"),
         os.environ.get("LIVEKIT_URL", ""),
     )
+    # Трафик и время кинозала и музыки — службе аналитики на петле этой машины (R239, `insight.py`).
+    # Адреса нет (`INSIGHT_URL` пуст) — счёт не ведётся.
+    usage = Usage(os.environ.get("INSIGHT_URL", ""), core.secret)
+    music.usage = usage
     # Адрес этой установки пишет `scripts/configure.mjs` в `.env`, compose передаёт его сюда; своего
     # адреса по умолчанию у службы нет — без PUBLIC_URL запросы с чужим Origin не пропускаются вовсе.
     public_url = os.environ.get("PUBLIC_URL", "").rstrip("/")
@@ -196,6 +201,7 @@ def create_app(
                     logging.getLogger(__name__).exception("Уборка хранилища музыки не удалась")
 
         background.append(asyncio.create_task(clean(), name="cleanup"))
+        background.append(asyncio.create_task(usage.run(), name="insight-usage"))
         # Достаёт ли сервер до площадок кинозала (R112): первая проба — сразу, дальше фоном
         # (`cinema/reach.py`). Только у запущенной службы: тесты без `lifespan` в сеть не ходят.
         background.append(asyncio.create_task(cinema.watch(sources.gates), name="cinema-reach"))
@@ -209,6 +215,7 @@ def create_app(
             await telegram.client.aclose()
         await yandex.http.aclose()
         await cinema.close()
+        await usage.close()
         await core.client.aclose()
         store.db.close()
 
@@ -226,9 +233,10 @@ def create_app(
     app.state.cinema = cinema
     app.state.sources = sources
     app.state.retention = retention
+    app.state.usage = usage
     app.include_router(routes(yandex, core))
     app.include_router(device_routes(yandex))
-    app.include_router(cinema_routes(cinema, core))
+    app.include_router(cinema_routes(cinema, core, usage=usage))
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):

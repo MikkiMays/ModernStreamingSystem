@@ -114,6 +114,8 @@ class Music:
         # С какого момента бот видит каждого вошедшего без медиа (`present`), по комнатам.
         self.joining: dict[str, dict[str, int]] = defaultdict(dict)
         self.counters = Counters()
+        # Куда рассказывать о трафике и времени музыки для аналитики (R239, `insight.py`); нет — не считаем.
+        self.usage = None
 
     def start(self, room_id: str):
         if room_id not in self.tasks or self.tasks[room_id].done():
@@ -204,6 +206,11 @@ class Music:
             if was_empty:
                 state.update(position=0.0, paused=False, epoch=state["epoch"] + 1)
             self.store.save(state)
+            # Трафик музыки для аналитики — размер трека, скачанного в очередь встречи (R239).
+            if self.usage is not None:
+                self.usage.count(
+                    room_id, "music", track.get("source"), size_of(self.store.files / track["file"])
+                )
             return self.store.public(room_id)
 
     async def command(self, room_id: str, command: dict):
@@ -512,9 +519,18 @@ class Music:
                 if latest["epoch"] != epoch or not latest["queue"]:
                     continue
                 if kind == "position" and isinstance(position, (int, float)):
+                    before = latest["position"]
                     latest["position"] = min(
                         latest["queue"][0]["duration"], max(0.0, float(position))
                     )
+                    # Секунды звучания — аналитике: только ход вперёд, перемотка и новый трек не в счёт.
+                    if self.usage is not None:
+                        self.usage.played(
+                            room_id,
+                            "music",
+                            latest["queue"][0].get("source"),
+                            latest["position"] - before,
+                        )
                     # Позиция переживает перезапуск, но писать её на диск двадцать раз в
                     # секунду незачем: хранилище обновляется, файл — раз в секунду.
                     self.store.save(latest, changed=False)

@@ -107,6 +107,9 @@ class Traffic:
         # маршруты кинозала ставят сюда запрос к ядру, и встреча видит плашку. Что уже сказано —
         # `_told`: встреча → (проценты, когда).
         self.notify: Callable[[str, int], Awaitable[Any]] | None = None
+        # Кому рассказать, сколько байт ушло зрителям встречи с какой площадки (R239, `insight.py`):
+        # `usage(встреча, площадка, байты)`. Счёт аналитики на потолки не влияет.
+        self.usage: Callable[[str, str, int], Any] | None = None
         self._told: dict[str, tuple[int, float]] = {}
         self._telling: set[asyncio.Task] = set()
 
@@ -131,9 +134,11 @@ class Traffic:
         if self._spent_today() >= self.per_day:
             raise HTTPException(429, "Кинозал на сегодня выбрал трафик сервера. Попробуйте завтра")
 
-    def count(self, room: str, amount: int) -> None:
+    def count(self, room: str, amount: int, provider: str = "") -> None:
         if amount <= 0:
             return
+        if room and self.usage is not None:
+            self.usage(room, provider, amount)
         if room:
             self._rooms[room] += amount
             if len(self._rooms) > 4096:
@@ -180,19 +185,20 @@ class Traffic:
         """Встреча выбрала долю `warn_at` своего потолка (видно на странице «Активность», E10)."""
         return self.used(room) >= self.per_meeting * self.warn_at
 
-    def wrap(self, response: Response, room: str) -> Response:
-        """Ответ прокси, байты которого засчитываются, когда уходят к зрителю."""
+    def wrap(self, response: Response, room: str, provider: str = "") -> Response:
+        """Ответ прокси, байты которого засчитываются, когда уходят к зрителю; `provider` — чья площадка."""
         if isinstance(response, StreamingResponse):
             inner = response.body_iterator
 
             async def counted():
                 async for chunk in inner:
-                    self.count(room, len(chunk) if isinstance(chunk, (bytes, bytearray, memoryview)) else 0)
+                    size = len(chunk) if isinstance(chunk, (bytes, bytearray, memoryview)) else 0
+                    self.count(room, size, provider)
                     yield chunk
 
             response.body_iterator = counted()
         else:
-            self.count(room, len(getattr(response, "body", b"") or b""))
+            self.count(room, len(getattr(response, "body", b"") or b""), provider)
         return response
 
 

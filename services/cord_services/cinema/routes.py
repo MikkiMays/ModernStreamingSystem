@@ -51,7 +51,7 @@ class Sealed(APIRoute):
         return sealed
 
 
-def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
+def routes(cinema: Cinema, core, traffic: Traffic | None = None, usage=None) -> APIRouter:
     router = APIRouter()
     # Маршруты прокси — отдельной группой: их ответы и отказы запечатаны (`Sealed`).
     signed = APIRouter(route_class=Sealed)
@@ -64,6 +64,9 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
             await core.request("POST", f"/internal/services/{room}/cinema-traffic", {"percent": percent})
 
         traffic.notify = tell
+    if usage is not None and traffic.usage is None:
+        # Трафик встречи по площадкам — аналитике (R239, `insight.py`).
+        traffic.usage = lambda room, provider, amount: usage.count(room, "cinema", provider, amount)
     watching = Watching(core)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/providers")
@@ -246,7 +249,7 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
             response = await cinema.manifest(url, accept_encoding, p, profile_id=h)
         finally:
             ROOM.reset(token)
-        return traffic.wrap(response, room)
+        return traffic.wrap(response, room, p)
 
     @signed.get(PREFIX + "/r/{room}/fetch")
     async def room_fetch(
@@ -260,7 +263,7 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
     ):
         url = cinema.signer.open("fetch", u, e, s, p, h, room=room)
         await admitted(room)
-        return traffic.wrap(await cinema.fetch(url, range, p, profile_id=h), room)
+        return traffic.wrap(await cinema.fetch(url, range, p, profile_id=h), room, p)
 
     @signed.get(PREFIX + "/r/{room}/dash/{key}")
     async def room_dash(room: str, key: str):
@@ -277,20 +280,22 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
         if range is None:
             cinema.ahead(key, index)
         return traffic.wrap(
-            await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or ""), room
+            await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or ""),
+            room,
+            reel.provider,
         )
 
     @signed.get(PREFIX + "/r/{room}/image")
     async def room_image(room: str, u: str, e: str, s: str, p: Signed = ""):
         url = cinema.signer.open("image", u, e, s, p, room=room)
         await admitted(room)
-        return traffic.wrap(await cinema.fetch(url, None, p), room)
+        return traffic.wrap(await cinema.fetch(url, None, p), room, p)
 
     @signed.get(PREFIX + "/r/{room}/subtitles")
     async def room_subtitles(room: str, u: str, e: str, s: str, p: Signed = "", h: Profile = ""):
         url = cinema.signer.open("subtitles", u, e, s, p, h, room=room)
         await admitted(room)
-        return traffic.wrap(await cinema.subtitles(url, p, profile_id=h), room)
+        return traffic.wrap(await cinema.subtitles(url, p, profile_id=h), room, p)
 
     router.include_router(signed)
     return router
