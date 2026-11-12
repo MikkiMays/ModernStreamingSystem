@@ -27,6 +27,7 @@ import {
   type StateProblem,
   type SupportCounts,
 } from '../api';
+import { environmentOf, useEnvironment } from '../environment';
 import type { Console } from '../AdminApp';
 import {
   FleetMap,
@@ -48,17 +49,6 @@ import './overview.css';
  */
 const t = text.pulse;
 const m = text.map;
-
-const ENV_KEY = 'cord:admin:environment';
-const environmentOf = (role: string): Environment => (role === 'dev+admin' ? 'dev' : 'product');
-
-function readEnvironment(): Environment {
-  try {
-    return localStorage.getItem(ENV_KEY) === 'dev' ? 'dev' : 'product';
-  } catch {
-    return 'product';
-  }
-}
 
 /** Путь провала карты живёт в адресе: `?m=<машина>&c=<контейнер>` — ссылку можно сохранить. */
 function readPath(): MapPath {
@@ -288,7 +278,7 @@ function people(machines: LiveMachine[]): number | null {
 }
 
 export function Overview({ console }: { console: Console }) {
-  const [environment, setEnvironmentState] = useState<Environment>(readEnvironment);
+  const [environment, setEnvironment] = useEnvironment();
   const [metric, setMetric] = useState<MapMetric>('mem');
   const [tint, setTint] = useState<MapTint>('load');
   const [path, setPathState] = useState<MapPath>(readPath);
@@ -296,14 +286,6 @@ export function Overview({ console }: { console: Console }) {
     setPathState(next);
     writePath(next);
   }, []);
-  const setEnvironment = (next: Environment) => {
-    setEnvironmentState(next);
-    try {
-      localStorage.setItem(ENV_KEY, next);
-    } catch {
-      /* Выбор среды живёт до перезагрузки. */
-    }
-  };
 
   const state = useQuery({
     queryKey: ['state'],

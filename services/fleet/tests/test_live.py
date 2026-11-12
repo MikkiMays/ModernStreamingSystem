@@ -11,7 +11,7 @@ import httpx
 from fleet.machines import parse
 from fleet.metrics import GROUP, HISTORY, LIVE, Metrics, machine_label, source_of
 
-from .test_api import READ, FakeCore, build, login
+from .test_api import READ, build, login
 
 MACHINES = parse(
     json.dumps(
@@ -203,22 +203,6 @@ class LiveApiTest(unittest.TestCase):
         self.assertEqual(client.get("/api/fleet/live/history", params={"minutes": 1}, headers=READ).status_code, 422)
         anonymous, _, _ = build()
         self.assertEqual(anonymous.get("/api/fleet/live", headers=READ).status_code, 401)
-
-    def test_analytics_is_read_from_the_chosen_core_with_its_mode(self):
-        class Core(FakeCore):
-            def handler(self, request):
-                if request.url.path == "/api/v1/admin/analytics":
-                    self.calls.append(("GET", request.url.path, dict(request.url.params)))
-                    return httpx.Response(200, json={"mode": request.url.params["mode"]})
-                return super().handler(request)
-
-        core = Core()
-        client, _, _ = build(core=core)
-        login(client)
-        response = client.get("/api/fleet/core/meet/analytics", params={"from": "2026-11-01", "to": "2026-11-07", "mode": "ltv", "x": "1"}, headers=READ)
-        self.assertEqual(response.json(), {"mode": "ltv"})
-        self.assertIn(("GET", "/api/v1/admin/analytics", {"from": "2026-11-01", "to": "2026-11-07", "mode": "ltv"}), core.calls)
-
 
 if __name__ == "__main__":
     unittest.main()

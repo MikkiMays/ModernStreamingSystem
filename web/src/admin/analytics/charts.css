@@ -1,1 +1,628 @@
-/* Графики аналитики пульта (R239): стили — заготовка, не написаны. См. charts.tsx. */
+/*
+  Графики и раскладка аналитики пульта (R239). Цвета рядов — `--data-1…5` из `admin-tokens.css` (проверенная
+  палитра, порядок слотов постоянен); прошлый период — `--admin-compare` пунктиром; сетка и оси — приглушённые.
+  Текст везде цветом текста: цвет ряда несёт только метка рядом с подписью.
+*/
+.an {
+  display: grid;
+  gap: var(--space-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Управление: разделы и период ───────────────────────────────────────────────────────────── */
+.an-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3) var(--space-4);
+}
+
+.an-bar__dates {
+  display: flex;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.an-bar__dates label {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.an-bar__dates input {
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface-1);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.an-bar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.an-bar__toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.an-bar__meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.an-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  scrollbar-width: none;
+}
+
+.an-tabs button {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.an-tabs button:hover {
+  color: var(--text);
+}
+
+.an-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.an-question {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.an-note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Сетка раздела ──────────────────────────────────────────────────────────────────────────── */
+.an-grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.an-grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.an-block {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.an-block[data-wide] {
+  grid-column: 1 / -1;
+}
+
+.an-block > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.an-block > header > div {
+  min-width: 0;
+}
+
+.an-block > header > .ui-segmented {
+  max-width: 100%;
+}
+
+.an-block h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.an-block > header p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ── Плитки величин ─────────────────────────────────────────────────────────────────────────── */
+.an-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--space-3);
+}
+
+.an-kpi {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.an-kpi[data-lead] {
+  grid-column: span 2;
+}
+
+.an-kpi__label {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.an-kpi strong {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.an-kpi[data-lead] strong {
+  font-size: 36px;
+}
+
+.an-kpi__change,
+.an-kpi__note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.an-kpi__change[data-good='true'] {
+  color: var(--state-ok);
+}
+
+.an-kpi__change[data-good='false'] {
+  color: var(--state-bad);
+}
+
+/* ── Ряды по дням ───────────────────────────────────────────────────────────────────────────── */
+.an-chart,
+.an-bars {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+}
+
+.an-chart figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.an-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.an-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.an-legend i,
+.an-tip i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--slot);
+}
+
+[data-slot='1'] {
+  --slot: var(--data-1);
+}
+
+[data-slot='2'] {
+  --slot: var(--data-2);
+}
+
+[data-slot='3'] {
+  --slot: var(--data-3);
+}
+
+[data-slot='4'] {
+  --slot: var(--data-4);
+}
+
+[data-slot='5'] {
+  --slot: var(--data-5);
+}
+
+[data-slot='previous'] {
+  --slot: var(--admin-compare);
+}
+
+.an-legend i[data-slot='previous'],
+.an-tip i[data-slot='previous'] {
+  height: 2px;
+  border-radius: 0;
+}
+
+.an-switch {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.an-switch:hover {
+  color: var(--text);
+}
+
+.an-plot {
+  position: relative;
+}
+
+.an-plot svg {
+  display: block;
+  max-width: 100%;
+  touch-action: pan-y;
+}
+
+.an-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.an-axis {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.an-line {
+  fill: none;
+  stroke: var(--slot);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.an-line[data-slot='previous'] {
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.an-cross {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.an-dot {
+  fill: var(--slot);
+  stroke: var(--surface-1);
+  stroke-width: 2;
+}
+
+.an-tip {
+  position: absolute;
+  top: 8px;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface-3, var(--surface-1));
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
+  font-size: 12px;
+  pointer-events: none;
+  transform: translateX(12px);
+}
+
+.an-tip[data-side='left'] {
+  transform: translateX(calc(-100% - 12px));
+}
+
+.an-tip span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.an-tip b {
+  margin-left: auto;
+  padding-left: var(--space-3);
+  font-weight: 600;
+}
+
+/* ── Полосы ─────────────────────────────────────────────────────────────────────────────────── */
+.an-bars figcaption {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.an-bars ul,
+.an-funnel {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.an-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) 72px;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+
+.an-bars__label {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.an-bars__label small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.an-bars__track,
+.an-funnel__track {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+.an-bars__track i,
+.an-funnel__track i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 4px;
+  background: var(--data-1);
+}
+
+.an-bars b,
+.an-funnel b {
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.an-bars > .an-switch {
+  justify-self: start;
+}
+
+.an-empty {
+  margin: 0;
+  padding: var(--space-3) 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Воронка ────────────────────────────────────────────────────────────────────────────────── */
+.an-funnel li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) 64px 64px 64px;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+
+.an-funnel__track {
+  height: 14px;
+}
+
+.an-funnel__head {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.an-funnel__share,
+.an-funnel__lost {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── Таблицы ────────────────────────────────────────────────────────────────────────────────── */
+.an-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.an-table,
+.an-cohorts {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.an-table th,
+.an-table td,
+.an-cohorts th,
+.an-cohorts td {
+  padding: 6px var(--space-2);
+  border-top: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.an-table thead th,
+.an-cohorts thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.an-table tbody th,
+.an-cohorts tbody th,
+.an-cohorts tfoot th {
+  font-weight: 500;
+}
+
+.an-table [data-numeric] {
+  text-align: right;
+}
+
+.an-table[data-rows='links'] tbody tr {
+  cursor: pointer;
+}
+
+.an-table[data-rows='links'] tbody tr:hover,
+.an-table[data-rows='links'] tbody tr:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.an-table small {
+  color: var(--muted);
+}
+
+.an-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.an-cohorts thead th:not(:first-child) {
+  text-align: right;
+}
+
+.an-cohorts td {
+  text-align: right;
+  background: color-mix(in srgb, var(--data-1) calc(var(--share, 0) * 70%), transparent);
+}
+
+.an-cohorts td.an-cohorts__size {
+  background: none;
+}
+
+.an-cohorts td[data-empty] {
+  background: none;
+  color: var(--muted);
+}
+
+.an-cohorts tfoot th,
+.an-cohorts tfoot td {
+  border-top: 2px solid var(--line);
+  font-weight: 600;
+}
+
+/* ── Провал в группу ошибок ─────────────────────────────────────────────────────────────────── */
+.an-detail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+
+.an-detail__head h3 {
+  margin: 0;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.an-detail__head span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Узкое окно ─────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .an-grid3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .an-grid2,
+  .an-grid3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .an-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .an-bar__meta {
+    margin-left: 0;
+  }
+
+  .an-funnel li {
+    grid-template-columns: minmax(0, 1fr) 56px 64px 56px;
+  }
+
+  .an-funnel__head span:nth-child(2) {
+    display: none;
+  }
+
+  .an-funnel__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .an-bars li {
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+
+  .an-bars__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

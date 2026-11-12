@@ -52,6 +52,11 @@ class FakeCore:
             return httpx.Response(200, json={"on": json.loads(request.content)["on"], "since": 1})
         if path.startswith("/api/v1/admin/rooms/") and path.endswith("/close"):
             return httpx.Response(200, json={"serverTime": 1, "live": 1, "rooms": []})
+        if path.startswith("/api/v1/admin/insight/"):
+            self.insight = (request.url.raw_path.decode(), dict(request.url.params))
+            if path.endswith("/nothing"):
+                return httpx.Response(404, json={"status": 404, "code": "NOT_FOUND", "detail": "нет такого раздела"})
+            return httpx.Response(200, json={"section": path.rsplit("/insight/", 1)[1], "data": {}})
         if path == "/api/v1/admin/meetings":
             return httpx.Response(200, json={"from": request.url.params["from"], "meetings": 3})
         if path == "/api/v1/admin/participants":
@@ -241,6 +246,34 @@ class OverviewTest(unittest.TestCase):
         self.assertEqual(client.get("/api/fleet/core/a/reboot", headers=READ).status_code, 404)
         self.assertEqual(client.get("/api/fleet/core/nope/now", headers=READ).json()["code"], "MACHINE_UNKNOWN")
         self.assertEqual(client.get("/api/fleet/core/a/nodes", headers=READ).json()[0]["id"], "fra")
+
+    def test_insight_reports_come_from_the_core_of_the_chosen_environment(self):
+        # R239: пульт называет среду и раздел; `fleet` спрашивает ядро этой среды и передаёт только параметры отчёта.
+        client, _, core = build()
+        login(client)
+        params = {"env": "dev", "from": "2026-11-01", "to": "2026-11-12", "view": "cohort", "strict": 1, "compare": 1, "evil": "x"}
+        pulse = client.get("/api/fleet/insight/pulse", params=params, headers=READ)
+        self.assertEqual(pulse.status_code, 200, pulse.text)
+        self.assertEqual(pulse.json()["section"], "pulse")
+        path, sent = core.insight
+        self.assertTrue(path.startswith("/api/v1/admin/insight/pulse?"))
+        self.assertEqual(sent, {"from": "2026-11-01", "to": "2026-11-12", "view": "cohort", "strict": "1", "compare": "1"})
+        # Ключ группы ошибок доходит до ядра целиком, а лишнего в пути не появляется.
+        group = client.get("/api/fleet/insight/errors/ROOM_FULL~join~1.4", params={"env": "dev", "from": "2026-11-01", "to": "2026-11-12"}, headers=READ)
+        self.assertEqual(group.json()["section"], "errors/ROOM_FULL~join~1.4")
+        spaced = client.get("/api/fleet/insight/errors/Type Error~app~1.4", params={"env": "dev"}, headers=READ)
+        self.assertEqual(spaced.status_code, 200)
+        self.assertEqual(core.insight[0].split("?")[0], "/api/v1/admin/insight/errors/Type%20Error~app~1.4")
+        # Знаки, которыми путь ядра можно было бы продолжить или оборвать, в ключе не бывают — отказ без запроса к ядру.
+        before = len(core.calls)
+        self.assertEqual(client.get("/api/fleet/insight/errors/a%3Fb%23c", params={"env": "dev"}, headers=READ).status_code, 404)
+        self.assertEqual(len(core.calls), before)
+        # Отказ ядра и службы доходит как есть; чужой раздел и чужая среда — отказ самого `fleet`.
+        self.assertEqual(client.get("/api/fleet/insight/nothing", params={"env": "dev"}, headers=READ).status_code, 404)
+        self.assertEqual(client.get("/api/fleet/insight/a/b/c", params={"env": "dev"}, headers=READ).status_code, 404)
+        self.assertEqual(client.get("/api/fleet/insight/pulse", params={"env": "moon"}, headers=READ).status_code, 422)
+        stranger, _, _ = build()
+        self.assertEqual(stranger.get("/api/fleet/insight/pulse", params={"env": "dev"}, headers=READ).status_code, 401)
 
     def test_participants_of_a_meeting_or_a_period_reach_the_console(self):
         # Р-134: «Встречи → участники» — журнал ядра с полным адресом, фильтры встречи, периода и адреса.

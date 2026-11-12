@@ -7,10 +7,12 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import quote
 
 import httpx
 from fastapi import Depends, FastAPI, Query, Request, Response
@@ -33,7 +35,7 @@ from .errors import (
 from .executor import Executor, Jobs, SshExecutor
 from .machines import Machine, Machines, parse
 from .metrics import Metrics
-from .fleet_map import FleetMap, environment_state
+from .fleet_map import FleetMap, environment, environment_state
 from .settings import SESSION_LIFETIME, Settings, from_env
 from .store import Store
 
@@ -402,7 +404,6 @@ def create_app(state: App | None = None) -> FastAPI:
         "now": "/api/v1/admin/now",
         "server": "/api/v1/admin/server",
         "blocks": "/api/v1/admin/blocks",
-        "analytics": "/api/v1/admin/analytics",
         "maintenance": "/api/v1/admin/maintenance/window",
         "drain": "/api/v1/admin/maintenance",
         "meetings": "/api/v1/admin/meetings",
@@ -419,8 +420,26 @@ def create_app(state: App | None = None) -> FastAPI:
         path = READS.get(what)
         if not path:
             raise Problem(404, NOT_FOUND, f"Ядро не отдаёт «{what}»")
-        params = {k: v for k, v in request.query_params.items() if k in ("from", "to", "tz", "mode", "group", "code", "outcome", "ip", "room", "cursor", "limit")}
+        params = {k: v for k, v in request.query_params.items() if k in ("from", "to", "tz", "group", "code", "outcome", "ip", "room", "cursor", "limit")}
         return await state.core(machine).get(path, params or None)
+
+    # ── Аналитика (R239): отчёты службы `insight` ядра среды ─────────────────────────────────────
+    # Пульт не знает, где живёт служба: он называет среду, `fleet` находит её ядро и спрашивает отчёт через
+    # админ-API ядра — тем же каналом, что и остальное чтение (contracts/insight-reports.md).
+    INSIGHT_SECTION = re.compile(r"[a-z]{1,24}(/[^/?#]{1,160})?")
+
+    @app.get(PREFIX + "/insight/{section:path}")
+    async def insight(section: str, request: Request, env: Literal["product", "dev"] = "product", actor: Actor = Depends(current)):
+        allow(actor, "read")
+        if not INSIGHT_SECTION.fullmatch(section):
+            raise Problem(404, NOT_FOUND, f"Нет раздела аналитики «{section}»")
+        machine = next((m for m in state.machines if m.core and environment(m) == env), None)
+        if not machine:
+            raise Problem(409, MACHINE_NO_CORE, "В этой среде нет ядра")
+        params = {k: v for k, v in request.query_params.items() if k in ("from", "to", "view", "strict", "compare")}
+        # Ключ группы ошибок несёт «~» и точки; остальное в нём кодируется заново — в путь ядра не попадёт ничего лишнего.
+        path = "/".join(quote(part, safe="~.-_") for part in section.split("/"))
+        return await state.core(machine.id).get("/api/v1/admin/insight/" + path, params or None)
 
     async def lever(actor: Actor, machine: str, action: str, call, *, target: str | None = None, args: dict[str, Any] | None = None):
         try:

@@ -248,6 +248,15 @@ const ADMIN_SECTIONS = [
   ['jobs', '/jobs'],
   ['job', '/jobs/j-4b0d'],
   ['analytics', '/analytics'],
+  ['analytics-audience', '/analytics?s=audience'],
+  ['analytics-acquisition', '/analytics?s=acquisition'],
+  ['analytics-activation', '/analytics?s=activation'],
+  ['analytics-retention', '/analytics?s=retention&view=cohort'],
+  ['analytics-engagement', '/analytics?s=engagement'],
+  ['analytics-integrations', '/analytics?s=integrations'],
+  ['analytics-quality', '/analytics?s=quality'],
+  ['analytics-errors', '/analytics?s=errors'],
+  ['analytics-traffic', '/analytics?s=traffic'],
   ['audit', '/audit'],
   ['metrics', '/metrics'],
   ['later', '/flags'],
@@ -279,10 +288,10 @@ async function admin(page, shoot) {
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(500);
   };
-  // CORD_SHOTS_ADMIN=overview,live — только названные разделы пульта (когда правится один экран).
+  // CORD_SHOTS_ADMIN=overview,analytics — только названные разделы пульта (и их вкладки: `analytics-*`).
   const only = process.env.CORD_SHOTS_ADMIN?.split(',');
   for (const [name, route] of ADMIN_SECTIONS) {
-    if (only && !only.includes(name)) continue;
+    if (only && !only.some((wanted) => name === wanted || name.startsWith(`${wanted}-`))) continue;
     await page.evaluate((next) => {
       history.pushState(null, '', next);
       dispatchEvent(new PopStateEvent('popstate'));

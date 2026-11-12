@@ -1,17 +1,44 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, type CSSProperties } from 'react';
-import { Button, Field, HintIcon, Input, Segmented, Select } from '../../ui/kit';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { HintIcon, Segmented } from '../../ui/kit';
 import { text } from '../../i18n/admin/ru';
-import { fleet, type AnalyticsMode, type AnalyticsReport, type Cohort, type Machine } from '../api';
+import { FleetError, fleet } from '../api';
 import type { Console } from '../AdminApp';
-import { DayBars, HBars, dayLabel } from '../charts';
-import { Empty, ErrorLine, Panel, Skeleton, Stat, Stats } from '../parts';
+import { coreOf, useEnvironment } from '../environment';
+import { Empty, ErrorLine, Skeleton } from '../parts';
+import { BarList, Block, DataTable, Kpi, Kpis, TimeSeries, fmt, type Column } from '../analytics/charts';
+import {
+  AcquisitionSection,
+  ActivationSection,
+  AudienceSection,
+  EngagementSection,
+  ErrorsSection,
+  IntegrationsSection,
+  PulseSection,
+  QualitySection,
+  RetentionSection,
+  TrafficSection,
+  word,
+} from '../analytics/sections';
+import type { ErrorDetail, Report, Reports, Section, Slice, View } from '../analytics/types';
 
 const t = text.analytics;
 
-type Series = 'visitors' | 'fresh' | 'callers' | 'entries' | 'presenceHours' | 'meetings';
+const SECTIONS: Section[] = [
+  'pulse',
+  'audience',
+  'acquisition',
+  'activation',
+  'retention',
+  'engagement',
+  'integrations',
+  'quality',
+  'errors',
+  'traffic',
+];
 
-/** Дата `YYYY-MM-DD` по местному времени смотрящего (сервер считает дни по своему поясу, его зовём рядом). */
+/** Дата `ГГГГ-ММ-ДД` по местному времени смотрящего (служба считает сутки по своему поясу — он назван рядом). */
 export function isoDay(date: Date): string {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
@@ -23,455 +50,393 @@ function shift(days: number): string {
   return isoDay(date);
 }
 
-/** Ядро по умолчанию — продукт; нет продукта — первое с учётными данными. */
-export function defaultCore(machines: Machine[]): Machine | null {
-  const withCore = machines.filter((m) => m.core?.credential);
-  return withCore.find((m) => m.role === 'product-core') ?? withCore[0] ?? null;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Что выбрано на экране — в адресе: ссылку на отчёт можно сохранить и переслать. */
+type Query = {
+  section: Section;
+  from: string;
+  to: string;
+  view: View;
+  strict: boolean;
+  compare: boolean;
+  group: string | null;
+};
+
+function readQuery(): Query {
+  const params = new URLSearchParams(location.search);
+  const section = params.get('s') as Section | null;
+  const from = params.get('from') ?? '';
+  const to = params.get('to') ?? '';
+  const dated = DAY.test(from) && DAY.test(to) && from <= to;
+  return {
+    section: section && SECTIONS.includes(section) ? section : 'pulse',
+    from: dated ? from : shift(-27),
+    to: dated ? to : shift(0),
+    view: params.get('view') === 'cohort' ? 'cohort' : 'period',
+    strict: params.get('strict') === '1',
+    compare: params.get('compare') !== '0',
+    group: params.get('e'),
+  };
+}
+
+function writeQuery(query: Query): void {
+  const params = new URLSearchParams();
+  if (query.section !== 'pulse') params.set('s', query.section);
+  params.set('from', query.from);
+  params.set('to', query.to);
+  if (query.view === 'cohort') params.set('view', 'cohort');
+  if (query.strict) params.set('strict', '1');
+  if (!query.compare) params.set('compare', '0');
+  if (query.group) params.set('e', query.group);
+  history.replaceState(null, '', `${location.pathname}?${params}`);
 }
 
 /**
- * «Аналитика» (R210): метрики продукта за период в двух измерениях — АКТУАЛ (всё, что было в эти дни) и ЛТВ
- * (когорта пришедших в эти дни и вся её жизнь). Определения — подсказками у плиток и в
- * `docs/architecture/admin-analytics.md` §2.6.
+ * «Аналитика» (R239): десять разделов-вопросов над отчётами службы `insight` выбранной среды. Период, вид («За
+ * период» или «Когорты»), строгий счёт и сравнение с прошлым периодом — общие для всех разделов; определения
+ * величин — подсказками у плиток (`docs/architecture/analytics-v2.md` §8).
  */
 export function Analytics({ console }: { console: Console }) {
-  const cores = console.machines.filter((m) => m.core?.credential);
-  const [machineId, setMachineId] = useState<string | null>(null);
-  const machine = cores.find((m) => m.id === machineId) ?? defaultCore(console.machines);
-  const [from, setFrom] = useState(shift(-29));
-  const [to, setTo] = useState(shift(0));
-  const [mode, setMode] = useState<AnalyticsMode>('actual');
-  const [series, setSeries] = useState<Series>('visitors');
-  const [asTable, setAsTable] = useState(false);
-  const valid = /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) && from <= to;
-  const report = useQuery({
-    queryKey: ['analytics', machine?.id, from, to, mode],
-    queryFn: () => fleet.get<AnalyticsReport>(`/core/${machine!.id}/analytics`, { from, to, mode }),
-    enabled: !!machine && valid,
-    placeholderData: (previous) => previous,
-  });
-  if (!machine) return <Empty>{t.noCore}</Empty>;
-  const data = report.data;
-  const quick = (days: number) => {
-    setFrom(shift(-(days - 1)));
-    setTo(shift(0));
+  const [environment, setEnvironment] = useEnvironment();
+  const [query, setQueryState] = useState<Query>(readQuery);
+  const setQuery = useCallback((patch: Partial<Query>) => {
+    setQueryState((current) => {
+      const next = { ...current, ...patch };
+      writeQuery(next);
+      return next;
+    });
+  }, []);
+  // Адрес сменили мимо экрана (ссылка из другого раздела, «назад» в браузере) — выбор читается заново.
+  useEffect(() => {
+    const onPop = () => setQueryState(readQuery());
+    addEventListener('popstate', onPop);
+    return () => removeEventListener('popstate', onPop);
+  }, []);
+  const core = coreOf(console.machines, environment);
+  const valid = DAY.test(query.from) && DAY.test(query.to) && query.from <= query.to;
+  const params = {
+    env: environment,
+    from: query.from,
+    to: query.to,
+    view: query.view,
+    strict: query.strict ? 1 : 0,
+    compare: query.compare ? 1 : 0,
   };
+  const report = useQuery({
+    queryKey: ['insight', query.section, params],
+    queryFn: () => fleet.get<Report<Reports[Section]>>(`/insight/${query.section}`, params),
+    enabled: !!core && valid && !query.group,
+    placeholderData: (previous, previousQuery) =>
+      // Прежний отчёт остаётся на экране, пока грузится новый период того же раздела, — но не чужой раздел.
+      previousQuery?.queryKey[1] === query.section ? previous : undefined,
+    staleTime: 60_000,
+  });
+  const quick = (days: number) => setQuery({ from: shift(-(days - 1)), to: shift(0) });
+  const span = valid ? Math.round((Date.parse(query.to) - Date.parse(query.from)) / 86_400_000) + 1 : 0;
+  const today = query.to === shift(0);
+  const preset = today && [7, 28, 90].includes(span) ? span : 0;
   return (
-    <div className="admin-stack">
-      <Panel title={t.period} description={mode === 'ltv' ? t.ltvHint : t.actualHint}>
-        <div className="admin-filters">
-          {cores.length > 1 && (
-            <Field label={t.machine} inline>
-              <Select value={machine.id} onChange={(event) => setMachineId(event.target.value)}>
-                {cores.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.product ? `${m.title} · ${m.product}` : m.title}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
-          <div className="admin-actions" role="group" aria-label={t.period}>
-            <Button variant="quiet" size="sm" onClick={() => quick(7)}>
-              {t.days7}
-            </Button>
-            <Button variant="quiet" size="sm" onClick={() => quick(30)}>
-              {t.days30}
-            </Button>
-            <Button variant="quiet" size="sm" onClick={() => quick(90)}>
-              {t.days90}
-            </Button>
-            <Button
-              variant="quiet"
-              size="sm"
-              onClick={() => {
-                setFrom(shift(-(new Date().getDate() - 1)));
-                setTo(shift(0));
-              }}
-            >
-              {t.month}
-            </Button>
-          </div>
-          <Field label={t.from} inline>
-            <Input type="date" value={from} max={to} onChange={(event) => setFrom(event.target.value)} />
-          </Field>
-          <Field label={t.to} inline>
-            <Input type="date" value={to} min={from} onChange={(event) => setTo(event.target.value)} />
-          </Field>
-          <Segmented<AnalyticsMode>
-            aria-label={t.mode}
-            value={mode}
-            onValueChange={setMode}
-            options={[
-              { value: 'actual', label: t.actual, title: t.actualHint },
-              { value: 'ltv', label: t.ltv, title: t.ltvHint },
-            ]}
-          />
+    <div className="an">
+      <div className="an-bar">
+        <Segmented
+          size="sm"
+          aria-label={t.environment}
+          value={environment}
+          onValueChange={setEnvironment}
+          options={[
+            { value: 'product', label: text.pulse.environments.product },
+            { value: 'dev', label: text.pulse.environments.dev },
+          ]}
+        />
+        <Segmented
+          size="sm"
+          aria-label={t.period}
+          value={preset}
+          onValueChange={(days) => quick(Number(days))}
+          options={[
+            { value: 7, label: t.days7 },
+            { value: 28, label: t.days28 },
+            { value: 90, label: t.days90 },
+          ]}
+        />
+        <div className="an-bar__dates">
+          <label>
+            {t.from}
+            <input
+              type="date"
+              value={query.from}
+              max={query.to}
+              onChange={(event) => event.target.value && setQuery({ from: event.target.value })}
+            />
+          </label>
+          <label>
+            {t.to}
+            <input
+              type="date"
+              value={query.to}
+              min={query.from}
+              max={shift(0)}
+              onChange={(event) => event.target.value && setQuery({ to: event.target.value })}
+            />
+          </label>
         </div>
-        {data && (
-          <p className="admin-hint">
-            {t.zone} {data.zone}, {t.today} {dayLabel(data.today)}.
-          </p>
+        <Segmented
+          size="sm"
+          aria-label={t.view}
+          value={query.view}
+          onValueChange={(view) => setQuery({ view })}
+          options={[
+            { value: 'period', label: t.viewPeriod },
+            { value: 'cohort', label: t.viewCohort },
+          ]}
+        />
+        <HintIcon label={t.view} text={t.viewHint} focusable />
+        <label className="an-bar__toggle">
+          <input
+            type="checkbox"
+            checked={query.compare}
+            onChange={(event) => setQuery({ compare: event.target.checked })}
+          />
+          {t.compare}
+        </label>
+        <label className="an-bar__toggle" title={t.strictHint}>
+          <input
+            type="checkbox"
+            checked={query.strict}
+            onChange={(event) => setQuery({ strict: event.target.checked })}
+          />
+          {t.strict}
+        </label>
+        {report.data && (
+          <span className="an-bar__meta">
+            {t.zone(report.data.zone)} · {t.builtAt(fmt.moment(report.data.generated_at))}
+          </span>
         )}
-        <ErrorLine error={report.error} onRetry={() => void report.refetch()} />
-      </Panel>
-      {report.isPending && <Skeleton rows={4} />}
-      {data && (
-        <Report data={data} series={series} setSeries={setSeries} asTable={asTable} setAsTable={setAsTable} />
+      </div>
+      <div className="an-tabs" role="tablist" aria-label={t.sectionsLabel}>
+        {SECTIONS.map((section) => (
+          <button
+            key={section}
+            type="button"
+            role="tab"
+            aria-selected={section === query.section}
+            onClick={() => setQuery({ section, group: null })}
+          >
+            {t.sections[section]}
+          </button>
+        ))}
+      </div>
+      <p className="an-question">{t.questions[query.section]}</p>
+      {!core ? (
+        <Empty>{t.noCore}</Empty>
+      ) : query.group ? (
+        <ErrorGroupDetail params={params} group={query.group} onBack={() => setQuery({ group: null })} />
+      ) : report.error ? (
+        <Unavailable error={report.error} onRetry={() => void report.refetch()} />
+      ) : !report.data ? (
+        <Skeleton rows={6} />
+      ) : (
+        <SectionBody report={report.data} section={query.section} onGroup={(group) => setQuery({ group })} />
       )}
+      <p className="an-note">{t.geoCredit}</p>
     </div>
   );
 }
 
-function Report({
-  data,
-  series,
-  setSeries,
-  asTable,
-  setAsTable,
-}: {
-  data: AnalyticsReport;
-  series: Series;
-  setSeries: (series: Series) => void;
-  asTable: boolean;
-  setAsTable: (value: boolean) => void;
-}) {
-  const ltv = data.mode === 'ltv';
-  const v = data.visitors;
-  const r = data.rates;
-  const c = data.calls;
-  const empty = v.total === 0 && (c.meetings ?? 0) === 0;
-  const seriesOptions = (Object.keys(t.series) as Series[]).filter((key) => !(ltv && key === 'meetings'));
-  const shown = seriesOptions.includes(series) ? series : 'visitors';
-  const days = useMemo(
-    () => data.days.map((d) => ({ day: d.day, value: d[shown] as number | null })),
-    [data.days, shown],
-  );
-  const format = (value: number) =>
-    shown === 'presenceHours' ? value.toFixed(1) : String(Math.round(value));
+/** Служба аналитики не ответила: это не «нет данных», а «спросить не у кого» — сказано прямо. */
+function Unavailable({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const off =
+    error instanceof FleetError && (error.status === 503 || error.status === 502 || error.status === 404);
   return (
     <>
-      {empty && <Empty>{t.empty}</Empty>}
-      <Panel title={t.visitorsTitle}>
-        <Stats>
-          <Metric value={v.total} label={t.visitors} hint={t.visitorsHint} />
-          <Metric value={v.fresh} label={t.fresh} hint={t.freshHint} />
-          <Metric
-            value={v.returning}
-            label={t.returning}
-            hint={ltv ? t.returningLtvHint : t.returningActualHint}
-          />
-          <Metric value={v.callers} label={t.callers} hint={t.callersHint} />
-          <Metric value={v.newCallers} label={t.newCallers} hint={t.newCallersHint} />
-          <Metric value={v.sameDayCallers} label={t.sameDay} hint={t.sameDayHint} />
-        </Stats>
-      </Panel>
-      <Panel title={t.engagementTitle}>
-        <Stats>
-          <Metric value={share(r.er)} label={t.er} hint={t.erHint} />
-          <Metric
-            value={share(r.stickiness)}
-            label={t.stickiness}
-            hint={r.stickiness === null ? t.onlyActual : t.stickinessHint}
-          />
-          <Metric value={number(r.activeDays, 1)} label={t.activeDays} hint={t.activeDaysHint} />
-          <Metric
-            value={share(data.retention.total.d1)}
-            label={`${t.retentionTotal} D1`}
-            hint={t.earlyHint}
-          />
-          <Metric
-            value={share(data.retention.total.d7)}
-            label={`${t.retentionTotal} D7`}
-            hint={t.earlyHint}
-          />
-          <Metric
-            value={share(data.retention.total.d30)}
-            label={`${t.retentionTotal} D30`}
-            hint={t.earlyHint}
-          />
-          <Metric value={number(r.errorsPerVisit, 2)} label={t.errorsPerVisit} hint={t.errorsPerVisitHint} />
-          <Metric
-            value={share(r.joinFailureRate)}
-            label={t.joinFailureRate}
-            hint={t.joinFailureRateHint}
-            tone={(r.joinFailureRate ?? 0) > 0.1 ? 'warn' : undefined}
-          />
-        </Stats>
-      </Panel>
-      <Panel title={t.callsTitle}>
-        <Stats>
-          <Metric
-            value={number(c.meetings)}
-            label={t.meetings}
-            hint={c.meetings === null ? t.onlyActual : t.meetingsHint}
-          />
-          <Metric value={c.created} label={t.created} />
-          <Metric value={c.entries} label={t.entries} hint={t.entriesHint} />
-          <Metric value={c.presenceHours.toFixed(1)} label={t.presenceHours} hint={t.presenceHoursHint} />
-          <Metric
-            value={number(c.meetingHours, 1)}
-            label={t.meetingHours}
-            hint={c.meetingHours === null ? t.onlyActual : t.meetingHoursHint}
-          />
-          <Metric value={number(c.hoursPerCaller, 1)} label={t.hoursPerCaller} />
-          <Metric
-            value={number(c.minutesPerEntry, 0)}
-            label={t.minutesPerEntry}
-            hint={t.minutesPerEntryHint}
-          />
-          <Metric
-            value={number(c.avgMinutes, 0)}
-            label={t.avgMinutes}
-            hint={c.avgMinutes === null && ltv ? t.onlyActual : undefined}
-          />
-          <Metric
-            value={number(c.medianMinutes, 0)}
-            label={t.medianMinutes}
-            hint={ltv ? t.onlyActual : undefined}
-          />
-          <Metric
-            value={number(c.longestMinutes, 0)}
-            label={t.longestMinutes}
-            hint={ltv ? t.onlyActual : undefined}
-          />
-          <Metric
-            value={number(c.peakMeetings)}
-            label={t.peakMeetings}
-            hint={ltv ? t.onlyActual : undefined}
-          />
-          <Metric
-            value={number(c.largestMeeting)}
-            label={t.largestMeeting}
-            hint={ltv ? t.onlyActual : undefined}
-          />
-        </Stats>
-      </Panel>
-      <Panel
-        title={t.byDays}
-        actions={
-          <Button variant="secondary" size="sm" onClick={() => setAsTable(!asTable)}>
-            {asTable ? t.chart : t.table}
-          </Button>
-        }
-      >
-        {!asTable && (
-          <div className="admin-scroll-x">
-            <Segmented<Series>
-              size="sm"
-              aria-label={t.byDays}
-              value={shown}
-              onValueChange={setSeries}
-              options={seriesOptions.map((key) => ({ value: key, label: t.series[key]! }))}
-            />
-          </div>
-        )}
-        {asTable ? (
-          <DaysTable data={data} />
-        ) : (
-          <DayBars days={days} label={t.series[shown]!} format={format} />
-        )}
-      </Panel>
-      <div className="admin-grid-3">
-        <Panel title={t.funnel}>
-          <p className="admin-hint">{t.funnelHint}</p>
-          <HBars
-            total={data.funnel.opened}
-            rows={[
-              { key: 'opened', label: t.opened, value: data.funnel.opened },
-              {
-                key: 'prejoined',
-                label: t.prejoined,
-                value: data.funnel.prejoined,
-                note: shareOf(data.funnel.prejoined, data.funnel.opened),
-              },
-              {
-                key: 'joined',
-                label: t.joined,
-                value: data.funnel.joined,
-                note: shareOf(data.funnel.joined, data.funnel.opened),
-              },
-            ]}
-          />
-        </Panel>
-        <Panel title={t.clients}>
-          <HBars
-            rows={data.clients.map((s) => ({
-              key: s.kind,
-              label: t.clientNames[s.kind] ?? s.kind,
-              value: s.count,
-            }))}
-          />
-          <h3 className="admin-subhead">{t.os}</h3>
-          <HBars
-            rows={data.os.map((s) => ({ key: s.kind, label: t.osNames[s.kind] ?? s.kind, value: s.count }))}
-          />
-        </Panel>
-        <Panel title={t.integrations}>
-          {data.integrations.meetings.length > 0 && (
-            <HBars
-              rows={data.integrations.meetings.map((s) => ({
-                key: s.kind,
-                label: text.live.integrationKinds[s.kind] ?? s.kind,
-                value: s.count,
-              }))}
-            />
-          )}
-          <dl className="admin-dl admin-dl--compact">
-            <dt>{t.integrationMeetings}</dt>
-            <dd>{number(data.integrations.meetingsWithAny)}</dd>
-            <dt>{t.integrationVisitors}</dt>
-            <dd>{data.integrations.visitors}</dd>
-            <dt>{t.integrationEncounters}</dt>
-            <dd>{data.integrations.encounters}</dd>
-          </dl>
-        </Panel>
-      </div>
-      <Panel title={t.retention}>
-        <p className="admin-hint">{ltv ? t.retentionLtvHint : t.retentionActualHint}</p>
-        <RetentionTable cohorts={data.retention.cohorts} total={data.retention.total} />
-      </Panel>
+      <ErrorLine error={error} onRetry={onRetry} />
+      {off && <p className="an-note">{t.unavailableHint}</p>}
     </>
   );
 }
 
-function Metric({
-  value,
-  label,
-  hint,
-  tone,
+function SectionBody({
+  report,
+  section,
+  onGroup,
 }: {
-  value: number | string;
-  label: string;
-  hint?: string;
-  tone?: 'warn' | 'bad' | 'ok';
+  report: Report<Reports[Section]>;
+  section: Section;
+  onGroup: (key: string) => void;
 }) {
-  return (
-    <Stat
-      value={value}
-      tone={tone}
-      label={
-        <>
-          {label}
-          {hint && (
-            <>
-              {' '}
-              <HintIcon text={hint} label={label} focusable />
-            </>
-          )}
-        </>
-      }
-    />
-  );
+  // Отчёт на экране мог остаться от прежнего запроса: рисуем то, что пришло, а не то, что выбрано.
+  const shown = (report.section.split('/')[0] ?? section) as Section;
+  switch (shown) {
+    case 'pulse':
+      return <PulseSection report={report as Report<Reports['pulse']>} />;
+    case 'audience':
+      return <AudienceSection report={report as Report<Reports['audience']>} />;
+    case 'acquisition':
+      return <AcquisitionSection report={report as Report<Reports['acquisition']>} />;
+    case 'activation':
+      return <ActivationSection report={report as Report<Reports['activation']>} />;
+    case 'retention':
+      return <RetentionSection report={report as Report<Reports['retention']>} />;
+    case 'engagement':
+      return <EngagementSection report={report as Report<Reports['engagement']>} />;
+    case 'integrations':
+      return <IntegrationsSection report={report as Report<Reports['integrations']>} />;
+    case 'quality':
+      return <QualitySection report={report as Report<Reports['quality']>} />;
+    case 'errors':
+      return <ErrorsSection report={report as Report<Reports['errors']>} onGroup={onGroup} />;
+    case 'traffic':
+      return <TrafficSection report={report as Report<Reports['traffic']>} />;
+  }
 }
 
-function DaysTable({ data }: { data: AnalyticsReport }) {
-  return (
-    <div
-      className="admin-table-wrap admin-table-wrap--tall"
-      tabIndex={0}
-      role="region"
-      aria-label={`${t.byDays}: ${t.scrollTable}`}
-    >
-      <table className="admin-table admin-days">
-        <thead>
-          <tr>
-            <th>{t.day}</th>
-            {(Object.keys(t.series) as Series[])
-              .filter((key) => !(data.mode === 'ltv' && key === 'meetings'))
-              .map((key) => (
-                <th key={key}>{t.series[key]}</th>
-              ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.days.map((d) => (
-            <tr key={d.day}>
-              <td>{dayLabel(d.day)}</td>
-              <td>{d.visitors}</td>
-              <td>{d.fresh}</td>
-              <td>{d.callers}</td>
-              <td>{d.entries}</td>
-              <td>{d.presenceHours.toFixed(1)}</td>
-              {data.mode !== 'ltv' && <td>{d.meetings ?? '—'}</td>}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+const slices = (group: string | null, rows: Slice[]) =>
+  rows.map((row) => ({
+    key: row.key,
+    label: group ? word(group, row.key) : row.key || t.unknown,
+    value: row.events,
+    note: t.sessionsOf(fmt.count(row.sessions)),
+  }));
 
-/** Когорты удержания: заливка ячейки — доля вернувшихся (одна гамма, светлее — меньше), число — всегда. */
-function RetentionTable({ cohorts, total }: { cohorts: Cohort[]; total: Cohort }) {
-  if (cohorts.length === 0) return <Empty>{t.empty}</Empty>;
-  const cell = (value: number | null) =>
-    value === null ? (
-      <td className="admin-retention__early" title={t.earlyHint}>
-        {t.early}
-      </td>
-    ) : (
-      <td style={{ '--share': value } as CSSProperties} className="admin-retention__cell">
-        {share(value)}
-      </td>
+/** Одна группа ошибок: когда, у кого, на каком шаге и последние случаи — чтобы понять причину, а не только счёт. */
+function ErrorGroupDetail({
+  params,
+  group,
+  onBack,
+}: {
+  params: Record<string, unknown>;
+  group: string;
+  onBack: () => void;
+}) {
+  const detail = useQuery({
+    queryKey: ['insight', 'errors', group, params],
+    queryFn: () => fleet.get<Report<ErrorDetail>>(`/insight/errors/${encodeURIComponent(group)}`, params),
+  });
+  const back = (
+    <button type="button" className="an-switch" onClick={onBack}>
+      <ArrowLeft size={14} aria-hidden="true" /> {t.back}
+    </button>
+  );
+  if (detail.error)
+    return (
+      <>
+        {back}
+        <ErrorLine error={detail.error} onRetry={() => void detail.refetch()} />
+      </>
     );
-  const label = (cohort: Cohort) =>
-    cohort.since === cohort.until
-      ? dayLabel(cohort.since)
-      : `${dayLabel(cohort.since)} — ${dayLabel(cohort.until)}`;
+  if (!detail.data)
+    return (
+      <>
+        {back}
+        <Skeleton rows={5} />
+      </>
+    );
+  const data = detail.data.data;
+  const steps = Object.keys(t.words.step ?? {});
+  const sampleColumns: Column<ErrorDetail['samples'][number]>[] = [
+    { key: 'at', label: t.columns.when!, cell: (row) => fmt.moment(row.at) },
+    {
+      key: 'detail',
+      label: t.columns.detail!,
+      cell: (row) => (
+        <>
+          {row.detail ?? '—'}
+          {row.fatal && <span className="an-badge">{t.fatal}</span>}
+        </>
+      ),
+    },
+    { key: 'screen', label: t.columns.screen!, cell: (row) => row.screen ?? '—' },
+    {
+      key: 'step',
+      label: t.blocks.steps!,
+      cell: (row) => (row.step ? word('step', steps[row.step - 1] ?? '') : '—'),
+    },
+    {
+      key: 'client',
+      label: t.columns.client!,
+      cell: (row) =>
+        [row.client && word('client', row.client), row.version, row.os && word('os', row.os), row.browser]
+          .filter(Boolean)
+          .join(' · ') || '—',
+    },
+  ];
   return (
-    <div
-      className="admin-table-wrap"
-      tabIndex={0}
-      role="region"
-      aria-label={`${t.retentionTotal}: ${t.scrollTable}`}
-    >
-      <table className="admin-table admin-retention">
-        <thead>
-          <tr>
-            <th>{t.cohort}</th>
-            <th>{t.size}</th>
-            <th>D1</th>
-            <th>D3</th>
-            <th>D7</th>
-            <th>D30</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cohorts.map((cohort) => (
-            <tr key={cohort.since}>
-              <td>{label(cohort)}</td>
-              <td>{cohort.size}</td>
-              {cell(cohort.d1)}
-              {cell(cohort.d3)}
-              {cell(cohort.d7)}
-              {cell(cohort.d30)}
-            </tr>
-          ))}
-          <tr className="admin-retention__total">
-            <td>{t.total}</td>
-            <td>{total.size}</td>
-            {cell(total.d1)}
-            {cell(total.d3)}
-            {cell(total.d7)}
-            {cell(total.d30)}
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <>
+      {back}
+      <div className="an-detail__head">
+        <h3>{data.group.code}</h3>
+        <span>
+          {data.group.scope} · {word('cause', data.group.cause)} · {word('source', data.group.version)}
+        </span>
+        <span>
+          {t.columns.first}: {fmt.moment(data.group.first_at)} · {t.columns.last}:{' '}
+          {fmt.moment(data.group.last_at)}
+        </span>
+        <span>{t.allTime(fmt.count(data.group.events_total), fmt.count(data.group.people_total))}</span>
+      </div>
+      <Kpis>
+        <Kpi label={t.kpi.events!} value={fmt.count(data.period.events)} />
+        <Kpi
+          label={t.kpi.sessions_affected!}
+          value={fmt.count(data.period.sessions)}
+          note={fmt.share(data.period.sessions_share)}
+        />
+        <Kpi
+          label={t.kpi.people_affected!}
+          value={fmt.count(data.period.people)}
+          note={fmt.share(data.period.people_share)}
+        />
+      </Kpis>
+      <div className="an-grid2">
+        <Block title={t.blocks.errorsByDay!} wide>
+          <TimeSeries
+            title={t.blocks.errorsByDay!}
+            days={data.series.map((day) => day.day)}
+            series={[
+              { key: 'events', label: t.kpi.events!, values: data.series.map((day) => day.events) },
+              {
+                key: 'sessions',
+                label: t.kpi.sessions_affected!,
+                values: data.series.map((day) => day.sessions),
+              },
+              { key: 'people', label: t.kpi.people_affected!, values: data.series.map((day) => day.people) },
+            ]}
+          />
+        </Block>
+        <Block title={t.blocks.versions!}>
+          <BarList rows={slices(null, data.versions)} />
+        </Block>
+        <Block title={t.blocks.steps!}>
+          <BarList
+            ordered
+            rows={data.steps.map((row) => ({
+              key: String(row.step),
+              label: word('step', steps[row.step - 1] ?? ''),
+              value: row.events,
+            }))}
+          />
+        </Block>
+        <Block title={t.blocks.byOs!}>
+          <BarList rows={slices('os', data.os)} />
+        </Block>
+        <Block title={t.blocks.byBrowser!}>
+          <BarList rows={slices('browser', data.browsers)} />
+        </Block>
+        <Block title={t.blocks.byClient!}>
+          <BarList rows={slices('client', data.clients)} />
+        </Block>
+        <Block title={t.blocks.nodes!}>
+          <BarList rows={slices(null, data.nodes)} />
+        </Block>
+        <Block title={t.blocks.samples!} wide>
+          <DataTable
+            columns={sampleColumns}
+            rows={data.samples}
+            rowKey={(row, index) => `${index}:${row.at}`}
+          />
+        </Block>
+      </div>
+    </>
   );
-}
-
-function share(value: number | null | undefined): string {
-  return value === null || value === undefined
-    ? '—'
-    : `${(value * 100).toFixed(value < 0.1 && value > 0 ? 1 : 0)} %`;
-}
-
-function shareOf(part: number, whole: number): string {
-  return whole > 0 ? share(part / whole) : '';
-}
-
-function number(value: number | null | undefined, digits = 0): string {
-  return value === null || value === undefined ? '—' : value.toFixed(digits);
 }

@@ -5,10 +5,40 @@ import { text } from '../i18n/admin/ru';
 import { contactLink, slaText } from './screens/Support';
 import { streams } from './screens/Live';
 import type { SupportTicket } from './api';
+import pulse from '../../../contracts/fixtures/insight/pulse.json';
+import audience from '../../../contracts/fixtures/insight/audience.json';
+import acquisition from '../../../contracts/fixtures/insight/acquisition.json';
+import activation from '../../../contracts/fixtures/insight/activation.json';
+import retention from '../../../contracts/fixtures/insight/retention.json';
+import engagement from '../../../contracts/fixtures/insight/engagement.json';
+import integrations from '../../../contracts/fixtures/insight/integrations.json';
+import quality from '../../../contracts/fixtures/insight/quality.json';
+import errors from '../../../contracts/fixtures/insight/errors.json';
+import errorsDetail from '../../../contracts/fixtures/insight/errors-detail.json';
+import traffic from '../../../contracts/fixtures/insight/traffic.json';
+import type { ErrorDetail, Report, Reports } from './analytics/types';
 
 /**
- * Три больших экрана пульта (R209, R210, R215) против подменённой службы `fleet`: «Флот — live», «Аналитика» с
- * переключателем ЛТВ/АКТУАЛ и «Обращения» всей системы с проработкой обращения в выезжающей панели.
+ * Образцы отчётов службы `insight` — те же файлы, с которыми побайтно сверяется её тест: изменилась форма
+ * отчёта — не соберётся это присваивание (типы пульта) или упадёт тест ниже.
+ */
+const samples: { [S in keyof Reports]: Report<Reports[S]> } = {
+  pulse,
+  audience,
+  acquisition,
+  activation,
+  retention,
+  engagement,
+  integrations,
+  quality,
+  errors,
+  traffic,
+} as { [S in keyof Reports]: Report<Reports[S]> };
+const insight: Record<string, unknown> = { ...samples, 'errors-detail': errorsDetail as Report<ErrorDetail> };
+
+/**
+ * Три больших экрана пульта (R209, R239, R215) против подменённой службы `fleet`: «Флот — live», «Аналитика» по
+ * образцам отчётов службы `insight` и «Обращения» всей системы с проработкой обращения в выезжающей панели.
  */
 type Call = { method: string; path: string; headers: Record<string, string>; body: unknown };
 
@@ -188,86 +218,6 @@ const live = {
   ],
 };
 
-function report(mode: string) {
-  return {
-    mode,
-    from: '2026-11-01',
-    to: '2026-11-07',
-    zone: 'Europe/Moscow',
-    today: '2026-11-09',
-    visitors: {
-      total: 40,
-      fresh: 25,
-      returning: mode === 'ltv' ? 9 : 15,
-      callers: 20,
-      newCallers: 12,
-      sameDayCallers: 8,
-    },
-    rates: {
-      er: 0.5,
-      stickiness: mode === 'ltv' ? null : 0.2,
-      activeDays: 1.6,
-      errorsPerVisit: 0.05,
-      joinFailureRate: 0.02,
-    },
-    calls: {
-      meetings: mode === 'ltv' ? null : 14,
-      created: 10,
-      entries: 30,
-      joinFailures: 1,
-      presenceHours: 22.5,
-      meetingHours: mode === 'ltv' ? null : 23,
-      hoursPerCaller: 1.1,
-      minutesPerEntry: 45,
-      avgMinutes: mode === 'ltv' ? null : 40,
-      medianMinutes: mode === 'ltv' ? null : 35,
-      longestMinutes: mode === 'ltv' ? null : 180,
-      peakMeetings: mode === 'ltv' ? null : 4,
-      largestMeeting: mode === 'ltv' ? null : 9,
-    },
-    funnel: { opened: 40, prejoined: 26, joined: 20 },
-    clients: [
-      { kind: 'desktop', count: 15 },
-      { kind: 'web', count: 25 },
-    ],
-    os: [{ kind: 'windows', count: 30 }],
-    integrations: {
-      meetings: mode === 'ltv' ? [] : [{ kind: 'watch', count: 5 }],
-      meetingsWithAny: mode === 'ltv' ? null : 5,
-      visitors: 12,
-      encounters: 17,
-    },
-    days: [
-      {
-        day: '2026-11-01',
-        visitors: 10,
-        fresh: 10,
-        callers: 5,
-        entries: 6,
-        presenceHours: 3,
-        meetings: mode === 'ltv' ? null : 2,
-      },
-      {
-        day: '2026-11-02',
-        visitors: 12,
-        fresh: 5,
-        callers: 7,
-        entries: 9,
-        presenceHours: 5,
-        meetings: mode === 'ltv' ? null : 4,
-      },
-    ],
-    retention: {
-      anchor: mode === 'ltv' ? 'first' : 'period',
-      step: 'day',
-      total: { since: '2026-11-01', until: '2026-11-07', size: 25, d1: 0.4, d3: 0.5, d7: null, d30: null },
-      cohorts: [
-        { since: '2026-11-01', until: '2026-11-01', size: 10, d1: 0.4, d3: 0.5, d7: null, d30: null },
-      ],
-    },
-  };
-}
-
 function ticket(overrides: Partial<SupportTicket> = {}): SupportTicket {
   return {
     id: 'aaaaaaaa-0000-4000-8000-000000000001',
@@ -323,8 +273,13 @@ function routes(url: URL, init: RequestInit) {
         step: 15,
       },
     };
-  if (path.endsWith('/analytics'))
-    return { status: 200, body: report(url.searchParams.get('mode') ?? 'actual') };
+  if (path.startsWith('/api/fleet/insight/errors/')) return { status: 200, body: insight['errors-detail'] };
+  if (path.startsWith('/api/fleet/insight/')) {
+    const body = insight[path.slice('/api/fleet/insight/'.length)];
+    return body
+      ? { status: 200, body }
+      : { status: 404, body: { status: 404, code: 'NOT_FOUND', detail: '' } };
+  }
   if (path === '/api/fleet/support')
     return {
       status: 200,
@@ -421,27 +376,61 @@ describe('экраны пульта R209/R210/R215', () => {
     expect(calls.some((c) => c.path.startsWith('/api/fleet/live/history?minutes=30'))).toBe(true);
   }, 30_000);
 
-  it('«Аналитика»: по умолчанию ядро продукта и АКТУАЛ; ЛТВ спрашивает когорту и прячет величины встреч', async () => {
+  it('«Аналитика»: каждый раздел рисуется по образцу службы; период, вид и строгий счёт уходят в запрос; ошибка открывается', async () => {
     history.replaceState(null, '', '/analytics');
     const calls = serve(routes);
     render(<AdminApp />);
-    await screen.findByRole('heading', { name: text.analytics.visitorsTitle }, { timeout: 10_000 });
-    const first = calls.find((c) => c.path.includes('/analytics'))!;
-    expect(first.path).toMatch(/^\/api\/fleet\/core\/meet\/analytics\?/);
-    expect(first.path).toContain('mode=actual');
-    expect((await screen.findAllByText('50 %')).length).toBeGreaterThan(0);
-    expect(screen.getByText(text.analytics.meetings).closest('.admin-stat')).toHaveTextContent('14');
-    fireEvent.click(screen.getByRole('radio', { name: text.analytics.ltv }));
-    await waitFor(() => expect(calls.some((c) => c.path.includes('mode=ltv'))).toBe(true));
-    await waitFor(() =>
-      expect(screen.getByText(text.analytics.meetings).closest('.admin-stat')).toHaveTextContent('—'),
-    );
-    // Таблица удержания: доли и «рано» там, где срок не прошёл.
-    expect(screen.getAllByText(text.analytics.early).length).toBeGreaterThan(0);
-    // Ряд по дням — и таблицей.
-    fireEvent.click(screen.getByRole('button', { name: text.analytics.table }));
-    expect(screen.getByRole('columnheader', { name: text.analytics.day })).toBeInTheDocument();
-  }, 30_000);
+    const t = text.analytics;
+    // Пульс: путеводная метрика — первой и крупной плиткой, с изменением к прошлому периоду.
+    const lead = (
+      await screen.findAllByText(t.kpi.weekly_interlocutors!, undefined, { timeout: 10_000 })
+    )[0]!;
+    expect(lead.closest('.an-kpi')).toHaveAttribute('data-lead');
+    const first = calls.find((c) => c.path.startsWith('/api/fleet/insight/pulse'))!;
+    expect(first.path).toContain('env=product');
+    expect(first.path).toContain('view=period');
+    expect(first.path).toContain('strict=0');
+    expect(first.path).toContain('compare=1');
+    expect(first.path).toMatch(/from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}/);
+    // Каждый раздел: свой запрос, свои плитки, и ни одной дыры в подписях и числах.
+    for (const section of Object.keys(samples)) {
+      fireEvent.click(screen.getByRole('tab', { name: t.sections[section] }));
+      await screen.findByText(t.questions[section]!);
+      await waitFor(() =>
+        expect(calls.some((c) => c.path.startsWith(`/api/fleet/insight/${section}?`))).toBe(true),
+      );
+      await waitFor(() => expect(document.querySelectorAll('.an-kpi').length).toBeGreaterThan(2));
+      await waitFor(() => expect(document.querySelectorAll('.an-block').length).toBeGreaterThan(1));
+      expect(document.querySelector('.an')!.textContent).not.toMatch(/NaN|undefined|\[object|Infinity/);
+    }
+    // Ряд по дням — и таблицей (для чтения с экрана и для копирования).
+    fireEvent.click(screen.getByRole('tab', { name: t.sections.pulse }));
+    await screen.findByText(t.blocks.weekly!);
+    fireEvent.click(screen.getAllByRole('button', { name: t.chart.asTable })[0]!);
+    expect(screen.getByRole('columnheader', { name: t.chart.day })).toBeInTheDocument();
+    // Вид «Когорты» и строгий счёт — параметрами запроса.
+    fireEvent.click(screen.getByRole('radio', { name: t.viewCohort }));
+    await waitFor(() => expect(calls.some((c) => c.path.includes('view=cohort'))).toBe(true));
+    fireEvent.click(screen.getByRole('checkbox', { name: t.strict }));
+    await waitFor(() => expect(calls.some((c) => c.path.includes('strict=1'))).toBe(true));
+    expect(location.search).toContain('view=cohort');
+    // Удержание: сетка когорт с «рано» там, где срок ещё не вышел.
+    fireEvent.click(screen.getByRole('tab', { name: t.sections.retention }));
+    await screen.findByText(t.blocks.cohorts!);
+    expect(document.querySelector('.an-cohorts')).not.toBeNull();
+    // Ошибки: строка группы открывает её подробности — версии, шаги, последние случаи.
+    fireEvent.click(screen.getByRole('tab', { name: t.sections.errors }));
+    await screen.findByText(t.blocks.groups!);
+    const group = samples.errors.data.groups[0]!;
+    const row = document.querySelector<HTMLElement>('.an-table[data-rows="links"] tbody tr')!;
+    fireEvent.click(row);
+    await screen.findByText(t.blocks.samples!);
+    expect(
+      calls.some((c) => c.path.startsWith(`/api/fleet/insight/errors/${encodeURIComponent(group.key)}?`)),
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: t.back }));
+    await screen.findByText(t.blocks.groups!);
+  }, 60_000);
 
   it('«Обращения»: ящик всей системы, упавшее ядро — строкой, обращение ведётся рычагами своей машины', async () => {
     history.replaceState(null, '', '/support');

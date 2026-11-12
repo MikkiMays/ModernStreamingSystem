@@ -6,12 +6,18 @@
 //   import { routeFleet } from './admin-fixtures.mjs';
 //   await routeFleet(page);            // до первого перехода на `/admin.html`
 
+import { readFileSync } from 'node:fs';
+
 const DAY = 86_400_000;
 
-function isoDay(ms) {
-  const date = new Date(ms);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+function insightSample(name) {
+  try {
+    return JSON.parse(
+      readFileSync(new URL(`../../contracts/fixtures/insight/${name}.json`, import.meta.url), 'utf8'),
+    );
+  } catch {
+    return null;
+  }
 }
 
 /** Детерминированный «шум» для рядов: снимки до и после показывают одни и те же числа. */
@@ -667,108 +673,6 @@ export function fleetData(now = Date.now()) {
     step: 15,
   };
 
-  const report = (mode, from, to) => {
-    const ltv = mode === 'ltv';
-    const start = Date.parse(`${from}T12:00:00`);
-    const end = Date.parse(`${to}T12:00:00`);
-    const days = [];
-    for (let t = start, i = 0; t <= end; t += DAY, i++) {
-      const visitors = wave(i, 46, 14);
-      days.push({
-        day: isoDay(t),
-        visitors,
-        fresh: Math.round(visitors * 0.42),
-        callers: Math.round(visitors * 0.58),
-        entries: Math.round(visitors * 0.9),
-        presenceHours: Math.round(visitors * 0.63 * 10) / 10,
-        meetings: ltv ? null : Math.round(visitors * 0.22),
-      });
-    }
-    return {
-      mode,
-      from,
-      to,
-      zone: 'Europe/Moscow',
-      today: isoDay(now),
-      visitors: {
-        total: 812,
-        fresh: 341,
-        returning: ltv ? 132 : 471,
-        callers: 463,
-        newCallers: 188,
-        sameDayCallers: 142,
-      },
-      rates: {
-        er: 0.57,
-        stickiness: ltv ? null : 0.18,
-        activeDays: 2.4,
-        errorsPerVisit: 0.04,
-        joinFailureRate: 0.012,
-      },
-      calls: {
-        meetings: ltv ? null : 296,
-        created: 301,
-        entries: 1_214,
-        joinFailures: 15,
-        presenceHours: 538.6,
-        meetingHours: ltv ? null : 544.2,
-        hoursPerCaller: 1.16,
-        minutesPerEntry: 27,
-        avgMinutes: ltv ? null : 41,
-        medianMinutes: ltv ? null : 33,
-        longestMinutes: ltv ? null : 212,
-        peakMeetings: ltv ? null : 9,
-        largestMeeting: ltv ? null : 14,
-      },
-      funnel: { opened: 812, prejoined: 590, joined: 463 },
-      clients: [
-        { kind: 'web', count: 438 },
-        { kind: 'desktop', count: 251 },
-        { kind: 'android', count: 86 },
-        { kind: 'telegram', count: 37 },
-      ],
-      os: [
-        { kind: 'windows', count: 512 },
-        { kind: 'android', count: 141 },
-        { kind: 'macos', count: 74 },
-        { kind: 'ios', count: 52 },
-        { kind: 'linux', count: 33 },
-      ],
-      integrations: {
-        meetings: ltv
-          ? []
-          : [
-              { kind: 'watch', count: 61 },
-              { kind: 'music', count: 38 },
-              { kind: 'poker', count: 17 },
-              { kind: 'board', count: 9 },
-            ],
-        meetingsWithAny: ltv ? null : 104,
-        visitors: 233,
-        encounters: 312,
-      },
-      days,
-      retention: {
-        anchor: ltv ? 'first' : 'period',
-        step: 'week',
-        total: { since: from, until: to, size: 341, d1: 0.31, d3: 0.22, d7: 0.17, d30: null },
-        cohorts: [0, 1, 2, 3].map((w) => {
-          const since = isoDay(start + w * 7 * DAY);
-          const until = isoDay(Math.min(end, start + (w * 7 + 6) * DAY));
-          return {
-            since,
-            until,
-            size: 70 + w * 9,
-            d1: 0.34 - w * 0.02,
-            d3: 0.25 - w * 0.02,
-            d7: w < 3 ? 0.18 - w * 0.02 : null,
-            d30: null,
-          };
-        }),
-      },
-    };
-  };
-
   const ticket = (n, o) => ({
     id: `0000000${n}-0000-4000-8000-00000000000${n}`,
     number: o.number,
@@ -987,7 +891,6 @@ export function fleetData(now = Date.now()) {
     fleetMap,
     fleetState,
     mapHistory,
-    report,
     tickets,
     counts,
     stats,
@@ -1061,18 +964,16 @@ export function fleetAnswer(data, url, method = 'GET') {
     });
   }
   if (/^\/nodes\/[^/]+$/.test(path)) return ok(data.nodes);
+  // Аналитика (R239): образцы отчётов службы `insight` — те же файлы, с которыми сверяется её тест.
+  const insight = /^\/insight\/([a-z]+)(\/.+)?$/.exec(path);
+  if (insight) {
+    const sample = insightSample(insight[2] ? `${insight[1]}-detail` : insight[1]);
+    return sample ? ok(sample) : { status: 404, body: { status: 404, code: 'NOT_FOUND', detail: path } };
+  }
   const core = /^\/core\/([^/]+)\/(.+)$/.exec(path);
   if (core) {
     const [, machine, rest] = core;
     if (rest === 'now') return ok(machine === 'meet' ? data.nowMeet : data.nowA);
-    if (rest === 'analytics')
-      return ok(
-        data.report(
-          q.get('mode') ?? 'actual',
-          q.get('from') ?? isoDay(Date.now() - 29 * DAY),
-          q.get('to') ?? isoDay(Date.now()),
-        ),
-      );
     if (rest === 'meetings') return ok(data.summary);
     if (rest === 'maintenance')
       return ok(machine === 'meet' ? data.maintenanceScheduled : data.maintenanceNone);
