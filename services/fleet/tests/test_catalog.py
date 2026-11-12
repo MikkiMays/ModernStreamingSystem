@@ -75,7 +75,7 @@ class CatalogTest(unittest.TestCase):
         form = {
             "id": "msk",
             "ip": "157.22.241.114",
-            "product": "cordcam.ru",
+            "product": "cord.online",
             "country": "ru",
             "titleRu": "Москва",
             "titleEn": "Moscow",
@@ -87,24 +87,24 @@ class CatalogTest(unittest.TestCase):
             "dnsReady": True,
         }
         fields = catalog.node_add_args(form)
-        self.assertEqual(fields["app"], "msk.cordcam.ru")
-        self.assertEqual(fields["rtc"], "rtc-msk.cordcam.ru")
-        self.assertEqual(fields["turn"], "turn-msk.cordcam.ru")
+        self.assertEqual(fields["app"], "msk.cord.online")
+        self.assertEqual(fields["rtc"], "rtc-msk.cord.online")
+        self.assertEqual(fields["turn"], "turn-msk.cord.online")
         self.assertEqual(fields["ssh"], "root@157.22.241.114")
         self.assertEqual(
             catalog.node_add_dns(fields),
             [
-                {"name": "msk.cordcam.ru", "type": "A", "value": "157.22.241.114", "proxied": False},
-                {"name": "rtc-msk.cordcam.ru", "type": "A", "value": "157.22.241.114", "proxied": False},
-                {"name": "turn-msk.cordcam.ru", "type": "A", "value": "157.22.241.114", "proxied": False},
+                {"name": "msk.cord.online", "type": "A", "value": "157.22.241.114", "proxied": False},
+                {"name": "rtc-msk.cord.online", "type": "A", "value": "157.22.241.114", "proxied": False},
+                {"name": "turn-msk.cord.online", "type": "A", "value": "157.22.241.114", "proxied": False},
             ],
         )
         steps = [catalog.shell_words(step) for step in catalog.plan("node.add", MEET, form)]
         self.assertEqual(
             steps,
             [
-                "node scripts/node-config.mjs --node=msk --ip=157.22.241.114 --app=msk.cordcam.ru --rtc=rtc-msk.cordcam.ru "
-                "--turn=turn-msk.cordcam.ru '--title-ru=Москва' --title-en=Moscow --country=RU --uplink-mbps=500 "
+                "node scripts/node-config.mjs --node=msk --ip=157.22.241.114 --app=msk.cord.online --rtc=rtc-msk.cord.online "
+                "--turn=turn-msk.cord.online '--title-ru=Москва' --title-en=Moscow --country=RU --uplink-mbps=500 "
                 "--cores=2 --ssh=root@157.22.241.114 --ssh-key=/root/.ssh/cord_msk",
                 "node scripts/node-config.mjs --write-env",
                 "backlog/bin/node.sh msk bootstrap",
@@ -114,14 +114,14 @@ class CatalogTest(unittest.TestCase):
         )
 
     def test_node_add_without_dns_uses_ip_mode(self):
-        form = {"id": "hel", "ip": "152.234.227.199", "product": "cordcam.ru", "country": "FI", "titleRu": "Хельсинки", "titleEn": "Helsinki", "maxRooms": 2, "uplinkMbps": 1000, "cores": 2}
+        form = {"id": "hel", "ip": "152.234.227.199", "product": "cord.online", "country": "FI", "titleRu": "Хельсинки", "titleEn": "Helsinki", "maxRooms": 2, "uplinkMbps": 1000, "cores": 2}
         first = catalog.plan("node.add", MEET, form)[0]
         self.assertIn("--mode=ip", first)
         self.assertFalse(any(part.startswith("--app=") for part in first))
 
     def test_node_add_rejects_bad_fields(self):
-        base = {"id": "hel", "ip": "152.234.227.199", "product": "cordcam.ru", "country": "FI", "titleRu": "Хельсинки", "titleEn": "Helsinki", "maxRooms": 2, "uplinkMbps": 1000, "cores": 2}
-        for key, value in (("id", "HEL"), ("ip", "999.1.1.1"), ("product", "cordcam"), ("country", "FIN"), ("titleRu", "Хель синки"), ("titleEn", 'He"lsinki'), ("ssh", "root@evil.test"), ("sshKey", "relative/key"), ("rtc", "hel.cordcam.ru")):
+        base = {"id": "hel", "ip": "152.234.227.199", "product": "cord.online", "country": "FI", "titleRu": "Хельсинки", "titleEn": "Helsinki", "maxRooms": 2, "uplinkMbps": 1000, "cores": 2}
+        for key, value in (("id", "HEL"), ("ip", "999.1.1.1"), ("product", "cord"), ("country", "FIN"), ("titleRu", "Хель синки"), ("titleEn", 'He"lsinki'), ("ssh", "root@evil.test"), ("sshKey", "relative/key"), ("rtc", "hel.cord.online")):
             with self.assertRaises(Problem, msg=key):
                 catalog.node_add_args({**base, key: value})
 

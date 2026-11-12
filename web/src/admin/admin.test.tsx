@@ -61,7 +61,7 @@ const machines = [
     installDir: '/opt/meet/ModernStreamingSystem',
     ssh: true,
     nodeId: 'fra',
-    product: 'cordcam.ru',
+    product: 'cord.online',
     core: { url: 'http://127.0.0.1:28080', credential: null },
   },
 ];
@@ -228,7 +228,7 @@ describe('пульт флота', () => {
     // Выбор машины-контекста — только машины с учётными данными ядра.
     const picker = await screen.findByRole('combobox', {}, { timeout: 10_000 });
     expect(picker).toHaveDisplayValue('A');
-    expect(screen.queryByRole('option', { name: 'meet · cordcam.ru' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'meet · cord.online' })).toBeNull();
   });
 
   it('экран задачи показывает план сухого прогона и опрашивает хвост', async () => {

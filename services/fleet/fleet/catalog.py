@@ -210,7 +210,7 @@ def node_add_args(args: dict[str, Any]) -> dict[str, Any]:
         raise _bad("ip", "адрес IPv4")
     product = str(args.get("product", "")).strip().lower()
     if not HOST.match(product):
-        raise _bad("product", "домен продукта, например cordcam.ru")
+        raise _bad("product", "домен продукта, например cord.online")
     hosts = {}
     for key, default in (("app", f"{id}.{product}"), ("rtc", f"rtc-{id}.{product}"), ("turn", f"turn-{id}.{product}")):
         value = str(args.get(key) or default).strip().lower()

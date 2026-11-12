@@ -107,7 +107,7 @@ const wire = 'device!~"lo|veth.*|docker.*|br-.*|cni.*|flannel.*"';
 const fleetDashboard = dashboard(
   'cord-fleet',
   'Cord — флот',
-  'Все машины флота (R208, R209): железо, кто из контейнеров ест ресурсы, встречи и люди на продукте. Метка machine: a — стенд разработки и пульт, fra — продукт cordcam.ru (meet), msk — Москва, hel — Хельсинки.',
+  'Все машины флота (R208, R209): железо, кто из контейнеров ест ресурсы, встречи и люди на продукте. Метка machine: a — стенд разработки и пульт, fra — продукт cord.online (meet), msk — Москва, hel — Хельсинки.',
   [
     stat('Встреч на продукте', 'sum(cord_rooms_active{machine="fra"})'),
     stat('Людей на продукте', 'sum(cord_participants_connected{machine="fra"})'),

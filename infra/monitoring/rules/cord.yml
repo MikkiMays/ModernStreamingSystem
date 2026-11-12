@@ -243,7 +243,7 @@ groups:
         labels: { severity: warn }
         annotations: { summary: 'Хост узла {{ $labels.node }} тормозит: steal {{ $value | humanizePercentage }}' }
 
-  # Флот (R208): рабочие машины через туннели пульта (метка machine: fra — продукт cordcam.ru, msk, hel). Правила
+  # Флот (R208): рабочие машины через туннели пульта (метка machine: fra — продукт cord.online, msk, hel). Правила
   # машины выше (HostStalled, DiskAlmostFull, MemoryLow) уже по каждой машине; здесь — то, чего у стенда нет.
   - name: cord-fleet
     interval: 30s
@@ -251,7 +251,7 @@ groups:
       - alert: ProductCoreDown
         expr: max_over_time(up{machine="fra", kind="core"}[3m]) == 0
         labels: { severity: page }
-        annotations: { summary: 'Ядро продукта cordcam.ru не отвечает пульту три минуты (через туннель)' }
+        annotations: { summary: 'Ядро продукта cord.online не отвечает пульту три минуты (через туннель)' }
 
       - alert: FleetMachineUnreachable
         expr: max_over_time(up{job="nodes", kind="node"}[5m]) == 0

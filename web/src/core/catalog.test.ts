@@ -19,7 +19,7 @@ const SERVERS = {
       id: 'ru-msk',
       name: { ru: 'Россия, Москва', en: 'Russia, Moscow' },
       country: 'RU',
-      url: 'https://cordcam.ru/',
+      url: 'https://cord.online/',
       order: 20,
       default: true,
     },
@@ -38,7 +38,7 @@ describe('каталог серверов (R136)', () => {
 
   it('читает серверы по порядку, адрес — origin со слешем, имя — на языке интерфейса', () => {
     const servers = parseServerCatalog(jws(SERVERS));
-    expect(servers.map((server) => server.url)).toEqual(['https://callcord.ru/', 'https://cordcam.ru/']);
+    expect(servers.map((server) => server.url)).toEqual(['https://callcord.ru/', 'https://cord.online/']);
     expect(serverName(servers[1]!, 'ru-RU')).toBe('Россия, Москва');
     expect(serverName(servers[1]!, 'en-US')).toBe('Russia, Moscow');
     // Языка нет в каталоге — английское имя; нет и его — адрес.
@@ -57,7 +57,7 @@ describe('каталог серверов (R136)', () => {
           ...SERVERS.servers,
           { id: 'http', name: {}, url: 'http://plain.example/', order: 1 },
           { id: 'path', name: {}, url: 'https://evil.example/login?x=1', order: 2 },
-          { id: 'dup', name: {}, url: 'https://cordcam.ru', order: 30 },
+          { id: 'dup', name: {}, url: 'https://cord.online', order: 30 },
         ],
       }),
     );
@@ -65,7 +65,7 @@ describe('каталог серверов (R136)', () => {
     expect(mixed.map((server) => server.url)).toEqual([
       'https://evil.example/',
       'https://callcord.ru/',
-      'https://cordcam.ru/',
+      'https://cord.online/',
     ]);
   });
 

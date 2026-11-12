@@ -348,7 +348,7 @@ describe('клиент Windows с prefs.shared: общее у оболочки (
 describe('браузер: «Сменить сервер» несёт настройки во фрагменте адреса', () => {
   const catalog = async () => [
     { id: 'a', url: 'https://callcord.ru/', name: { ru: 'А' } },
-    { id: 'b', url: 'https://cordcam.ru/', name: { ru: 'Б' } },
+    { id: 'b', url: 'https://cord.online/', name: { ru: 'Б' } },
   ];
 
   it('во фрагменте — несекретное общее и тема; токена и устройств нет никогда', () => {
@@ -408,7 +408,7 @@ describe('браузер: «Сменить сервер» несёт настр�
     expect(await acceptCarriedPreferences(carried, 'https://evil.example/', catalog)).toBe(false);
     expect(await acceptCarriedPreferences(carried, '', catalog)).toBe(false);
     expect(readPreferences().name).toBe('');
-    expect(await acceptCarriedPreferences(carried, 'https://cordcam.ru/', catalog)).toBe(true);
+    expect(await acceptCarriedPreferences(carried, 'https://cord.online/', catalog)).toBe(true);
     expect(readPreferences()).toMatchObject({ name: 'Ника', outputVolume: 33 });
     expect(localStorage.getItem('cord:theme')).toBe('dark');
   });

@@ -26,7 +26,7 @@ export function fleetData(now = Date.now()) {
     since: sec - 3_600,
     expiresAt: sec + 8 * 3_600,
     allowIps: false,
-    executor: { mode: 'ssh', sshMachines: ['meet', 'b', 'cordcam'] },
+    executor: { mode: 'ssh', sshMachines: ['meet', 'b', 'msk'] },
     adminHost: 'admin.callcord.ru',
     agentOps: ['read', 'status'],
   };
@@ -50,7 +50,7 @@ export function fleetData(now = Date.now()) {
       installDir: '/opt/meet/ModernStreamingSystem',
       ssh: true,
       nodeId: 'fra',
-      product: 'cordcam.ru',
+      product: 'cord.online',
       core: { url: 'http://127.0.0.1:28080', credential: 'key' },
     },
     {
@@ -65,8 +65,8 @@ export function fleetData(now = Date.now()) {
       core: null,
     },
     {
-      id: 'cordcam',
-      title: 'cordcam',
+      id: 'msk',
+      title: 'msk',
       role: 'media-node',
       host: '157.22.241.114',
       installDir: '/opt/ModernStreamingSystem',
@@ -391,7 +391,7 @@ export function fleetData(now = Date.now()) {
       {
         ...machines[3],
         sources: { node: true, containers: null, core: null, sfu: true, gateway: true },
-        hardware: hardware(2, 4e9, 80e9, 'cordcam', 5 * 86_400),
+        hardware: hardware(2, 4e9, 80e9, 'msk', 5 * 86_400),
         load: load({
           cpu: 0.12,
           steal: 0.01,
@@ -423,7 +423,7 @@ export function fleetData(now = Date.now()) {
       },
       a: { cpu: series(18, 4), netOutMbps: series(3, 1, 100), netInMbps: series(2, 1, 100), connected: [] },
       b: { cpu: series(20, 5), netOutMbps: series(30, 8, 100), netInMbps: series(9, 3, 100), connected: [] },
-      cordcam: {
+      msk: {
         cpu: series(12, 3),
         netOutMbps: series(11, 4, 100),
         netInMbps: series(4, 2, 100),
@@ -561,7 +561,7 @@ export function fleetData(now = Date.now()) {
     slaMet: o.status === 'DONE' ? true : null,
     machine: o.machine ?? 'meet',
     machineTitle: o.machine === 'a' ? 'A' : 'meet',
-    product: o.machine === 'a' ? 'callcord.ru' : 'cordcam.ru',
+    product: o.machine === 'a' ? 'callcord.ru' : 'cord.online',
   });
   const tickets = [
     ticket(1, {

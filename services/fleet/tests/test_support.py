@@ -138,14 +138,14 @@ class LeverTest(unittest.TestCase):
         machines = json.dumps(
             [
                 {"id": "a", "role": "dev+admin", "host": "127.0.0.1", "installDir": "/opt", "core": {"url": "http://127.0.0.1:8080"}},
-                {"id": "cordcam", "role": "media-node", "host": "157.22.241.114", "ssh": "root@157.22.241.114", "installDir": "/opt", "core": {"url": "http://127.0.0.1:19122"}},
+                {"id": "msk", "role": "media-node", "host": "157.22.241.114", "ssh": "root@157.22.241.114", "installDir": "/opt", "core": {"url": "http://127.0.0.1:19122"}},
             ]
         )
         client, _, _ = build(machines_json=machines, core=SupportCore())
         login(client)
         data = client.get("/api/fleet/support", headers=READ).json()
-        self.assertEqual(data["skipped"], ["cordcam"])
-        self.assertEqual(client.get(f"/api/fleet/support/cordcam/{A_TICKET}", headers=READ).json()["code"], "MACHINE_NO_CORE")
+        self.assertEqual(data["skipped"], ["msk"])
+        self.assertEqual(client.get(f"/api/fleet/support/msk/{A_TICKET}", headers=READ).json()["code"], "MACHINE_NO_CORE")
 
 
 if __name__ == "__main__":

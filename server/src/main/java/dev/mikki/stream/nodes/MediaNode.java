@@ -9,7 +9,7 @@ import java.util.Map;
  * <p>Так его описывает реестр {@code infra/generated/nodes/registry.json}, который пишет {@code
  * scripts/node-config.mjs}. Поля, нужные ядру и клиенту: {@code id} — короткое имя ({@code fra},
  * {@code hel}), оно же хранится в снимке комнаты ({@code RoomState.mediaNode}); {@code rtcUrl} —
- * куда клиент подключает SDK ({@code wss://rtc-hel.cordcam.ru}); {@code probeUrl} и {@code stun} —
+ * куда клиент подключает SDK ({@code wss://rtc-hel.cord.online}); {@code probeUrl} и {@code stun} —
  * чем клиент меряет путь до узла по TCP и UDP; {@code internalUrl} — Twirp узла с точки зрения ядра
  * (локальный порт магистрали); {@code enabled} — можно ли ставить новые встречи (дренаж перед
  * выкаткой — {@code false}); {@code control} — узел управления, он же узел по умолчанию для комнат

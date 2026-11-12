@@ -122,7 +122,7 @@ class LoginTest(unittest.TestCase):
     def test_origin_check(self):
         auth = Auth(settings(admin_host="admin.callcord.ru"), self.store)
         auth.check_origin("https://admin.callcord.ru", "admin.callcord.ru")
-        for origin in (None, "https://cordcam.ru", "https://admin.callcord.ru.evil.com", "null"):
+        for origin in (None, "https://cord.online", "https://admin.callcord.ru.evil.com", "null"):
             with self.assertRaises(Problem):
                 auth.check_origin(origin, "admin.callcord.ru")
         # Без имени пульта Origin сверяется с Host.
@@ -148,7 +148,7 @@ class SettingsTest(unittest.TestCase):
 
         s = from_env({"FLEET_EXECUTOR": "ssh", "FLEET_SSH_MACHINES": "meet, b", "FLEET_CORE_A": "password:x", "FLEET_CORE_MEET": "key:y"})
         self.assertTrue(s.ssh_allowed("meet"))
-        self.assertFalse(s.ssh_allowed("cordcam"))
+        self.assertFalse(s.ssh_allowed("msk"))
         self.assertEqual(s.core_credentials, {"a": "password:x", "meet": "key:y"})
         self.assertFalse(from_env({}).ssh_allowed("meet"))
         with self.assertRaises(ValueError):
