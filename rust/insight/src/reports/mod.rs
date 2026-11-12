@@ -76,7 +76,12 @@ impl Range {
     fn previous(&self) -> Range {
         let length = Days::new(self.days() as u64);
         let (from, to) = (self.from - length, self.to - length);
-        Range { from, to, end: if self.cohort { self.end } else { to }, ..*self }
+        Range {
+            from,
+            to,
+            end: if self.cohort { self.end } else { to },
+            ..*self
+        }
     }
 
     fn describe(&self) -> Value {
@@ -120,8 +125,18 @@ impl Reports {
             return Err(ReportError::BadRequest("период длиннее 400 дней"));
         }
         let today = local_day(now, self.zone);
-        let end = if query.cohort { today.max(query.to) } else { query.to };
-        let range = Range { from: query.from, to: query.to, end, cohort: query.cohort, strict: query.strict };
+        let end = if query.cohort {
+            today.max(query.to)
+        } else {
+            query.to
+        };
+        let range = Range {
+            from: query.from,
+            to: query.to,
+            end,
+            cohort: query.cohort,
+            strict: query.strict,
+        };
         let mut report = json!({
             "section": match key { Some(_) => "errors/{key}", None => section },
             "range": range.describe(),
@@ -138,14 +153,22 @@ impl Reports {
         Ok(report)
     }
 
-    async fn section(&self, section: &str, key: Option<&str>, range: &Range) -> Result<Value, ReportError> {
+    async fn section(
+        &self,
+        section: &str,
+        key: Option<&str>,
+        range: &Range,
+    ) -> Result<Value, ReportError> {
         // Конец горизонта моментом времени: начало следующего дня по поясу аналитики.
         let horizon = day_start(range.end + Days::new(1), self.zone);
         let value = match (section, key) {
             ("pulse", _) => self.pulse(range).await?,
             ("audience", _) => self.run(sql::audience(), range, &[]).await?,
             ("acquisition", _) => self.run(sql::acquisition(), range, &[]).await?,
-            ("activation", _) => self.run(sql::activation(), range, &[Extra::Time(horizon)]).await?,
+            ("activation", _) => {
+                self.run(sql::activation(), range, &[Extra::Time(horizon)])
+                    .await?
+            }
             ("retention", _) => {
                 let bucket = match range.days() {
                     ..=31 => "day",
@@ -153,12 +176,20 @@ impl Reports {
                     _ => "month",
                 };
                 let before = range.previous().from;
-                self.run(sql::retention(), range, &[Extra::Text(bucket), Extra::Date(before)]).await?
+                self.run(
+                    sql::retention(),
+                    range,
+                    &[Extra::Text(bucket), Extra::Date(before)],
+                )
+                .await?
             }
             ("engagement", _) => self.run(sql::engagement(), range, &[]).await?,
             ("integrations", _) => self.run(sql::integrations(), range, &[]).await?,
             ("quality", _) => self.run(sql::quality(), range, &[]).await?,
-            ("errors", Some(key)) => match self.run(sql::error_detail(), range, &[Extra::Text(key)]).await? {
+            ("errors", Some(key)) => match self
+                .run(sql::error_detail(), range, &[Extra::Text(key)])
+                .await?
+            {
                 Value::Null => return Err(ReportError::NotFound),
                 detail => detail,
             },
@@ -170,7 +201,12 @@ impl Reports {
     }
 
     /// Один запрос отчёта: общие пять параметров и свои дополнительные.
-    async fn run(&self, sql: String, range: &Range, extra: &[Extra<'_>]) -> Result<Value, sqlx::Error> {
+    async fn run(
+        &self,
+        sql: String,
+        range: &Range,
+        extra: &[Extra<'_>],
+    ) -> Result<Value, sqlx::Error> {
         let mut query = sqlx::query_scalar::<_, Option<Value>>(AssertSqlSafe(sql))
             .bind(range.strict)
             .bind(range.from)
@@ -190,11 +226,16 @@ impl Reports {
     /// Пульс: плитки с изменением к прошлому периоду и ряды по дням.
     async fn pulse(&self, range: &Range) -> Result<Value, sqlx::Error> {
         let now = self.run(sql::pulse_numbers(), range, &[]).await?;
-        let before = self.run(sql::pulse_numbers(), &range.previous(), &[]).await?;
+        let before = self
+            .run(sql::pulse_numbers(), &range.previous(), &[])
+            .await?;
         let mut tiles = Map::new();
         for (name, value) in now.as_object().into_iter().flatten() {
             let previous = before.get(name).cloned().unwrap_or(Value::Null);
-            tiles.insert(name.clone(), json!({"value": value, "previous": previous, "change": change(value, &previous)}));
+            tiles.insert(
+                name.clone(),
+                json!({"value": value, "previous": previous, "change": change(value, &previous)}),
+            );
         }
         let series = self.run(sql::pulse_series(), range, &[]).await?;
         Ok(json!({"tiles": tiles, "series": series}))
@@ -204,7 +245,9 @@ impl Reports {
 /// Изменение к прошлому периоду долей: `(стало − было) / было`; не с чем сравнить — `null`.
 fn change(value: &Value, previous: &Value) -> Value {
     match (value.as_f64(), previous.as_f64()) {
-        (Some(now), Some(before)) if before != 0.0 => json!(((now - before) / before * 10_000.0).round() / 10_000.0),
+        (Some(now), Some(before)) if before != 0.0 => {
+            json!(((now - before) / before * 10_000.0).round() / 10_000.0)
+        }
         _ => Value::Null,
     }
 }
@@ -219,12 +262,25 @@ mod tests {
 
     #[test]
     fn the_previous_period_has_the_same_length_and_ends_the_day_before() {
-        let range = Range { from: day("2026-11-01"), to: day("2026-11-07"), end: day("2026-11-07"), cohort: false, strict: false };
+        let range = Range {
+            from: day("2026-11-01"),
+            to: day("2026-11-07"),
+            end: day("2026-11-07"),
+            cohort: false,
+            strict: false,
+        };
         let previous = range.previous();
-        assert_eq!((previous.from, previous.to, previous.end), (day("2026-10-25"), day("2026-10-31"), day("2026-10-31")));
+        assert_eq!(
+            (previous.from, previous.to, previous.end),
+            (day("2026-10-25"), day("2026-10-31"), day("2026-10-31"))
+        );
         assert_eq!((range.days(), previous.days()), (7, 7));
         // У когорт горизонт — сегодня: и у прошлой когорты тоже.
-        let cohort = Range { end: day("2026-11-12"), cohort: true, ..range };
+        let cohort = Range {
+            end: day("2026-11-12"),
+            cohort: true,
+            ..range
+        };
         assert_eq!(cohort.previous().end, day("2026-11-12"));
     }
 

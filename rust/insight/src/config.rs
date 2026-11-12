@@ -27,7 +27,11 @@ pub struct Retention {
 
 impl Default for Retention {
     fn default() -> Self {
-        Retention { events: 90, rollups: 400, people: 400 }
+        Retention {
+            events: 90,
+            rollups: 400,
+            people: 400,
+        }
     }
 }
 
@@ -61,9 +65,17 @@ impl Config {
 
     /// Настройки из произвольного источника переменных — так их проверяют тесты.
     pub fn from(get: impl Fn(&str) -> Option<String>) -> Result<Config, ConfigError> {
-        let get = |name: &str| get(name).map(|v| v.trim().to_owned()).filter(|v| !v.is_empty());
+        let get = |name: &str| {
+            get(name)
+                .map(|v| v.trim().to_owned())
+                .filter(|v| !v.is_empty())
+        };
         let required = |name: &'static str| get(name).ok_or(ConfigError::Missing(name));
-        fn number<T: std::str::FromStr>(name: &'static str, value: Option<String>, default: T) -> Result<T, ConfigError> {
+        fn number<T: std::str::FromStr>(
+            name: &'static str,
+            value: Option<String>,
+            default: T,
+        ) -> Result<T, ConfigError> {
             match value {
                 Some(text) => text.parse().map_err(|_| ConfigError::Invalid(name, text)),
                 None => Ok(default),
@@ -81,13 +93,32 @@ impl Config {
             session_secret: required("SESSION_SECRET")?,
             internal_secret: required("INTERNAL_SECRET")?,
             probe_key: get("ANALYTICS_PROBE_KEY"),
-            zone: zone.parse().map_err(|_| ConfigError::Invalid("ANALYTICS_ZONE", zone))?,
-            fingerprint: !matches!(get("ANALYTICS_FINGERPRINT").as_deref(), Some("false" | "0" | "off" | "no")),
-            geo_dir: get("INSIGHT_GEO_DIR").unwrap_or_else(|| "/geo".to_owned()).into(),
+            zone: zone
+                .parse()
+                .map_err(|_| ConfigError::Invalid("ANALYTICS_ZONE", zone))?,
+            fingerprint: !matches!(
+                get("ANALYTICS_FINGERPRINT").as_deref(),
+                Some("false" | "0" | "off" | "no")
+            ),
+            geo_dir: get("INSIGHT_GEO_DIR")
+                .unwrap_or_else(|| "/geo".to_owned())
+                .into(),
             retention: Retention {
-                events: number("ANALYTICS_RETENTION_EVENTS", get("ANALYTICS_RETENTION_EVENTS"), defaults.events)?,
-                rollups: number("ANALYTICS_RETENTION_ROLLUPS", get("ANALYTICS_RETENTION_ROLLUPS"), defaults.rollups)?,
-                people: number("ANALYTICS_RETENTION_PEOPLE", get("ANALYTICS_RETENTION_PEOPLE"), defaults.people)?,
+                events: number(
+                    "ANALYTICS_RETENTION_EVENTS",
+                    get("ANALYTICS_RETENTION_EVENTS"),
+                    defaults.events,
+                )?,
+                rollups: number(
+                    "ANALYTICS_RETENTION_ROLLUPS",
+                    get("ANALYTICS_RETENTION_ROLLUPS"),
+                    defaults.rollups,
+                )?,
+                people: number(
+                    "ANALYTICS_RETENTION_PEOPLE",
+                    get("ANALYTICS_RETENTION_PEOPLE"),
+                    defaults.people,
+                )?,
             },
         })
     }
@@ -96,10 +127,17 @@ impl Config {
 /// Адрес базы из `DATABASE_URL`. В `.env` он записан для ядра — `jdbc:postgresql://127.0.0.1:5432/streaming`,
 /// имя и пароль лежат отдельно (`DATABASE_USER`, `DATABASE_PASSWORD`). Принимается и обычный адрес
 /// `postgres://имя:пароль@узел:порт/база` — так базу называют тесты и CI. Параметры после `?` не читаются.
-pub fn database(url: &str, user: Option<&str>, password: Option<&str>) -> Result<Database, ConfigError> {
+pub fn database(
+    url: &str,
+    user: Option<&str>,
+    password: Option<&str>,
+) -> Result<Database, ConfigError> {
     let invalid = || ConfigError::Invalid("DATABASE_URL", "адрес базы".to_owned());
     let rest = url.strip_prefix("jdbc:").unwrap_or(url);
-    let rest = rest.strip_prefix("postgresql://").or_else(|| rest.strip_prefix("postgres://")).ok_or_else(invalid)?;
+    let rest = rest
+        .strip_prefix("postgresql://")
+        .or_else(|| rest.strip_prefix("postgres://"))
+        .ok_or_else(invalid)?;
     let rest = rest.split(['?', '#']).next().unwrap_or_default();
     let (authority, name) = rest.split_once('/').ok_or_else(invalid)?;
     let (credentials, address) = match authority.rsplit_once('@') {
@@ -121,7 +159,10 @@ pub fn database(url: &str, user: Option<&str>, password: Option<&str>) -> Result
         host: host.to_owned(),
         port,
         name: name.to_owned(),
-        user: url_user.or(user).ok_or(ConfigError::Missing("DATABASE_USER"))?.to_owned(),
+        user: url_user
+            .or(user)
+            .ok_or(ConfigError::Missing("DATABASE_USER"))?
+            .to_owned(),
         password: url_password.or(password).unwrap_or_default().to_owned(),
     })
 }
@@ -131,7 +172,12 @@ mod tests {
     use super::*;
 
     fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
-        move |name| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| (*v).to_owned())
+        move |name| {
+            pairs
+                .iter()
+                .find(|(k, _)| *k == name)
+                .map(|(_, v)| (*v).to_owned())
+        }
     }
 
     const BASE: &[(&str, &str)] = &[
@@ -148,13 +194,26 @@ mod tests {
         assert_eq!(config.port, 18300);
         assert_eq!(
             config.database,
-            Database { host: "127.0.0.1".into(), port: 5432, name: "streaming".into(), user: "streaming".into(), password: "pw".into() }
+            Database {
+                host: "127.0.0.1".into(),
+                port: 5432,
+                name: "streaming".into(),
+                user: "streaming".into(),
+                password: "pw".into()
+            }
         );
         assert_eq!(config.zone, chrono_tz::Europe::Moscow);
         assert!(config.fingerprint);
         assert_eq!(config.probe_key, None);
         assert_eq!(config.geo_dir, PathBuf::from("/geo"));
-        assert_eq!(config.retention, Retention { events: 90, rollups: 400, people: 400 });
+        assert_eq!(
+            config.retention,
+            Retention {
+                events: 90,
+                rollups: 400,
+                people: 400
+            }
+        );
     }
 
     #[test]
@@ -174,14 +233,27 @@ mod tests {
         assert_eq!((config.port, config.fingerprint), (18301, false));
         assert_eq!(config.zone, chrono_tz::Asia::Yekaterinburg);
         assert_eq!(config.probe_key.as_deref(), Some("key"));
-        assert_eq!(config.retention, Retention { events: 30, rollups: 200, people: 100 });
+        assert_eq!(
+            config.retention,
+            Retention {
+                events: 30,
+                rollups: 200,
+                people: 100
+            }
+        );
         assert_eq!(config.geo_dir, PathBuf::from("/srv/geo"));
     }
 
     #[test]
     fn a_missing_secret_or_a_bad_value_is_named() {
-        assert_eq!(Config::from(env(&BASE[..3])).unwrap_err(), ConfigError::Missing("SESSION_SECRET"));
-        assert_eq!(Config::from(env(&BASE[1..])).unwrap_err(), ConfigError::Missing("DATABASE_URL"));
+        assert_eq!(
+            Config::from(env(&BASE[..3])).unwrap_err(),
+            ConfigError::Missing("SESSION_SECRET")
+        );
+        assert_eq!(
+            Config::from(env(&BASE[1..])).unwrap_err(),
+            ConfigError::Missing("DATABASE_URL")
+        );
         let mut pairs = BASE.to_vec();
         pairs.push(("ANALYTICS_ZONE", "Mars/Olympus"));
         assert_eq!(
@@ -190,18 +262,40 @@ mod tests {
         );
         pairs.pop();
         pairs.push(("INSIGHT_PORT", "http"));
-        assert_eq!(Config::from(env(&pairs)).unwrap_err(), ConfigError::Invalid("INSIGHT_PORT", "http".into()));
+        assert_eq!(
+            Config::from(env(&pairs)).unwrap_err(),
+            ConfigError::Invalid("INSIGHT_PORT", "http".into())
+        );
     }
 
     #[test]
     fn the_database_address_is_read_from_jdbc_and_plain_urls() {
-        let jdbc = database("jdbc:postgresql://db.internal/streaming?sslmode=disable", Some("u"), Some("p")).unwrap();
-        assert_eq!((jdbc.host.as_str(), jdbc.port, jdbc.name.as_str()), ("db.internal", 5432, "streaming"));
+        let jdbc = database(
+            "jdbc:postgresql://db.internal/streaming?sslmode=disable",
+            Some("u"),
+            Some("p"),
+        )
+        .unwrap();
+        assert_eq!(
+            (jdbc.host.as_str(), jdbc.port, jdbc.name.as_str()),
+            ("db.internal", 5432, "streaming")
+        );
         assert_eq!((jdbc.user.as_str(), jdbc.password.as_str()), ("u", "p"));
         // Имя и пароль в самом адресе старше отдельных переменных.
-        let plain = database("postgres://postgres:secret@127.0.0.1:54321/test", Some("u"), Some("p")).unwrap();
-        assert_eq!((plain.port, plain.user.as_str(), plain.password.as_str()), (54321, "postgres", "secret"));
-        assert_eq!(database("mysql://x/y", Some("u"), None).unwrap_err(), ConfigError::Invalid("DATABASE_URL", "адрес базы".into()));
+        let plain = database(
+            "postgres://postgres:secret@127.0.0.1:54321/test",
+            Some("u"),
+            Some("p"),
+        )
+        .unwrap();
+        assert_eq!(
+            (plain.port, plain.user.as_str(), plain.password.as_str()),
+            (54321, "postgres", "secret")
+        );
+        assert_eq!(
+            database("mysql://x/y", Some("u"), None).unwrap_err(),
+            ConfigError::Invalid("DATABASE_URL", "адрес базы".into())
+        );
         assert!(database("jdbc:postgresql://127.0.0.1:5432", Some("u"), None).is_err());
         assert_eq!(
             database("jdbc:postgresql://127.0.0.1:5432/streaming", None, None).unwrap_err(),

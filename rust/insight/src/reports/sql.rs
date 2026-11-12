@@ -71,7 +71,11 @@ fn list(row: &str, from: &str) -> String {
 /// Разрез суточного счётчика `an_counts` за дни отчёта: `[{<a>, <b>?, count}]`.
 fn counts(metric: &str, a: &str, b: Option<&str>) -> String {
     let (fields, group, order) = match b {
-        Some(b) => (format!("'{a}', a, '{b}', b, 'count', n"), "a, b", "n DESC, a, b"),
+        Some(b) => (
+            format!("'{a}', a, '{b}', b, 'count', n"),
+            "a, b",
+            "n DESC, a, b",
+        ),
         None => (format!("'{a}', a, 'count', n"), "a", "n DESC, a"),
     };
     list(
@@ -85,7 +89,10 @@ fn counts(metric: &str, a: &str, b: Option<&str>) -> String {
 
 /// Числа плиток пульса за период.
 pub fn pulse_numbers() -> String {
-    let share = ratio("(SELECT count(*) FROM active WHERE peer)", "(SELECT count(*) FROM active)");
+    let share = ratio(
+        "(SELECT count(*) FROM active WHERE peer)",
+        "(SELECT count(*) FROM active)",
+    );
     let success = ratio("ok", "ok + failed");
     let clean = ratio("sum(sessions) - sum(error_sessions)", "sum(sessions)");
     let vpn = ratio("sum(vpn_sessions)", "sum(sessions)");
@@ -178,7 +185,14 @@ pub fn audience() -> String {
     let day_sticky = ratio("r.dau", "r.mau");
     let frequency = frequency();
     let by = |column: &str| session_breakdown(column);
-    let (client, os, browser, device, country, network) = (by("client"), by("os"), by("browser"), by("class"), by("country"), by("net"));
+    let (client, os, browser, device, country, network) = (
+        by("client"),
+        by("os"),
+        by("browser"),
+        by("class"),
+        by("country"),
+        by("net"),
+    );
     format!(
         "{BASE},{SESSIONS},
 active AS (SELECT pid, min(first_day) AS first_day, bool_or(confirmed) AS confirmed FROM scope GROUP BY pid),
@@ -246,7 +260,13 @@ pub fn acquisition() -> String {
         "(SELECT count(DISTINCT pid) FROM days WHERE day BETWEEN $2 AND $3 AND with_peer)",
     );
     let by = |key: &str| source_breakdown(key, "true");
-    let (landing, source, client, os, country) = (by("landing"), by("source"), by("client"), by("os"), by("country"));
+    let (landing, source, client, os, country) = (
+        by("landing"),
+        by("source"),
+        by("client"),
+        by("os"),
+        by("country"),
+    );
     let campaign = source_breakdown(
         "concat_ws(' / ', NULLIF(utm_source, ''), NULLIF(utm_medium, ''), NULLIF(utm_campaign, ''))",
         "utm_source <> '' OR utm_medium <> '' OR utm_campaign <> ''",
@@ -336,8 +356,14 @@ SELECT json_build_object(
 /// Удержание за N дней: `{eligible, returned, share, talked, talked_share}`.
 fn retained(n: u32) -> String {
     let ripe = format!("first_day + {n} <= $5");
-    let share = ratio(&format!("count(*) FILTER (WHERE {ripe} AND r{n})"), &format!("count(*) FILTER (WHERE {ripe})"));
-    let talked = ratio(&format!("count(*) FILTER (WHERE {ripe} AND t{n})"), &format!("count(*) FILTER (WHERE {ripe})"));
+    let share = ratio(
+        &format!("count(*) FILTER (WHERE {ripe} AND r{n})"),
+        &format!("count(*) FILTER (WHERE {ripe})"),
+    );
+    let talked = ratio(
+        &format!("count(*) FILTER (WHERE {ripe} AND t{n})"),
+        &format!("count(*) FILTER (WHERE {ripe})"),
+    );
     format!(
         "json_build_object('eligible', count(*) FILTER (WHERE {ripe}), \
          'returned', count(*) FILTER (WHERE {ripe} AND r{n}), 'share', {share}, \
@@ -398,11 +424,20 @@ SELECT json_build_object(
 
 pub fn engagement() -> String {
     let per_person = ratio("sum(sessions)", "count(DISTINCT pid)");
-    let per_day = ratio("sum(talk_s) FILTER (WHERE with_peer)", "60 * count(*) FILTER (WHERE with_peer)");
+    let per_day = ratio(
+        "sum(talk_s) FILTER (WHERE with_peer)",
+        "60 * count(*) FILTER (WHERE with_peer)",
+    );
     let daily_minutes = ratio("d.peer_s", "60 * d.interlocutors");
     let frequency = frequency();
     let h = |column: &str| hours(&format!("sum({column})"));
-    let (talk, together, mic, cam, screen) = (h("talk_s"), h("together_s"), h("mic_s"), h("cam_s"), h("screen_s"));
+    let (talk, together, mic, cam, screen) = (
+        h("talk_s"),
+        h("together_s"),
+        h("mic_s"),
+        h("cam_s"),
+        h("screen_s"),
+    );
     let (cinema, music, game, board) = (h("cinema_s"), h("music_s"), h("game_s"), h("board_s"));
     let daily_talk = hours("d.talk_s");
     let person_hours = hours("sum(person_s)");
@@ -473,7 +508,10 @@ SELECT json_build_object(
 fn integration_row(keys: &str) -> String {
     let watch = hours("v.seconds");
     let stream = hours("r.stream_s");
-    let share = ratio("r.meetings", "(SELECT count(*) FROM an_meetings WHERE day BETWEEN $2 AND $5)");
+    let share = ratio(
+        "r.meetings",
+        "(SELECT count(*) FROM an_meetings WHERE day BETWEEN $2 AND $5)",
+    );
     let rate = ratio("r.bytes * 3600", "r.stream_s");
     format!(
         "json_build_object({keys} 'runs', COALESCE(r.runs, 0), 'people', COALESCE(v.people, 0), \
@@ -487,7 +525,11 @@ fn integration_row(keys: &str) -> String {
 
 /// Сводки запусков и зрителей по ключу группировки (пусто — всё вместе).
 fn integration_sides(group: &str) -> (String, String) {
-    let (select, by) = if group.is_empty() { (String::new(), String::new()) } else { (format!("{group}, "), format!(" GROUP BY {group}")) };
+    let (select, by) = if group.is_empty() {
+        (String::new(), String::new())
+    } else {
+        (format!("{group}, "), format!(" GROUP BY {group}"))
+    };
     (
         format!(
             "SELECT {select}count(*) AS runs, count(DISTINCT meeting_id) AS meetings, sum(bytes) AS bytes, \
@@ -583,7 +625,9 @@ pub fn quality() -> String {
     };
     let (media_total, media_node) = (media(""), media("'node', node,"));
     let percentile = |p: &str, field: &str| {
-        format!("round(percentile_cont({p}) WITHIN GROUP (ORDER BY (props->>'{field}')::numeric) FILTER (WHERE props ? '{field}'))")
+        format!(
+            "round(percentile_cont({p}) WITHIN GROUP (ORDER BY (props->>'{field}')::numeric) FILTER (WHERE props ? '{field}'))"
+        )
     };
     let timing = |extra: &str| {
         format!(
@@ -673,7 +717,10 @@ base AS (
 
 pub fn errors() -> String {
     let session_share = ratio("sum(h.sessions)", "(SELECT sessions FROM base)");
-    let people_share = ratio("(SELECT count(DISTINCT pid) FROM hurt)", "(SELECT people FROM base)");
+    let people_share = ratio(
+        "(SELECT count(DISTINCT pid) FROM hurt)",
+        "(SELECT people FROM base)",
+    );
     let group_sessions = ratio("g.sessions", "(SELECT sessions FROM base)");
     let group_people = ratio("g.people", "(SELECT people FROM base)");
     format!(
@@ -733,9 +780,18 @@ fn error_breakdown(column: &str) -> String {
 /// Одна группа ошибок. `$6` — её ключ. Нет группы — `null`.
 pub fn error_detail() -> String {
     let session_share = ratio("COALESCE(sum(sessions), 0)", "(SELECT sessions FROM base)");
-    let people_share = ratio("(SELECT count(DISTINCT pid) FROM hurt WHERE key = $6)", "(SELECT people FROM base)");
+    let people_share = ratio(
+        "(SELECT count(DISTINCT pid) FROM hurt WHERE key = $6)",
+        "(SELECT people FROM base)",
+    );
     let by = |column: &str| error_breakdown(column);
-    let (versions, os, browsers, clients, nodes) = (by("version"), by("os"), by("browser"), by("client"), by("node"));
+    let (versions, os, browsers, clients, nodes) = (
+        by("version"),
+        by("os"),
+        by("browser"),
+        by("client"),
+        by("node"),
+    );
     format!(
         "{BASE},{ERRORS},
 mine AS (SELECT * FROM hits WHERE key = $6),

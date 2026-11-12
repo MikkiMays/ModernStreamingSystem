@@ -59,16 +59,27 @@ impl Proof {
     pub fn issue(&self, address: &str, now_ms: i64) -> Challenge {
         let mut nonce = [0u8; 12];
         getrandom::fill(&mut nonce).expect("системный источник случайных чисел недоступен");
-        let number = getrandom::u64().expect("системный источник случайных чисел недоступен") % (MAX_NUMBER + 1);
+        let number = getrandom::u64().expect("системный источник случайных чисел недоступен")
+            % (MAX_NUMBER + 1);
         self.issue_with(address, now_ms, &nonce, number)
     }
 
     fn issue_with(&self, address: &str, now_ms: i64, nonce: &[u8], number: u64) -> Challenge {
         let expires = (now_ms + TTL_MS) / 1000;
-        let salt = format!("{}?expires={expires}&for={ACTION}&k={}", hex::encode(nonce), self.fingerprint(address));
+        let salt = format!(
+            "{}?expires={expires}&for={ACTION}&k={}",
+            hex::encode(nonce),
+            self.fingerprint(address)
+        );
         let challenge = hash(&salt, number);
         let signature = self.mac(&challenge);
-        Challenge { algorithm: "SHA-256", challenge, maxnumber: MAX_NUMBER, salt, signature }
+        Challenge {
+            algorithm: "SHA-256",
+            challenge,
+            maxnumber: MAX_NUMBER,
+            salt,
+            signature,
+        }
     }
 
     /// Проверить ответ (`engaged.p.proof`): base64 от JSON `{algorithm, challenge, number, salt, signature}`.
@@ -89,13 +100,23 @@ impl Proof {
         }
         let params = answer.salt.split_once('?')?.1;
         let param = |name: &str| {
-            params.split('&').filter_map(|pair| pair.split_once('=')).find(|(k, _)| *k == name).map(|(_, v)| v)
+            params
+                .split('&')
+                .filter_map(|pair| pair.split_once('='))
+                .find(|(k, _)| *k == name)
+                .map(|(_, v)| v)
         };
         let expires_ms = param("expires")?.parse::<i64>().ok()?.checked_mul(1000)?;
-        if expires_ms < now_ms || param("for")? != ACTION || param("k")? != self.fingerprint(address) {
+        if expires_ms < now_ms
+            || param("for")? != ACTION
+            || param("k")? != self.fingerprint(address)
+        {
             return None;
         }
-        Some(Solved { signature: answer.signature, expires_ms })
+        Some(Solved {
+            signature: answer.signature,
+            expires_ms,
+        })
     }
 
     fn mac(&self, value: &str) -> String {
@@ -126,7 +147,9 @@ mod tests {
 
     /// Решатель браузера: перебор до совпадения хэша.
     fn solve(challenge: &Challenge) -> String {
-        let number = (0..=challenge.maxnumber).find(|n| hash(&challenge.salt, *n) == challenge.challenge).unwrap();
+        let number = (0..=challenge.maxnumber)
+            .find(|n| hash(&challenge.salt, *n) == challenge.challenge)
+            .unwrap();
         answer(challenge, number)
     }
 
@@ -148,7 +171,10 @@ mod tests {
             hash("abc?expires=1&for=create&k=0", 42),
             "1ff234a05c9d1b9c9dd3ac9d67294c3b33a093dbe60325ca2b7d02710bcb830e"
         );
-        assert_eq!(hash("", 0), "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9");
+        assert_eq!(
+            hash("", 0),
+            "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+        );
     }
 
     #[test]
@@ -158,7 +184,9 @@ mod tests {
         assert_eq!(challenge.algorithm, "SHA-256");
         assert_eq!(challenge.maxnumber, 20_000);
         assert!(challenge.salt.contains("&for=engaged&k="));
-        let solved = proof.verify(&solve(&challenge), "203.0.113.7", NOW + 1000).unwrap();
+        let solved = proof
+            .verify(&solve(&challenge), "203.0.113.7", NOW + 1000)
+            .unwrap();
         assert_eq!(solved.signature, challenge.signature);
         assert_eq!(solved.expires_ms, (NOW + TTL_MS) / 1000 * 1000);
         // Без дополнения `=` — тоже ответ: так его шлёт `btoa` не всегда, но Java-декодер ядра принимает оба.
@@ -166,7 +194,10 @@ mod tests {
         assert!(proof.verify(&unpadded, "203.0.113.7", NOW).is_some());
         // Чужой адрес, истёкший срок.
         assert_eq!(proof.verify(&solve(&challenge), "203.0.113.8", NOW), None);
-        assert_eq!(proof.verify(&solve(&challenge), "203.0.113.7", NOW + TTL_MS + 1000), None);
+        assert_eq!(
+            proof.verify(&solve(&challenge), "203.0.113.7", NOW + TTL_MS + 1000),
+            None
+        );
     }
 
     #[test]

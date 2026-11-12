@@ -61,7 +61,11 @@ pub enum Conflict<'a> {
 
 /// Сложить столбцы-счётчики: `a = t.a + EXCLUDED.a, …`.
 pub fn sum(table: &str, columns: &[&str]) -> String {
-    columns.iter().map(|c| format!("{c} = {table}.{c} + EXCLUDED.{c}")).collect::<Vec<_>>().join(", ")
+    columns
+        .iter()
+        .map(|c| format!("{c} = {table}.{c} + EXCLUDED.{c}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// Вставить пачку строк одним запросом: `INSERT … SELECT * FROM UNNEST(…)`. Имена таблиц и столбцов —
@@ -76,13 +80,23 @@ pub async fn write(
         return Ok(0);
     }
     let names: Vec<&str> = columns.iter().map(|(name, _)| *name).collect();
-    let params: Vec<String> = columns.iter().enumerate().map(|(i, (_, col))| format!("${}::{}", i + 1, col.cast())).collect();
+    let params: Vec<String> = columns
+        .iter()
+        .enumerate()
+        .map(|(i, (_, col))| format!("${}::{}", i + 1, col.cast()))
+        .collect();
     let tail = match conflict {
         Conflict::None => String::new(),
         Conflict::Skip(key) => format!(" ON CONFLICT ({}) DO NOTHING", key.join(", ")),
-        Conflict::Update(key, set) => format!(" ON CONFLICT ({}) DO UPDATE SET {set}", key.join(", ")),
+        Conflict::Update(key, set) => {
+            format!(" ON CONFLICT ({}) DO UPDATE SET {set}", key.join(", "))
+        }
     };
-    let sql = format!("INSERT INTO {table} ({}) SELECT * FROM UNNEST({}){tail}", names.join(", "), params.join(", "));
+    let sql = format!(
+        "INSERT INTO {table} ({}) SELECT * FROM UNNEST({}){tail}",
+        names.join(", "),
+        params.join(", ")
+    );
     let mut query = sqlx::query(AssertSqlSafe(sql));
     for (_, col) in columns {
         query = match col {
@@ -112,8 +126,21 @@ pub struct EventRow {
 
 /// Столбцы-счётчики строки «человек × день» — в порядке `DayDelta::v`.
 pub const DAY_COLUMNS: [&str; 15] = [
-    "sessions", "joins", "talk_s", "together_s", "cinema_s", "music_s", "game_s", "board_s", "mic_s", "cam_s",
-    "screen_s", "errors", "error_sessions", "vpn_sessions", "invites",
+    "sessions",
+    "joins",
+    "talk_s",
+    "together_s",
+    "cinema_s",
+    "music_s",
+    "game_s",
+    "board_s",
+    "mic_s",
+    "cam_s",
+    "screen_s",
+    "errors",
+    "error_sessions",
+    "vpn_sessions",
+    "invites",
 ];
 
 /// Прибавка к строке «человек × день».
@@ -237,11 +264,18 @@ impl Pending {
     }
 
     pub fn count(&mut self, day: NaiveDate, metric: &'static str, a: &str, b: &str, by: i64) {
-        *self.counts.entry((day, metric, a.to_owned(), b.to_owned())).or_default() += by;
+        *self
+            .counts
+            .entry((day, metric, a.to_owned(), b.to_owned()))
+            .or_default() += by;
     }
 
     /// Записать накопленное в открытую транзакцию.
-    pub async fn write(&self, conn: &mut PgConnection, now: DateTime<Utc>) -> Result<(), sqlx::Error> {
+    pub async fn write(
+        &self,
+        conn: &mut PgConnection,
+        now: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
         self.write_events(conn).await?;
         self.write_days(conn, now).await?;
         self.write_errors(conn).await?;
@@ -253,31 +287,68 @@ impl Pending {
         let columns = [
             ("at", Col::Time(e.iter().map(|r| r.at).collect())),
             ("day", Col::Date(e.iter().map(|r| r.day).collect())),
-            ("sid", Col::OptText(e.iter().map(|r| r.sid.clone()).collect())),
-            ("person_id", Col::OptBig(e.iter().map(|r| r.person).collect())),
-            ("name", Col::Text(e.iter().map(|r| r.name.to_owned()).collect())),
-            ("room", Col::OptText(e.iter().map(|r| r.room.clone()).collect())),
-            ("props", Col::Json(e.iter().map(|r| r.props.clone()).collect())),
+            (
+                "sid",
+                Col::OptText(e.iter().map(|r| r.sid.clone()).collect()),
+            ),
+            (
+                "person_id",
+                Col::OptBig(e.iter().map(|r| r.person).collect()),
+            ),
+            (
+                "name",
+                Col::Text(e.iter().map(|r| r.name.to_owned()).collect()),
+            ),
+            (
+                "room",
+                Col::OptText(e.iter().map(|r| r.room.clone()).collect()),
+            ),
+            (
+                "props",
+                Col::Json(e.iter().map(|r| r.props.clone()).collect()),
+            ),
         ];
         write(conn, "an_events", &columns, Conflict::None).await?;
         Ok(())
     }
 
-    async fn write_days(&self, conn: &mut PgConnection, now: DateTime<Utc>) -> Result<(), sqlx::Error> {
+    async fn write_days(
+        &self,
+        conn: &mut PgConnection,
+        now: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
         let rows: Vec<_> = self.days.iter().collect();
         let mut columns = vec![
-            ("person_id", Col::Big(rows.iter().map(|((p, _), _)| *p).collect())),
-            ("day", Col::Date(rows.iter().map(|((_, d), _)| *d).collect())),
-            ("confirmed", Col::Bool(rows.iter().map(|(_, delta)| delta.confirmed).collect())),
+            (
+                "person_id",
+                Col::Big(rows.iter().map(|((p, _), _)| *p).collect()),
+            ),
+            (
+                "day",
+                Col::Date(rows.iter().map(|((_, d), _)| *d).collect()),
+            ),
+            (
+                "confirmed",
+                Col::Bool(rows.iter().map(|(_, delta)| delta.confirmed).collect()),
+            ),
         ];
         for (index, name) in DAY_COLUMNS.iter().enumerate() {
-            columns.push((name, Col::Big(rows.iter().map(|(_, delta)| delta.v[index]).collect())));
+            columns.push((
+                name,
+                Col::Big(rows.iter().map(|(_, delta)| delta.v[index]).collect()),
+            ));
         }
         let set = format!(
             "confirmed = an_person_days.confirmed OR EXCLUDED.confirmed, {}",
             sum("an_person_days", &DAY_COLUMNS)
         );
-        write(conn, "an_person_days", &columns, Conflict::Update(&["person_id", "day"], set)).await?;
+        write(
+            conn,
+            "an_person_days",
+            &columns,
+            Conflict::Update(&["person_id", "day"], set),
+        )
+        .await?;
 
         let people: Vec<i64> = self.seen.keys().copied().collect();
         let last: Vec<NaiveDate> = self.seen.values().copied().collect();
@@ -324,51 +395,118 @@ impl Pending {
 
     async fn write_errors(&self, conn: &mut PgConnection) -> Result<(), sqlx::Error> {
         let groups: Vec<_> = self.errors.iter().collect();
-        let text = |f: fn(&ErrorDelta) -> String| Col::Text(groups.iter().map(|(_, g)| f(g)).collect());
+        let text =
+            |f: fn(&ErrorDelta) -> String| Col::Text(groups.iter().map(|(_, g)| f(g)).collect());
         let columns = [
-            ("key", Col::Text(groups.iter().map(|(key, _)| (*key).clone()).collect())),
+            (
+                "key",
+                Col::Text(groups.iter().map(|(key, _)| (*key).clone()).collect()),
+            ),
             ("code", text(|g| g.code.clone())),
             ("scope", text(|g| g.scope.clone())),
             ("version", text(|g| g.version.clone())),
             ("source", text(|g| g.source.to_owned())),
             ("cause", text(|g| g.cause.to_owned())),
-            ("first_at", Col::Time(groups.iter().map(|(_, g)| g.first_at).collect())),
-            ("last_at", Col::Time(groups.iter().map(|(_, g)| g.last_at).collect())),
-            ("count", Col::Big(groups.iter().map(|(_, g)| g.count).collect())),
-            ("sessions", Col::Big(groups.iter().map(|(_, g)| g.sessions).collect())),
-            ("sample", Col::Json(groups.iter().map(|(_, g)| g.sample.clone()).collect())),
+            (
+                "first_at",
+                Col::Time(groups.iter().map(|(_, g)| g.first_at).collect()),
+            ),
+            (
+                "last_at",
+                Col::Time(groups.iter().map(|(_, g)| g.last_at).collect()),
+            ),
+            (
+                "count",
+                Col::Big(groups.iter().map(|(_, g)| g.count).collect()),
+            ),
+            (
+                "sessions",
+                Col::Big(groups.iter().map(|(_, g)| g.sessions).collect()),
+            ),
+            (
+                "sample",
+                Col::Json(groups.iter().map(|(_, g)| g.sample.clone()).collect()),
+            ),
         ];
         let set = "first_at = LEAST(an_errors.first_at, EXCLUDED.first_at), \
                    last_at = GREATEST(an_errors.last_at, EXCLUDED.last_at), cause = EXCLUDED.cause, \
                    count = an_errors.count + EXCLUDED.count, sessions = an_errors.sessions + EXCLUDED.sessions, \
                    sample = CASE WHEN EXCLUDED.last_at >= an_errors.last_at THEN EXCLUDED.sample ELSE an_errors.sample END";
-        write(conn, "an_errors", &columns, Conflict::Update(&["key"], set.to_owned())).await?;
+        write(
+            conn,
+            "an_errors",
+            &columns,
+            Conflict::Update(&["key"], set.to_owned()),
+        )
+        .await?;
 
         let days: Vec<_> = self.error_days.iter().collect();
-        let dim = |f: fn(&ErrorDims) -> &String| Col::Text(days.iter().map(|((_, _, dims), _)| f(dims).clone()).collect());
+        let dim = |f: fn(&ErrorDims) -> &String| {
+            Col::Text(
+                days.iter()
+                    .map(|((_, _, dims), _)| f(dims).clone())
+                    .collect(),
+            )
+        };
         let columns = [
-            ("key", Col::Text(days.iter().map(|((key, _, _), _)| key.clone()).collect())),
-            ("day", Col::Date(days.iter().map(|((_, day, _), _)| *day).collect())),
+            (
+                "key",
+                Col::Text(days.iter().map(|((key, _, _), _)| key.clone()).collect()),
+            ),
+            (
+                "day",
+                Col::Date(days.iter().map(|((_, day, _), _)| *day).collect()),
+            ),
             ("client", dim(|d| &d.client)),
             ("os", dim(|d| &d.os)),
             ("browser", dim(|d| &d.browser)),
             ("version", dim(|d| &d.version)),
             ("node", dim(|d| &d.node)),
-            ("count", Col::Big(days.iter().map(|(_, (count, _))| *count).collect())),
-            ("sessions", Col::Big(days.iter().map(|(_, (_, sessions))| *sessions).collect())),
+            (
+                "count",
+                Col::Big(days.iter().map(|(_, (count, _))| *count).collect()),
+            ),
+            (
+                "sessions",
+                Col::Big(days.iter().map(|(_, (_, sessions))| *sessions).collect()),
+            ),
         ];
         let key = ["key", "day", "client", "os", "browser", "version", "node"];
-        write(conn, "an_error_days", &columns, Conflict::Update(&key, sum("an_error_days", &["count", "sessions"]))).await?;
+        write(
+            conn,
+            "an_error_days",
+            &columns,
+            Conflict::Update(&key, sum("an_error_days", &["count", "sessions"])),
+        )
+        .await?;
 
         let people: Vec<_> = self.error_people.iter().collect();
         let columns = [
-            ("key", Col::Text(people.iter().map(|((key, _, _), _)| key.clone()).collect())),
-            ("day", Col::Date(people.iter().map(|((_, day, _), _)| *day).collect())),
-            ("person_id", Col::Big(people.iter().map(|((_, _, person), _)| *person).collect())),
-            ("count", Col::Big(people.iter().map(|(_, count)| **count).collect())),
+            (
+                "key",
+                Col::Text(people.iter().map(|((key, _, _), _)| key.clone()).collect()),
+            ),
+            (
+                "day",
+                Col::Date(people.iter().map(|((_, day, _), _)| *day).collect()),
+            ),
+            (
+                "person_id",
+                Col::Big(people.iter().map(|((_, _, person), _)| *person).collect()),
+            ),
+            (
+                "count",
+                Col::Big(people.iter().map(|(_, count)| **count).collect()),
+            ),
         ];
         let key = ["key", "day", "person_id"];
-        write(conn, "an_error_people", &columns, Conflict::Update(&key, sum("an_error_people", &["count"]))).await?;
+        write(
+            conn,
+            "an_error_people",
+            &columns,
+            Conflict::Update(&key, sum("an_error_people", &["count"])),
+        )
+        .await?;
         // «Сколько людей» у группы — разные люди за всё время: пересчитывается у тронутых групп.
         let mut touched: Vec<String> = self.errors.keys().cloned().collect();
         touched.extend(self.error_people.keys().map(|(key, _, _)| key.clone()));
@@ -384,43 +522,117 @@ impl Pending {
 
     async fn write_rest(&self, conn: &mut PgConnection) -> Result<(), sqlx::Error> {
         let traffic: Vec<_> = self.traffic.iter().filter(|(_, by)| **by != 0).collect();
-        let word = |f: fn(&TrafficKey) -> &str| Col::Text(traffic.iter().map(|(key, _)| f(key).to_owned()).collect());
+        let word = |f: fn(&TrafficKey) -> &str| {
+            Col::Text(traffic.iter().map(|(key, _)| f(key).to_owned()).collect())
+        };
         let columns = [
-            ("day", Col::Date(traffic.iter().map(|(key, _)| key.day).collect())),
+            (
+                "day",
+                Col::Date(traffic.iter().map(|(key, _)| key.day).collect()),
+            ),
             ("class", word(|k| k.class)),
             ("bot", word(|k| k.bot)),
             ("client", word(|k| k.client)),
             ("os", word(|k| k.os)),
             ("country", word(|k| &k.country)),
             ("net", word(|k| k.net)),
-            ("visits", Col::Big(traffic.iter().map(|(_, by)| **by).collect())),
+            (
+                "visits",
+                Col::Big(traffic.iter().map(|(_, by)| **by).collect()),
+            ),
         ];
         let key = ["day", "class", "bot", "client", "os", "country", "net"];
-        write(conn, "an_traffic_days", &columns, Conflict::Update(&key, sum("an_traffic_days", &["visits"]))).await?;
+        write(
+            conn,
+            "an_traffic_days",
+            &columns,
+            Conflict::Update(&key, sum("an_traffic_days", &["visits"])),
+        )
+        .await?;
 
         let counts: Vec<_> = self.counts.iter().collect();
         let columns = [
-            ("day", Col::Date(counts.iter().map(|((day, ..), _)| *day).collect())),
-            ("metric", Col::Text(counts.iter().map(|((_, metric, ..), _)| (*metric).to_owned()).collect())),
-            ("a", Col::Text(counts.iter().map(|((_, _, a, _), _)| a.clone()).collect())),
-            ("b", Col::Text(counts.iter().map(|((_, _, _, b), _)| b.clone()).collect())),
+            (
+                "day",
+                Col::Date(counts.iter().map(|((day, ..), _)| *day).collect()),
+            ),
+            (
+                "metric",
+                Col::Text(
+                    counts
+                        .iter()
+                        .map(|((_, metric, ..), _)| (*metric).to_owned())
+                        .collect(),
+                ),
+            ),
+            (
+                "a",
+                Col::Text(counts.iter().map(|((_, _, a, _), _)| a.clone()).collect()),
+            ),
+            (
+                "b",
+                Col::Text(counts.iter().map(|((_, _, _, b), _)| b.clone()).collect()),
+            ),
             ("n", Col::Big(counts.iter().map(|(_, n)| **n).collect())),
         ];
-        write(conn, "an_counts", &columns, Conflict::Update(&["day", "metric", "a", "b"], sum("an_counts", &["n"]))).await?;
+        write(
+            conn,
+            "an_counts",
+            &columns,
+            Conflict::Update(&["day", "metric", "a", "b"], sum("an_counts", &["n"])),
+        )
+        .await?;
 
         let views: Vec<_> = self.integration_days.iter().collect();
         let columns = [
-            ("day", Col::Date(views.iter().map(|((day, ..), _)| *day).collect())),
-            ("kind", Col::Text(views.iter().map(|((_, kind, ..), _)| kind.clone()).collect())),
-            ("variant", Col::Text(views.iter().map(|((_, _, variant, _), _)| variant.clone()).collect())),
-            ("person_id", Col::Big(views.iter().map(|((.., person), _)| *person).collect())),
-            ("seconds", Col::Big(views.iter().map(|(_, v)| v[0]).collect())),
-            ("stalls", Col::Big(views.iter().map(|(_, v)| v[1]).collect())),
-            ("stall_ms", Col::Big(views.iter().map(|(_, v)| v[2]).collect())),
+            (
+                "day",
+                Col::Date(views.iter().map(|((day, ..), _)| *day).collect()),
+            ),
+            (
+                "kind",
+                Col::Text(
+                    views
+                        .iter()
+                        .map(|((_, kind, ..), _)| kind.clone())
+                        .collect(),
+                ),
+            ),
+            (
+                "variant",
+                Col::Text(
+                    views
+                        .iter()
+                        .map(|((_, _, variant, _), _)| variant.clone())
+                        .collect(),
+                ),
+            ),
+            (
+                "person_id",
+                Col::Big(views.iter().map(|((.., person), _)| *person).collect()),
+            ),
+            (
+                "seconds",
+                Col::Big(views.iter().map(|(_, v)| v[0]).collect()),
+            ),
+            (
+                "stalls",
+                Col::Big(views.iter().map(|(_, v)| v[1]).collect()),
+            ),
+            (
+                "stall_ms",
+                Col::Big(views.iter().map(|(_, v)| v[2]).collect()),
+            ),
         ];
         let key = ["day", "kind", "variant", "person_id"];
         let set = sum("an_integration_days", &["seconds", "stalls", "stall_ms"]);
-        write(conn, "an_integration_days", &columns, Conflict::Update(&key, set)).await?;
+        write(
+            conn,
+            "an_integration_days",
+            &columns,
+            Conflict::Update(&key, set),
+        )
+        .await?;
 
         let sessions: Vec<_> = self.sessions.iter().collect();
         sqlx::query(
@@ -439,8 +651,14 @@ impl Pending {
         .await?;
 
         let columns = [
-            ("id", Col::Text(self.fact_ids.iter().map(|(id, _)| id.clone()).collect())),
-            ("at", Col::Time(self.fact_ids.iter().map(|(_, at)| *at).collect())),
+            (
+                "id",
+                Col::Text(self.fact_ids.iter().map(|(id, _)| id.clone()).collect()),
+            ),
+            (
+                "at",
+                Col::Time(self.fact_ids.iter().map(|(_, at)| *at).collect()),
+            ),
         ];
         write(conn, "an_fact_ids", &columns, Conflict::Skip(&["id"])).await?;
         Ok(())

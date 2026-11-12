@@ -41,7 +41,12 @@ pub struct Network {
 impl Network {
     /// Адреса нет (запрос не через шлюз): сеть неизвестна.
     pub fn unknown() -> Self {
-        Network { country: String::new(), asn: None, class: UNKNOWN, subnet: String::new() }
+        Network {
+            country: String::new(),
+            asn: None,
+            class: UNKNOWN,
+            subnet: String::new(),
+        }
     }
 }
 
@@ -115,14 +120,20 @@ pub struct Geo {
 impl Geo {
     /// Базы из каталога `dir`; без каталога или файлов — пустые.
     pub fn open(dir: impl Into<PathBuf>) -> Self {
-        let geo = Geo { dir: dir.into(), loaded: RwLock::new(Arc::new(Loaded::default())) };
+        let geo = Geo {
+            dir: dir.into(),
+            loaded: RwLock::new(Arc::new(Loaded::default())),
+        };
         geo.refresh();
         geo
     }
 
     /// Без баз: всё «неизвестно».
     pub fn empty() -> Self {
-        Geo { dir: PathBuf::new(), loaded: RwLock::new(Arc::new(Loaded::default())) }
+        Geo {
+            dir: PathBuf::new(),
+            loaded: RwLock::new(Arc::new(Loaded::default())),
+        }
     }
 
     fn files(&self) -> [PathBuf; 4] {
@@ -136,7 +147,10 @@ impl Geo {
             return false;
         }
         let files = self.files();
-        let stamps: Vec<_> = files.iter().map(|f| std::fs::metadata(f).and_then(|m| m.modified()).ok()).collect();
+        let stamps: Vec<_> = files
+            .iter()
+            .map(|f| std::fs::metadata(f).and_then(|m| m.modified()).ok())
+            .collect();
         if self.current().stamps == stamps {
             return false;
         }
@@ -168,7 +182,10 @@ impl Geo {
     }
 
     fn current(&self) -> Arc<Loaded> {
-        self.loaded.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.loaded
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Есть ли база стран и база ASN — для `/healthz` и метрик.
@@ -198,20 +215,30 @@ impl Geo {
             Some(_) => HOME,
             None => UNKNOWN,
         };
-        Network { country, asn, class, subnet: keys.subnet(&subnet(ip)) }
+        Network {
+            country,
+            asn,
+            class,
+            subnet: keys.subnet(&subnet(ip)),
+        }
     }
 }
 
 /// Список ASN из текста: строка — `AS12345` или `12345`, дальше что угодно; `#` — комментарий.
 fn asn_list(path: &Path) -> HashSet<u32> {
-    std::fs::read_to_string(path).map(|text| parse_asn_list(&text)).unwrap_or_default()
+    std::fs::read_to_string(path)
+        .map(|text| parse_asn_list(&text))
+        .unwrap_or_default()
 }
 
 fn parse_asn_list(text: &str) -> HashSet<u32> {
     text.lines()
         .filter_map(|line| {
             let word = line.split('#').next()?.split_whitespace().next()?;
-            let digits = word.strip_prefix("AS").or_else(|| word.strip_prefix("as")).unwrap_or(word);
+            let digits = word
+                .strip_prefix("AS")
+                .or_else(|| word.strip_prefix("as"))
+                .unwrap_or(word);
             digits.parse().ok()
         })
         .collect()
@@ -220,9 +247,16 @@ fn parse_asn_list(text: &str) -> HashSet<u32> {
 /// Страна → её пояса (`data/zones.tab`, из tzdata).
 static ZONES: LazyLock<HashMap<&'static str, Vec<Tz>>> = LazyLock::new(|| {
     let mut zones: HashMap<&'static str, Vec<Tz>> = HashMap::new();
-    for line in include_str!("../data/zones.tab").lines().filter(|l| !l.starts_with('#')) {
-        let Some((countries, zone)) = line.split_once('\t') else { continue };
-        let Ok(zone) = zone.trim().parse::<Tz>() else { continue };
+    for line in include_str!("../data/zones.tab")
+        .lines()
+        .filter(|l| !l.starts_with('#'))
+    {
+        let Some((countries, zone)) = line.split_once('\t') else {
+            continue;
+        };
+        let Ok(zone) = zone.trim().parse::<Tz>() else {
+            continue;
+        };
         for country in countries.split(',') {
             zones.entry(country).or_default().push(zone);
         }
@@ -233,8 +267,14 @@ static ZONES: LazyLock<HashMap<&'static str, Vec<Tz>>> = LazyLock::new(|| {
 /// Смещения пояса от UTC зимой и летом года `now` — по ним сравниваются пояса.
 fn offsets(zone: Tz, now: DateTime<Utc>) -> (i32, i32) {
     let at = |month: u32| {
-        let day = NaiveDate::from_ymd_opt(now.year(), month, 15).unwrap_or_default().and_hms_opt(12, 0, 0);
-        day.map_or(0, |moment| zone.offset_from_utc_datetime(&moment).fix().local_minus_utc())
+        let day = NaiveDate::from_ymd_opt(now.year(), month, 15)
+            .unwrap_or_default()
+            .and_hms_opt(12, 0, 0);
+        day.map_or(0, |moment| {
+            zone.offset_from_utc_datetime(&moment)
+                .fix()
+                .local_minus_utc()
+        })
     };
     (at(1), at(7))
 }
@@ -266,8 +306,14 @@ mod tests {
     #[test]
     fn the_address_key_is_the_address_or_the_64_network_like_the_core() {
         assert_eq!(address_key(parse_ip("203.0.113.7").unwrap()), "203.0.113.7");
-        assert_eq!(address_key(parse_ip(" 2001:db8:0:1:aaaa:bbbb:cccc:dddd ").unwrap()), "2001:db8:0:1::/64");
-        assert_eq!(address_key(parse_ip("::ffff:203.0.113.7").unwrap()), "203.0.113.7");
+        assert_eq!(
+            address_key(parse_ip(" 2001:db8:0:1:aaaa:bbbb:cccc:dddd ").unwrap()),
+            "2001:db8:0:1::/64"
+        );
+        assert_eq!(
+            address_key(parse_ip("::ffff:203.0.113.7").unwrap()),
+            "203.0.113.7"
+        );
         assert_eq!(parse_ip("не адрес"), None);
         assert_eq!(parse_ip(""), None);
     }
@@ -275,7 +321,10 @@ mod tests {
     #[test]
     fn the_subnet_is_24_or_48() {
         assert_eq!(subnet(parse_ip("203.0.113.77").unwrap()), "203.0.113.0/24");
-        assert_eq!(subnet(parse_ip("2001:db8:abcd:1234::1").unwrap()), "2001:db8:abcd::/48");
+        assert_eq!(
+            subnet(parse_ip("2001:db8:abcd:1234::1").unwrap()),
+            "2001:db8:abcd::/48"
+        );
         // Соседи по подсети дают один отпечаток, другая подсеть — другой.
         let keys = Keys::new("s", "i", None);
         let net = |ip: &str| Geo::empty().network(parse_ip(ip).unwrap(), &keys).subnet;
@@ -288,7 +337,10 @@ mod tests {
         let keys = Keys::new("s", "i", None);
         let geo = Geo::open("/nonexistent/geo");
         let network = geo.network(parse_ip("203.0.113.7").unwrap(), &keys);
-        assert_eq!((network.country.as_str(), network.asn, network.class), ("", None, UNKNOWN));
+        assert_eq!(
+            (network.country.as_str(), network.asn, network.class),
+            ("", None, UNKNOWN)
+        );
         assert_eq!(geo.status(), (false, false));
         assert!(!geo.refresh());
         assert!(!vpn_likely(&network, Some("Europe/Moscow"), now()));
@@ -319,12 +371,29 @@ mod tests {
     #[test]
     fn vpn_is_likely_on_hosting_or_when_the_zone_is_foreign_to_the_country() {
         let now = now();
-        let network = |country: &str, class| Network { country: country.into(), asn: Some(1), class, subnet: String::new() };
-        assert!(vpn_likely(&network("RU", HOSTING), Some("Europe/Moscow"), now));
+        let network = |country: &str, class| Network {
+            country: country.into(),
+            asn: Some(1),
+            class,
+            subnet: String::new(),
+        };
+        assert!(vpn_likely(
+            &network("RU", HOSTING),
+            Some("Europe/Moscow"),
+            now
+        ));
         assert!(vpn_likely(&network("NL", HOME), Some("Europe/Moscow"), now));
-        assert!(!vpn_likely(&network("RU", HOME), Some("Europe/Moscow"), now));
+        assert!(!vpn_likely(
+            &network("RU", HOME),
+            Some("Europe/Moscow"),
+            now
+        ));
         assert!(!vpn_likely(&network("RU", MOBILE), None, now));
         // Неизвестная страна — не признак VPN.
-        assert!(!vpn_likely(&network("", UNKNOWN), Some("Europe/Moscow"), now));
+        assert!(!vpn_likely(
+            &network("", UNKNOWN),
+            Some("Europe/Moscow"),
+            now
+        ));
     }
 }

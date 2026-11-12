@@ -10,7 +10,7 @@ WORKDIR /workspace/rust
 
 FROM toolchain AS build
 # Сколько заданий компилятора вести разом: на машине с малой памятью — `--build-arg CARGO_BUILD_JOBS=2`.
-ARG CARGO_BUILD_JOBS
+ARG CARGO_BUILD_JOBS=default
 COPY rust/Cargo.toml rust/Cargo.lock rust/rust-toolchain.toml ./
 COPY rust/insight/Cargo.toml insight/Cargo.toml
 # Зависимости — отдельным слоем: правка кода службы их не пересобирает.

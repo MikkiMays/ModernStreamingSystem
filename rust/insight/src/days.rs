@@ -68,39 +68,95 @@ mod tests {
     #[test]
     fn the_day_is_the_day_of_the_analytics_zone() {
         // 22:30 UTC — уже завтра по Москве.
-        assert_eq!(local_day(utc("2026-11-12T22:30:00Z"), Moscow), day("2026-11-13"));
-        assert_eq!(local_day(utc("2026-11-12T20:59:59Z"), Moscow), day("2026-11-12"));
-        assert_eq!(day_start(day("2026-11-13"), Moscow), utc("2026-11-12T21:00:00Z"));
+        assert_eq!(
+            local_day(utc("2026-11-12T22:30:00Z"), Moscow),
+            day("2026-11-13")
+        );
+        assert_eq!(
+            local_day(utc("2026-11-12T20:59:59Z"), Moscow),
+            day("2026-11-12")
+        );
+        assert_eq!(
+            day_start(day("2026-11-13"), Moscow),
+            utc("2026-11-12T21:00:00Z")
+        );
     }
 
     #[test]
     fn an_interval_within_one_day_is_one_piece() {
-        let pieces = split_days(utc("2026-11-12T10:00:00Z"), utc("2026-11-12T10:01:00Z"), Moscow);
+        let pieces = split_days(
+            utc("2026-11-12T10:00:00Z"),
+            utc("2026-11-12T10:01:00Z"),
+            Moscow,
+        );
         assert_eq!(pieces, vec![(day("2026-11-12"), 60)]);
-        assert_eq!(split_days(utc("2026-11-12T10:00:00Z"), utc("2026-11-12T10:00:00Z"), Moscow), vec![]);
-        assert_eq!(split_days(utc("2026-11-12T10:00:01Z"), utc("2026-11-12T10:00:00Z"), Moscow), vec![]);
+        assert_eq!(
+            split_days(
+                utc("2026-11-12T10:00:00Z"),
+                utc("2026-11-12T10:00:00Z"),
+                Moscow
+            ),
+            vec![]
+        );
+        assert_eq!(
+            split_days(
+                utc("2026-11-12T10:00:01Z"),
+                utc("2026-11-12T10:00:00Z"),
+                Moscow
+            ),
+            vec![]
+        );
     }
 
     #[test]
     fn an_interval_across_local_midnight_is_split_between_the_days() {
         // Полночь по Москве — 21:00 UTC: 40 секунд до неё и 20 после.
-        let pieces = split_days(utc("2026-11-12T20:59:20Z"), utc("2026-11-12T21:00:20Z"), Moscow);
-        assert_eq!(pieces, vec![(day("2026-11-12"), 40), (day("2026-11-13"), 20)]);
+        let pieces = split_days(
+            utc("2026-11-12T20:59:20Z"),
+            utc("2026-11-12T21:00:20Z"),
+            Moscow,
+        );
+        assert_eq!(
+            pieces,
+            vec![(day("2026-11-12"), 40), (day("2026-11-13"), 20)]
+        );
         // Двое суток подряд.
-        let long = split_days(utc("2026-11-12T20:00:00Z"), utc("2026-11-14T22:00:00Z"), Moscow);
-        assert_eq!(long, vec![(day("2026-11-12"), 3600), (day("2026-11-13"), 86_400), (day("2026-11-14"), 86_400), (day("2026-11-15"), 3600)]);
+        let long = split_days(
+            utc("2026-11-12T20:00:00Z"),
+            utc("2026-11-14T22:00:00Z"),
+            Moscow,
+        );
+        assert_eq!(
+            long,
+            vec![
+                (day("2026-11-12"), 3600),
+                (day("2026-11-13"), 86_400),
+                (day("2026-11-14"), 86_400),
+                (day("2026-11-15"), 3600)
+            ]
+        );
     }
 
     #[test]
     fn a_day_with_a_clock_change_is_23_or_25_hours_long() {
         // Берлин, 25.10.2026: часы назад, в сутках 25 часов.
-        let pieces = split_days(utc("2026-10-24T22:00:00Z"), utc("2026-10-25T23:00:00Z"), Berlin);
+        let pieces = split_days(
+            utc("2026-10-24T22:00:00Z"),
+            utc("2026-10-25T23:00:00Z"),
+            Berlin,
+        );
         assert_eq!(pieces, vec![(day("2026-10-25"), 25 * 3600)]);
     }
 
     #[test]
     fn month_bounds_are_the_first_days() {
-        assert_eq!(month_bounds(day("2026-11-12")), (day("2026-11-01"), day("2026-12-01")));
-        assert_eq!(month_bounds(day("2026-12-31")), (day("2026-12-01"), day("2027-01-01")));
+        assert_eq!(
+            month_bounds(day("2026-11-12")),
+            (day("2026-11-01"), day("2026-12-01"))
+        );
+        assert_eq!(
+            month_bounds(day("2026-12-31")),
+            (day("2026-12-01"), day("2027-01-01"))
+        );
     }
 }

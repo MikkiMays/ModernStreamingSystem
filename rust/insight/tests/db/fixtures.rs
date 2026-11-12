@@ -59,6 +59,9 @@ enum Action {
     Fact(&'static str, Value),
 }
 
+/// Участник встречи: человек, его сессия, имя участника, с какого момента на связи и до какого.
+type Inside = (usize, String, String, DateTime<Utc>, DateTime<Utc>);
+
 struct Person {
     browser: Browser,
     /// С какой вероятностью (в процентах) человек приходит в любой следующий день.
@@ -88,8 +91,14 @@ fn newcomer(rng: &mut Rng, n: u32, day: i64) -> Person {
     let mut browser = match rng.below(100) {
         0..=59 => Browser::desktop(n),
         60..=89 => Browser::phone(n),
-        90..=94 => Browser { agent: SAFARI_MAC, ..Browser::desktop(n) },
-        _ => Browser { agent: SAFARI_IPHONE, ..Browser::phone(n) },
+        90..=94 => Browser {
+            agent: SAFARI_MAC,
+            ..Browser::desktop(n)
+        },
+        _ => Browser {
+            agent: SAFARI_IPHONE,
+            ..Browser::phone(n)
+        },
     };
     if browser.agent == CHROME_WINDOWS && rng.chance(12) {
         browser.agent = CORD_DESKTOP;
@@ -107,13 +116,31 @@ fn newcomer(rng: &mut Rng, n: u32, day: i64) -> Person {
         ("DE", "Europe/Berlin", 3320),
     ]);
     browser.tz = tz;
-    browser.network = network(country, if mobile { 31133 } else { asn }, if mobile { net::MOBILE } else { net::HOME }, &format!("net-{}", rng.below(140)));
+    browser.network = network(
+        country,
+        if mobile { 31133 } else { asn },
+        if mobile { net::MOBILE } else { net::HOME },
+        &format!("net-{}", rng.below(140)),
+    );
     // Каждый пятнадцатый ходит через VPN: адрес — в дата-центре за границей, пояс — свой.
     if rng.chance(7) {
         browser.network = network("NL", 14061, net::HOSTING, &format!("vpn-{}", rng.below(6)));
     }
-    browser.landing = rng.pick(&["invite", "invite", "invite", "invite", "home", "home", "home", "room", "tg", "download", "app"]);
-    browser.source = rng.pick(&["", "", "", "", "t.me", "t.me", "yandex.ru", "google.com", "vk.com"]);
+    browser.landing = rng.pick(&[
+        "invite", "invite", "invite", "invite", "home", "home", "home", "room", "tg", "download",
+        "app",
+    ]);
+    browser.source = rng.pick(&[
+        "",
+        "",
+        "",
+        "",
+        "t.me",
+        "t.me",
+        "yandex.ru",
+        "google.com",
+        "vk.com",
+    ]);
     if rng.chance(15) {
         browser.utm = rng.pick(&[
             json!({"source": "telegram", "medium": "post", "campaign": "launch-1-4"}),
@@ -124,7 +151,10 @@ fn newcomer(rng: &mut Rng, n: u32, day: i64) -> Person {
     }
     // Новая версия клиента выходит на сороковой день набора.
     browser.version = if day < 40 { "1.3.7" } else { "1.4.0" };
-    Person { browser, loyalty: rng.pick(&[1, 2, 2, 4, 4, 8, 15, 30, 55, 80]) }
+    Person {
+        browser,
+        loyalty: rng.pick(&[1, 2, 2, 4, 4, 8, 15, 30, 55, 80]),
+    }
 }
 
 fn ms(at: DateTime<Utc>) -> i64 {
@@ -147,7 +177,9 @@ async fn simulate(world: &mut World) {
         let mut callers: Vec<(DateTime<Utc>, usize, String)> = Vec::new();
 
         // ── Кто сегодня приходит: вернувшиеся и новые ────────────────────────────────────────────
-        let mut today: Vec<usize> = (0..people.len()).filter(|i| rng.chance(people[*i].loyalty)).collect();
+        let mut today: Vec<usize> = (0..people.len())
+            .filter(|i| rng.chance(people[*i].loyalty))
+            .collect();
         for _ in 0..rng.between(3, 8) {
             people.push(newcomer(&mut rng, people.len() as u32 + 1, d));
             today.push(people.len() - 1);
@@ -161,10 +193,14 @@ async fn simulate(world: &mut World) {
                 match rng.below(100) {
                     0..=3 => {
                         person.browser.cookie = None;
-                        person.browser.profile = Some(profile_secret(100_000 + rng.below(900_000) as u32));
+                        person.browser.profile =
+                            Some(profile_secret(100_000 + rng.below(900_000) as u32));
                     }
                     4..=7 => person.browser.cookie = None,
-                    8..=11 => person.browser.profile = Some(profile_secret(100_000 + rng.below(900_000) as u32)),
+                    8..=11 => {
+                        person.browser.profile =
+                            Some(profile_secret(100_000 + rng.below(900_000) as u32))
+                    }
                     _ => {}
                 }
                 person.browser.landing = rng.pick(&["home", "home", "invite", "room", "app"]);
@@ -180,14 +216,21 @@ async fn simulate(world: &mut World) {
             script.push((acted, Action::Engage(who, session.clone())));
             let mut events = vec![json!({"n": "screen", "at": ms(acted), "p": {"name": "home"}})];
             if rng.chance(4) {
-                let (code, scope, fatal) = rng.pick(&[("TypeError", "app", true), ("ChunkLoadError", "update", true), ("RangeError", "app", false)]);
+                let (code, scope, fatal) = rng.pick(&[
+                    ("TypeError", "app", true),
+                    ("ChunkLoadError", "update", true),
+                    ("RangeError", "app", false),
+                ]);
                 events.push(json!({"n": "error", "at": ms(acted) + 500, "p": {"code": code, "scope": scope, "screen": "home", "fatal": fatal, "detail": "Cannot read properties of undefined"}}));
             }
             if rng.chance(18) {
                 events.push(json!({"n": "screen", "at": ms(acted) + 2000, "p": {"name": "settings", "tab": rng.pick(&["devices", "background", "language"])}}));
             }
             if !rng.chance(62) {
-                script.push((acted + Duration::seconds(3), Action::Send(who, session, Value::Array(events))));
+                script.push((
+                    acted + Duration::seconds(3),
+                    Action::Send(who, session, Value::Array(events)),
+                ));
                 continue;
             }
             // Предвход: экран, разрешения.
@@ -196,13 +239,20 @@ async fn simulate(world: &mut World) {
             events.push(json!({"n": "prejoin", "at": ms(at_door), "p": {"from": rng.pick(&["create", "invite", "invite", "code", "recent", "favorite"])}}));
             let allowed = rng.chance(90);
             for device in ["mic", "cam"] {
-                let result = if allowed { "granted" } else { rng.pick(&["denied", "denied", "dismissed"]) };
+                let result = if allowed {
+                    "granted"
+                } else {
+                    rng.pick(&["denied", "denied", "dismissed"])
+                };
                 events.push(json!({"n": "permission", "at": ms(at_door) + 3000, "p": {"device": device, "result": result}}));
             }
             if !allowed {
                 events.push(json!({"n": "error", "at": ms(at_door) + 3100, "p": {"code": "NotAllowedError", "scope": "device", "screen": "prejoin", "fatal": false, "detail": "Permission denied"}}));
             }
-            script.push((at_door + Duration::seconds(4), Action::Send(who, session.clone(), Value::Array(events))));
+            script.push((
+                at_door + Duration::seconds(4),
+                Action::Send(who, session.clone(), Value::Array(events)),
+            ));
             if allowed {
                 callers.push((at_door + Duration::seconds(10), who, session));
             }
@@ -217,21 +267,38 @@ async fn simulate(world: &mut World) {
             rooms += 1;
             let room = format!("room-{rooms}");
             let node = rng.pick(&["fra", "fra", "hel", "msk"]);
-            let start = members.iter().map(|(ready, ..)| *ready).max().unwrap_or(morning) + Duration::seconds(5);
-            let minutes = if members.len() == 1 { rng.between(1, 4) } else { rng.between(2, 50) };
+            let start = members
+                .iter()
+                .map(|(ready, ..)| *ready)
+                .max()
+                .unwrap_or(morning)
+                + Duration::seconds(5);
+            let minutes = if members.len() == 1 {
+                rng.between(1, 4)
+            } else {
+                rng.between(2, 50)
+            };
             let end = start + Duration::minutes(minutes);
             let profile = |who: usize| people[who].browser.pseudonym(world).unwrap_or_default();
             script.push((start, Action::Fact("core", json!({"type": "meeting_open", "at": ms(start), "room": room, "node": node, "profile": profile(members[0].1)}))));
             // Кто вошёл и до какого момента оставался.
-            let mut inside: Vec<(usize, String, String, DateTime<Utc>, DateTime<Utc>)> = Vec::new();
+            let mut inside: Vec<Inside> = Vec::new();
             for (n, (_, who, session)) in members.iter().enumerate() {
                 let joined = start + Duration::seconds(3 * n as i64 + 1);
-                let how = if n == 0 { "create" } else { rng.pick(&["link", "link", "code", "saved"]) };
+                let how = if n == 0 {
+                    "create"
+                } else {
+                    rng.pick(&["link", "link", "code", "saved"])
+                };
                 if n > 0 && rng.chance(7) {
-                    let code = rng.pick(&["ROOM_FULL", "CODE_INVALID", "SERVER_BUSY", "RATE_LIMITED"]);
+                    let code =
+                        rng.pick(&["ROOM_FULL", "CODE_INVALID", "SERVER_BUSY", "RATE_LIMITED"]);
                     script.push((joined, Action::Fact("core", json!({"type": "join_fail", "at": ms(joined), "profile": profile(*who), "how": how, "code": code}))));
                     let seen = json!([{"n": "error", "at": ms(joined) + 200, "p": {"code": code, "scope": "join", "screen": "prejoin", "fatal": false, "detail": "HTTP 409"}}]);
-                    script.push((joined + Duration::seconds(1), Action::Send(*who, session.clone(), seen)));
+                    script.push((
+                        joined + Duration::seconds(1),
+                        Action::Send(*who, session.clone(), seen),
+                    ));
                     continue;
                 }
                 let member = format!("m{n}");
@@ -248,19 +315,40 @@ async fn simulate(world: &mut World) {
                     events.push(json!({"n": "invite", "at": ms(on_media) + 4000, "p": {"how": rng.pick(&["copy", "copy", "share", "qr"])}}));
                 }
                 for _ in 0..rng.below(3) {
-                    let feature = rng.pick(&["chat", "chat", "reaction", "screen_share", "background", "hand", "layout", "pin", "noise"]);
+                    let feature = rng.pick(&[
+                        "chat",
+                        "chat",
+                        "reaction",
+                        "screen_share",
+                        "background",
+                        "hand",
+                        "layout",
+                        "pin",
+                        "noise",
+                    ]);
                     events.push(json!({"n": "feature", "at": ms(on_media) + 9000, "p": {"name": feature, "count": rng.between(1, 4)}}));
                 }
-                script.push((on_media + Duration::seconds(10), Action::Send(*who, session.clone(), Value::Array(events))));
+                script.push((
+                    on_media + Duration::seconds(10),
+                    Action::Send(*who, session.clone(), Value::Array(events)),
+                ));
                 // Последний остаётся до конца, остальные уходят в последней трети встречи.
-                let left = if n == 0 { end } else { end - Duration::seconds(rng.between(0, minutes * 20)) };
+                let left = if n == 0 {
+                    end
+                } else {
+                    end - Duration::seconds(rng.between(0, minutes * 20))
+                };
                 inside.push((*who, session.clone(), member, on_media, left));
             }
             // Присутствие раз в минуту, сводка качества — раз в минуту на участника (в жизни — раз в 10 с).
             let relayed = rng.chance(15);
             let mut tick = start + Duration::seconds(60);
             while tick < end {
-                let present: Vec<Value> = inside.iter().filter(|m| m.3 <= tick && tick < m.4).map(|m| json!({"member": m.2, "profile": profile(m.0)})).collect();
+                let present: Vec<Value> = inside
+                    .iter()
+                    .filter(|m| m.3 <= tick && tick < m.4)
+                    .map(|m| json!({"member": m.2, "profile": profile(m.0)}))
+                    .collect();
                 if !present.is_empty() {
                     script.push((tick, Action::Fact("core", json!({"type": "presence", "at": ms(tick), "room": room, "node": node, "members": present}))));
                 }
@@ -283,18 +371,32 @@ async fn simulate(world: &mut World) {
             // Интеграция: у встреч не в одиночку.
             if inside.len() >= 2 && minutes >= 4 && rng.chance(40) {
                 let (kind, variant) = rng.pick(&[
-                    ("cinema", "youtube"), ("cinema", "youtube"), ("cinema", "rutube"), ("cinema", "vk"), ("cinema", "ivi"),
-                    ("music", "yandex"), ("music", "yandex"), ("game", "durak"), ("game", "chess"), ("game", "poker"), ("board", ""),
+                    ("cinema", "youtube"),
+                    ("cinema", "youtube"),
+                    ("cinema", "rutube"),
+                    ("cinema", "vk"),
+                    ("cinema", "ivi"),
+                    ("music", "yandex"),
+                    ("music", "yandex"),
+                    ("game", "durak"),
+                    ("game", "chess"),
+                    ("game", "poker"),
+                    ("board", ""),
                 ]);
                 let run = format!("run-{rooms}");
                 let opened = start + Duration::seconds(70);
-                let closed = (opened + Duration::minutes(rng.between(2, 30))).min(end - Duration::seconds(20));
+                let closed = (opened + Duration::minutes(rng.between(2, 30)))
+                    .min(end - Duration::seconds(20));
                 script.push((opened, Action::Fact("core", json!({"type": "integration_open", "at": ms(opened), "room": room, "run": run, "kind": kind, "variant": variant, "profile": profile(inside[0].0)}))));
                 let mut tick = opened + Duration::seconds(30);
                 let failed = rng.chance(8);
                 while tick <= closed {
                     if matches!(kind, "cinema" | "music") {
-                        let bytes = if kind == "cinema" { rng.between(1_500_000, 4_000_000) } else { rng.between(200_000, 500_000) };
+                        let bytes = if kind == "cinema" {
+                            rng.between(1_500_000, 4_000_000)
+                        } else {
+                            rng.between(200_000, 500_000)
+                        };
                         script.push((tick, Action::Fact("services", json!({"type": "usage", "at": ms(tick), "room": room, "kind": kind, "variant": variant, "bytes": bytes, "seconds": 30}))));
                     }
                     for member in inside.iter().filter(|m| m.3 <= tick && tick < m.4) {
@@ -305,21 +407,40 @@ async fn simulate(world: &mut World) {
                     tick += Duration::seconds(30);
                 }
                 if failed {
-                    let code = rng.pick(&["CINEMA_GEO", "CINEMA_TIMEOUT", "CINEMA_STREAM_FAILED", "MUSIC_UNREACHABLE"]);
+                    let code = rng.pick(&[
+                        "CINEMA_GEO",
+                        "CINEMA_TIMEOUT",
+                        "CINEMA_STREAM_FAILED",
+                        "MUSIC_UNREACHABLE",
+                    ]);
                     script.push((closed, Action::Fact("services", json!({"type": "integration_error", "at": ms(closed), "room": room, "run": run, "kind": kind, "variant": variant, "code": code}))));
                 }
-                let why = if failed { "error" } else { rng.pick(&["closed", "closed", "replaced", "ended"]) };
+                let why = if failed {
+                    "error"
+                } else {
+                    rng.pick(&["closed", "closed", "replaced", "ended"])
+                };
                 script.push((closed + Duration::seconds(1), Action::Fact("core", json!({"type": "integration_close", "at": ms(closed) + 1000, "room": room, "run": run, "reason": why}))));
             }
             for member in &inside {
                 let why = rng.pick(&["left", "left", "left", "left", "lost", "ended"]);
                 script.push((member.4, Action::Fact("core", json!({"type": "media_down", "at": ms(member.4), "room": room, "profile": profile(member.0), "member": member.2, "reason": why}))));
-                let reason = if why == "lost" { "network" } else { rng.pick(&["user", "user", "closed", "ended"]) };
+                let reason = if why == "lost" {
+                    "network"
+                } else {
+                    rng.pick(&["user", "user", "closed", "ended"])
+                };
                 let leave = json!([{"n": "leave", "at": ms(member.4), "p": {"reason": reason, "seconds": (member.4 - member.3).num_seconds()}}]);
-                script.push((member.4 + Duration::seconds(1), Action::Send(member.0, member.1.clone(), leave)));
+                script.push((
+                    member.4 + Duration::seconds(1),
+                    Action::Send(member.0, member.1.clone(), leave),
+                ));
                 if why == "lost" {
                     let broken = json!([{"n": "error", "at": ms(member.4), "p": {"code": "ICE_FAILED", "scope": "media", "screen": "meeting", "fatal": false, "detail": "iceConnectionState failed"}}]);
-                    script.push((member.4 + Duration::seconds(2), Action::Send(member.0, member.1.clone(), broken)));
+                    script.push((
+                        member.4 + Duration::seconds(2),
+                        Action::Send(member.0, member.1.clone(), broken),
+                    ));
                 }
             }
             let closed = end + Duration::seconds(5);
@@ -327,33 +448,92 @@ async fn simulate(world: &mut World) {
         }
 
         // ── Роботы, автоматика, свои проверки, молчаливые заходы ─────────────────────────────────
-        let mut stranger = |rng: &mut Rng, browser: Browser, people: &mut Vec<Person>, script: &mut Vec<(DateTime<Utc>, Action)>| {
+        let mut stranger = |rng: &mut Rng,
+                            browser: Browser,
+                            people: &mut Vec<Person>,
+                            script: &mut Vec<(DateTime<Utc>, Action)>| {
             crowd += 1;
-            people.push(Person { browser, loyalty: 0 });
+            people.push(Person {
+                browser,
+                loyalty: 0,
+            });
             let at = morning - Duration::hours(8) + Duration::seconds(rng.between(0, 86_000));
-            script.push((at, Action::Open(people.len() - 1, sid(&format!("x{crowd}")))));
+            script.push((
+                at,
+                Action::Open(people.len() - 1, sid(&format!("x{crowd}"))),
+            ));
         };
         for _ in 0..rng.between(10, 24) {
-            let robot = Browser { agent: rng.pick(ROBOTS), client: None, profile: None, network: network(rng.pick(&["US", "US", "DE", "RU", "FI"]), 16509, net::HOSTING, "robots"), ..Browser::desktop(0) };
+            let robot = Browser {
+                agent: rng.pick(ROBOTS),
+                client: None,
+                profile: None,
+                network: network(
+                    rng.pick(&["US", "US", "DE", "RU", "FI"]),
+                    16509,
+                    net::HOSTING,
+                    "robots",
+                ),
+                ..Browser::desktop(0)
+            };
             stranger(&mut rng, robot, &mut people, &mut script);
         }
         for _ in 0..rng.between(2, 6) {
-            let driven = if rng.chance(50) { Browser { agent: HEADLESS, ..Browser::desktop(0) } } else { Browser { webdriver: true, ..Browser::desktop(0) } };
-            stranger(&mut rng, Browser { profile: None, network: network("DE", 24940, net::HOSTING, "ci"), ..driven }, &mut people, &mut script);
+            let driven = if rng.chance(50) {
+                Browser {
+                    agent: HEADLESS,
+                    ..Browser::desktop(0)
+                }
+            } else {
+                Browser {
+                    webdriver: true,
+                    ..Browser::desktop(0)
+                }
+            };
+            stranger(
+                &mut rng,
+                Browser {
+                    profile: None,
+                    network: network("DE", 24940, net::HOSTING, "ci"),
+                    ..driven
+                },
+                &mut people,
+                &mut script,
+            );
         }
         for _ in 0..12 {
-            stranger(&mut rng, Browser { probe: true, profile: None, network: network("RU", 8359, net::HOME, "office"), ..Browser::desktop(0) }, &mut people, &mut script);
+            stranger(
+                &mut rng,
+                Browser {
+                    probe: true,
+                    profile: None,
+                    network: network("RU", 8359, net::HOME, "office"),
+                    ..Browser::desktop(0)
+                },
+                &mut people,
+                &mut script,
+            );
         }
         for n in 0..rng.between(5, 14) {
             let number = 900_000 + d as u32 * 100 + n as u32;
-            let silent = if rng.chance(50) { Browser::desktop(number) } else { Browser::phone(number) };
+            let silent = if rng.chance(50) {
+                Browser::desktop(number)
+            } else {
+                Browser::phone(number)
+            };
             stranger(&mut rng, silent, &mut people, &mut script);
         }
         let night = morning + Duration::hours(15);
         for (code, most) in [("RATE_LIMITED", 6), ("PROOF_INVALID", 3), ("BLOCKED", 2)] {
             let count = rng.between(0, most);
             if count > 0 {
-                script.push((night, Action::Fact("core", json!({"type": "refusal", "at": ms(night), "code": code, "count": count}))));
+                script.push((
+                    night,
+                    Action::Fact(
+                        "core",
+                        json!({"type": "refusal", "at": ms(night), "code": code, "count": count}),
+                    ),
+                ));
             }
         }
 
@@ -364,14 +544,21 @@ async fn simulate(world: &mut World) {
         let mut last = morning;
         for (at, action) in script {
             last = last.max(at);
-            let pending = matches!(&action, Action::Fact(from, _) if *from == source) && facts.len() < 400;
+            let pending =
+                matches!(&action, Action::Fact(from, _) if *from == source) && facts.len() < 400;
             if !pending && !facts.is_empty() {
-                world.facts_from(source, last, Value::Array(std::mem::take(&mut facts))).await;
+                world
+                    .facts_from(source, last, Value::Array(std::mem::take(&mut facts)))
+                    .await;
             }
             match action {
                 Action::Open(who, session) => people[who].browser.open(world, &session, at).await,
-                Action::Engage(who, session) => people[who].browser.engage(world, &session, at).await,
-                Action::Send(who, session, events) => people[who].browser.send(world, &session, at, events).await,
+                Action::Engage(who, session) => {
+                    people[who].browser.engage(world, &session, at).await
+                }
+                Action::Send(who, session, events) => {
+                    people[who].browser.send(world, &session, at, events).await
+                }
                 Action::Fact(from, fact) => {
                     source = from;
                     facts.push(fact);
@@ -403,8 +590,12 @@ fn settle(name: &str, report: &Value) {
         std::fs::write(&path, text).unwrap();
         return;
     }
-    let saved = std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("нет образца {}: INSIGHT_WRITE_FIXTURES=1", path.display()));
-    assert!(saved == text, "образец {name}.json разошёлся с ответом службы: INSIGHT_WRITE_FIXTURES=1 и посмотреть diff");
+    let saved = std::fs::read_to_string(&path)
+        .unwrap_or_else(|_| panic!("нет образца {}: INSIGHT_WRITE_FIXTURES=1", path.display()));
+    assert!(
+        saved == text,
+        "образец {name}.json разошёлся с ответом службы: INSIGHT_WRITE_FIXTURES=1 и посмотреть diff"
+    );
 }
 
 #[tokio::test]
@@ -414,39 +605,129 @@ async fn fixtures_are_the_reports_of_a_seeded_synthetic_dataset() {
     let reports = Reports::new(world.pool.clone(), ZONE);
     let now = at("2026-11-11 09:00:00");
     let last: NaiveDate = day(LAST_DAY);
-    let two_weeks = Query { from: last - chrono::Days::new(13), to: last, cohort: false, strict: false, compare: false };
-    let report = async |section: &str, key: Option<&str>, query: &Query| reports.report(section, key, query, now).await.unwrap();
+    let two_weeks = Query {
+        from: last - chrono::Days::new(13),
+        to: last,
+        cohort: false,
+        strict: false,
+        compare: false,
+    };
+    let report = async |section: &str, key: Option<&str>, query: &Query| {
+        reports.report(section, key, query, now).await.unwrap()
+    };
 
     // Набор похож на жизнь: людей — сотни, роботов и своих проверок — больше, чем людей в день.
     let people = world.number("SELECT count(*) FROM an_persons").await;
     assert!((250..600).contains(&people), "людей в наборе: {people}");
-    assert!(world.number("SELECT count(*) FROM an_persons WHERE merged_into IS NOT NULL").await > 0, "есть узнанные по отпечатку");
-    assert!(world.number("SELECT count(*) FROM an_sessions WHERE via = 'profile'").await > 0, "есть узнанные по профилю");
-    assert!(world.number("SELECT count(*) FROM an_meetings WHERE closed_at IS NULL").await == 0, "все встречи закрыты");
-    assert!(world.number("SELECT count(*) FROM an_integration_runs").await > 20);
+    assert!(
+        world
+            .number("SELECT count(*) FROM an_persons WHERE merged_into IS NOT NULL")
+            .await
+            > 0,
+        "есть узнанные по отпечатку"
+    );
+    assert!(
+        world
+            .number("SELECT count(*) FROM an_sessions WHERE via = 'profile'")
+            .await
+            > 0,
+        "есть узнанные по профилю"
+    );
+    assert!(
+        world
+            .number("SELECT count(*) FROM an_meetings WHERE closed_at IS NULL")
+            .await
+            == 0,
+        "все встречи закрыты"
+    );
+    assert!(
+        world
+            .number("SELECT count(*) FROM an_integration_runs")
+            .await
+            > 20
+    );
 
-    for section in ["pulse", "audience", "acquisition", "activation", "engagement", "integrations", "quality", "errors"] {
+    for section in [
+        "pulse",
+        "audience",
+        "acquisition",
+        "activation",
+        "engagement",
+        "integrations",
+        "quality",
+        "errors",
+    ] {
         settle(section, &report(section, None, &two_weeks).await);
     }
     // Удержание — видом «Когорты»: три недели пришедших и их жизнь до сегодня.
-    let cohorts = Query { from: day("2026-10-01"), to: day("2026-10-21"), cohort: true, ..two_weeks.clone() };
+    let cohorts = Query {
+        from: day("2026-10-01"),
+        to: day("2026-10-21"),
+        cohort: true,
+        ..two_weeks.clone()
+    };
     settle("retention", &report("retention", None, &cohorts).await);
     // Трафик — с прошлым периодом (`compare=1`): так выглядит оболочка со сравнением.
-    settle("traffic", &report("traffic", None, &Query { compare: true, ..two_weeks.clone() }).await);
+    settle(
+        "traffic",
+        &report(
+            "traffic",
+            None,
+            &Query {
+                compare: true,
+                ..two_weeks.clone()
+            },
+        )
+        .await,
+    );
     // Одна группа ошибок — самая частая из увиденных клиентом.
     let errors = report("errors", None, &two_weeks).await;
-    let top = errors["data"]["groups"].as_array().unwrap().iter().find(|g| g["source"] == "client").expect("в наборе есть ошибки клиента");
-    settle("errors-detail", &report("errors", top["key"].as_str(), &two_weeks).await);
+    let top = errors["data"]["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["source"] == "client")
+        .expect("в наборе есть ошибки клиента");
+    settle(
+        "errors-detail",
+        &report("errors", top["key"].as_str(), &two_weeks).await,
+    );
 
     // Здравый смысл образцов: счёт сходится между разделами.
     let pulse = report("pulse", None, &two_weeks).await;
     let audience = report("audience", None, &two_weeks).await;
     let traffic = report("traffic", None, &two_weeks).await;
-    assert_eq!(pulse["data"]["tiles"]["people"]["value"], audience["data"]["totals"]["people"]);
-    assert_eq!(audience["data"]["totals"]["sessions"], traffic["data"]["totals"]["human"], "сессии людей — это заходы класса «люди»");
+    assert_eq!(
+        pulse["data"]["tiles"]["people"]["value"],
+        audience["data"]["totals"]["people"]
+    );
+    assert_eq!(
+        audience["data"]["totals"]["sessions"], traffic["data"]["totals"]["human"],
+        "сессии людей — это заходы класса «люди»"
+    );
     let tiles = &pulse["data"]["tiles"];
-    assert_eq!(tiles["people"]["value"].as_i64().unwrap(), tiles["new_people"]["value"].as_i64().unwrap() + tiles["returning"]["value"].as_i64().unwrap());
-    assert_eq!(tiles["people"]["value"].as_i64().unwrap(), tiles["confirmed"]["value"].as_i64().unwrap() + tiles["engaged_only"]["value"].as_i64().unwrap());
-    let strict = report("pulse", None, &Query { strict: true, ..two_weeks.clone() }).await;
-    assert!(strict["data"]["tiles"]["new_people"]["value"].as_i64() > tiles["new_people"]["value"].as_i64(), "строгий счёт видит узнанных по отпечатку новыми");
+    assert_eq!(
+        tiles["people"]["value"].as_i64().unwrap(),
+        tiles["new_people"]["value"].as_i64().unwrap()
+            + tiles["returning"]["value"].as_i64().unwrap()
+    );
+    assert_eq!(
+        tiles["people"]["value"].as_i64().unwrap(),
+        tiles["confirmed"]["value"].as_i64().unwrap()
+            + tiles["engaged_only"]["value"].as_i64().unwrap()
+    );
+    let strict = report(
+        "pulse",
+        None,
+        &Query {
+            strict: true,
+            ..two_weeks.clone()
+        },
+    )
+    .await;
+    assert!(
+        strict["data"]["tiles"]["new_people"]["value"].as_i64()
+            > tiles["new_people"]["value"].as_i64(),
+        "строгий счёт видит узнанных по отпечатку новыми"
+    );
 }

@@ -24,7 +24,12 @@ pub struct Removed {
 }
 
 /// Убрать всё, что старше своих сроков. `today` — день по поясу аналитики.
-pub async fn sweep(pool: &PgPool, terms: Retention, today: NaiveDate, now: DateTime<Utc>) -> Result<Removed, sqlx::Error> {
+pub async fn sweep(
+    pool: &PgPool,
+    terms: Retention,
+    today: NaiveDate,
+    now: DateTime<Utc>,
+) -> Result<Removed, sqlx::Error> {
     let mut removed = Removed::default();
     let events_from = today - Days::new(terms.events);
     let rollups_from = today - Days::new(terms.rollups);
@@ -39,10 +44,14 @@ pub async fn sweep(pool: &PgPool, terms: Retention, today: NaiveDate, now: DateT
     .fetch_all(pool)
     .await?;
     for name in partitions {
-        let Some(month) = partition_month(&name) else { continue };
+        let Some(month) = partition_month(&name) else {
+            continue;
+        };
         if month_bounds(month).1 <= events_from {
             // Имя раздела прошло разбор: `an_events_y` + год + `m` + месяц, ничего больше.
-            sqlx::query(AssertSqlSafe(format!("DROP TABLE {name}"))).execute(pool).await?;
+            sqlx::query(AssertSqlSafe(format!("DROP TABLE {name}")))
+                .execute(pool)
+                .await?;
             removed.partitions += 1;
         }
     }
@@ -74,16 +83,30 @@ pub async fn sweep(pool: &PgPool, terms: Retention, today: NaiveDate, now: DateT
     .bind(people_from)
     .execute(&mut *tx)
     .await?;
-    removed.people = sqlx::query("DELETE FROM an_persons WHERE last_day < $1").bind(people_from).execute(&mut *tx).await?.rows_affected();
+    removed.people = sqlx::query("DELETE FROM an_persons WHERE last_day < $1")
+        .bind(people_from)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
     tx.commit().await?;
 
-    sqlx::query("DELETE FROM an_fact_ids WHERE at < $1").bind(now - Days::new(FACT_IDS_DAYS)).execute(pool).await?;
-    sqlx::query("DELETE FROM an_proofs WHERE expires_at < $1").bind(now).execute(pool).await?;
+    sqlx::query("DELETE FROM an_fact_ids WHERE at < $1")
+        .bind(now - Days::new(FACT_IDS_DAYS))
+        .execute(pool)
+        .await?;
+    sqlx::query("DELETE FROM an_proofs WHERE expires_at < $1")
+        .bind(now)
+        .execute(pool)
+        .await?;
     Ok(removed)
 }
 
 async fn delete(pool: &PgPool, sql: &'static str, before: NaiveDate) -> Result<u64, sqlx::Error> {
-    Ok(sqlx::query(sql).bind(before).execute(pool).await?.rows_affected())
+    Ok(sqlx::query(sql)
+        .bind(before)
+        .execute(pool)
+        .await?
+        .rows_affected())
 }
 
 /// Месяц раздела по его имени: `an_events_y2026m11` → 1 ноября 2026.
@@ -101,9 +124,23 @@ mod tests {
 
     #[test]
     fn a_partition_name_names_its_month_and_nothing_else_is_a_partition() {
-        assert_eq!(partition_month("an_events_y2026m11"), NaiveDate::from_ymd_opt(2026, 11, 1));
-        assert_eq!(partition_month(&crate::db::partition_name(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap())), NaiveDate::from_ymd_opt(2027, 1, 1));
-        for odd in ["an_events", "an_events_y2026m13", "an_events_y26m1", "an_events_y2026m11; DROP TABLE an_persons", "other_y2026m11"] {
+        assert_eq!(
+            partition_month("an_events_y2026m11"),
+            NaiveDate::from_ymd_opt(2026, 11, 1)
+        );
+        assert_eq!(
+            partition_month(&crate::db::partition_name(
+                NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()
+            )),
+            NaiveDate::from_ymd_opt(2027, 1, 1)
+        );
+        for odd in [
+            "an_events",
+            "an_events_y2026m13",
+            "an_events_y26m1",
+            "an_events_y2026m11; DROP TABLE an_persons",
+            "other_y2026m11",
+        ] {
             assert_eq!(partition_month(odd), None, "{odd}");
         }
     }

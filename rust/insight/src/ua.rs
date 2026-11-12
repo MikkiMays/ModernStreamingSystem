@@ -26,11 +26,27 @@ use RobotKind::{Automation, Crawler};
 /// поэтому точные имена стоят выше общих слов. Новый робот — новая строка в своём разделе.
 const ROBOTS: &[(&str, RobotKind, &str)] = &[
     // ── Поисковые ────────────────────────────────────────────────────────────────────────────────
-    ("google", Crawler, r"googlebot|google-inspectiontool|googleother|storebot-google|adsbot-google|mediapartners-google|apis-google|feedfetcher-google|google-read-aloud|google-site-verification|google-pagerenderer|googleweblight"),
+    (
+        "google",
+        Crawler,
+        r"googlebot|google-inspectiontool|googleother|storebot-google|adsbot-google|mediapartners-google|apis-google|feedfetcher-google|google-read-aloud|google-site-verification|google-pagerenderer|googleweblight",
+    ),
     // «YaBrowser» и «YandexSearch» — браузеры людей, поэтому роботы Яндекса названы поимённо.
-    ("yandex", Crawler, r"yandex\w*bot|yandex(?:images|video|media|blogs|news|market|metrika|webmaster|favicons|pagechecker|direct|turbo|imageresizer)|yadirectfetcher"),
-    ("bing", Crawler, r"bingbot|bingpreview|msnbot|adidxbot|microsoftpreview"),
-    ("duckduckgo", Crawler, r"duckduckbot|duckduckgo-favicons-bot"),
+    (
+        "yandex",
+        Crawler,
+        r"yandex\w*bot|yandex(?:images|video|media|blogs|news|market|metrika|webmaster|favicons|pagechecker|direct|turbo|imageresizer)|yadirectfetcher",
+    ),
+    (
+        "bing",
+        Crawler,
+        r"bingbot|bingpreview|msnbot|adidxbot|microsoftpreview",
+    ),
+    (
+        "duckduckgo",
+        Crawler,
+        r"duckduckbot|duckduckgo-favicons-bot",
+    ),
     ("baidu", Crawler, r"baiduspider"),
     ("mailru", Crawler, r"mail\.ru_bot"),
     ("apple", Crawler, r"applebot"),
@@ -39,61 +55,140 @@ const ROBOTS: &[(&str, RobotKind, &str)] = &[
     ("seznam", Crawler, r"seznambot"),
     ("naver", Crawler, r"\byeti/|naverbot"),
     ("sogou", Crawler, r"sogou[a-z ]*spider"),
-    ("search-other", Crawler, r"qwantbot|qwantify|mojeekbot|coccocbot|360spider|exabot|statonlinerubot|amazonbot"),
+    (
+        "search-other",
+        Crawler,
+        r"qwantbot|qwantify|mojeekbot|coccocbot|360spider|exabot|statonlinerubot|amazonbot",
+    ),
     // ── ИИ-сборщики ──────────────────────────────────────────────────────────────────────────────
     ("openai", Crawler, r"gptbot|chatgpt-user|oai-searchbot"),
-    ("anthropic", Crawler, r"claudebot|claude-web|claude-user|claude-searchbot|anthropic-ai"),
+    (
+        "anthropic",
+        Crawler,
+        r"claudebot|claude-web|claude-user|claude-searchbot|anthropic-ai",
+    ),
     ("perplexity", Crawler, r"perplexitybot|perplexity-user"),
     ("bytedance", Crawler, r"bytespider|tiktokspider"),
     ("commoncrawl", Crawler, r"ccbot"),
-    ("meta-ai", Crawler, r"meta-externalagent|meta-externalfetcher"),
-    ("ai-other", Crawler, r"google-extended|cohere-ai|cohere-training-data-crawler|diffbot|imagesiftbot|omgili|youbot|timpibot|ai2bot|duckassistbot|mistralai-user|pangubot|webzio-extended|friendlycrawler|iaskspider|brightbot|kangaroo bot"),
+    (
+        "meta-ai",
+        Crawler,
+        r"meta-externalagent|meta-externalfetcher",
+    ),
+    (
+        "ai-other",
+        Crawler,
+        r"google-extended|cohere-ai|cohere-training-data-crawler|diffbot|imagesiftbot|omgili|youbot|timpibot|ai2bot|duckassistbot|mistralai-user|pangubot|webzio-extended|friendlycrawler|iaskspider|brightbot|kangaroo bot",
+    ),
     // ── Предпросмотр ссылок ──────────────────────────────────────────────────────────────────────
     ("telegram", Crawler, r"telegrambot"),
     ("whatsapp", Crawler, r"^whatsapp/"),
-    ("facebook", Crawler, r"facebookexternalhit|facebot|facebookcatalog"),
+    (
+        "facebook",
+        Crawler,
+        r"facebookexternalhit|facebot|facebookcatalog",
+    ),
     ("vk", Crawler, r"vkshare|vkrobot"),
     ("twitter", Crawler, r"twitterbot"),
     ("discord", Crawler, r"discordbot"),
     ("slack", Crawler, r"slackbot|slack-imgproxy"),
     ("linkedin", Crawler, r"linkedinbot"),
-    ("preview-other", Crawler, r"skypeuripreview|pinterestbot|redditbot|embedly|iframely|odklbot|bitlybot|mastodon/|ms-office|microsoft office"),
+    (
+        "preview-other",
+        Crawler,
+        r"skypeuripreview|pinterestbot|redditbot|embedly|iframely|odklbot|bitlybot|mastodon/|ms-office|microsoft office",
+    ),
     // ── Сканеры SEO, архивы и сканеры безопасности ───────────────────────────────────────────────
     ("ahrefs", Crawler, r"ahrefsbot|ahrefssiteaudit"),
-    ("semrush", Crawler, r"semrushbot|siteauditbot|splitsignalbot"),
+    (
+        "semrush",
+        Crawler,
+        r"semrushbot|siteauditbot|splitsignalbot",
+    ),
     ("majestic", Crawler, r"mj12bot"),
     ("moz", Crawler, r"dotbot|rogerbot"),
-    ("seo-other", Crawler, r"blexbot|serpstatbot|seokicks|dataforseobot|screaming frog|seobilitybot|linkdexbot|megaindex|zoominfobot|barkrowler|backlinksextendedbot|serankingbacklinksbot|sitecheckerbotcrawler|xovibot|sistrix"),
+    (
+        "seo-other",
+        Crawler,
+        r"blexbot|serpstatbot|seokicks|dataforseobot|screaming frog|seobilitybot|linkdexbot|megaindex|zoominfobot|barkrowler|backlinksextendedbot|serankingbacklinksbot|sitecheckerbotcrawler|xovibot|sistrix",
+    ),
     ("archive", Crawler, r"ia_archiver|archive\.org_bot|wayback"),
-    ("scanner", Crawler, r"censys|expanse|zgrab|masscan|nmap|internetmeasurement|shodan|nuclei|l9explore|l9tcpid|netcraftsurveyagent|bitsightbot|securityscorecard|palo alto networks|project_patchwatch|nessus|qualys|acunetix|nikto|sqlmap|wpscan|dirbuster|gobuster"),
+    (
+        "scanner",
+        Crawler,
+        r"censys|expanse|zgrab|masscan|nmap|internetmeasurement|shodan|nuclei|l9explore|l9tcpid|netcraftsurveyagent|bitsightbot|securityscorecard|palo alto networks|project_patchwatch|nessus|qualys|acunetix|nikto|sqlmap|wpscan|dirbuster|gobuster",
+    ),
     // ── Мониторы доступности ─────────────────────────────────────────────────────────────────────
-    ("monitor", Crawler, r"uptimerobot|pingdom|statuscake|site24x7|uptime-kuma|betterstack|better uptime|datadog|newrelicpinger|newrelicsynthetics|zabbix|nagios|check_http|gatus|blackbox exporter|prometheus|hetrixtools|updown\.io|monitis|freshping|checkly|catchpoint|kube-probe|elb-healthchecker|route53-health-check|googlestackdrivermonitoring|googlehc|cloudflare-healthchecks|cloudflare-traffic-manager|alwayson|hosttracker|ping-admin"),
+    (
+        "monitor",
+        Crawler,
+        r"uptimerobot|pingdom|statuscake|site24x7|uptime-kuma|betterstack|better uptime|datadog|newrelicpinger|newrelicsynthetics|zabbix|nagios|check_http|gatus|blackbox exporter|prometheus|hetrixtools|updown\.io|monitis|freshping|checkly|catchpoint|kube-probe|elb-healthchecker|route53-health-check|googlestackdrivermonitoring|googlehc|cloudflare-healthchecks|cloudflare-traffic-manager|alwayson|hosttracker|ping-admin",
+    ),
     // ── Браузеры под управлением ─────────────────────────────────────────────────────────────────
-    ("headless", Automation, r"headlesschrome|phantomjs|puppeteer|playwright|selenium|cypress|slimerjs|htmlunit|jsdom|prerender|rendertron|browsershot|nightmare|casperjs|zombie\.js|\bsplash\b"),
-    ("audit", Automation, r"chrome-lighthouse|pagespeed|google page speed|gtmetrix|\bptst\b|webpagetest"),
+    (
+        "headless",
+        Automation,
+        r"headlesschrome|phantomjs|puppeteer|playwright|selenium|cypress|slimerjs|htmlunit|jsdom|prerender|rendertron|browsershot|nightmare|casperjs|zombie\.js|\bsplash\b",
+    ),
+    (
+        "audit",
+        Automation,
+        r"chrome-lighthouse|pagespeed|google page speed|gtmetrix|\bptst\b|webpagetest",
+    ),
     // ── Библиотеки HTTP ──────────────────────────────────────────────────────────────────────────
     ("curl", Crawler, r"^curl/|libcurl"),
     ("wget", Crawler, r"^wget/"),
-    ("python", Crawler, r"python-requests|python-urllib|python-httpx|aiohttp|^python/|scrapy|httpx/"),
-    ("go", Crawler, r"go-http-client|^go http package|fasthttp|colly"),
-    ("java", Crawler, r"^java/|apache-httpclient|apache-httpasyncclient|jakarta commons-httpclient"),
-    ("node", Crawler, r"node-fetch|undici|axios/|^got |^node\b|^deno/|^bun/"),
-    ("http-other", Crawler, r"libwww-perl|guzzlehttp|^php/|symfony|^ruby|faraday|rest-client|httpie|postmanruntime|insomnia|reqwest|^hyper/|^dart/|^k6/|typhoeus|lua-resty-http|winhttp"),
+    (
+        "python",
+        Crawler,
+        r"python-requests|python-urllib|python-httpx|aiohttp|^python/|scrapy|httpx/",
+    ),
+    (
+        "go",
+        Crawler,
+        r"go-http-client|^go http package|fasthttp|colly",
+    ),
+    (
+        "java",
+        Crawler,
+        r"^java/|apache-httpclient|apache-httpasyncclient|jakarta commons-httpclient",
+    ),
+    (
+        "node",
+        Crawler,
+        r"node-fetch|undici|axios/|^got |^node\b|^deno/|^bun/",
+    ),
+    (
+        "http-other",
+        Crawler,
+        r"libwww-perl|guzzlehttp|^php/|symfony|^ruby|faraday|rest-client|httpie|postmanruntime|insomnia|reqwest|^hyper/|^dart/|^k6/|typhoeus|lua-resty-http|winhttp",
+    ),
     // ── Всё, что само называет себя роботом ──────────────────────────────────────────────────────
     // Адрес в агенте (`+http://…`) браузеры не пишут; «bot» — отдельным словом или перед номером версии
     // (телефоны CUBOT под правило не попадают).
-    ("other", Crawler, r"\+https?://|(?:^|[^a-z])bot(?:[^a-z]|$)|[a-z]bot/|crawler|spider|scraper"),
+    (
+        "other",
+        Crawler,
+        r"\+https?://|(?:^|[^a-z])bot(?:[^a-z]|$)|[a-z]bot/|crawler|spider|scraper",
+    ),
 ];
 
 static ROBOT_SET: LazyLock<RegexSet> = LazyLock::new(|| {
-    RegexSet::new(ROBOTS.iter().map(|(_, _, pattern)| format!("(?i){pattern}")))
-        .expect("выражения списка роботов должны разбираться")
+    RegexSet::new(
+        ROBOTS
+            .iter()
+            .map(|(_, _, pattern)| format!("(?i){pattern}")),
+    )
+    .expect("выражения списка роботов должны разбираться")
 });
 
 /// Робот ли это по `User-Agent`. Пустой агент — тоже робот: браузер без него не ходит.
 pub fn robot(agent: &str) -> Option<Robot> {
     if agent.trim().is_empty() {
-        return Some(Robot { name: "no-agent", kind: Crawler });
+        return Some(Robot {
+            name: "no-agent",
+            kind: Crawler,
+        });
     }
     let first = ROBOT_SET.matches(agent).iter().next()?;
     let (name, kind, _) = ROBOTS[first];
@@ -133,9 +228,22 @@ pub fn agent(agent: &str, touch: Option<u32>) -> Agent {
         "other"
     };
     let lower = agent.to_ascii_lowercase();
-    let tv = ["smart-tv", "smarttv", "tizen", "web0s", "netcast", "appletv", "googletv", "android tv", "bravia", "hbbtv", "crkey", "roku"]
-        .iter()
-        .any(|word| lower.contains(word));
+    let tv = [
+        "smart-tv",
+        "smarttv",
+        "tizen",
+        "web0s",
+        "netcast",
+        "appletv",
+        "googletv",
+        "android tv",
+        "bravia",
+        "hbbtv",
+        "crkey",
+        "roku",
+    ]
+    .iter()
+    .any(|word| lower.contains(word));
     let device = if tv {
         "tv"
     } else if has("iPad") || ipad_as_mac || (has("Android") && !has("Mobile")) || has("Tablet") {
@@ -169,7 +277,12 @@ pub fn agent(agent: &str, touch: Option<u32>) -> Agent {
     } else {
         "other"
     };
-    Agent { os, browser, device, electron }
+    Agent {
+        os,
+        browser,
+        device,
+        electron,
+    }
 }
 
 /// Вид клиента: слово из тела или заголовка `X-Cord-Client`; без него — догадка по агенту, как у ядра.
@@ -234,30 +347,78 @@ mod tests {
     #[test]
     fn robots_are_named_by_family() {
         for (agent, expected) in [
-            ("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "google"),
+            (
+                "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+                "google",
+            ),
             // Мобильный робот Google называет себя Android — на этом и погорела первая аналитика.
-            ("Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "google"),
-            ("Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)", "yandex"),
-            ("Mozilla/5.0 (compatible; YandexRenderResourcesBot/1.0; +http://yandex.com/bots)", "yandex"),
-            ("Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)", "bing"),
-            ("Mozilla/5.0 (compatible; Mail.RU_Bot/2.0; +http://go.mail.ru/help/robots)", "mailru"),
+            (
+                "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+                "google",
+            ),
+            (
+                "Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)",
+                "yandex",
+            ),
+            (
+                "Mozilla/5.0 (compatible; YandexRenderResourcesBot/1.0; +http://yandex.com/bots)",
+                "yandex",
+            ),
+            (
+                "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+                "bing",
+            ),
+            (
+                "Mozilla/5.0 (compatible; Mail.RU_Bot/2.0; +http://go.mail.ru/help/robots)",
+                "mailru",
+            ),
             ("TelegramBot (like TwitterBot)", "telegram"),
             ("WhatsApp/2.23.20.0 A", "whatsapp"),
-            ("facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)", "facebook"),
-            ("Mozilla/5.0 (compatible; vkShare; +http://vk.com/dev/Share)", "vk"),
-            ("Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)", "ahrefs"),
-            ("Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)", "semrush"),
-            ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)", "openai"),
-            ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)", "anthropic"),
-            ("Mozilla/5.0 (Linux; Android 5.0) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36 (compatible; Bytespider; spider-feedback@bytedance.com)", "bytedance"),
+            (
+                "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+                "facebook",
+            ),
+            (
+                "Mozilla/5.0 (compatible; vkShare; +http://vk.com/dev/Share)",
+                "vk",
+            ),
+            (
+                "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)",
+                "ahrefs",
+            ),
+            (
+                "Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)",
+                "semrush",
+            ),
+            (
+                "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+                "openai",
+            ),
+            (
+                "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+                "anthropic",
+            ),
+            (
+                "Mozilla/5.0 (Linux; Android 5.0) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36 (compatible; Bytespider; spider-feedback@bytedance.com)",
+                "bytedance",
+            ),
             ("curl/8.5.0", "curl"),
             ("python-requests/2.32.3", "python"),
             ("Go-http-client/2.0", "go"),
             ("axios/1.7.7", "node"),
-            ("Mozilla/5.0 (compatible; UptimeRobot/2.0; http://www.uptimerobot.com/)", "monitor"),
+            (
+                "Mozilla/5.0 (compatible; UptimeRobot/2.0; http://www.uptimerobot.com/)",
+                "monitor",
+            ),
             ("Gatus/1.0", "monitor"),
-            ("Mozilla/5.0 (compatible; CensysInspect/1.1; +https://about.censys.io/)", "scanner"),
-            ("Mozilla/5.0 (compatible; SomeNewBot/0.1; +https://example.test/about)", "other"),
+            (
+                "Mozilla/5.0 (compatible; CensysInspect/1.1; +https://about.censys.io/)",
+                "scanner",
+            ),
+            (
+                "Mozilla/5.0 (compatible; SomeNewBot/0.1; +https://example.test/about)",
+                "other",
+            ),
             ("MyCrawler", "other"),
             ("", "no-agent"),
         ] {
@@ -268,9 +429,21 @@ mod tests {
     #[test]
     fn a_driven_browser_is_automation_not_a_crawler() {
         let headless = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/130.0.0.0 Safari/537.36";
-        assert_eq!(robot(headless), Some(Robot { name: "headless", kind: Automation }));
+        assert_eq!(
+            robot(headless),
+            Some(Robot {
+                name: "headless",
+                kind: Automation
+            })
+        );
         let lighthouse = "Mozilla/5.0 (Linux; Android 11; moto g power) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse";
-        assert_eq!(robot(lighthouse), Some(Robot { name: "audit", kind: Automation }));
+        assert_eq!(
+            robot(lighthouse),
+            Some(Robot {
+                name: "audit",
+                kind: Automation
+            })
+        );
         assert_eq!(robot("curl/8.5.0").map(|r| r.kind), Some(Crawler));
     }
 
@@ -284,19 +457,55 @@ mod tests {
             (SAFARI_MAC, Some(5), ("ios", "safari", "tablet")),
             (CHROME_ANDROID, None, ("android", "chrome", "phone")),
             (CORD_DESKTOP, None, ("windows", "electron", "desktop")),
-            ("Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36", None, ("android", "chrome", "tablet")),
-            ("Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1", None, ("ios", "safari", "tablet")),
-            ("Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0", None, ("linux", "firefox", "desktop")),
-            ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0", None, ("windows", "edge", "desktop")),
-            ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 YaBrowser/24.10.0.0 Safari/537.36", None, ("windows", "yandex", "desktop")),
-            ("Mozilla/5.0 (Linux; Android 14; SM-S911B; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.0.0 Mobile Safari/537.36", None, ("android", "webview", "phone")),
-            ("Mozilla/5.0 (SMART-TV; Linux; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) 94.0.4606.31/7.0 TV Safari/537.36", None, ("linux", "other", "tv")),
-            ("Mozilla/5.0 (Linux; Android 12; BRAVIA 4K VH2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", None, ("android", "chrome", "tv")),
+            (
+                "Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+                None,
+                ("android", "chrome", "tablet"),
+            ),
+            (
+                "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+                None,
+                ("ios", "safari", "tablet"),
+            ),
+            (
+                "Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0",
+                None,
+                ("linux", "firefox", "desktop"),
+            ),
+            (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
+                None,
+                ("windows", "edge", "desktop"),
+            ),
+            (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 YaBrowser/24.10.0.0 Safari/537.36",
+                None,
+                ("windows", "yandex", "desktop"),
+            ),
+            (
+                "Mozilla/5.0 (Linux; Android 14; SM-S911B; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.0.0 Mobile Safari/537.36",
+                None,
+                ("android", "webview", "phone"),
+            ),
+            (
+                "Mozilla/5.0 (SMART-TV; Linux; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) 94.0.4606.31/7.0 TV Safari/537.36",
+                None,
+                ("linux", "other", "tv"),
+            ),
+            (
+                "Mozilla/5.0 (Linux; Android 12; BRAVIA 4K VH2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                None,
+                ("android", "chrome", "tv"),
+            ),
             ("что-то", None, ("other", "other", "desktop")),
         ];
         for (text, touch, (os, browser, device)) in cases {
             let parsed = agent(text, touch);
-            assert_eq!((parsed.os, parsed.browser, parsed.device), (os, browser, device), "{text}");
+            assert_eq!(
+                (parsed.os, parsed.browser, parsed.device),
+                (os, browser, device),
+                "{text}"
+            );
         }
     }
 
@@ -310,7 +519,10 @@ mod tests {
         assert_eq!(client_kind(Some("telegram"), SAFARI_IPHONE), "telegram");
         // «desktop · linux» из прежней аналитики: назвался приложением, а оболочки Cord нет.
         assert!(client_matches("desktop", CORD_DESKTOP));
-        assert!(!client_matches("desktop", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36"));
+        assert!(!client_matches(
+            "desktop",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36"
+        ));
         assert!(client_matches("android", CHROME_ANDROID));
         assert!(!client_matches("android", CHROME_WIN));
         assert!(client_matches("web", CHROME_WIN));

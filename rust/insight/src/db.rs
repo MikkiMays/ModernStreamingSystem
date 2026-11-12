@@ -65,7 +65,10 @@ pub async fn ensure_partition(pool: &PgPool, day: NaiveDate) -> Result<(), sqlx:
         "CREATE TABLE IF NOT EXISTS {} PARTITION OF an_events FOR VALUES FROM ('{from}') TO ('{to}')",
         partition_name(from)
     );
-    sqlx::query(AssertSqlSafe(sql)).execute(pool).await.map(|_| ())
+    sqlx::query(AssertSqlSafe(sql))
+        .execute(pool)
+        .await
+        .map(|_| ())
 }
 
 /// Разделы заранее: прошлый месяц (события с часами клиента «сутки назад»), текущий и два следующих.
@@ -86,6 +89,9 @@ mod tests {
     fn partitions_are_named_by_month() {
         let day = NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
         assert_eq!(partition_name(month_bounds(day).0), "an_events_y2026m11");
-        assert_eq!(partition_name(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()), "an_events_y2027m01");
+        assert_eq!(
+            partition_name(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+            "an_events_y2027m01"
+        );
     }
 }

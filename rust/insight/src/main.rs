@@ -40,7 +40,10 @@ fn main() -> ExitCode {
 }
 
 fn port() -> u16 {
-    std::env::var("INSIGHT_PORT").ok().and_then(|p| p.trim().parse().ok()).unwrap_or(18300)
+    std::env::var("INSIGHT_PORT")
+        .ok()
+        .and_then(|p| p.trim().parse().ok())
+        .unwrap_or(18300)
 }
 
 /// Спросить у работающей службы `/healthz`: код выхода 0 — ответила `200`.
@@ -49,12 +52,17 @@ fn healthcheck() -> ExitCode {
     let ask = || -> std::io::Result<bool> {
         let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
         stream.set_read_timeout(Some(Duration::from_secs(2)))?;
-        stream.write_all(b"GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")?;
+        stream
+            .write_all(b"GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")?;
         let mut head = [0u8; 12];
         stream.read_exact(&mut head)?;
         Ok(&head == b"HTTP/1.1 200")
     };
-    if matches!(ask(), Ok(true)) { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+    if matches!(ask(), Ok(true)) {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }
 
 /// Страна, ASN и класс сети адреса по базам этой машины.
@@ -71,8 +79,14 @@ fn geo(address: Option<&str>) -> ExitCode {
         "каталог {directory}: база стран — {}, база ASN — {}\nстрана: {}\nASN: {}\nкласс сети: {}",
         if country { "есть" } else { "нет" },
         if asn { "есть" } else { "нет" },
-        if network.country.is_empty() { "неизвестно" } else { &network.country },
-        network.asn.map_or("неизвестно".to_owned(), |asn| asn.to_string()),
+        if network.country.is_empty() {
+            "неизвестно"
+        } else {
+            &network.country
+        },
+        network
+            .asn
+            .map_or("неизвестно".to_owned(), |asn| asn.to_string()),
         network.class,
     );
     ExitCode::SUCCESS
@@ -81,7 +95,10 @@ fn geo(address: Option<&str>) -> ExitCode {
 fn serve() -> ExitCode {
     tracing_subscriber::fmt()
         .json()
-        .with_env_filter(tracing_subscriber::EnvFilter::try_from_env("INSIGHT_LOG").unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")))
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_env("INSIGHT_LOG")
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
         .init();
     let config = match Config::from_env() {
         Ok(config) => config,
@@ -90,7 +107,11 @@ fn serve() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let runtime = match tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() {
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+    {
         Ok(runtime) => runtime,
         Err(error) => {
             tracing::error!(%error, "не запустить среду исполнения");
@@ -102,14 +123,27 @@ fn serve() -> ExitCode {
 
 async fn run(config: Config) -> ExitCode {
     let pool = db::pool(&config.database);
-    let keys = Arc::new(Keys::new(&config.session_secret, &config.internal_secret, config.probe_key.as_deref()));
+    let keys = Arc::new(Keys::new(
+        &config.session_secret,
+        &config.internal_secret,
+        config.probe_key.as_deref(),
+    ));
     let geo = Arc::new(Geo::open(&config.geo_dir));
     let metrics = Arc::new(Metrics::default());
     let hints: CookieHints = Arc::new(Mutex::new(HashMap::new()));
     let (commands, queue) = tokio::sync::mpsc::channel(QUEUE);
 
-    let options = Options { zone: config.zone, fingerprint: config.fingerprint };
-    let engine = Engine::new(pool.clone(), keys.clone(), options, metrics.clone(), hints.clone());
+    let options = Options {
+        zone: config.zone,
+        fingerprint: config.fingerprint,
+    };
+    let engine = Engine::new(
+        pool.clone(),
+        keys.clone(),
+        options,
+        metrics.clone(),
+        hints.clone(),
+    );
     let engine = tokio::spawn(run_engine(engine, queue, pool.clone(), config.clone()));
     let upkeep = tokio::spawn(upkeep(pool.clone(), geo.clone(), config.clone()));
 
@@ -125,10 +159,15 @@ async fn run(config: Config) -> ExitCode {
     };
     tracing::info!(%address, zone = config.zone.name(), fingerprint = config.fingerprint, "служба аналитики слушает");
     let service = http::router(app).into_make_service_with_connect_info::<SocketAddr>();
-    let served = axum::serve(listener, service).with_graceful_shutdown(stop()).await;
+    let served = axum::serve(listener, service)
+        .with_graceful_shutdown(stop())
+        .await;
     // Ручки остановлены и очередь закрыта: движок дописывает остаток и выходит.
     upkeep.abort();
-    if tokio::time::timeout(Duration::from_secs(15), engine).await.is_err() {
+    if tokio::time::timeout(Duration::from_secs(15), engine)
+        .await
+        .is_err()
+    {
         tracing::warn!("движок не успел дописать остаток");
     }
     match served {
@@ -141,12 +180,19 @@ async fn run(config: Config) -> ExitCode {
 }
 
 /// Движок ждёт базу: пока миграции не применены, команды копятся в очереди (и отбрасываются сверх неё).
-async fn run_engine(mut engine: Engine, queue: tokio::sync::mpsc::Receiver<engine::Command>, pool: PgPool, config: Config) {
+async fn run_engine(
+    mut engine: Engine,
+    queue: tokio::sync::mpsc::Receiver<engine::Command>,
+    pool: PgPool,
+    config: Config,
+) {
     loop {
         let ready = async {
             db::migrate(&pool).await.map_err(|e| e.to_string())?;
             let now = Utc::now();
-            db::ensure_partitions_ahead(&pool, local_day(now, config.zone)).await.map_err(|e| e.to_string())?;
+            db::ensure_partitions_ahead(&pool, local_day(now, config.zone))
+                .await
+                .map_err(|e| e.to_string())?;
             engine.load(now).await.map_err(|e| e.to_string())
         };
         match ready.await {

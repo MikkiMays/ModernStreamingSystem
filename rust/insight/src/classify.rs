@@ -93,7 +93,9 @@ pub struct Verdict {
 /// Программная отрисовка: видеокарты нет, картинку считает процессор — так выглядит браузер на сервере.
 pub fn software_renderer(renderer: &str) -> bool {
     let renderer = renderer.to_ascii_lowercase();
-    ["swiftshader", "llvmpipe", "softpipe", "software rasterizer"].iter().any(|word| renderer.contains(word))
+    ["swiftshader", "llvmpipe", "softpipe", "software rasterizer"]
+        .iter()
+        .any(|word| renderer.contains(word))
 }
 
 /// Класс захода по его признакам — до действий человека. Порядок правил — порядок таблицы §5: свои,
@@ -104,8 +106,14 @@ pub fn baseline(signals: &Signals) -> Verdict {
         return verdict(Class::Own, reason::PROBE, "");
     }
     match signals.robot {
-        Some(Robot { name, kind: RobotKind::Crawler }) => return verdict(Class::Bot, reason::ROBOT, name),
-        Some(Robot { kind: RobotKind::Automation, .. }) => return verdict(Class::Automation, reason::HEADLESS, ""),
+        Some(Robot {
+            name,
+            kind: RobotKind::Crawler,
+        }) => return verdict(Class::Bot, reason::ROBOT, name),
+        Some(Robot {
+            kind: RobotKind::Automation,
+            ..
+        }) => return verdict(Class::Automation, reason::HEADLESS, ""),
         None => {}
     }
     if signals.webdriver {
@@ -181,7 +189,10 @@ impl Guard {
         let recent = self.arrivals.entry(subnet.to_owned()).or_default();
         trim(recent, now);
         recent.push_back(now);
-        let called = self.calls.get(subnet).is_some_and(|at| now - *at < Duration::hours(1));
+        let called = self
+            .calls
+            .get(subnet)
+            .is_some_and(|at| now - *at < Duration::hours(1));
         if recent.len() > NEW_DEVICES_PER_HOUR && !called {
             self.subnets.insert(subnet.to_owned(), today);
             return false;
@@ -216,7 +227,10 @@ impl Guard {
 }
 
 fn trim(recent: &mut VecDeque<DateTime<Utc>>, now: DateTime<Utc>) {
-    while recent.front().is_some_and(|at| now - *at >= Duration::hours(1)) {
+    while recent
+        .front()
+        .is_some_and(|at| now - *at >= Duration::hours(1))
+    {
         recent.pop_front();
     }
 }
@@ -228,7 +242,11 @@ mod tests {
     use chrono::TimeZone;
 
     fn human() -> Signals<'static> {
-        Signals { network: HOME, client_matches: true, ..Signals::default() }
+        Signals {
+            network: HOME,
+            client_matches: true,
+            ..Signals::default()
+        }
     }
 
     fn class(signals: &Signals) -> (Class, &'static str) {
@@ -246,52 +264,124 @@ mod tests {
     #[test]
     fn a_signed_probe_is_ours_whatever_else_it_looks_like() {
         let robot = crate::ua::robot("curl/8.5.0");
-        let signals = Signals { probe: true, robot, webdriver: true, ..human() };
+        let signals = Signals {
+            probe: true,
+            robot,
+            webdriver: true,
+            ..human()
+        };
         assert_eq!(class(&signals), (Class::Own, reason::PROBE));
     }
 
     #[test]
     fn a_listed_agent_is_a_named_robot() {
-        let robot = crate::ua::robot("Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)");
+        let robot =
+            crate::ua::robot("Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)");
         let verdict = baseline(&Signals { robot, ..human() });
-        assert_eq!((verdict.class, verdict.reason, verdict.bot), (Class::Bot, reason::ROBOT, "yandex"));
+        assert_eq!(
+            (verdict.class, verdict.reason, verdict.bot),
+            (Class::Bot, reason::ROBOT, "yandex")
+        );
         assert_eq!(verdict.class.traffic(), "bot");
     }
 
     #[test]
     fn a_driven_browser_is_automation() {
-        let headless = crate::ua::robot("Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/130.0.0.0 Safari/537.36");
-        assert_eq!(class(&Signals { robot: headless, ..human() }), (Class::Automation, reason::HEADLESS));
-        assert_eq!(class(&Signals { webdriver: true, ..human() }), (Class::Automation, reason::WEBDRIVER));
-        assert_eq!(class(&Signals { client_matches: false, ..human() }), (Class::Automation, reason::CLIENT_MISMATCH));
+        let headless = crate::ua::robot(
+            "Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/130.0.0.0 Safari/537.36",
+        );
+        assert_eq!(
+            class(&Signals {
+                robot: headless,
+                ..human()
+            }),
+            (Class::Automation, reason::HEADLESS)
+        );
+        assert_eq!(
+            class(&Signals {
+                webdriver: true,
+                ..human()
+            }),
+            (Class::Automation, reason::WEBDRIVER)
+        );
+        assert_eq!(
+            class(&Signals {
+                client_matches: false,
+                ..human()
+            }),
+            (Class::Automation, reason::CLIENT_MISMATCH)
+        );
     }
 
     #[test]
     fn software_rendering_is_automation_only_from_a_hosting_network() {
-        let swiftshader = Some("ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)");
+        let swiftshader =
+            Some("ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)");
         let llvmpipe = Some("llvmpipe (LLVM 15.0.7, 256 bits)");
         assert_eq!(
-            class(&Signals { renderer: swiftshader, network: HOSTING, ..human() }),
+            class(&Signals {
+                renderer: swiftshader,
+                network: HOSTING,
+                ..human()
+            }),
             (Class::Automation, reason::SOFTWARE_GL)
         );
         assert_eq!(
-            class(&Signals { renderer: llvmpipe, network: HOSTING, ..human() }),
+            class(&Signals {
+                renderer: llvmpipe,
+                network: HOSTING,
+                ..human()
+            }),
             (Class::Automation, reason::SOFTWARE_GL)
         );
         // Тот же рисовальщик из домашней сети — человек на слабой машине.
-        assert_eq!(class(&Signals { renderer: llvmpipe, network: HOME, ..human() }).0, Class::Unclear);
+        assert_eq!(
+            class(&Signals {
+                renderer: llvmpipe,
+                network: HOME,
+                ..human()
+            })
+            .0,
+            Class::Unclear
+        );
         // Настоящая видеокарта из хостинга — человек через VPN.
-        let nvidia = Some("ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)");
-        assert_eq!(class(&Signals { renderer: nvidia, network: HOSTING, ..human() }).0, Class::Unclear);
-        assert_eq!(class(&Signals { renderer: None, network: MOBILE, ..human() }).0, Class::Unclear);
+        let nvidia =
+            Some("ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)");
+        assert_eq!(
+            class(&Signals {
+                renderer: nvidia,
+                network: HOSTING,
+                ..human()
+            })
+            .0,
+            Class::Unclear
+        );
+        assert_eq!(
+            class(&Signals {
+                renderer: None,
+                network: MOBILE,
+                ..human()
+            })
+            .0,
+            Class::Unclear
+        );
     }
 
     #[test]
     fn human_classes_share_one_traffic_word() {
         assert!(Class::Engaged.is_human() && Class::Confirmed.is_human());
-        assert_eq!((Class::Engaged.traffic(), Class::Confirmed.traffic()), ("human", "human"));
-        assert_eq!((Class::Engaged.human(), Class::Confirmed.human()), ("engaged", "confirmed"));
-        assert_eq!((Class::Own.traffic(), Class::Automation.traffic()), ("own", "automation"));
+        assert_eq!(
+            (Class::Engaged.traffic(), Class::Confirmed.traffic()),
+            ("human", "human")
+        );
+        assert_eq!(
+            (Class::Engaged.human(), Class::Confirmed.human()),
+            ("engaged", "confirmed")
+        );
+        assert_eq!(
+            (Class::Own.traffic(), Class::Automation.traffic()),
+            ("own", "automation")
+        );
     }
 
     fn at(minute: i64) -> DateTime<Utc> {

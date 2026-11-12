@@ -65,15 +65,20 @@ pub struct Candidate {
 }
 
 /// Шаг 3а: прежнее устройство, чей человек — тот же. Кандидаты идут от недавних к давним.
-pub fn fingerprint_match<'a>(origin: &Origin, candidates: &'a [Candidate]) -> Option<&'a Candidate> {
+pub fn fingerprint_match<'a>(
+    origin: &Origin,
+    candidates: &'a [Candidate],
+) -> Option<&'a Candidate> {
     if origin.device_class != "desktop" || origin.fp_strength < FINGERPRINT_STRENGTH {
         return None;
     }
     candidates.iter().find(|c| {
         let same_net = !origin.net.is_empty() && origin.net == c.net;
         let same_asn = origin.asn.is_some() && origin.asn == c.asn;
-        let same_place =
-            !origin.country.is_empty() && !origin.tz.is_empty() && origin.country == c.country && origin.tz == c.tz;
+        let same_place = !origin.country.is_empty()
+            && !origin.tz.is_empty()
+            && origin.country == c.country
+            && origin.tz == c.tz;
         !c.active && (same_net || same_asn || same_place)
     })
 }
@@ -107,38 +112,84 @@ mod tests {
 
     #[test]
     fn a_desktop_with_a_strong_fingerprint_seen_from_the_same_network_is_the_same_person() {
-        assert_eq!(fingerprint_match(&origin(), &[candidate()]).map(|c| c.person), Some(7));
+        assert_eq!(
+            fingerprint_match(&origin(), &[candidate()]).map(|c| c.person),
+            Some(7)
+        );
     }
 
     #[test]
     fn any_one_of_subnet_asn_or_country_with_zone_is_enough() {
-        let elsewhere = Candidate { net: "net-b".into(), asn: Some(1), country: "DE".into(), tz: "Europe/Berlin".into(), ..candidate() };
-        assert_eq!(fingerprint_match(&origin(), std::slice::from_ref(&elsewhere)), None);
+        let elsewhere = Candidate {
+            net: "net-b".into(),
+            asn: Some(1),
+            country: "DE".into(),
+            tz: "Europe/Berlin".into(),
+            ..candidate()
+        };
+        assert_eq!(
+            fingerprint_match(&origin(), std::slice::from_ref(&elsewhere)),
+            None
+        );
         for same in [
-            Candidate { net: "net-a".into(), ..elsewhere.clone() },
-            Candidate { asn: Some(8359), ..elsewhere.clone() },
-            Candidate { country: "RU".into(), tz: "Europe/Moscow".into(), ..elsewhere.clone() },
+            Candidate {
+                net: "net-a".into(),
+                ..elsewhere.clone()
+            },
+            Candidate {
+                asn: Some(8359),
+                ..elsewhere.clone()
+            },
+            Candidate {
+                country: "RU".into(),
+                tz: "Europe/Moscow".into(),
+                ..elsewhere.clone()
+            },
         ] {
             assert!(fingerprint_match(&origin(), &[same]).is_some());
         }
         // Страна без пояса и пояс без страны — не совпадение.
-        let country_only = Candidate { country: "RU".into(), ..elsewhere.clone() };
-        let zone_only = Candidate { tz: "Europe/Moscow".into(), ..elsewhere };
-        assert_eq!(fingerprint_match(&origin(), &[country_only, zone_only]), None);
+        let country_only = Candidate {
+            country: "RU".into(),
+            ..elsewhere.clone()
+        };
+        let zone_only = Candidate {
+            tz: "Europe/Moscow".into(),
+            ..elsewhere
+        };
+        assert_eq!(
+            fingerprint_match(&origin(), &[country_only, zone_only]),
+            None
+        );
     }
 
     #[test]
     fn unknown_network_matches_nothing() {
         // Без баз адресов и без шлюза у обоих пусто: пустое с пустым — не «та же сеть».
-        let blank = Origin { net: String::new(), asn: None, country: String::new(), tz: String::new(), ..origin() };
-        let unknown = Candidate { net: String::new(), asn: None, country: String::new(), tz: String::new(), ..candidate() };
+        let blank = Origin {
+            net: String::new(),
+            asn: None,
+            country: String::new(),
+            tz: String::new(),
+            ..origin()
+        };
+        let unknown = Candidate {
+            net: String::new(),
+            asn: None,
+            country: String::new(),
+            tz: String::new(),
+            ..candidate()
+        };
         assert_eq!(fingerprint_match(&blank, &[unknown]), None);
     }
 
     #[test]
     fn phones_tablets_and_tvs_are_never_merged_by_fingerprint() {
         for class in ["phone", "tablet", "tv"] {
-            let mobile = Origin { device_class: class.into(), ..origin() };
+            let mobile = Origin {
+                device_class: class.into(),
+                ..origin()
+            };
             assert_eq!(fingerprint_match(&mobile, &[candidate()]), None, "{class}");
         }
     }
@@ -146,23 +197,61 @@ mod tests {
     #[test]
     fn a_weak_fingerprint_is_not_enough() {
         for strength in [0, 1] {
-            assert_eq!(fingerprint_match(&Origin { fp_strength: strength, ..origin() }, &[candidate()]), None);
+            assert_eq!(
+                fingerprint_match(
+                    &Origin {
+                        fp_strength: strength,
+                        ..origin()
+                    },
+                    &[candidate()]
+                ),
+                None
+            );
         }
-        assert!(fingerprint_match(&Origin { fp_strength: 2, ..origin() }, &[candidate()]).is_some());
+        assert!(
+            fingerprint_match(
+                &Origin {
+                    fp_strength: 2,
+                    ..origin()
+                },
+                &[candidate()]
+            )
+            .is_some()
+        );
     }
 
     #[test]
     fn two_identical_office_computers_online_at_once_are_not_merged() {
-        let online = Candidate { active: true, ..candidate() };
-        assert_eq!(fingerprint_match(&origin(), std::slice::from_ref(&online)), None);
+        let online = Candidate {
+            active: true,
+            ..candidate()
+        };
+        assert_eq!(
+            fingerprint_match(&origin(), std::slice::from_ref(&online)),
+            None
+        );
         // Тот, что на связи, пропускается; узнаётся прежнее устройство, которое сейчас молчит.
-        let silent = Candidate { device: "d0".into(), person: 3, ..candidate() };
-        assert_eq!(fingerprint_match(&origin(), &[online, silent]).map(|c| c.person), Some(3));
+        let silent = Candidate {
+            device: "d0".into(),
+            person: 3,
+            ..candidate()
+        };
+        assert_eq!(
+            fingerprint_match(&origin(), &[online, silent]).map(|c| c.person),
+            Some(3)
+        );
     }
 
     #[test]
     fn the_most_recent_candidate_wins() {
-        let recent = Candidate { device: "new".into(), person: 9, ..candidate() };
-        assert_eq!(fingerprint_match(&origin(), &[recent, candidate()]).map(|c| c.person), Some(9));
+        let recent = Candidate {
+            device: "new".into(),
+            person: 9,
+            ..candidate()
+        };
+        assert_eq!(
+            fingerprint_match(&origin(), &[recent, candidate()]).map(|c| c.person),
+            Some(9)
+        );
     }
 }

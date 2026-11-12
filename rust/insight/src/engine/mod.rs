@@ -37,8 +37,22 @@ use store::{ErrorDelta, ErrorDims, EventRow, Pending, SessionUpdate, TrafficKey}
 pub const SESSION_IDLE_MINUTES: i64 = 30;
 /// Кука устройства продлевается раз в 30 дней.
 const COOKIE_RENEW_DAYS: i64 = 30;
-/// Сколько событий сессии «неясно» ждёт в памяти, пока человек себя не проявит.
-const HELD_EVENTS: usize = 200;
+/// Сколько событий сессии «неясно» ждёт в памяти, пока человек себя не проявит, — и сколько их ждёт всего.
+const HELD_EVENTS: usize = 50;
+const HELD_TOTAL: usize = 20_000;
+/// Пределы против раздувания. Ручка событий открыта всем, а имена возможностей, площадок и коды ошибок
+/// приходят от клиента: без пределов одна сессия завела бы сколько угодно строк и групп.
+/// Живых сессий в памяти; сверх — вытесняются самые давние из не-людей.
+const LIVE_SESSIONS: usize = 40_000;
+/// Событий одной сессии.
+const SESSION_EVENTS: u32 = 5_000;
+/// Разных возможностей и площадок — и разных ошибок — у одной сессии.
+const SESSION_NAMES: usize = 30;
+/// Разных ошибок у сессии «неясно» и новых групп ошибок от всех таких сессий за час.
+const UNCLEAR_ERRORS: usize = 3;
+const UNCLEAR_ERRORS_PER_HOUR: usize = 200;
+/// Сколько помнится профиль своей проверки или робота: его факты в цифры не идут.
+const OUTSIDER_HOURS: i64 = 24;
 /// Сколько подряд неудачных записей терпим, прежде чем выбросить накопленное: одна «ядовитая» строка не
 /// должна остановить запись навсегда.
 const FAILED_FLUSHES: u32 = 10;
@@ -138,7 +152,10 @@ struct Live {
     errors: i32,
     error_keys: HashSet<String>,
     error_session_counted: bool,
-    features: HashSet<String>,
+    /// Возможности и площадки, которые сессия уже называла.
+    names: HashSet<String>,
+    /// Сколько событий сессия прислала.
+    events: u32,
     dirty: bool,
 }
 
@@ -187,7 +204,8 @@ impl Live {
             errors: 0,
             error_keys: HashSet::new(),
             error_session_counted: false,
-            features: HashSet::new(),
+            names: HashSet::new(),
+            events: 0,
             dirty: false,
         }
     }
@@ -203,7 +221,12 @@ impl Live {
         self.attrs.landing = text("landing");
         self.attrs.source = text("ref");
         if let Some(utm) = start.object("utm") {
-            let part = |key: &str| utm.get(key).and_then(Value::as_str).unwrap_or_default().to_owned();
+            let part = |key: &str| {
+                utm.get(key)
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned()
+            };
             self.attrs.utm = [part("source"), part("medium"), part("campaign")];
         }
         self.tz = text("tz");
@@ -216,13 +239,24 @@ impl Live {
             return;
         }
         // Сила — сколько пришло признаков высокой силы: рисунок canvas, видеокарта, набор шрифтов.
-        self.fp_strength = ["canvas", "gl", "fonts"].iter().filter(|key| fp.contains_key(**key)).count() as i16;
+        self.fp_strength = ["canvas", "gl", "fonts"]
+            .iter()
+            .filter(|key| fp.contains_key(**key))
+            .count() as i16;
         // Признаки сводятся в одну строку в постоянном порядке; версии браузера среди них нет.
         let mut features = String::new();
-        for key in ["canvas", "gl", "fonts", "audio", "hc", "dm", "touch", "plat"] {
-            features.push_str(&format!("{key}={}\n", fp.get(key).map(Value::to_string).unwrap_or_default()));
+        for key in [
+            "canvas", "gl", "fonts", "audio", "hc", "dm", "touch", "plat",
+        ] {
+            features.push_str(&format!(
+                "{key}={}\n",
+                fp.get(key).map(Value::to_string).unwrap_or_default()
+            ));
         }
-        let screen = start.object("screen").map(|s| Value::Object(s.clone()).to_string()).unwrap_or_default();
+        let screen = start
+            .object("screen")
+            .map(|s| Value::Object(s.clone()).to_string())
+            .unwrap_or_default();
         features.push_str(&format!(
             "screen={screen}\ntz={}\nlang={}\nbrowser={}\nos={}",
             self.tz,
@@ -275,18 +309,21 @@ struct ErrorNote<'a> {
 fn note_error(pending: &mut Pending, note: ErrorNote) -> String {
     let key = errors::key(note.code, note.scope, note.version);
     let first = i64::from(note.first_in_session);
-    let group = pending.errors.entry(key.clone()).or_insert_with(|| ErrorDelta {
-        code: errors::clean_code(note.code),
-        scope: note.scope.to_owned(),
-        version: note.version.to_owned(),
-        source: note.source,
-        cause: errors::cause(note.code, note.scope),
-        first_at: note.at,
-        last_at: note.at,
-        count: 0,
-        sessions: 0,
-        sample: Value::Null,
-    });
+    let group = pending
+        .errors
+        .entry(key.clone())
+        .or_insert_with(|| ErrorDelta {
+            code: errors::clean_code(note.code),
+            scope: note.scope.to_owned(),
+            version: note.version.to_owned(),
+            source: note.source,
+            cause: errors::cause(note.code, note.scope),
+            first_at: note.at,
+            last_at: note.at,
+            count: 0,
+            sessions: 0,
+            sample: Value::Null,
+        });
     group.count += note.count;
     group.sessions += first;
     group.first_at = group.first_at.min(note.at);
@@ -294,11 +331,17 @@ fn note_error(pending: &mut Pending, note: ErrorNote) -> String {
         group.last_at = group.last_at.max(note.at);
         group.sample = note.sample;
     }
-    let day = pending.error_days.entry((key.clone(), note.day, note.dims)).or_default();
+    let day = pending
+        .error_days
+        .entry((key.clone(), note.day, note.dims))
+        .or_default();
     day.0 += note.count;
     day.1 += first;
     if let Some(person) = note.person {
-        *pending.error_people.entry((key.clone(), note.day, person)).or_default() += note.count;
+        *pending
+            .error_people
+            .entry((key.clone(), note.day, person))
+            .or_default() += note.count;
     }
     key
 }
@@ -337,10 +380,22 @@ pub struct Engine {
     fact_seen: HashSet<String>,
     partitions: HashSet<NaiveDate>,
     failed_flushes: u32,
+    /// Сколько событий сессий «неясно» ждёт в памяти.
+    held_total: usize,
+    /// Группы ошибок, заведённые сессиями «неясно» в этом часу: час и ключи.
+    unclear_errors: (i64, HashSet<String>),
+    /// Профили своих проверок, роботов и автоматики: их встречи и входы в цифры не идут (§11 проекта).
+    outsiders: HashMap<String, DateTime<Utc>>,
 }
 
 impl Engine {
-    pub fn new(pool: PgPool, keys: Arc<Keys>, options: Options, metrics: Arc<Metrics>, hints: CookieHints) -> Self {
+    pub fn new(
+        pool: PgPool,
+        keys: Arc<Keys>,
+        options: Options,
+        metrics: Arc<Metrics>,
+        hints: CookieHints,
+    ) -> Self {
         Engine {
             pool,
             keys,
@@ -363,11 +418,15 @@ impl Engine {
             fact_seen: HashSet::new(),
             partitions: HashSet::new(),
             failed_flushes: 0,
+            held_total: 0,
+            unclear_errors: (0, HashSet::new()),
+            outsiders: HashMap::new(),
         }
     }
 
     fn db_error(&self, place: &'static str, error: &sqlx::Error) {
-        self.metrics.inc("insight_db_errors_total", &[("at", place)]);
+        self.metrics
+            .inc("insight_db_errors_total", &[("at", place)]);
         tracing::warn!(place, %error, "отказ базы");
     }
 
@@ -393,6 +452,9 @@ impl Engine {
         let sid = v.sid.clone();
         let start = v.events.iter().position(|e| e.name == "session_start");
         if !self.sessions.contains_key(&sid) {
+            if self.sessions.len() >= LIVE_SESSIONS {
+                self.evict();
+            }
             let mut live = Live::open(&v, today);
             // Сессия без начала, которой нет в памяти: служба перезапускалась. Сессия человека лежит в базе.
             if start.is_none() {
@@ -404,7 +466,9 @@ impl Engine {
             }
             self.sessions.insert(sid.clone(), live);
         }
-        let Some(live) = self.sessions.get_mut(&sid) else { return };
+        let Some(live) = self.sessions.get_mut(&sid) else {
+            return;
+        };
         live.last_seen = v.now;
         live.probe |= v.probe;
         if live.who.is_none() {
@@ -412,14 +476,23 @@ impl Engine {
             live.device = v.cookie.id().to_owned();
             live.cookie_valid = matches!(v.cookie, Cookie::Valid(_));
         }
-        if live.profile.is_none() {
-            if let Some(profile) = v.profile.take() {
-                self.by_profile.entry(profile.clone()).or_default().push(sid.clone());
-                live.profile = Some(profile);
-            }
+        if live.profile.is_none()
+            && let Some(profile) = v.profile.take()
+        {
+            self.by_profile
+                .entry(profile.clone())
+                .or_default()
+                .push(sid.clone());
+            live.profile = Some(profile);
         }
         if let Some(index) = start.filter(|_| !live.started) {
-            live.start(&v.events[index], &v, &self.keys, self.fingerprint, self.zone);
+            live.start(
+                &v.events[index],
+                &v,
+                &self.keys,
+                self.fingerprint,
+                self.zone,
+            );
         }
 
         // Класс по признакам захода — пока человек себя не проявил.
@@ -443,8 +516,11 @@ impl Engine {
             }
             live.class = verdict.class;
             live.bot = verdict.bot;
-            live.reason =
-                if live.demoted && verdict.class == Class::Unclear { reason::TOO_MANY_SESSIONS } else { verdict.reason };
+            live.reason = if live.demoted && verdict.class == Class::Unclear {
+                reason::TOO_MANY_SESSIONS
+            } else {
+                verdict.reason
+            };
             // Суточный трафик: заход считается при первом появлении; сменился класс — переносится.
             let key = live.traffic_key();
             if live.counted.as_ref() != Some(&key) {
@@ -457,15 +533,38 @@ impl Engine {
                 self.pending.traffic(key, 1);
             }
             // Профиль уже соединялся с медиаузлом — сессия догнала свой звонок.
-            if live.class == Class::Unclear && live.profile.as_ref().is_some_and(|p| self.confirmed.contains_key(p)) {
+            if live.class == Class::Unclear
+                && live
+                    .profile
+                    .as_ref()
+                    .is_some_and(|p| self.confirmed.contains_key(p))
+            {
                 live.want = Some(Evidence::Media);
+            }
+            // Своя проверка, робот или автоматика: факты ядра об этом профиле в цифры не пойдут.
+            if matches!(live.class, Class::Own | Class::Bot | Class::Automation)
+                && let Some(profile) = &live.profile
+            {
+                self.outsiders.insert(profile.clone(), v.now);
             }
         }
 
         let events = std::mem::take(&mut v.events);
-        self.metrics.add("insight_events_accepted_total", &[], events.len() as u64);
+        self.metrics
+            .add("insight_events_accepted_total", &[], events.len() as u64);
         let now_ms = v.now.timestamp_millis();
         for mut event in events {
+            let Some(live) = self.sessions.get_mut(&sid) else {
+                break;
+            };
+            live.events += 1;
+            if live.events > SESSION_EVENTS {
+                self.metrics.inc(
+                    "insight_events_dropped_total",
+                    &[("reason", "session_full")],
+                );
+                continue;
+            }
             let at = from_ms(event::moment(event.at, now_ms));
             match event.name {
                 "engaged" => {
@@ -478,29 +577,77 @@ impl Engine {
                 }
                 _ => {}
             }
-            if self.sessions.get(&sid).is_some_and(|live| live.who.is_some()) {
+            if self
+                .sessions
+                .get(&sid)
+                .is_some_and(|live| live.who.is_some())
+            {
                 self.record(&sid, event, at, false);
             } else {
                 self.hold(&sid, event, at);
             }
         }
-        if self.sessions.get(&sid).is_some_and(|live| live.want.is_some()) {
-            if let Err(error) = self.promote(&sid, v.now).await {
-                // Сессия остаётся ждать: следующая запись попробует снова.
-                self.db_error("promote", &error);
-            }
+        if self
+            .sessions
+            .get(&sid)
+            .is_some_and(|live| live.want.is_some())
+            && let Err(error) = self.promote(&sid, v.now).await
+        {
+            // Сессия остаётся ждать: следующая запись попробует снова.
+            self.db_error("promote", &error);
+        }
+    }
+
+    /// Забыть сессию: её изменения — в запись, её события, ждавшие человека, — прочь.
+    fn forget(&mut self, sid: &str) {
+        let Some(live) = self.sessions.remove(sid) else {
+            return;
+        };
+        if live.who.is_some() && live.dirty {
+            self.pending
+                .sessions
+                .insert(sid.to_owned(), session_update(&live));
+        }
+        self.held_total = self.held_total.saturating_sub(live.held.len());
+        if let Some(sids) = live
+            .profile
+            .as_ref()
+            .and_then(|p| self.by_profile.get_mut(p))
+        {
+            sids.retain(|other| other != sid);
+        }
+    }
+
+    /// Памяти под сессии больше нет: вытеснить десятую часть — самые давние из тех, кто не человек.
+    fn evict(&mut self) {
+        let mut idle: Vec<(DateTime<Utc>, String)> = self
+            .sessions
+            .iter()
+            .filter(|(_, live)| live.who.is_none() && live.want.is_none())
+            .map(|(sid, live)| (live.last_seen, sid.clone()))
+            .collect();
+        idle.sort();
+        idle.truncate(LIVE_SESSIONS / 10);
+        self.metrics
+            .add("insight_sessions_evicted_total", &[], idle.len() as u64);
+        for (_, sid) in idle {
+            self.forget(&sid);
         }
     }
 
     /// Событие `engaged`: человек действовал. Принимается у сессии «неясно», если задача решена и страница
     /// была видна не меньше трёх секунд (по часам службы или по разнице часов клиента).
     fn engaged(&mut self, sid: &str, at_raw: i64, proof: Option<Solved>, now: DateTime<Utc>) {
-        let Some(live) = self.sessions.get_mut(sid) else { return };
+        let Some(live) = self.sessions.get_mut(sid) else {
+            return;
+        };
         if live.class != Class::Unclear || live.who.is_some() || live.want.is_some() {
             return;
         }
         let visible = (now - live.first_seen).num_milliseconds() >= classify::MIN_VISIBLE_MS
-            || live.start_raw.is_some_and(|start| at_raw - start >= classify::MIN_VISIBLE_MS);
+            || live
+                .start_raw
+                .is_some_and(|start| at_raw - start >= classify::MIN_VISIBLE_MS);
         let refusal = if live.demoted {
             Some("demoted")
         } else if proof.is_none() {
@@ -511,7 +658,9 @@ impl Engine {
             None
         };
         match refusal {
-            Some(why) => self.metrics.inc("insight_engaged_refused_total", &[("reason", why)]),
+            Some(why) => self
+                .metrics
+                .inc("insight_engaged_refused_total", &[("reason", why)]),
             None => {
                 live.want = Some(Evidence::Engaged);
                 live.proof = proof;
@@ -522,9 +671,12 @@ impl Engine {
     /// Событие сессии, которая (пока) не человек. У «неясно» события ждут в памяти: проявит себя человек —
     /// запишутся. Ошибка «неясно» считается сразу: сбой при открытии страницы случается раньше любого действия.
     fn hold(&mut self, sid: &str, event: Event, at: DateTime<Utc>) {
-        let Some(live) = self.sessions.get_mut(sid) else { return };
+        let Some(live) = self.sessions.get_mut(sid) else {
+            return;
+        };
         if live.class != Class::Unclear {
-            self.metrics.inc("insight_events_dropped_total", &[("reason", "not_human")]);
+            self.metrics
+                .inc("insight_events_dropped_total", &[("reason", "not_human")]);
             return;
         }
         let mut counted = false;
@@ -532,7 +684,26 @@ impl Engine {
             let code = event.text("code").unwrap_or("UNKNOWN").to_owned();
             let scope = event.text("scope").unwrap_or("app").to_owned();
             let version = event::version_series(&live.attrs.version);
-            let first = live.error_keys.insert(errors::key(&code, &scope, &version));
+            let key = errors::key(&code, &scope, &version);
+            // Сессия «неясно» ничем не доказала, что за ней человек: разных ошибок от неё — немного, а новых
+            // групп от всех таких сессий — не больше двухсот в час.
+            let hour = at.timestamp() / 3600;
+            if self.unclear_errors.0 != hour {
+                self.unclear_errors = (hour, HashSet::new());
+            }
+            let known = live.error_keys.contains(&key);
+            let room = live.error_keys.len() < UNCLEAR_ERRORS
+                && (self.unclear_errors.1.contains(&key)
+                    || self.unclear_errors.1.len() < UNCLEAR_ERRORS_PER_HOUR);
+            if !known && !room {
+                self.metrics.inc(
+                    "insight_events_dropped_total",
+                    &[("reason", "too_many_names")],
+                );
+                return;
+            }
+            self.unclear_errors.1.insert(key.clone());
+            let first = live.error_keys.insert(key);
             live.errors += 1;
             let sample = error_sample(live, &event, at);
             let day = local_day(at, self.zone);
@@ -552,25 +723,35 @@ impl Engine {
             note_error(&mut self.pending, note);
             counted = true;
         }
-        if live.held.len() >= HELD_EVENTS {
-            self.metrics.inc("insight_events_dropped_total", &[("reason", "held_full")]);
+        if live.held.len() >= HELD_EVENTS || self.held_total >= HELD_TOTAL {
+            self.metrics
+                .inc("insight_events_dropped_total", &[("reason", "held_full")]);
             return;
         }
+        self.held_total += 1;
         live.held.push((event, at, counted));
     }
 
     /// Событие сессии человека: строка события и прибавки к суточным строкам.
     fn record(&mut self, sid: &str, event: Event, at: DateTime<Utc>, counted: bool) {
-        let Some(live) = self.sessions.get_mut(sid) else { return };
+        let Some(live) = self.sessions.get_mut(sid) else {
+            return;
+        };
         let Some(person) = live.who else { return };
         let day = local_day(at, self.zone);
         let pending = &mut self.pending;
         let name = event.name;
         let mut props = event.props;
         let word = |props: &serde_json::Map<String, Value>, key: &str| {
-            props.get(key).and_then(Value::as_str).unwrap_or_default().to_owned()
+            props
+                .get(key)
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned()
         };
-        let number = |props: &serde_json::Map<String, Value>, key: &str| props.get(key).and_then(Value::as_i64).unwrap_or(0);
+        let number = |props: &serde_json::Map<String, Value>, key: &str| {
+            props.get(key).and_then(Value::as_i64).unwrap_or(0)
+        };
         let mut room = None;
         match name {
             "engaged" => live.step = live.step.max(2),
@@ -594,23 +775,54 @@ impl Engine {
             }
             "feature" => {
                 let feature = word(&props, "name");
-                pending.count(day, "feature", &feature, "", number(&props, "count").max(1));
-                if live.features.insert(feature.clone()) {
+                let tag = format!("f:{feature}");
+                if !live.names.contains(&tag) {
+                    if live.names.len() >= SESSION_NAMES {
+                        self.metrics.inc(
+                            "insight_events_dropped_total",
+                            &[("reason", "too_many_names")],
+                        );
+                        return;
+                    }
+                    live.names.insert(tag);
                     pending.count(day, "feature_sessions", &feature, "", 1);
                 }
+                pending.count(day, "feature", &feature, "", number(&props, "count").max(1));
             }
             "integration_view" => {
                 // Номер встречи заменяется псевдонимом и в полях события не остаётся.
-                room = props.remove("room").and_then(|r| r.as_str().map(|r| self.keys.room(r)));
+                room = props
+                    .remove("room")
+                    .and_then(|r| r.as_str().map(|r| self.keys.room(r)));
                 let (kind, variant) = (word(&props, "kind"), word(&props, "variant"));
-                let view = [number(&props, "seconds"), number(&props, "stalls"), number(&props, "stall_ms")];
+                let tag = format!("v:{kind}/{variant}");
+                if !live.names.contains(&tag) {
+                    if live.names.len() >= SESSION_NAMES {
+                        self.metrics.inc(
+                            "insight_events_dropped_total",
+                            &[("reason", "too_many_names")],
+                        );
+                        return;
+                    }
+                    live.names.insert(tag);
+                }
+                let view = [
+                    number(&props, "seconds"),
+                    number(&props, "stalls"),
+                    number(&props, "stall_ms"),
+                ];
                 if event::KINDS.contains(&kind.as_str()) {
                     pending.day(person, day).add(&format!("{kind}_s"), view[0]);
-                    let total = pending.integration_days.entry((day, kind.clone(), variant, person)).or_default();
+                    let total = pending
+                        .integration_days
+                        .entry((day, kind.clone(), variant, person))
+                        .or_default();
                     for (sum, part) in total.iter_mut().zip(view) {
                         *sum += part;
                     }
-                    let run = room.as_ref().and_then(|room| self.open_runs.get(&(room.clone(), kind)));
+                    let run = room
+                        .as_ref()
+                        .and_then(|room| self.open_runs.get(&(room.clone(), kind)));
                     if let Some(run) = run.and_then(|id| self.runs.get_mut(id)) {
                         run.viewed(person, at, view);
                     }
@@ -618,13 +830,31 @@ impl Engine {
             }
             "error" => {
                 let code = word(&props, "code");
-                let code = if code.is_empty() { "UNKNOWN".to_owned() } else { code };
+                let code = if code.is_empty() {
+                    "UNKNOWN".to_owned()
+                } else {
+                    code
+                };
                 let scope = word(&props, "scope");
-                let scope = if scope.is_empty() { "app".to_owned() } else { scope };
+                let scope = if scope.is_empty() {
+                    "app".to_owned()
+                } else {
+                    scope
+                };
                 let version = event::version_series(&live.attrs.version);
                 // На каком шаге воронки человек увидел ошибку — и в какую группу она попала: по ключу отчёт
                 // об одной группе находит её последние образцы.
                 let key = errors::key(&code, &scope, &version);
+                if !counted
+                    && !live.error_keys.contains(&key)
+                    && live.error_keys.len() >= SESSION_NAMES
+                {
+                    self.metrics.inc(
+                        "insight_events_dropped_total",
+                        &[("reason", "too_many_names")],
+                    );
+                    return;
+                }
                 props.insert("step".to_owned(), json!(live.step));
                 props.insert("key".to_owned(), json!(key));
                 if counted {
@@ -632,7 +862,15 @@ impl Engine {
                 } else {
                     let first = live.error_keys.insert(key);
                     live.errors += 1;
-                    let sample = error_sample(live, &Event { name, at: 0, props: props.clone() }, at);
+                    let sample = error_sample(
+                        live,
+                        &Event {
+                            name,
+                            at: 0,
+                            props: props.clone(),
+                        },
+                        at,
+                    );
                     let note = ErrorNote {
                         code: &code,
                         scope: &scope,
@@ -665,7 +903,15 @@ impl Engine {
         // Человек был в этот день, даже если сессия началась вчера.
         pending.day(person, day);
         live.dirty = true;
-        pending.event(EventRow { at, day, sid: Some(sid.to_owned()), person: Some(person), name, room, props: Value::Object(props) });
+        pending.event(EventRow {
+            at,
+            day,
+            sid: Some(sid.to_owned()),
+            person: Some(person),
+            name,
+            room,
+            props: Value::Object(props),
+        });
     }
 
     // ── Человек ──────────────────────────────────────────────────────────────────────────────────────
@@ -673,8 +919,12 @@ impl Engine {
     /// Сессия проявила себя человеком: узнать, какой это человек, и завести его строки.
     async fn promote(&mut self, sid: &str, now: DateTime<Utc>) -> Result<(), sqlx::Error> {
         let today = self.today(now);
-        let Some(live) = self.sessions.get_mut(sid) else { return Ok(()) };
-        let Some(evidence) = live.want else { return Ok(()) };
+        let Some(live) = self.sessions.get_mut(sid) else {
+            return Ok(());
+        };
+        let Some(evidence) = live.want else {
+            return Ok(());
+        };
         if live.who.is_some() || live.class != Class::Unclear {
             live.want = None;
             return Ok(());
@@ -694,15 +944,22 @@ impl Engine {
             .await?
             .rows_affected()
                 == 1;
-            let Some(live) = self.sessions.get_mut(sid) else { return Ok(()) };
+            let Some(live) = self.sessions.get_mut(sid) else {
+                return Ok(());
+            };
             if !fresh {
                 live.want = None;
-                self.metrics.inc("insight_engaged_refused_total", &[("reason", "proof_reused")]);
+                self.metrics.inc(
+                    "insight_engaged_refused_total",
+                    &[("reason", "proof_reused")],
+                );
                 return Ok(());
             }
             live.proof_spent = true;
         }
-        let Some(live) = self.sessions.get(sid) else { return Ok(()) };
+        let Some(live) = self.sessions.get(sid) else {
+            return Ok(());
+        };
         let arrival = Arrival {
             device: live.device.clone(),
             cookie_valid: live.cookie_valid,
@@ -726,35 +983,59 @@ impl Engine {
         // Понижение подсети: новым устройствам строки не заводятся. Дозвонившегося это не касается —
         // соединение с медиаузлом не подделать.
         let new_device = matches!(found.via, Via::Fingerprint | Via::New);
-        if new_device && evidence == Evidence::Engaged && !self.guard.new_device(&arrival.origin.net, now, today) {
+        if new_device
+            && evidence == Evidence::Engaged
+            && !self.guard.new_device(&arrival.origin.net, now, today)
+        {
             if let Some(live) = self.sessions.get_mut(sid) {
                 live.want = None;
                 live.reason = reason::SUBNET_FLOOD;
             }
-            self.metrics.inc("insight_engaged_refused_total", &[("reason", "subnet")]);
+            self.metrics
+                .inc("insight_engaged_refused_total", &[("reason", "subnet")]);
             return Ok(());
         }
         let reissue = found.device != arrival.device;
-        let renew = found.cookie_at.is_some_and(|at| now - at >= Duration::days(COOKIE_RENEW_DAYS));
-        let human = if evidence == Evidence::Media { Class::Confirmed } else { Class::Engaged };
-        let why = if evidence == Evidence::Media { reason::MEDIA } else { reason::ENGAGED };
-        let person = self.enroll(sid, &arrival, &found, human, why, reissue || renew, now).await?;
+        let renew = found
+            .cookie_at
+            .is_some_and(|at| now - at >= Duration::days(COOKIE_RENEW_DAYS));
+        let human = if evidence == Evidence::Media {
+            Class::Confirmed
+        } else {
+            Class::Engaged
+        };
+        let why = if evidence == Evidence::Media {
+            reason::MEDIA
+        } else {
+            reason::ENGAGED
+        };
+        let person = self
+            .enroll(sid, &arrival, &found, human, why, reissue || renew, now)
+            .await?;
 
-        let Some(live) = self.sessions.get_mut(sid) else { return Ok(()) };
+        let Some(live) = self.sessions.get_mut(sid) else {
+            return Ok(());
+        };
         live.who = Some(person);
         live.device = found.device.clone();
         live.via = found.via;
         live.want = None;
         live.class = human;
         live.reason = why;
-        live.step = live.step.max(if evidence == Evidence::Media { 6 } else { 2 });
+        live.step = live
+            .step
+            .max(if evidence == Evidence::Media { 6 } else { 2 });
         let key = live.traffic_key();
         if let Some(old) = live.counted.replace(key.clone()) {
             self.pending.traffic(old, -1);
         }
         self.pending.traffic(key, 1);
-        self.metrics.inc("insight_sessions_total", &[("class", human.human()), ("reason", why)]);
-        self.metrics.inc("insight_identity_total", &[("via", found.via.word())]);
+        self.metrics.inc(
+            "insight_sessions_total",
+            &[("class", human.human()), ("reason", why)],
+        );
+        self.metrics
+            .inc("insight_identity_total", &[("via", found.via.word())]);
         let day = live.day;
         let delta = self.pending.day(person, day);
         delta.add("sessions", 1);
@@ -768,13 +1049,23 @@ impl Engine {
             self.guard.call(&live.subnet, now);
         }
         if let Some(profile) = &live.profile {
-            self.known.insert(profile.clone(), Who { person, device: found.device.clone() });
+            self.known.insert(
+                profile.clone(),
+                Who {
+                    person,
+                    device: found.device.clone(),
+                },
+            );
             self.unknown.remove(profile);
         }
         if reissue || renew {
-            self.hints.lock().unwrap_or_else(|e| e.into_inner()).insert(sid.to_owned(), found.device.clone());
+            self.hints
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .insert(sid.to_owned(), found.device.clone());
         }
         let held = std::mem::take(&mut live.held);
+        self.held_total = self.held_total.saturating_sub(held.len());
         for (event, at, counted) in held {
             self.record(sid, event, at, counted);
         }
@@ -791,7 +1082,13 @@ impl Engine {
                     .fetch_optional(&self.pool)
                     .await?;
             if let Some((person, cookie_at)) = known {
-                return Ok(Found { via: Via::Cookie, device: arrival.device.clone(), person: Some(person), root: None, cookie_at: Some(cookie_at) });
+                return Ok(Found {
+                    via: Via::Cookie,
+                    device: arrival.device.clone(),
+                    person: Some(person),
+                    root: None,
+                    cookie_at: Some(cookie_at),
+                });
             }
         }
         // 2. Профиль известен: его устройство, кука выдаётся заново.
@@ -804,12 +1101,26 @@ impl Engine {
             .fetch_optional(&self.pool)
             .await?;
             if let Some((device, person, cookie_at)) = known {
-                return Ok(Found { via: Via::Profile, device, person: Some(person), root: None, cookie_at: Some(cookie_at) });
+                return Ok(Found {
+                    via: Via::Profile,
+                    device,
+                    person: Some(person),
+                    root: None,
+                    cookie_at: Some(cookie_at),
+                });
             }
         }
         // 3. Устройство новое. 3а — узнать человека по отпечатку.
-        let new = |via, root| Found { via, device: arrival.device.clone(), person: None, root, cookie_at: None };
-        let Some(fp) = arrival.fp.as_ref().filter(|_| self.fingerprint) else { return Ok(new(Via::New, None)) };
+        let new = |via, root| Found {
+            via,
+            device: arrival.device.clone(),
+            person: None,
+            root,
+            cookie_at: None,
+        };
+        let Some(fp) = arrival.fp.as_ref().filter(|_| self.fingerprint) else {
+            return Ok(new(Via::New, None));
+        };
         let rows: Vec<(String, i64, String, Option<i64>, String, String)> = sqlx::query_as(
             "SELECT d.id, COALESCE(p.merged_into, p.id), d.net, d.asn, d.country, d.tz \
              FROM an_devices d JOIN an_persons p ON p.id = d.person_id \
@@ -826,19 +1137,31 @@ impl Engine {
             .into_iter()
             .map(|(device, person, net, asn, country, tz)| {
                 let active = self.active_now(&device, now);
-                Candidate { device, person, net, asn, country, tz, active }
+                Candidate {
+                    device,
+                    person,
+                    net,
+                    asn,
+                    country,
+                    tz,
+                    active,
+                }
             })
             .collect();
-        Ok(match identity::fingerprint_match(&arrival.origin, &candidates) {
-            Some(same) => new(Via::Fingerprint, Some(same.person)),
-            None => new(Via::New, None),
-        })
+        Ok(
+            match identity::fingerprint_match(&arrival.origin, &candidates) {
+                Some(same) => new(Via::Fingerprint, Some(same.person)),
+                None => new(Via::New, None),
+            },
+        )
     }
 
     /// На связи ли устройство прямо сейчас: живая сессия или присутствие во встрече.
     fn active_now(&self, device: &str, now: DateTime<Utc>) -> bool {
         let session = self.sessions.values().any(|live| {
-            live.who.is_some() && live.device == device && now - live.last_seen < Duration::minutes(SESSION_IDLE_MINUTES)
+            live.who.is_some()
+                && live.device == device
+                && now - live.last_seen < Duration::minutes(SESSION_IDLE_MINUTES)
         });
         session || self.meetings.values().any(|m| m.has_device(device))
     }
@@ -976,21 +1299,23 @@ impl Engine {
 
     /// Сессия человека из базы — после перезапуска службы.
     async fn restore(&self, sid: &str) -> Result<Option<Saved>, sqlx::Error> {
-        let row: Option<(i64, String, String, i16, i32, DateTime<Utc>, NaiveDate)> = sqlx::query_as(
+        let row: Option<SavedRow> = sqlx::query_as(
             "SELECT person_id, device_id, human, step, errors, started_at, day FROM an_sessions WHERE sid = $1",
         )
         .bind(sid)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(|(person, device, human, step, errors, started_at, day)| Saved {
-            person,
-            device,
-            confirmed: human == "confirmed",
-            step,
-            errors,
-            started_at,
-            day,
-        }))
+        Ok(row.map(
+            |(person, device, human, step, errors, started_at, day)| Saved {
+                person,
+                device,
+                confirmed: human == "confirmed",
+                step,
+                errors,
+                started_at,
+                day,
+            },
+        ))
     }
 
     /// Человек и устройство профиля. Незнакомый профиль минуту не переспрашивается.
@@ -998,7 +1323,11 @@ impl Engine {
         if let Some(who) = self.known.get(profile) {
             return Ok(Some(who.clone()));
         }
-        if self.unknown.get(profile).is_some_and(|at| self.now - *at < Duration::seconds(60)) {
+        if self
+            .unknown
+            .get(profile)
+            .is_some_and(|at| self.now - *at < Duration::seconds(60))
+        {
             return Ok(None);
         }
         let row: Option<(i64, String)> = sqlx::query_as(
@@ -1023,13 +1352,19 @@ impl Engine {
     /// Самая свежая живая сессия профиля.
     fn live_of(&self, profile: &str) -> Option<&String> {
         let sids = self.by_profile.get(profile)?;
-        sids.iter().filter(|sid| self.sessions.contains_key(*sid)).max_by_key(|sid| self.sessions[*sid].last_seen)
+        sids.iter()
+            .filter(|sid| self.sessions.contains_key(*sid))
+            .max_by_key(|sid| self.sessions[*sid].last_seen)
     }
 
     /// Сессии человека с этим профилем дошли до шага воронки.
     fn advance(&mut self, profile: &str, step: i16) {
         for sid in self.by_profile.get(profile).into_iter().flatten() {
-            if let Some(live) = self.sessions.get_mut(sid).filter(|live| live.who.is_some() && live.step < step) {
+            if let Some(live) = self
+                .sessions
+                .get_mut(sid)
+                .filter(|live| live.who.is_some() && live.step < step)
+            {
                 live.step = step;
                 live.dirty = true;
             }
@@ -1043,44 +1378,58 @@ impl Engine {
         self.now = self.now.max(now);
         let today = self.today(now);
         let idle = Duration::minutes(SESSION_IDLE_MINUTES);
-        let expired: Vec<String> =
-            self.sessions.iter().filter(|(_, live)| now - live.last_seen >= idle).map(|(sid, _)| sid.clone()).collect();
+        let expired: Vec<String> = self
+            .sessions
+            .iter()
+            .filter(|(_, live)| now - live.last_seen >= idle)
+            .map(|(sid, _)| sid.clone())
+            .collect();
         for sid in expired {
-            if let Some(live) = self.sessions.remove(&sid) {
-                if live.who.is_some() && live.dirty {
-                    self.pending.sessions.insert(sid.clone(), session_update(&live));
-                }
-                if let Some(sids) = live.profile.as_ref().and_then(|p| self.by_profile.get_mut(p)) {
-                    sids.retain(|other| *other != sid);
-                }
-            }
+            self.forget(&sid);
         }
+        self.outsiders
+            .retain(|_, at| now - *at < Duration::hours(OUTSIDER_HOURS));
         self.by_profile.retain(|_, sids| !sids.is_empty());
         self.guard.sweep(now, today);
         self.confirmed.retain(|_, at| now - *at < idle);
-        self.unknown.retain(|_, at| now - *at < Duration::seconds(60));
+        self.unknown
+            .retain(|_, at| now - *at < Duration::seconds(60));
         if self.known.len() > 100_000 {
             self.known.clear();
         }
-        self.hints.lock().unwrap_or_else(|e| e.into_inner()).retain(|sid, _| self.sessions.contains_key(sid));
+        self.hints
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|sid, _| self.sessions.contains_key(sid));
         self.sweep_meetings(now);
-        self.metrics.set("insight_live_sessions", &[], self.sessions.len() as f64);
+        self.metrics
+            .set("insight_live_sessions", &[], self.sessions.len() as f64);
     }
 
     /// Записать накопленное. Отказ базы оставляет всё в памяти до следующего раза.
     pub async fn flush(&mut self, now: DateTime<Utc>) -> Result<(), sqlx::Error> {
         self.now = self.now.max(now);
         // Сессии, чьё повышение не удалось из-за базы, пробуют снова.
-        let waiting: Vec<String> =
-            self.sessions.iter().filter(|(_, live)| live.want.is_some()).map(|(sid, _)| sid.clone()).collect();
+        let waiting: Vec<String> = self
+            .sessions
+            .iter()
+            .filter(|(_, live)| live.want.is_some())
+            .map(|(sid, _)| sid.clone())
+            .collect();
         for sid in waiting {
             if let Err(error) = self.promote(&sid, now).await {
                 self.db_error("promote", &error);
                 break;
             }
         }
-        for (sid, live) in self.sessions.iter_mut().filter(|(_, live)| live.dirty && live.who.is_some()) {
-            self.pending.sessions.insert(sid.clone(), session_update(live));
+        for (sid, live) in self
+            .sessions
+            .iter_mut()
+            .filter(|(_, live)| live.dirty && live.who.is_some())
+        {
+            self.pending
+                .sessions
+                .insert(sid.clone(), session_update(live));
             live.dirty = false;
         }
         let idle = self.pending.is_empty()
@@ -1094,7 +1443,11 @@ impl Engine {
         let written = self.write().await;
         self.metrics.observe_write(started.elapsed().as_secs_f64());
         if self.pending.lost_events > 0 {
-            self.metrics.add("insight_events_dropped_total", &[("reason", "db")], self.pending.lost_events);
+            self.metrics.add(
+                "insight_events_dropped_total",
+                &[("reason", "db")],
+                self.pending.lost_events,
+            );
             self.pending.lost_events = 0;
         }
         match written {
@@ -1109,7 +1462,11 @@ impl Engine {
                 self.failed_flushes += 1;
                 if self.failed_flushes >= FAILED_FLUSHES {
                     tracing::error!(%error, "запись не удалась много раз подряд: накопленное выброшено");
-                    self.metrics.add("insight_events_dropped_total", &[("reason", "db")], self.pending.events.len() as u64);
+                    self.metrics.add(
+                        "insight_events_dropped_total",
+                        &[("reason", "db")],
+                        self.pending.events.len() as u64,
+                    );
                     self.failed_flushes = 0;
                     self.pending = Pending::default();
                     self.fact_seen.clear();
@@ -1121,7 +1478,12 @@ impl Engine {
     }
 
     async fn write(&mut self) -> Result<(), sqlx::Error> {
-        let months: HashSet<NaiveDate> = self.pending.events.iter().map(|e| crate::days::month_bounds(e.day).0).collect();
+        let months: HashSet<NaiveDate> = self
+            .pending
+            .events
+            .iter()
+            .map(|e| crate::days::month_bounds(e.day).0)
+            .collect();
         for month in months {
             if !self.partitions.contains(&month) {
                 crate::db::ensure_partition(&self.pool, month).await?;
@@ -1172,6 +1534,9 @@ struct Found {
     cookie_at: Option<DateTime<Utc>>,
 }
 
+/// Строка `an_sessions`: человек, устройство, класс, шаг, ошибок, начало, день.
+type SavedRow = (i64, String, String, i16, i32, DateTime<Utc>, NaiveDate);
+
 /// Сессия человека, сохранённая до перезапуска.
 struct Saved {
     person: i64,
@@ -1187,8 +1552,16 @@ impl Saved {
     fn apply(self, live: &mut Live) {
         live.who = Some(self.person);
         live.device = self.device;
-        live.class = if self.confirmed { Class::Confirmed } else { Class::Engaged };
-        live.reason = if self.confirmed { reason::MEDIA } else { reason::ENGAGED };
+        live.class = if self.confirmed {
+            Class::Confirmed
+        } else {
+            Class::Engaged
+        };
+        live.reason = if self.confirmed {
+            reason::MEDIA
+        } else {
+            reason::ENGAGED
+        };
         live.step = self.step;
         live.errors = self.errors;
         live.error_session_counted = self.errors > 0;

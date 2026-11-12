@@ -103,7 +103,9 @@ const RULES: &[(&str, &str, &str)] = &[
 pub fn cause(code: &str, scope: &str) -> &'static str {
     RULES
         .iter()
-        .find(|(rule_scope, pattern, _)| (*rule_scope == "*" || *rule_scope == scope) && glob(pattern, code))
+        .find(|(rule_scope, pattern, _)| {
+            (*rule_scope == "*" || *rule_scope == scope) && glob(pattern, code)
+        })
         .map_or(CRASH, |(_, _, cause)| cause)
 }
 
@@ -113,9 +115,13 @@ fn glob(pattern: &str, text: &str) -> bool {
     let pattern = pattern.to_ascii_lowercase();
     let mut parts = pattern.split('*');
     let first = parts.next().unwrap_or_default();
-    let Some(mut rest) = text.strip_prefix(first) else { return false };
+    let Some(mut rest) = text.strip_prefix(first) else {
+        return false;
+    };
     let mut parts: Vec<&str> = parts.collect();
-    let Some(last) = parts.pop() else { return rest.is_empty() };
+    let Some(last) = parts.pop() else {
+        return rest.is_empty();
+    };
     for part in parts {
         match rest.find(part) {
             Some(index) => rest = &rest[index + part.len()..],
@@ -131,15 +137,31 @@ pub fn clean_code(code: &str) -> String {
         .trim()
         .chars()
         .take(64)
-        .map(|c| if c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | ':' | '-') { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | ':' | '-') {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
-    if cleaned.is_empty() { "UNKNOWN".to_owned() } else { cleaned }
+    if cleaned.is_empty() {
+        "UNKNOWN".to_owned()
+    } else {
+        cleaned
+    }
 }
 
 /// Ключ группы: код + область + версия. Годится частью адреса отчёта (`errors/{key}`).
 /// Версия клиента — по старшим номерам (`1.4`); у фактов ядра и служб на её месте их имя.
 pub fn key(code: &str, scope: &str, version: &str) -> String {
-    let part = |text: &str| if text.is_empty() { "-".to_owned() } else { clean_code(text) };
+    let part = |text: &str| {
+        if text.is_empty() {
+            "-".to_owned()
+        } else {
+            clean_code(text)
+        }
+    };
     format!("{}~{}~{}", clean_code(code), part(scope), part(version))
 }
 
@@ -229,7 +251,10 @@ mod tests {
     fn the_group_key_is_code_scope_and_version_and_is_safe_in_a_path() {
         assert_eq!(key("ROOM_FULL", "join", "1.4"), "ROOM_FULL~join~1.4");
         assert_eq!(key("TypeError", "app", ""), "TypeError~app~-");
-        assert_eq!(key("PROOF_INVALID", "guard", "core"), "PROOF_INVALID~guard~core");
+        assert_eq!(
+            key("PROOF_INVALID", "guard", "core"),
+            "PROOF_INVALID~guard~core"
+        );
         assert_eq!(key("a b/c?d", "", ""), "a_b_c_d~-~-");
         assert_eq!(key("", "app", "1.4"), "UNKNOWN~app~1.4");
         assert!(key(&"x".repeat(500), "app", "1.4").len() <= 64 + 1 + 3 + 1 + 3);

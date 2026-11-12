@@ -25,6 +25,17 @@ const VIEWER_SECONDS: i64 = 90;
 /// Встреча или запуск без единого факта столько часов считается оконченным: ядро о нём уже не скажет.
 const STALE_HOURS: i64 = 6;
 
+/// Строка открытого запуска: id, встреча, вид, площадка, начало, день, пик.
+type RunRow = (
+    String,
+    String,
+    String,
+    String,
+    DateTime<Utc>,
+    NaiveDate,
+    i32,
+);
+
 /// Участник на связи.
 struct Member {
     profile: Option<String>,
@@ -94,7 +105,9 @@ impl Meeting {
     }
 
     pub(super) fn has_device(&self, device: &str) -> bool {
-        self.members.values().any(|m| m.who.as_ref().is_some_and(|who| who.device == device))
+        self.members
+            .values()
+            .any(|m| m.who.as_ref().is_some_and(|who| who.device == device))
     }
 }
 
@@ -123,7 +136,8 @@ impl Run {
         self.delta[4] += view[1];
         self.delta[5] += view[2];
         self.viewers.insert(person, at);
-        self.viewers.retain(|_, seen| at - *seen < Duration::seconds(VIEWER_SECONDS));
+        self.viewers
+            .retain(|_, seen| at - *seen < Duration::seconds(VIEWER_SECONDS));
         self.peak = self.peak.max(self.viewers.len() as i64);
         self.last = self.last.max(at);
         self.dirty = true;
@@ -153,7 +167,7 @@ impl Engine {
             };
             self.meetings.insert(room, meeting);
         }
-        let runs: Vec<(String, String, String, String, DateTime<Utc>, NaiveDate, i32)> = sqlx::query_as(
+        let runs: Vec<RunRow> = sqlx::query_as(
             "SELECT run, room, kind, variant, opened_at, day, peak FROM an_integration_runs \
              WHERE closed_at IS NULL AND opened_at >= $1",
         )
@@ -161,7 +175,8 @@ impl Engine {
         .fetch_all(&self.pool)
         .await?;
         for (run, room, kind, variant, opened_at, day, peak) in runs {
-            self.open_runs.insert((room.clone(), kind.clone()), run.clone());
+            self.open_runs
+                .insert((room.clone(), kind.clone()), run.clone());
             let state = Run {
                 run: run.clone(),
                 room,
@@ -183,23 +198,44 @@ impl Engine {
     }
 
     /// Пачка фактов. Уже принятые `id` пропускаются: повтор ничего не удваивает.
-    pub(super) async fn facts(&mut self, batch: Facts, now: DateTime<Utc>) -> Result<(), sqlx::Error> {
+    pub(super) async fn facts(
+        &mut self,
+        batch: Facts,
+        now: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
         self.now = self.now.max(now);
         let ids: Vec<String> = batch.facts.iter().map(|f| f.id.clone()).collect();
         let stored: Vec<String> =
-            sqlx::query_scalar("SELECT id FROM an_fact_ids WHERE id = ANY($1)").bind(&ids).fetch_all(&self.pool).await?;
+            sqlx::query_scalar("SELECT id FROM an_fact_ids WHERE id = ANY($1)")
+                .bind(&ids)
+                .fetch_all(&self.pool)
+                .await?;
         let stored: HashSet<String> = stored.into_iter().collect();
-        let source = if batch.source == "services" { "services" } else { "core" };
-        self.metrics.add("insight_facts_dropped_total", &[("reason", "unknown")], batch.dropped as u64);
+        let source = if batch.source == "services" {
+            "services"
+        } else {
+            "core"
+        };
+        self.metrics.add(
+            "insight_facts_dropped_total",
+            &[("reason", "unknown")],
+            batch.dropped as u64,
+        );
         for fact in batch.facts {
             if stored.contains(&fact.id) || self.fact_seen.contains(&fact.id) {
-                self.metrics.inc("insight_facts_dropped_total", &[("reason", "duplicate")]);
+                self.metrics
+                    .inc("insight_facts_dropped_total", &[("reason", "duplicate")]);
                 continue;
             }
             self.fact(&fact, source).await?;
             let at = from_ms(fact.at);
-            self.metrics.inc("insight_facts_accepted_total", &[("type", fact.name)]);
-            self.metrics.set("insight_facts_lag_seconds", &[], (now - at).num_milliseconds() as f64 / 1000.0);
+            self.metrics
+                .inc("insight_facts_accepted_total", &[("type", fact.name)]);
+            self.metrics.set(
+                "insight_facts_lag_seconds",
+                &[],
+                (now - at).num_milliseconds() as f64 / 1000.0,
+            );
             self.fact_seen.insert(fact.id.clone());
             self.pending.fact_ids.push((fact.id, at));
         }
@@ -211,6 +247,15 @@ impl Engine {
         let day = local_day(at, self.zone);
         let room = f.text("room").map(|room| self.keys.room(&room));
         let profile = f.text("profile");
+        // Факт о своей проверке, роботе или автоматике в цифры не идёт (§11 проекта): ни входом, ни встречей.
+        if profile
+            .as_ref()
+            .is_some_and(|p| self.outsiders.contains_key(p))
+        {
+            self.metrics
+                .inc("insight_facts_dropped_total", &[("reason", "outsider")]);
+            return Ok(());
+        }
         // Всё, что читает базу, — до изменений в памяти: отказ базы не оставляет факт сделанным наполовину.
         let mut who = match &profile {
             Some(profile) => self.who(profile).await?,
@@ -218,7 +263,8 @@ impl Engine {
         };
         match f.name {
             "join" => {
-                self.pending.count(day, "join", &f.word("how"), &f.word("node"), 1);
+                self.pending
+                    .count(day, "join", &f.word("how"), &f.word("node"), 1);
                 if let Some(room) = &room {
                     let meeting = self.meeting(room, at, day);
                     meeting.delta.joins += 1;
@@ -236,7 +282,15 @@ impl Engine {
             "join_fail" => {
                 let (code, how) = (f.word("code"), f.word("how"));
                 self.pending.count(day, "join_fail", &code, &how, 1);
-                self.server_error(&code, "join", source, at, day, who.as_ref().map(|w| w.person), 1);
+                self.server_error(
+                    &code,
+                    "join",
+                    source,
+                    at,
+                    day,
+                    who.as_ref().map(|w| w.person),
+                    1,
+                );
                 if let (Some(who), Some(profile)) = (&who, &profile) {
                     let props = json!({"code": code, "how": how, "key": crate::errors::key(&code, "join", source)});
                     self.fact_event(who.person, profile, "join_fail", at, day, None, props);
@@ -254,14 +308,21 @@ impl Engine {
                     if meeting.node.is_empty() {
                         meeting.node = f.word("node");
                     }
-                    let fresh = Member { profile, who, since: at, credited: Vec::new(), together: 0 };
+                    let fresh = Member {
+                        profile,
+                        who,
+                        since: at,
+                        credited: Vec::new(),
+                        together: 0,
+                    };
                     let known = meeting.members.entry(member).or_insert(fresh);
                     known.since = known.since.max(at);
                     meeting.peak = meeting.peak.max(meeting.members.len() as i64);
                 }
             }
             "media_down" => {
-                self.pending.count(day, "media_down", &f.word("reason"), "", 1);
+                self.pending
+                    .count(day, "media_down", &f.word("reason"), "", 1);
                 if let (Some(room), Some(member)) = (&room, f.text("member")) {
                     self.credit_all(room, at);
                     self.depart(room, &member, at, Some(f.word("reason")));
@@ -269,11 +330,23 @@ impl Engine {
             }
             "presence" => {
                 let Some(room) = &room else { return Ok(()) };
-                let present = f.members();
+                let mut present = f.members();
+                present.retain(|(_, profile)| {
+                    !profile
+                        .as_ref()
+                        .is_some_and(|p| self.outsiders.contains_key(p))
+                });
+                // Во встрече одни свои проверки: её в цифрах нет.
+                if present.is_empty() && !self.meetings.contains_key(room) {
+                    return Ok(());
+                }
                 // Новые в тике участники: их люди ищутся в базе до каких-либо изменений.
                 let mut arrivals = Vec::new();
                 for (member, profile) in &present {
-                    let known = self.meetings.get(room).is_some_and(|m| m.members.contains_key(member));
+                    let known = self
+                        .meetings
+                        .get(room)
+                        .is_some_and(|m| m.members.contains_key(member));
                     if !known {
                         let who = match profile {
                             Some(profile) => self.who(profile).await?,
@@ -287,8 +360,11 @@ impl Engine {
                 if meeting.node.is_empty() {
                     meeting.node = f.word("node");
                 }
-                let (stay, gone): (Vec<String>, Vec<String>) =
-                    meeting.members.keys().cloned().partition(|member| names.contains(member));
+                let (stay, gone): (Vec<String>, Vec<String>) = meeting
+                    .members
+                    .keys()
+                    .cloned()
+                    .partition(|member| names.contains(member));
                 for member in &stay {
                     self.credit(room, member, at);
                 }
@@ -298,7 +374,16 @@ impl Engine {
                 }
                 let meeting = self.meeting(room, at, day);
                 for (member, profile, who) in arrivals {
-                    meeting.members.insert(member, Member { profile, who, since: at, credited: Vec::new(), together: 0 });
+                    meeting.members.insert(
+                        member,
+                        Member {
+                            profile,
+                            who,
+                            since: at,
+                            credited: Vec::new(),
+                            together: 0,
+                        },
+                    );
                 }
                 meeting.peak = meeting.peak.max(meeting.members.len() as i64);
             }
@@ -345,14 +430,18 @@ impl Engine {
                 }
             }
             "integration_open" => {
-                let (Some(room), Some(run)) = (&room, f.text("run")) else { return Ok(()) };
+                let (Some(room), Some(run)) = (&room, f.text("run")) else {
+                    return Ok(());
+                };
                 let kind = f.word("kind");
                 if !KINDS.contains(&kind.as_str()) {
                     return Ok(());
                 }
                 let variant = f.word("variant");
-                self.pending.count(day, "integration_open", &kind, &variant, 1);
-                self.open_runs.insert((room.clone(), kind.clone()), run.clone());
+                self.pending
+                    .count(day, "integration_open", &kind, &variant, 1);
+                self.open_runs
+                    .insert((room.clone(), kind.clone()), run.clone());
                 let state = Run {
                     run: run.clone(),
                     room: room.clone(),
@@ -382,9 +471,18 @@ impl Engine {
             }
             "integration_error" => {
                 let (kind, variant, code) = (f.word("kind"), f.word("variant"), f.word("code"));
-                self.pending.count(day, "integration_error", &format!("{kind}/{variant}"), &code, 1);
+                self.pending.count(
+                    day,
+                    "integration_error",
+                    &format!("{kind}/{variant}"),
+                    &code,
+                    1,
+                );
                 self.server_error(&code, &kind, source, at, day, None, 1);
-                let id = f.text("run").or_else(|| room.as_ref().and_then(|room| self.open_runs.get(&(room.clone(), kind)).cloned()));
+                let id = f.text("run").or_else(|| {
+                    room.as_ref()
+                        .and_then(|room| self.open_runs.get(&(room.clone(), kind)).cloned())
+                });
                 if let Some(run) = id.and_then(|id| self.runs.get_mut(&id)) {
                     run.delta[3] += 1;
                     run.dirty = true;
@@ -392,7 +490,9 @@ impl Engine {
                 }
             }
             "usage" => {
-                let id = room.as_ref().and_then(|room| self.open_runs.get(&(room.clone(), f.word("kind"))));
+                let id = room
+                    .as_ref()
+                    .and_then(|room| self.open_runs.get(&(room.clone(), f.word("kind"))));
                 match id.cloned().and_then(|id| self.runs.get_mut(&id)) {
                     Some(run) => {
                         run.delta[1] += f.int("bytes");
@@ -400,11 +500,14 @@ impl Engine {
                         run.dirty = true;
                         run.last = run.last.max(at);
                     }
-                    None => self.metrics.inc("insight_facts_dropped_total", &[("reason", "no_run")]),
+                    None => self
+                        .metrics
+                        .inc("insight_facts_dropped_total", &[("reason", "no_run")]),
                 }
             }
             "node_move" => {
-                self.pending.count(day, "node_move", &f.word("reason"), &f.word("to"), 1);
+                self.pending
+                    .count(day, "node_move", &f.word("reason"), &f.word("to"), 1);
                 if let Some(meeting) = room.as_ref().and_then(|room| self.meetings.get_mut(room)) {
                     meeting.delta.moves += 1;
                     meeting.node = f.word("to");
@@ -413,7 +516,8 @@ impl Engine {
             }
             "refusal" => {
                 let count = f.int("count").max(1);
-                self.pending.count(day, "refusal", &f.word("code"), "", count);
+                self.pending
+                    .count(day, "refusal", &f.word("code"), "", count);
                 self.server_error(&f.word("code"), "guard", source, at, day, None, count);
             }
             _ => {}
@@ -440,7 +544,10 @@ impl Engine {
             source,
             at,
             day,
-            dims: ErrorDims { client: source.to_owned(), ..ErrorDims::default() },
+            dims: ErrorDims {
+                client: source.to_owned(),
+                ..ErrorDims::default()
+            },
             first_in_session: false,
             person,
             sample: json!({"at": at, "client": source}),
@@ -462,7 +569,15 @@ impl Engine {
         props: Value,
     ) {
         let sid = self.live_of(profile).cloned();
-        self.pending.event(EventRow { at, day, sid, person: Some(person), name, room, props });
+        self.pending.event(EventRow {
+            at,
+            day,
+            sid,
+            person: Some(person),
+            name,
+            room,
+            props,
+        });
     }
 
     /// Профиль соединился с медиаузлом: человек подтверждён. Сессия «неясно» с этим профилем становится
@@ -479,7 +594,9 @@ impl Engine {
             None => {
                 let waiting = self.by_profile.get(profile).and_then(|sids| {
                     sids.iter().rev().find(|sid| {
-                        self.sessions.get(*sid).is_some_and(|live| live.class == Class::Unclear && live.who.is_none())
+                        self.sessions
+                            .get(*sid)
+                            .is_some_and(|live| live.class == Class::Unclear && live.who.is_none())
                     })
                 });
                 let Some(sid) = waiting.cloned() else {
@@ -500,11 +617,16 @@ impl Engine {
         let first = self.pending.called.entry(who.person).or_insert(day);
         *first = (*first).min(day);
         for sid in self.by_profile.get(profile).into_iter().flatten() {
-            let Some(live) = self.sessions.get_mut(sid).filter(|live| live.who.is_some()) else { continue };
+            let Some(live) = self.sessions.get_mut(sid).filter(|live| live.who.is_some()) else {
+                continue;
+            };
             if live.class == Class::Engaged {
                 live.class = Class::Confirmed;
                 live.reason = reason::MEDIA;
-                self.metrics.inc("insight_sessions_total", &[("class", "confirmed"), ("reason", reason::MEDIA)]);
+                self.metrics.inc(
+                    "insight_sessions_total",
+                    &[("class", "confirmed"), ("reason", reason::MEDIA)],
+                );
             }
             live.step = live.step.max(6);
             live.dirty = true;
@@ -515,7 +637,10 @@ impl Engine {
 
     /// Встреча комнаты; нет в памяти — заводится по первому факту о ней.
     fn meeting(&mut self, room: &str, at: DateTime<Utc>, day: NaiveDate) -> &mut Meeting {
-        let meeting = self.meetings.entry(room.to_owned()).or_insert_with(|| Meeting::open(room, at, day));
+        let meeting = self
+            .meetings
+            .entry(room.to_owned())
+            .or_insert_with(|| Meeting::open(room, at, day));
         meeting.dirty = true;
         meeting.last = meeting.last.max(at);
         meeting
@@ -523,7 +648,11 @@ impl Engine {
 
     /// Засчитать всем на связи секунды до `to`.
     fn credit_all(&mut self, room: &str, to: DateTime<Utc>) {
-        let members: Vec<String> = self.meetings.get(room).map(|m| m.members.keys().cloned().collect()).unwrap_or_default();
+        let members: Vec<String> = self
+            .meetings
+            .get(room)
+            .map(|m| m.members.keys().cloned().collect())
+            .unwrap_or_default();
         for member in &members {
             self.credit(room, member, to);
         }
@@ -532,10 +661,14 @@ impl Engine {
     /// Засчитать участнику секунды на связи от прошлой отметки до `to`.
     fn credit(&mut self, room: &str, member: &str, to: DateTime<Utc>) {
         let zone = self.zone;
-        let Some(meeting) = self.meetings.get_mut(room) else { return };
+        let Some(meeting) = self.meetings.get_mut(room) else {
+            return;
+        };
         // Не один — значит, с собеседником: по этому человек становится собеседником дня.
         let together = meeting.members.len() >= 2;
-        let Some(state) = meeting.members.get_mut(member) else { return };
+        let Some(state) = meeting.members.get_mut(member) else {
+            return;
+        };
         let from = state.since.max(to - Duration::seconds(CREDIT_CAP_SECONDS));
         state.since = state.since.max(to);
         let was_together = state.together;
@@ -575,18 +708,43 @@ impl Engine {
 
     /// Участник ушёл: событие `presence` с секундами по дням и, если ядро назвало причину, `leave`.
     fn depart(&mut self, room: &str, member: &str, at: DateTime<Utc>, why: Option<String>) {
-        let Some(state) = self.meetings.get_mut(room).and_then(|m| m.members.remove(member)) else { return };
+        let Some(state) = self
+            .meetings
+            .get_mut(room)
+            .and_then(|m| m.members.remove(member))
+        else {
+            return;
+        };
         let Some(who) = state.who else { return };
-        let sid = state.profile.as_ref().and_then(|profile| self.live_of(profile).cloned());
+        let sid = state
+            .profile
+            .as_ref()
+            .and_then(|profile| self.live_of(profile).cloned());
         for (day, seconds) in state.credited {
             let props = json!({"seconds": seconds});
-            let row = EventRow { at, day, sid: sid.clone(), person: Some(who.person), name: "presence", room: Some(room.to_owned()), props };
+            let row = EventRow {
+                at,
+                day,
+                sid: sid.clone(),
+                person: Some(who.person),
+                name: "presence",
+                room: Some(room.to_owned()),
+                props,
+            };
             self.pending.event(row);
         }
         if let Some(why) = why {
             let day = local_day(at, self.zone);
             let props = json!({"reason": why, "by": "core"});
-            let row = EventRow { at, day, sid, person: Some(who.person), name: "leave", room: Some(room.to_owned()), props };
+            let row = EventRow {
+                at,
+                day,
+                sid,
+                person: Some(who.person),
+                name: "leave",
+                room: Some(room.to_owned()),
+                props,
+            };
             self.pending.event(row);
         }
     }
@@ -594,7 +752,11 @@ impl Engine {
     /// Встреча кончилась: всем на связи засчитывается до этого момента, строка закрывается.
     fn close_meeting(&mut self, room: &str, at: DateTime<Utc>, why: &str, peak: i64) {
         self.credit_all(room, at);
-        let members: Vec<String> = self.meetings.get(room).map(|m| m.members.keys().cloned().collect()).unwrap_or_default();
+        let members: Vec<String> = self
+            .meetings
+            .get(room)
+            .map(|m| m.members.keys().cloned().collect())
+            .unwrap_or_default();
         for member in &members {
             self.depart(room, member, at, None);
         }
@@ -609,12 +771,20 @@ impl Engine {
     /// Закрыть встречи и запуски, о которых давно нет фактов: `meeting_close` потерялся.
     pub(super) fn sweep_meetings(&mut self, now: DateTime<Utc>) {
         let stale = Duration::hours(STALE_HOURS);
-        let rooms: Vec<(String, DateTime<Utc>)> =
-            self.meetings.iter().filter(|(_, m)| now - m.last >= stale).map(|(room, m)| (room.clone(), m.last)).collect();
+        let rooms: Vec<(String, DateTime<Utc>)> = self
+            .meetings
+            .iter()
+            .filter(|(_, m)| now - m.last >= stale)
+            .map(|(room, m)| (room.clone(), m.last))
+            .collect();
         for (room, last) in rooms {
             self.close_meeting(&room, last, "unknown", 0);
         }
-        for run in self.runs.values_mut().filter(|run| run.closed.is_none() && now - run.last >= stale) {
+        for run in self
+            .runs
+            .values_mut()
+            .filter(|run| run.closed.is_none() && now - run.last >= stale)
+        {
             run.closed = Some((run.last, "unknown".to_owned()));
             run.dirty = true;
             self.open_runs.remove(&(run.room.clone(), run.kind.clone()));
@@ -622,7 +792,10 @@ impl Engine {
     }
 
     /// Записать встречи: новые — вставкой, известные — прибавкой. Возвращает номера новых строк идущих встреч.
-    pub(super) async fn write_meetings(&self, conn: &mut PgConnection) -> Result<Vec<(String, i64)>, sqlx::Error> {
+    pub(super) async fn write_meetings(
+        &self,
+        conn: &mut PgConnection,
+    ) -> Result<Vec<(String, i64)>, sqlx::Error> {
         for meeting in self.finished.iter().filter(|m| m.dirty) {
             write_meeting(conn, meeting).await?;
         }
@@ -702,7 +875,10 @@ impl Engine {
 }
 
 /// Строка встречи: вставка новой или прибавка к известной. Возвращает номер строки.
-async fn write_meeting(conn: &mut PgConnection, meeting: &Meeting) -> Result<Option<i64>, sqlx::Error> {
+async fn write_meeting(
+    conn: &mut PgConnection,
+    meeting: &Meeting,
+) -> Result<Option<i64>, sqlx::Error> {
     let d = &meeting.delta;
     let (closed_at, why) = match &meeting.closed {
         Some((at, why)) => (Some(*at), why.as_str()),

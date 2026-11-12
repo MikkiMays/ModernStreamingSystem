@@ -45,13 +45,17 @@ pub fn sid(name: &str) -> String {
 
 /// Новая пустая база с применёнными миграциями. Сервер — из `DATABASE_URL` (одноразовый PostgreSQL).
 pub async fn fresh_pool() -> PgPool {
-    let url = std::env::var("DATABASE_URL").expect("тестам с базой нужен DATABASE_URL одноразового PostgreSQL");
+    let url = std::env::var("DATABASE_URL")
+        .expect("тестам с базой нужен DATABASE_URL одноразового PostgreSQL");
     let admin = config::database(&url, None, None).unwrap();
     let mut random = [0u8; 8];
     getrandom::fill(&mut random).unwrap();
     let name = format!("t_{}", hex::encode(random));
     let admin_pool = db::pool(&admin);
-    sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {name}"))).execute(&admin_pool).await.unwrap();
+    sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {name}")))
+        .execute(&admin_pool)
+        .await
+        .unwrap();
     admin_pool.close().await;
     let pool = db::pool(&config::Database { name, ..admin });
     db::migrate(&pool).await.unwrap();
@@ -73,19 +77,48 @@ pub async fn world() -> World {
 
 impl World {
     pub fn on(pool: PgPool, fingerprint: bool) -> World {
-        let keys = Arc::new(Keys::new("a-test-session-secret-of-32-chars!", "a-test-internal-secret-of-32-chars", None));
+        let keys = Arc::new(Keys::new(
+            "a-test-session-secret-of-32-chars!",
+            "a-test-internal-secret-of-32-chars",
+            None,
+        ));
         let hints: CookieHints = Arc::new(Mutex::new(HashMap::new()));
         let metrics = Arc::new(Metrics::default());
-        let options = Options { zone: ZONE, fingerprint };
-        let engine = Engine::new(pool.clone(), keys.clone(), options, metrics.clone(), hints.clone());
-        World { pool, engine, keys, hints, metrics, fingerprint }
+        let options = Options {
+            zone: ZONE,
+            fingerprint,
+        };
+        let engine = Engine::new(
+            pool.clone(),
+            keys.clone(),
+            options,
+            metrics.clone(),
+            hints.clone(),
+        );
+        World {
+            pool,
+            engine,
+            keys,
+            hints,
+            metrics,
+            fingerprint,
+        }
     }
 
     /// Служба перезапустилась: память пуста, база та же.
     pub async fn restart(&mut self, now: DateTime<Utc>) {
         self.flush(now).await;
-        let options = Options { zone: ZONE, fingerprint: self.fingerprint };
-        self.engine = Engine::new(self.pool.clone(), self.keys.clone(), options, self.metrics.clone(), self.hints.clone());
+        let options = Options {
+            zone: ZONE,
+            fingerprint: self.fingerprint,
+        };
+        self.engine = Engine::new(
+            self.pool.clone(),
+            self.keys.clone(),
+            options,
+            self.metrics.clone(),
+            self.hints.clone(),
+        );
         self.engine.load(now).await.unwrap();
     }
 
@@ -95,12 +128,18 @@ impl World {
 
     /// Одно число из базы.
     pub async fn number(&self, sql: &str) -> i64 {
-        sqlx::query_scalar(AssertSqlSafe(format!("SELECT v::bigint FROM ({sql}) q(v)"))).fetch_one(&self.pool).await.unwrap()
+        sqlx::query_scalar(AssertSqlSafe(format!("SELECT v::bigint FROM ({sql}) q(v)")))
+            .fetch_one(&self.pool)
+            .await
+            .unwrap()
     }
 
     /// Строки из базы текстом: запрос возвращает один текстовый столбец (`concat_ws('|', …)`).
     pub async fn text(&self, sql: &str) -> String {
-        let rows: Vec<String> = sqlx::query_scalar(AssertSqlSafe(sql.to_owned())).fetch_all(&self.pool).await.unwrap();
+        let rows: Vec<String> = sqlx::query_scalar(AssertSqlSafe(sql.to_owned()))
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
         rows.join("\n")
     }
 
@@ -123,13 +162,21 @@ impl World {
             }
         }
         let body = json!({"source": source, "facts": facts}).to_string();
-        self.engine.accept(fact::parse(body.as_bytes()).unwrap(), now).await.unwrap();
+        self.engine
+            .accept(fact::parse(body.as_bytes()).unwrap(), now)
+            .await
+            .unwrap();
     }
 }
 
 /// Сеть захода: страна, ASN, класс и отпечаток подсети (в тестах — просто слово).
 pub fn network(country: &str, asn: u32, class: &'static str, subnet: &str) -> Network {
-    Network { country: country.to_owned(), asn: Some(asn), class, subnet: subnet.to_owned() }
+    Network {
+        country: country.to_owned(),
+        asn: Some(asn),
+        class,
+        subnet: subnet.to_owned(),
+    }
 }
 
 /// Браузер или приложение человека: хранит куку и профиль, как настоящий.
@@ -192,7 +239,9 @@ impl Browser {
     }
 
     pub fn pseudonym(&self, world: &World) -> Option<String> {
-        self.profile.as_ref().map(|secret| world.keys.profile(secret))
+        self.profile
+            .as_ref()
+            .map(|secret| world.keys.profile(secret))
     }
 
     /// Послать пачку событий: `[{"n": "screen", "p": {…}}]`; без `at` — момент отправки.
@@ -200,7 +249,14 @@ impl Browser {
         self.send_with(world, sid, now, events, None).await;
     }
 
-    async fn send_with(&mut self, world: &mut World, sid: &str, now: DateTime<Utc>, events: Value, proof: Option<Solved>) {
+    async fn send_with(
+        &mut self,
+        world: &mut World,
+        sid: &str,
+        now: DateTime<Utc>,
+        events: Value,
+        proof: Option<Solved>,
+    ) {
         let mut events = events.as_array().unwrap().clone();
         for event in &mut events {
             let event = event.as_object_mut().unwrap();
@@ -219,7 +275,11 @@ impl Browser {
                 Cookie::Issued(id)
             }
         };
-        let touch = self.fp.get("touch").and_then(Value::as_u64).map(|t| t as u32);
+        let touch = self
+            .fp
+            .get("touch")
+            .and_then(Value::as_u64)
+            .map(|t| t as u32);
         let client = ua::client_kind(self.client, self.agent);
         let visit = Visit {
             now,
@@ -256,11 +316,20 @@ impl Browser {
     /// Человек действовал: событие `engaged` с решённой задачей.
     pub async fn engage(&mut self, world: &mut World, sid: &str, now: DateTime<Utc>) {
         self.proofs += 1;
-        let proof = Solved { signature: format!("proof-{sid}-{}", self.proofs), expires_ms: (now + Duration::minutes(5)).timestamp_millis() };
+        let proof = Solved {
+            signature: format!("proof-{sid}-{}", self.proofs),
+            expires_ms: (now + Duration::minutes(5)).timestamp_millis(),
+        };
         self.engage_with(world, sid, now, Some(proof)).await;
     }
 
-    pub async fn engage_with(&mut self, world: &mut World, sid: &str, now: DateTime<Utc>, proof: Option<Solved>) {
+    pub async fn engage_with(
+        &mut self,
+        world: &mut World,
+        sid: &str,
+        now: DateTime<Utc>,
+        proof: Option<Solved>,
+    ) {
         let event = json!([{"n": "engaged", "p": {"proof": "решение", "ms": 1200}}]);
         self.send_with(world, sid, now, event, proof).await;
     }
