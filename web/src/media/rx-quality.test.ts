@@ -169,4 +169,36 @@ describe('сводка приёма раз в 10 с (rooms/{id}/quality)', () =>
     // Ни приёма, ни отдачи — сводки нет.
     expect(rx.flush(4 * INTERVAL_MS)).toBeNull();
   });
+  it('байты (R239): принятое — разностью счётчиков отчёта, отданное — суммой замеров; окно обнуляет оба', () => {
+    const rx = new RxQuality();
+    // Отчёт inbound-rtp приходит целиком: байты лежат в нём рядом с полями декодера.
+    const inbound = (bytesReceived: number, headerBytesReceived: number, totalSamplesReceived: number) =>
+      ({ timestamp: 0, bytesReceived, headerBytesReceived, totalSamplesReceived }) as PlayoutSample;
+    rx.observe([voice(inbound(10_000, 1_000, 0)), music(inbound(500_000, 20_000, 0))], 0);
+    // Первый отчёт — точка отсчёта: то, что пришло до него, в сводку не идёт.
+    rx.observe([voice(inbound(14_000, 1_400, 96_000)), music(inbound(900_000, 36_000, 96_000))], 2_000);
+    // Дорожку переподписали — счётчик пошёл с нуля; отрицательной разности нет.
+    rx.observe([voice(inbound(300, 30, 100)), music(inbound(1_000_000, 40_000, 192_000))], 4_000);
+    const camera = {
+      source: 'camera',
+      codec: 'vp9',
+      hw: 'hw',
+      cpuSeconds: 0,
+      bandwidthSeconds: 0,
+      otherSeconds: 0,
+    } as const;
+    rx.observeTx({ ...camera, seconds: 3, bytes: 250_000 });
+    rx.observeTx({ ...camera, seconds: 3, bytes: 300_000.4 });
+    // Замер без байт (сессия их не передала) и замер без времени в счёт не идут.
+    rx.observeTx({ ...camera, seconds: 3 });
+    rx.observeTx({ ...camera, seconds: 0, bytes: 999 });
+    const summary = rx.flush(INTERVAL_MS);
+    expect(summary?.bytesDown).toBe(4_000 + 400 + (400_000 + 16_000) + (100_000 + 4_000));
+    expect(summary?.bytesUp).toBe(550_000);
+    // Новое окно: счётчики сводки обнулены, точка отсчёта дорожек прежняя.
+    rx.observe([music(inbound(1_010_000, 40_400, 288_000))], INTERVAL_MS + 2_000);
+    const next = rx.flush(2 * INTERVAL_MS);
+    expect(next?.bytesDown).toBe(10_400);
+    expect(next).not.toHaveProperty('bytesUp');
+  });
 });
