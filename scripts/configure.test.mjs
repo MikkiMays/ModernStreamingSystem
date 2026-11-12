@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, relative, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -116,6 +116,22 @@ test('monitoring adds its secrets once, guards SFU metrics with a password and n
     const alerts = JSON.parse(await readFile(join(directory, 'infra/generated/alertmanager.yml'), 'utf8'));
     assert.deepEqual(alerts.receivers.map((r) => r.name), ['owner', 'watchdog']);
     assert.equal(alerts.receivers[0].telegram_configs, undefined);
+
+    // Отдельный бот оповещений: токен и чат — в `.local/alerts.env`; он главнее бота Cord.
+    await mkdir(join(directory, '.local'), { recursive: true });
+    await writeFile(join(directory, '.local/telegram.env'), 'CORD_MEET_TELEGRAM_BOT_TOKEN=1:meet\n');
+    await writeFile(
+      join(directory, '.local/alerts.env'),
+      '# бот оповещений\nALERT_TELEGRAM_BOT_TOKEN=2:alerts\nALERT_TELEGRAM_CHAT_ID=-100123\n',
+    );
+    assert.equal(run('--refresh').status, 0);
+    const wired = JSON.parse(await readFile(join(directory, 'infra/generated/alertmanager.yml'), 'utf8'));
+    assert.deepEqual(wired.receivers[0].telegram_configs, [
+      { bot_token: '2:alerts', chat_id: -100123, send_resolved: true },
+    ]);
+    await rm(join(directory, '.local/alerts.env'));
+    await rm(join(directory, '.local/telegram.env'));
+    assert.equal(run('--refresh').status, 0);
 
     const enabled = run('--refresh', '--monitoring');
     assert.equal(enabled.status, 0, enabled.stderr);
