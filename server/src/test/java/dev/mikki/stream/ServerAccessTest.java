@@ -38,7 +38,7 @@ class ServerAccessTest {
     var minute = Rate.perMinute(60);
     return new StreamProperties.Abuse(
         StreamProperties.Abuse.HumanCheck.PROOF_OF_WORK,
-        50000,
+        250000,
         new StreamProperties.Abuse.PerIp(
             Rate.parse("10 per hour"),
             3,
@@ -125,7 +125,7 @@ class ServerAccessTest {
             new ClientAddress(closed),
             closed)
         .connect(new SessionController.Connect("тайна"), request);
-    verify(limits).check(startsWith("session:"), eq(60));
+    verify(limits).address(startsWith("session:"), eq(60));
   }
 
   /**

@@ -25,18 +25,17 @@ import org.springframework.stereotype.Component;
  * позже этого срока). Пустой список — самый частый случай — не стоит даже HMAC.
  *
  * <p>АВТОБЛОК. Адрес, получивший {@code abuse.blocks.auto-block} отказов «слишком часто» за окно,
- * закрывается сам на {@code auto-block-term}. Считаются только отказы про адрес ({@link
- * #ADDRESS_REFUSALS}): «все комнаты заняты» — про сервер, а частота чата — про одного человека, и
- * закрывать из-за них целый офис за одним NAT нельзя. Снять — на странице «Активность».
+ * закрывается сам на {@code auto-block-term}. Считаются только отказы пределов <b>по адресу</b> —
+ * те, что помечены у места отказа ({@link Problem#perAddress}): частота входов, новых встреч,
+ * промахи кода и пароля. Предел участника, пропуска или профиля — даже с тем же кодом {@code
+ * RATE_LIMITED} — сюда не доходит: «все комнаты заняты» — про сервер, частота команд и чата — про
+ * одного человека, и закрывать из-за них целый офис за одним NAT нельзя. Снять — на странице
+ * «Активность».
  */
 @Component
 public class Blocks {
   /** Как долго список активных блоков в памяти считается свежим. */
   public static final long CACHE_MS = 10_000;
-
-  /** Отказы, которые говорят о самом адресе, — только они ведут к автоблоку. */
-  public static final Set<String> ADDRESS_REFUSALS =
-      Set.of("RATE_LIMITED", "ROOMS_PER_HOUR", "OPEN_ROOMS", "CODE_MISSES", "PASSWORD_MISSES");
 
   public static final String IP = "ip";
   public static final String PROFILE = "profile";
@@ -166,13 +165,14 @@ public class Blocks {
   }
 
   /**
-   * Отказ «слишком часто» по адресу: шаг счётчика автоблока, и если он вышел за предел — блок на
-   * {@code auto-block-term}. Возвращает поставленный блок; пусто — не ставили.
+   * Отказ предела по адресу ({@link Problem#addressScoped}): шаг счётчика автоблока, и если он
+   * вышел за предел — блок на {@code auto-block-term}. Возвращает поставленный блок; пусто — не
+   * ставили. Отказ предела участника или профиля сюда не передают — это решает тот, кто зовёт
+   * ({@code BlockGuard}).
    */
-  public Optional<Block> refused(String addressKey, String code) {
+  public Optional<Block> refused(String addressKey) {
     var rules = config.abuse().blocks();
-    if (addressKey == null || !ADDRESS_REFUSALS.contains(code) || rules.autoBlock().unlimited())
-      return Optional.empty();
+    if (addressKey == null || rules.autoBlock().unlimited()) return Optional.empty();
     if (!limits.exceeded("refusals:" + addressKey, rules.autoBlock())) return Optional.empty();
     if (blockedUntil(addressKey, null).isPresent()) return Optional.empty();
     var block =

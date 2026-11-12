@@ -45,10 +45,10 @@ public class QualityController {
       @RequestHeader("Authorization") String credential,
       @Valid @RequestBody RxQuality.RxSummary summary,
       HttpServletRequest http) {
-    limits.check("quality-ip:" + address.of(http), 60);
+    limits.address("quality-ip:" + address.of(http), 60);
     var room = rooms.read(id.toString());
     var member = rooms.authenticate(room, credential);
-    limits.check("quality:" + room.id + ":" + member.id, WINDOW);
+    limits.member("quality:" + room.id + ":" + member.id, WINDOW);
     quality.record(summary);
   }
 }

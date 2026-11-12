@@ -207,7 +207,7 @@ public class ApiController {
     if (abuse.humanCheck() == StreamProperties.Abuse.HumanCheck.OFF)
       return ResponseEntity.noContent().build();
     var key = address.of(http);
-    limits.check("proof-issue:" + key, 60);
+    limits.address("proof-issue:" + key, 60);
     var pressure =
         switch (action) {
           case "create" ->
@@ -228,12 +228,12 @@ public class ApiController {
     var abuse = config.abuse().perIp();
     var service = address.service(http);
     if (proofFor != null) {
-      limits.check(
+      limits.address(
           (proofFor.equals("code") ? "code-admission:" : "admission:") + key,
           proofFor.equals("code") ? abuse.codeJoins() : abuse.admissions());
       if (!service && config.abuse().humanCheck() != StreamProperties.Abuse.HumanCheck.OFF)
         proofs.verify(http.getHeader(ProofOfWork.HEADER), proofFor, key);
-    } else limits.check("admission:" + key, abuse.admissions());
+    } else limits.address("admission:" + key, abuse.admissions());
     return identity.entrant(http).from(address.entrant(http));
   }
 
@@ -288,7 +288,7 @@ public class ApiController {
   @PostMapping("/rooms/presence")
   public List<Contracts.Presence> presence(
       @Valid @RequestBody Contracts.PresenceQuery query, HttpServletRequest http) {
-    limits.check("presence:" + address.of(http), 30);
+    limits.address("presence:" + address.of(http), 30);
     return rooms.presence(query.rooms());
   }
 
@@ -346,17 +346,17 @@ public class ApiController {
       @RequestHeader("Authorization") String credential,
       @Valid @RequestBody dev.mikki.stream.activity.ClientQuality.Report report,
       HttpServletRequest http) {
-    limits.check("client-report-ip:" + address.of(http), 30);
+    limits.address("client-report-ip:" + address.of(http), 30);
     var room = rooms.read(id.toString());
     var member = rooms.authenticate(room, credential);
-    limits.check("client-report:" + room.id + ":" + member.id, ONE_REPORT);
+    limits.member("client-report:" + room.id + ":" + member.id, ONE_REPORT);
     quality.record(room, member, report);
   }
 
   @PostMapping("/rooms/{id}/media/token")
   public Contracts.MediaToken token(
       @PathVariable UUID id, @RequestHeader("Authorization") String credential) {
-    limits.check("token:" + Secrets.hash(credential), 60);
+    limits.member("token:" + Secrets.hash(credential), 60);
     return media.token(id.toString(), credential);
   }
 
@@ -398,8 +398,9 @@ public class ApiController {
       @RequestHeader("Authorization") String credential,
       @Valid @RequestBody AttachmentService.Reserve request,
       HttpServletRequest http) {
-    limits.check("file:" + Secrets.hash(credential), 30);
     var key = address.entrant(http);
+    if (key != null) limits.address("file-ip:" + key, 60);
+    limits.member("file:" + Secrets.hash(credential), 30);
     uploads.check(key, request.size());
     var reserved = files.reserve(id.toString(), credential, request);
     uploads.count(key, request.size());
@@ -416,8 +417,15 @@ public class ApiController {
     return reserved;
   }
 
+  /** Отмена загрузки — под теми же пределами, что её резерв: адрес, затем пропуск. */
   @DeleteMapping("/attachments/{id}")
-  public void cancel(@PathVariable UUID id, @RequestHeader("Authorization") String credential) {
+  public void cancel(
+      @PathVariable UUID id,
+      @RequestHeader("Authorization") String credential,
+      HttpServletRequest http) {
+    var key = address.entrant(http);
+    if (key != null) limits.address("file-ip:" + key, 60);
+    limits.member("file:" + Secrets.hash(credential), 30);
     files.cancel(id.toString(), credential);
   }
 

@@ -58,7 +58,7 @@ public class InternalController {
       @RequestHeader(value = "X-Media-Token", required = false) String mediaToken,
       @RequestHeader(value = "X-Media-Node", required = false) String mediaNode,
       HttpServletRequest http) {
-    limits.check("signaling:" + address.of(http), config.abuse().perIp().signaling());
+    limits.address("signaling:" + address.of(http), config.abuse().perIp().signaling());
     String token =
         mediaToken == null || mediaToken.isBlank()
             ? (authorization == null ? null : authorization.replaceFirst("^Bearer ", ""))

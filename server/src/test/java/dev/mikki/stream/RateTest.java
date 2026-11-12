@@ -38,10 +38,42 @@ class RateTest {
   void aWindowLongerThanAMinuteHolds() {
     var limits = RateLimits.inMemory();
     var rate = Rate.parse("3 per hour");
-    for (int i = 0; i < 3; i++) limits.check("test-hour:" + RateTest.class, rate);
-    assertThatThrownBy(() -> limits.check("test-hour:" + RateTest.class, rate))
+    for (int i = 0; i < 3; i++) limits.member("test-hour:" + RateTest.class, rate);
+    assertThatThrownBy(() -> limits.member("test-hour:" + RateTest.class, rate))
         .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.code()).isEqualTo("RATE_LIMITED"));
     // Счётчик без шага — тот же, что видит проверка.
     assertThat(limits.count("test-hour:" + RateTest.class, rate)).isEqualTo(4);
+  }
+
+  /**
+   * Чей предел отказал, видно по самому отказу: предел адреса помечен, предел участника — нет. Код
+   * и статус у обоих одни — клиенту разница не видна, её читает автоблок.
+   */
+  @Test
+  void aRefusalSaysWhetherItsLimitIsCountedByAddress() {
+    var limits = RateLimits.inMemory();
+    var once = Rate.parse("1 per hour");
+    limits.address("test-scope:address", once);
+    limits.member("test-scope:member", once);
+    assertThatThrownBy(() -> limits.address("test-scope:address", once))
+        .isInstanceOfSatisfying(
+            Problem.class,
+            p -> {
+              assertThat(p.status()).isEqualTo(429);
+              assertThat(p.code()).isEqualTo("RATE_LIMITED");
+              assertThat(p.addressScoped()).isTrue();
+            });
+    assertThatThrownBy(() -> limits.member("test-scope:member", once))
+        .isInstanceOfSatisfying(
+            Problem.class,
+            p -> {
+              assertThat(p.status()).isEqualTo(429);
+              assertThat(p.code()).isEqualTo("RATE_LIMITED");
+              assertThat(p.addressScoped()).isFalse();
+            });
+    // Команды участника — предел пропуска, не адреса.
+    for (int i = 0; i < 120; i++) limits.command("Bearer m.secret", "leave");
+    assertThatThrownBy(() -> limits.command("Bearer m.secret", "leave"))
+        .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.addressScoped()).isFalse());
   }
 }

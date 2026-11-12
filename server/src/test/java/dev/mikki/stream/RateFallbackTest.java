@@ -83,7 +83,7 @@ class RateFallbackTest {
     var rate = Rate.parse("3 per hour");
 
     for (int i = 0; i < 3; i++)
-      assertThatCode(() -> limits.check("rooms:ip:203.0.113.7", rate)).doesNotThrowAnyException();
+      assertThatCode(() -> limits.address("rooms:ip:203.0.113.7", rate)).doesNotThrowAnyException();
     assertThat(fallbacks()).isGreaterThan(0);
   }
 
@@ -92,13 +92,13 @@ class RateFallbackTest {
     redisDown(new RedisConnectionFailureException("Unable to connect to Redis"));
     var rate = Rate.parse("3 per hour");
 
-    for (int i = 0; i < 3; i++) limits.check("rooms:ip:203.0.113.7", rate);
-    assertThatThrownBy(() -> limits.check("rooms:ip:203.0.113.7", rate))
+    for (int i = 0; i < 3; i++) limits.address("rooms:ip:203.0.113.7", rate);
+    assertThatThrownBy(() -> limits.address("rooms:ip:203.0.113.7", rate))
         .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.code()).isEqualTo("RATE_LIMITED"));
     // Без шага видно то же, что видит проверка, — и тоже без Redis.
     assertThat(limits.count("rooms:ip:203.0.113.7", rate)).isEqualTo(4);
     // У другого адреса свой счётчик.
-    assertThatCode(() -> limits.check("rooms:ip:198.51.100.1", rate)).doesNotThrowAnyException();
+    assertThatCode(() -> limits.address("rooms:ip:198.51.100.1", rate)).doesNotThrowAnyException();
   }
 
   @Test

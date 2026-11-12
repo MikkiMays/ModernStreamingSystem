@@ -85,15 +85,44 @@ public class RateLimits {
     return new RateLimits(null, false, null, System::currentTimeMillis);
   }
 
-  /** Прежняя форма: столько в минуту, отказ общими словами. */
-  public void check(String key, int limit) {
-    check(key, Rate.perMinute(limit));
+  /*
+   ЧЕЙ ПРЕДЕЛ — ГОВОРИТ ТОТ, КТО ЗОВЁТ. У отказа «слишком часто» две разные природы, и раньше они
+   были неразличимы: один и тот же `check` и один и тот же код `RATE_LIMITED` отвечали и на предел
+   адреса (входы, задачи «не бот», сигналинг), и на предел одного участника или пропуска (команды,
+   токены, сводки качества). Автоблок считал их вместе — и десяток отказов одного кривого клиента
+   закрывал на полчаса весь адрес: офис или мобильную сеть за общим NAT. Теперь метода два, и
+   пометку «по адресу» несёт только первый; общего `check` нет — новое место вызова обязано
+   выбрать.
+  */
+
+  /** Предел по адресу (IPv4, сеть /64, актор службы), столько в минуту. */
+  public void address(String key, int limit) {
+    address(key, Rate.perMinute(limit));
   }
 
-  /** Шаг счётчика и отказ {@code 429 RATE_LIMITED}, если шаг вышел за предел. */
-  public void check(String key, Rate rate) {
-    if (exceeded(key, rate))
-      throw new Problem(429, "RATE_LIMITED", "Слишком много запросов. Подождите минуту");
+  /**
+   * Предел по адресу: шаг счётчика и отказ {@code 429 RATE_LIMITED} с пометкой «по адресу» ({@link
+   * Problem#perAddress}) — такие отказы считает автоблок.
+   */
+  public void address(String key, Rate rate) {
+    if (exceeded(key, rate)) throw tooOften().perAddress();
+  }
+
+  /** Предел участника, пропуска или профиля, столько в минуту. */
+  public void member(String key, int limit) {
+    member(key, Rate.perMinute(limit));
+  }
+
+  /**
+   * Предел участника, пропуска или профиля: шаг счётчика и отказ {@code 429 RATE_LIMITED} без
+   * пометки — к автоблоку адреса он не ведёт.
+   */
+  public void member(String key, Rate rate) {
+    if (exceeded(key, rate)) throw tooOften();
+  }
+
+  private static Problem tooOften() {
+    return new Problem(429, "RATE_LIMITED", "Слишком много запросов. Подождите минуту");
   }
 
   /**
@@ -225,7 +254,7 @@ public class RateLimits {
   /** Drawing cannot consume the quota needed to chat, leave or operate the meeting. */
   public void command(String credential, String type) {
     boolean drawing = "gartic.draw".equals(type);
-    check(
+    member(
         (drawing ? "drawing:" : "command:") + Secrets.hash(credential.replaceFirst("^Bearer ", "")),
         drawing ? 300 : 120);
   }

@@ -4,31 +4,23 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import dev.mikki.stream.attachment.TusGateway;
-import dev.mikki.stream.events.RoomSocket;
 import dev.mikki.stream.media.*;
 import dev.mikki.stream.room.*;
 import dev.mikki.stream.room.Contracts.*;
-import dev.mikki.stream.shared.Json;
-import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
 
 /**
  * Ядро в простое не работает впустую ({@code docs/architecture/core-scale.md} §3.1): сверка с
- * медиаузлом не переписывает комнату, в которой ничего не изменилось; редкий проход сокетов не
- * читает базу для сокета, который не отстал; память о встрече уходит с её концом.
+ * медиаузлом не переписывает комнату, в которой ничего не изменилось; память о встрече уходит с её
+ * концом. Редкий проход сокетов — {@code RoomSocketSweepTest}.
  *
  * <p>Контекст тот же, что у {@link AbuseLimitsTest}, — Spring поднимает его один раз на оба класса.
  */
@@ -45,23 +37,16 @@ class IdleCoreTest {
   @Autowired RoomService rooms;
   @Autowired MediaService media;
   @Autowired JdbcClient jdbc;
-  @Autowired RoomSocket socket;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
   final AtomicLong now = new AtomicLong(System.currentTimeMillis());
-  final List<WebSocketSession> opened = new ArrayList<>();
 
   @BeforeEach
   void setUp() {
     jdbc.sql("DELETE FROM command_receipts").update();
     jdbc.sql("DELETE FROM rooms").update();
     when(clock.millis()).thenAnswer(_ -> now.get());
-  }
-
-  @AfterEach
-  void closeSockets() {
-    for (var session : opened) socket.afterConnectionClosed(session, CloseStatus.NORMAL);
   }
 
   Admission create() {
@@ -126,83 +111,6 @@ class IdleCoreTest {
     var settled = row(host.roomId());
     media.observe(host.roomId(), Map.of(), now.addAndGet(2000));
     assertThat(row(host.roomId())).isEqualTo(settled);
-  }
-
-  // Редкий проход сокетов --------------------------------------------------------------------
-
-  WebSocketSession open() throws Exception {
-    var r = ThreadLocalRandom.current();
-    var session = mock(WebSocketSession.class);
-    when(session.getId()).thenReturn(UUID.randomUUID().toString());
-    when(session.getHandshakeHeaders()).thenReturn(new HttpHeaders());
-    when(session.getRemoteAddress())
-        .thenReturn(
-            new InetSocketAddress(
-                "10." + r.nextInt(256) + "." + r.nextInt(256) + "." + (1 + r.nextInt(250)), 4000));
-    when(session.isOpen()).thenReturn(true);
-    opened.add(session);
-    socket.afterConnectionEstablished(session);
-    return session;
-  }
-
-  void auth(WebSocketSession session, Admission admission) throws Exception {
-    socket.handleMessage(
-        session,
-        new TextMessage(
-            Json.write(
-                Map.of(
-                    "type",
-                    "auth",
-                    "roomId",
-                    admission.roomId(),
-                    "credential",
-                    admission.credential(),
-                    "after",
-                    -1))));
-  }
-
-  /**
-   * Сокет, который не отстал, редкий проход не трогает. Доказательство то же, что у секундного
-   * прохода: комната удалена из базы прямо из-под сокета — проход, читающий её, закрыл бы сокет.
-   */
-  @Test
-  void theSafetySweepLeavesSocketsThatAreUpToDateAlone() throws Exception {
-    var host = create();
-    var session = open();
-    auth(session, host);
-    jdbc.sql("DELETE FROM rooms WHERE id=?").param(host.roomId()).update();
-    for (int i = 0; i < 3; i++) socket.sweep();
-    verify(session, never()).close();
-    verify(session, never()).close(any(CloseStatus.class));
-  }
-
-  /**
-   * Событие, о котором память этого процесса не знает (его записал другой экземпляр ядра, а
-   * сообщение Redis потерялось), редкий проход находит по журналу в базе и доносит.
-   */
-  @Test
-  void theSafetySweepDeliversAnEventThisProcessNeverHeardOf() throws Exception {
-    var host = create();
-    var session = open();
-    auth(session, host);
-    var room = rooms.read(host.roomId());
-    room.sequence++;
-    var foreign =
-        new Event(
-            1,
-            UUID.randomUUID().toString(),
-            room.sequence,
-            "room.changed",
-            EventPayload.changed(),
-            now.get());
-    jdbc.sql("UPDATE rooms SET state=? WHERE id=?").params(Json.write(room), room.id).update();
-    jdbc.sql("INSERT INTO room_events(room_id,sequence,body,expires_at) VALUES(?,?,?,?)")
-        .params(room.id, foreign.sequence(), Json.write(foreign), now.get() + 3_600_000L)
-        .update();
-    assertThat(rooms.latest(room.id)).isLessThan(foreign.sequence());
-    socket.sweep();
-    verify(session)
-        .sendMessage(argThat(m -> m.getPayload().toString().contains(foreign.eventId())));
   }
 
   // Память о встрече -------------------------------------------------------------------------

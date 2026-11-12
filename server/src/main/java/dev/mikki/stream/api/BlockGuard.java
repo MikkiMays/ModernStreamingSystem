@@ -32,7 +32,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * них нет адреса человека. Бот Telegram с актором — проверяется: его ключ — пользователь бота.
  *
  * <p>ПОСЛЕ ОТВЕТА — счёт отказов: каждый код ошибки в метры ({@code cord_errors_total}), а отказы
- * «слишком часто» про адрес — в автоблок ({@link Blocks#refused}).
+ * пределов по адресу ({@link ApiErrors#ADDRESS_LIMIT}) — в автоблок ({@link Blocks#refused}). Отказ
+ * предела участника, пропуска или профиля автоблок не считает, каким бы ни был его код.
  */
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -91,9 +92,11 @@ public class BlockGuard extends OncePerRequestFilter {
     chain.doFilter(request, response);
     if (!(request.getAttribute(ApiErrors.CODE) instanceof String code)) return;
     metrics.refused(code, response.getStatus());
-    if (guarded && response.getStatus() == 429)
+    if (guarded
+        && response.getStatus() == 429
+        && Boolean.TRUE.equals(request.getAttribute(ApiErrors.ADDRESS_LIMIT)))
       blocks
-          .refused(key, code)
+          .refused(key)
           .ifPresent(
               block -> {
                 metrics.blocked(block.kind(), block.createdBy());

@@ -51,7 +51,7 @@ public class MediaService {
 
   @Transactional
   public Contracts.Ack screen(String id, String credential, UUID commandId, boolean enabled) {
-    var room = rooms.lock(id);
+    var room = rooms.lockFor(id, credential);
     var member = rooms.authenticate(room, credential);
     rooms.requireActive(room, member);
     return rooms.receipt(
@@ -216,7 +216,7 @@ public class MediaService {
    */
   @Transactional
   public Contracts.Ack move(String id, String credential, UUID commandId, String to) {
-    var room = rooms.lock(id);
+    var room = rooms.lockFor(id, credential);
     var member = rooms.authenticate(room, credential);
     rooms.requireActive(room, member);
     Permissions.require(room, member, Permissions.Action.MEDIA_MOVE);

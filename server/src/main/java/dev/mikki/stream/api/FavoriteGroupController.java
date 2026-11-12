@@ -2,6 +2,7 @@ package dev.mikki.stream.api;
 
 import dev.mikki.stream.access.*;
 import dev.mikki.stream.room.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.util.*;
@@ -9,7 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Группы избранного и личные пометки комнаты (T40). Отдельно от {@link FavoriteController}: там —
- * какие комнаты сохранены, здесь — как человек их разложил.
+ * какие комнаты сохранены, здесь — как человек их разложил. Дверь записей та же — {@link
+ * FavoriteController#caller}: предел адреса, профиль и его предел до службы и до общего замка.
  *
  * <p>Маршруты делят префикс с избранным: литерал {@code /groups/order} у Spring сильнее {@code
  * /groups/{id}}, а {@code /{id}/settings} не пересекается с {@code /{id}} и {@code /{id}/join}.
@@ -27,10 +29,13 @@ public class FavoriteGroupController {
 
   private final FavoriteGroupService groups;
   private final RateLimits limits;
+  private final ClientAddress address;
 
-  public FavoriteGroupController(FavoriteGroupService groups, RateLimits limits) {
+  public FavoriteGroupController(
+      FavoriteGroupService groups, RateLimits limits, ClientAddress address) {
     this.groups = groups;
     this.limits = limits;
+    this.address = address;
   }
 
   @GetMapping("/groups")
@@ -40,8 +45,10 @@ public class FavoriteGroupController {
 
   @PutMapping("/groups/order")
   public void reorder(
-      @RequestHeader("Authorization") String profile, @Valid @RequestBody GroupOrder request) {
-    limits.check("favorite:" + Secrets.hash(profile), 60);
+      @RequestHeader("Authorization") String profile,
+      @Valid @RequestBody GroupOrder request,
+      HttpServletRequest http) {
+    FavoriteController.caller(limits, address, http, profile);
     groups.reorder(profile, request.groupIds().stream().map(UUID::toString).toList());
   }
 
@@ -49,13 +56,18 @@ public class FavoriteGroupController {
   public void put(
       @PathVariable UUID id,
       @RequestHeader("Authorization") String profile,
-      @Valid @RequestBody GroupTitle request) {
-    limits.check("favorite:" + Secrets.hash(profile), 60);
+      @Valid @RequestBody GroupTitle request,
+      HttpServletRequest http) {
+    FavoriteController.caller(limits, address, http, profile);
     groups.put(profile, id.toString(), request.title());
   }
 
   @DeleteMapping("/groups/{id}")
-  public void remove(@PathVariable UUID id, @RequestHeader("Authorization") String profile) {
+  public void remove(
+      @PathVariable UUID id,
+      @RequestHeader("Authorization") String profile,
+      HttpServletRequest http) {
+    FavoriteController.caller(limits, address, http, profile);
     groups.remove(profile, id.toString());
   }
 
@@ -63,8 +75,9 @@ public class FavoriteGroupController {
   public void settings(
       @PathVariable UUID id,
       @RequestHeader("Authorization") String profile,
-      @Valid @RequestBody FavoriteSettings request) {
-    limits.check("favorite:" + Secrets.hash(profile), 60);
+      @Valid @RequestBody FavoriteSettings request,
+      HttpServletRequest http) {
+    FavoriteController.caller(limits, address, http, profile);
     groups.settings(
         profile,
         id.toString(),

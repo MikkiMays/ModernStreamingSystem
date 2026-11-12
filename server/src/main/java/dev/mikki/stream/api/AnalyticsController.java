@@ -70,7 +70,7 @@ public class AnalyticsController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void visit(@Valid @RequestBody Visit body, HttpServletRequest http) {
     var from = address.of(http);
-    limits.check("visit-ip:" + from, PER_MINUTE);
+    limits.address("visit-ip:" + from, PER_MINUTE);
     var profile = Identity.profileHash(http.getHeader(Identity.PROFILE));
     if (profile == null) return;
     if (!analytics.recent(profile)

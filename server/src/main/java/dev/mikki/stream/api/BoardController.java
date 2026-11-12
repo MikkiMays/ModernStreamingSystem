@@ -65,7 +65,7 @@ public class BoardController {
     rooms.requireActive(room, member);
     if (room.board == null) throw Problem.conflict("BOARD_CLOSED", "Доска уже закрыта");
     if (!Permissions.allows(room, member, Action.BOARD_DRAW)) throw Problem.forbidden();
-    limits.check("board-file:" + member.id, 60);
+    limits.member("board-file:" + member.id, 60);
     var mime = mime(type);
     int max = boards.limits().maxFileBytes();
     if (request.getContentLengthLong() > max) throw tooLarge();
@@ -97,7 +97,7 @@ public class BoardController {
     var room = rooms.read(roomId);
     var member = rooms.authenticate(room, credential);
     rooms.requireActive(room, member);
-    limits.check("board-file-read:" + member.id, 600);
+    limits.member("board-file-read:" + member.id, 600);
     var file =
         store
             .file(roomId, fileId)

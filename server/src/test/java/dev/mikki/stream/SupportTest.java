@@ -292,9 +292,12 @@ class SupportTest {
   void oneAddressSendsAFewTicketsAnHourAndTheServerAFewMore() throws Exception {
     var first = fresh();
     for (int i = 0; i < 3; i++) submit(first, "Обращение номер " + i);
-    mvc.perform(send(first, body("other", "Четвёртое за час", null, null, false)))
-        .andExpect(status().isTooManyRequests())
-        .andExpect(jsonPath("$.code").value("SUPPORT_RATE"));
+    // Предел адреса стоит перед общим: адрес, выбравший своё, получает отказ и потолок сервера не
+    // тратит — сколько бы ни стучал, остальным их три обращения остаются.
+    for (int i = 0; i < 5; i++)
+      mvc.perform(send(first, body("other", "Сверх своего за час", null, null, false)))
+          .andExpect(status().isTooManyRequests())
+          .andExpect(jsonPath("$.code").value("SUPPORT_RATE"));
     for (int i = 0; i < 3; i++) submit(fresh(), "С другого адреса " + i);
     // Седьмое на сервер за час — отказ, с какого адреса ни пиши: Telegram владельца не засыпать.
     mvc.perform(send(fresh(), body("other", "Седьмое за час", null, null, false)))

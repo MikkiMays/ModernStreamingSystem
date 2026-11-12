@@ -96,6 +96,45 @@ public class RoomService {
     return rooms.get(roomId, true);
   }
 
+  /**
+   * Пропуска участников, которые ядро недавно проверило: «комната:хэш пропуска» → когда. Только
+   * удачные проверки — выдуманным пропуском карту не заполнить; с концом встречи записи уходят.
+   */
+  private final Map<String, Long> verified = new java.util.concurrent.ConcurrentHashMap<>();
+
+  /** Сколько проверенный пропуск считается знакомым без повторного чтения комнаты. */
+  static final long VERIFIED_MS = 60_000;
+
+  /** Больше проверенных пропусков ядро не помнит: карта начинается заново. */
+  static final int VERIFIED_LIMIT = 20_000;
+
+  /**
+   * Кто спрашивает — до замка (R236, {@code docs/architecture/core-scale.md} §6): пропуск участника
+   * должен быть настоящим, иначе {@code 403} (или {@code 404}, {@code 410}) без единого замка.
+   *
+   * <p>Раньше замок строки комнаты брался первым, а пропуск проверялся уже под ним: запрос с
+   * выдуманным пропуском вставал в очередь перед людьми встречи и держал соединение с базой, пока
+   * ждал. Теперь комната сначала читается без замка. Чтобы настоящий участник не платил за это
+   * вторым разбором комнаты на каждую команду, удачная проверка запоминается на {@link
+   * #VERIFIED_MS}; решает всё равно проверка под замком — эта только не подпускает к нему чужих.
+   */
+  public void verify(String roomId, String credential) {
+    if (credential == null) throw Problem.forbidden();
+    var key = roomId + ":" + Secrets.hash(credential);
+    long at = now();
+    var known = verified.get(key);
+    if (known != null && at >= known && at - known < VERIFIED_MS) return;
+    authenticate(read(roomId), credential);
+    if (verified.size() >= VERIFIED_LIMIT) verified.clear();
+    verified.put(key, at);
+  }
+
+  /** Замок строки комнаты — только предъявившему настоящий пропуск ({@link #verify}). */
+  public RoomState lockFor(String roomId, String credential) {
+    verify(roomId, credential);
+    return lock(roomId);
+  }
+
   /*
    Двери без профиля — для служб и тестов. Каждая помечена @Transactional сама: вызов соседнего
    метода изнутри бина мимо прокси транзакции не открывает, и общий замок без неё не держится.
@@ -113,10 +152,15 @@ public class RoomService {
     var origin = origin(entrant);
     var address = entrant.address();
     var hour = config.abuse();
-    if ((address != null && limits.exhausted("rooms:ip:" + address, hour.perIp().roomsCreated()))
-        || (entrant.profileHash() != null
-            && limits.exhausted(
-                "rooms:profile:" + entrant.profileHash(), hour.perProfile().roomsCreated())))
+    // Предел адреса и предел профиля отвечают одним кодом, но разной пометкой: в автоблок идёт
+    // только отказ по адресу (`Problem.perAddress`).
+    if (address != null && limits.exhausted("rooms:ip:" + address, hour.perIp().roomsCreated()))
+      throw new Problem(
+              429, "ROOMS_PER_HOUR", "Слишком много новых встреч за час. Попробуйте позже")
+          .perAddress();
+    if (entrant.profileHash() != null
+        && limits.exhausted(
+            "rooms:profile:" + entrant.profileHash(), hour.perProfile().roomsCreated()))
       throw new Problem(
           429, "ROOMS_PER_HOUR", "Слишком много новых встреч за час. Попробуйте позже");
     rooms.lockGlobal();
@@ -228,7 +272,8 @@ public class RoomService {
         && busy.stream().filter(r -> origin.equals(r.createdFrom)).count()
             >= abuse.perIp().openRooms())
       throw new Problem(
-          429, "OPEN_ROOMS", "Из вашей сети уже идёт несколько встреч. Завершите одну из них");
+              429, "OPEN_ROOMS", "Из вашей сети уже идёт несколько встреч. Завершите одну из них")
+          .perAddress();
     if (profile != null
         && busy.stream().filter(r -> profile.equals(r.createdBy)).count()
             >= abuse.perProfile().openRooms())
@@ -280,9 +325,10 @@ public class RoomService {
     if (address != null
         && limits.exhausted("code-miss:" + address, config.abuse().perIp().codeMisses()))
       throw new Problem(
-          429,
-          "CODE_MISSES",
-          "Слишком много неверных кодов. Попробуйте позже или войдите по ссылке");
+              429,
+              "CODE_MISSES",
+              "Слишком много неверных кодов. Попробуйте позже или войдите по ссылке")
+          .perAddress();
     // Код ищется до общего замка: перебор не встаёт в очередь перед теми, кто создаёт встречи и
     // входит по ссылке (A3). Замок берётся только под найденную комнату.
     var found = rooms.findForCode(request.code());
@@ -387,6 +433,8 @@ public class RoomService {
   @Transactional
   public Admission rejoin(String roomId, String credential, Rejoin request, Entrant entrant) {
     maintenance.requireOpenDoors();
+    // Пропуск — до общего замка и без замков вовсе: чужой или выдуманный в очередь не встаёт.
+    authenticate(read(roomId), credential, true);
     rooms.lockGlobal();
     var room = lock(roomId);
     var previous = authenticate(room, credential, true);
@@ -591,6 +639,17 @@ public class RoomService {
   @Transactional
   public Admission join(String roomId, Join request, Entrant entrant) {
     maintenance.requireOpenDoors();
+    /*
+     Встреча и приглашение — до общего замка и без замков вовсе (R236 §6). Раньше замок брался
+     первым, и вход по ссылке в несуществующую встречу или с выдуманным приглашением вставал в общую
+     очередь входов. Повтор уже принятого входа (та же расписка) идёт прежним путём: человек,
+     повторивший запрос после обрыва, получает свой вход, даже если приглашение успели отозвать.
+    */
+    if (!receipted("join:" + roomId, request.commandId())) {
+      var seen = read(roomId);
+      requireOpen(seen);
+      requireInvite(seen, request.invite());
+    }
     rooms.lockGlobal();
     var room = lock(roomId);
     return receipt(
@@ -602,14 +661,7 @@ public class RoomService {
           requireOpen(room);
           if (!config.admissionOpen())
             throw new Problem(503, "DRAINING", "Сервер завершает действующие встречи");
-          var valid =
-              room.invites.values().stream()
-                  .anyMatch(
-                      i ->
-                          !i.revoked()
-                              && i.expiresAt() > now()
-                              && Secrets.equal(i.secretHash(), Secrets.hash(request.invite())));
-          if (!valid) throw new Problem(403, "INVITE_INVALID", "Приглашение истекло или отозвано");
+          requireInvite(room, request.invite());
           checkDoor(room);
           oneMeeting(room.id, entrant);
           var member = newMember(room, request.name(), false, request.commandId(), entrant);
@@ -619,6 +671,16 @@ public class RoomService {
           rooms.save(room, now());
           return admission(room, member, request.commandId(), null);
         });
+  }
+
+  /** Приглашение встречи настоящее: не отозвано и не истекло — иначе {@code 403}. */
+  private void requireInvite(RoomState room, String invite) {
+    var hash = Secrets.hash(invite);
+    var valid =
+        room.invites.values().stream()
+            .anyMatch(
+                i -> !i.revoked() && i.expiresAt() > now() && Secrets.equal(i.secretHash(), hash));
+    if (!valid) throw new Problem(403, "INVITE_INVALID", "Приглашение истекло или отозвано");
   }
 
   /**
@@ -671,7 +733,7 @@ public class RoomService {
    */
   @Transactional
   public Snapshot roomSettings(String roomId, String credential, Contracts.RoomSettings settings) {
-    var room = lock(roomId);
+    var room = lockFor(roomId, credential);
     var member = authenticate(room, credential);
     Permissions.require(room, member, Action.ROOM_SETTINGS);
     requireOpen(room);
@@ -686,7 +748,7 @@ public class RoomService {
 
   @Transactional
   public Snapshot integrationSettings(String roomId, String credential, boolean enabled) {
-    var room = lock(roomId);
+    var room = lockFor(roomId, credential);
     var member = authenticate(room, credential);
     Permissions.require(room, member, Action.ROOM_INTEGRATIONS);
     requireOpen(room);
@@ -1156,7 +1218,7 @@ public class RoomService {
    */
   @Transactional
   public Ack command(String roomId, String credential, Command command, String address) {
-    var room = lock(roomId);
+    var room = lockFor(roomId, credential);
     var member = authenticate(room, credential);
     if (command.type().equals("media.stall")) {
       // Подсказка ядру, а не состояние (R200 §5.3, Р-105): входящее молчание при живом по мнению
@@ -1735,7 +1797,7 @@ public class RoomService {
   /** The room lock and receipt also serialize concurrent host requests and retries. */
   @Transactional
   public Ack muteMicrophone(String roomId, String credential, Command command, Runnable mute) {
-    var room = lock(roomId);
+    var room = lockFor(roomId, credential);
     var member = authenticate(room, credential);
     Permissions.require(room, member, Action.PARTICIPANT_MUTE);
     requireActive(room, member);
@@ -2167,6 +2229,7 @@ public class RoomService {
     sequences.remove(roomId);
     var prefix = roomId + ":";
     previewAt.keySet().removeIf(key -> key.startsWith(prefix));
+    verified.keySet().removeIf(key -> key.startsWith(prefix));
   }
 
   /** Сколько комнат ядро помнит в памяти: номера событий и отметки кадров превью. */
@@ -2231,6 +2294,19 @@ public class RoomService {
       // чужие карты.
       return new Replay(true, snapshotFor(room, member), List.of());
     return new Replay(false, null, events);
+  }
+
+  /** Есть ли уже расписка этого действия — повтор принятого запроса, а не новый. */
+  private boolean receipted(String scope, UUID commandId) {
+    return rooms
+            .jdbc()
+            .sql(
+                "SELECT COUNT(*) FROM command_receipts WHERE scope=? AND command_id=? AND"
+                    + " expires_at>?")
+            .params(scope, commandId.toString(), now())
+            .query(Long.class)
+            .single()
+        > 0;
   }
 
   public <T> T receipt(

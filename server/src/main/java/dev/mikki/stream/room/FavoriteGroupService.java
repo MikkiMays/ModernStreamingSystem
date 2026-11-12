@@ -91,6 +91,8 @@ public class FavoriteGroupService {
   @Transactional
   public void remove(String credential, String groupId) {
     var profile = favorites.key(credential);
+    // Группы нет — повтор или чужой запрос: тот же ответ, без общего замка (R236 §6).
+    if (!exists(profile, groupId)) return;
     repository.lockGlobal();
     repository
         .jdbc()
@@ -114,6 +116,17 @@ public class FavoriteGroupService {
       throw new Problem(
           400, "FAVORITE_GROUP_ORDER_INVALID", "Группы в списке не должны повторяться");
     }
+    // Чужой или устаревший список — отказ без замка; нечего переставлять — нечего и запирать.
+    var listed =
+        new HashSet<>(
+            repository
+                .jdbc()
+                .sql("SELECT id FROM favorite_groups WHERE profile_hash=?")
+                .param(profile)
+                .query(String.class)
+                .list());
+    if (!listed.equals(new HashSet<>(groupIds))) throw changed();
+    if (listed.isEmpty()) return;
     repository.lockGlobal();
     var current =
         repository
@@ -145,7 +158,20 @@ public class FavoriteGroupService {
       String credential, String roomId, String groupId, boolean pinned, String alias) {
     var profile = favorites.key(credential);
     var name = text(alias);
+    // Сначала без замка: записи избранного или группы нет — отказ, и общий замок не берётся.
+    placed(profile, roomId, groupId);
     repository.lockGlobal();
+    placed(profile, roomId, groupId);
+    repository
+        .jdbc()
+        .sql(
+            "UPDATE favorites SET group_id=?, pinned=?, alias=? WHERE profile_hash=? AND room_id=?")
+        .params(groupId, pinned, name, profile, roomId)
+        .update();
+  }
+
+  /** Комната в избранном профиля и группа (если названа) его — иначе отказ. */
+  private void placed(String profile, String roomId, String groupId) {
     if (repository
             .jdbc()
             .sql("SELECT COUNT(*) FROM favorites WHERE profile_hash=? AND room_id=?")
@@ -155,23 +181,20 @@ public class FavoriteGroupService {
         == 0) {
       throw new Problem(404, "FAVORITE_MISSING", "Комнаты нет в избранном");
     }
-    if (groupId != null
-        && repository
-                .jdbc()
-                .sql("SELECT COUNT(*) FROM favorite_groups WHERE profile_hash=? AND id=?")
-                .params(profile, groupId)
-                .query(Long.class)
-                .single()
-            == 0) {
+    if (groupId != null && !exists(profile, groupId)) {
       throw Problem.conflict(
           "FAVORITE_GROUP_MISSING", "Такой группы больше нет. Обновите избранное");
     }
-    repository
-        .jdbc()
-        .sql(
-            "UPDATE favorites SET group_id=?, pinned=?, alias=? WHERE profile_hash=? AND room_id=?")
-        .params(groupId, pinned, name, profile, roomId)
-        .update();
+  }
+
+  private boolean exists(String profile, String groupId) {
+    return repository
+            .jdbc()
+            .sql("SELECT COUNT(*) FROM favorite_groups WHERE profile_hash=? AND id=?")
+            .params(profile, groupId)
+            .query(Long.class)
+            .single()
+        > 0;
   }
 
   /**

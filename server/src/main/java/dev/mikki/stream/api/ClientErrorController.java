@@ -38,7 +38,7 @@ public class ClientErrorController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void clientErrors(
       @Valid @RequestBody ClientErrors.ErrorSummary batch, HttpServletRequest http) {
-    limits.check("client-errors-ip:" + address.of(http), PER_MINUTE);
+    limits.address("client-errors-ip:" + address.of(http), PER_MINUTE);
     errors.record(batch);
     // Ошибки на сессию в аналитике (R210): только число, без мест и кодов.
     analytics.errors(
