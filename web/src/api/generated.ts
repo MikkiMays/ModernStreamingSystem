@@ -1,20 +1,4 @@
 export interface paths {
-    "/api/v1/admin/analytics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["analytics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/audit": {
         parameters: {
             query?: never;
@@ -58,6 +42,38 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["lift"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/insight/{section}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["insightReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/insight/errors/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["insightErrorReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -991,22 +1007,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/visit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["visit"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1700,6 +1700,7 @@ export interface components {
             humans?: number;
             id?: string;
             integrations?: string[];
+            mediaNode?: string;
             /** Format: int32 */
             screens?: number;
             /** Format: int64 */
@@ -2133,6 +2134,10 @@ export interface components {
             presenceBy?: null | number;
         };
         RxSummary: {
+            /** Format: int64 */
+            bytesDown?: number;
+            /** Format: int64 */
+            bytesUp?: number;
             switches?: components["schemas"]["TxSwitch"][];
             tracks: components["schemas"]["RxTrack"][];
             tx?: components["schemas"]["TxTrack"][];
@@ -2409,9 +2414,6 @@ export interface components {
             priority?: string;
             tags?: string;
         };
-        Visit: {
-            stage: string;
-        };
         Watch: {
             /** Format: int64 */
             anchorAt: number;
@@ -2455,32 +2457,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    analytics: {
-        parameters: {
-            query: {
-                from: string;
-                mode?: string;
-                to: string;
-            };
-            header?: {
-                "X-Cord-Admin"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["Report"];
-                };
-            };
-        };
-    };
     audit: {
         parameters: {
             query?: {
@@ -2580,6 +2556,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    insightReport: {
+        parameters: {
+            query?: {
+                compare?: string;
+                from?: string;
+                strict?: string;
+                to?: string;
+                view?: string;
+            };
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path: {
+                section: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Отчёт службы аналитики как есть (contracts/insight-reports.md) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    insightErrorReport: {
+        parameters: {
+            query?: {
+                compare?: string;
+                from?: string;
+                strict?: string;
+                to?: string;
+                view?: string;
+            };
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Отчёт об одной группе ошибок как есть (contracts/insight-reports.md) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
@@ -4184,28 +4224,6 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["Receipt"];
                 };
-            };
-        };
-    };
-    visit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Visit"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
