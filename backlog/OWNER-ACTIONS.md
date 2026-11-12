@@ -29,6 +29,8 @@ E. **Разрешение на правки DNS через Cloudflare из се�
    добавлялись без вашего участия — `/permissions` → разрешить `mcp__cloudflare-api__execute`, либо выпустить токен
    Cloudflare «Zone → DNS → Edit» на зоны `cord.online` и `callcord.ru` и положить его в `.local/dns.env` на машине
    пульта (`CLOUDFLARE_API_TOKEN=…`) — тогда `node scripts/dns.mjs apply` и кнопка «Добавить сервер» ставят записи сами.
+   Ждёт этого разрешения: удалить записи `www.cord.online` и `www.callcord.ru` — серверы эти имена не обслуживают
+   (ошибка сертификата); в `infra/dns/zones.json` они уже выключены, `node scripts/dns.mjs plan` покажет два удаления.
    Ответ:
 F. **Вход по паролю на машинах**: на A и машинах продукта `sshd` пускает `root` по паролю; пароли были в чате
    (прежние пп. 15, 22). Сменить пароли и поставить `PasswordAuthentication no`, `PermitRootLogin prohibit-password`.
