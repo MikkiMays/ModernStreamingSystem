@@ -295,7 +295,7 @@ mod tests {
         assert_eq!((parsed.client_kind.as_deref(), parsed.client_version.as_str()), (Some("web"), "1.4.0"));
         assert_eq!(parsed.probe.as_deref(), Some("20261112.abc"));
         // Не похоже на секрет профиля — профиля нет, пачка принимается.
-        let odd = parse(br#"{"sid": "pX9aaaaaaaaaaaaaaaaaaa", "profile": "короткий"}"#).unwrap();
+        let odd = parse(r#"{"sid": "pX9aaaaaaaaaaaaaaaaaaa", "profile": "короткий"}"#.as_bytes()).unwrap();
         assert_eq!(odd.profile, None);
     }
 
@@ -332,7 +332,7 @@ mod tests {
                 "screen": {"w": 1920, "h": 1080.0, "dpr": 1.2549, "depth": 24},
                 "standalone": false, "wd": true,
                 "fp": {"canvas": "c".repeat(100), "gl": "g1", "glr": "ANGLE (NVIDIA)", "hc": 8, "dm": 0.5, "touch": 0, "plat": "Win32", "fonts": 7},
-                "url": "https://cordcam.ru/r/secret-room",
+                "url": "https://cord.online/r/secret-room",
             }),
         );
         assert_eq!(event.text("landing"), Some("invite"));

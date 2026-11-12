@@ -50,7 +50,7 @@ CREATE TABLE an_devices (
     cookie_at   timestamptz NOT NULL,
     -- Где устройство видели в последний раз — для правила 3а: отпечаток подсети, ASN, страна, пояс.
     net         text        NOT NULL DEFAULT '',
-    asn         integer,
+    asn         bigint,
     country     text        NOT NULL DEFAULT '',
     tz          text        NOT NULL DEFAULT ''
 );
@@ -79,7 +79,7 @@ CREATE TABLE an_sessions (
     browser      text        NOT NULL DEFAULT '',
     class        text        NOT NULL DEFAULT '',
     country      text        NOT NULL DEFAULT '',
-    asn          integer,
+    asn          bigint,
     net          text        NOT NULL DEFAULT 'unknown',
     vpn          boolean     NOT NULL DEFAULT false,
     landing      text        NOT NULL DEFAULT '',
