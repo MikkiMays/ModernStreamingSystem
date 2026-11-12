@@ -309,7 +309,8 @@ async fn rule_3a_two_identical_office_computers_online_at_once_are_two_people() 
 }
 
 #[tokio::test]
-async fn rule_3a_a_closed_tab_is_not_online_so_a_return_in_incognito_minutes_later_is_the_same_person() {
+async fn rule_3a_a_closed_tab_is_not_online_so_a_return_in_incognito_minutes_later_is_the_same_person()
+ {
     // Человек закрыл вкладку и через несколько минут открыл сайт в инкогнито: ни куки, ни профиля, тот же
     // компьютер и сеть. Прежняя сессия ещё не истекла по тишине, но страница сказала, что закрыта.
     let mut world = world().await;
