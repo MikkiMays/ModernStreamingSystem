@@ -1,0 +1,265 @@
+{
+  "data": {
+    "by_campaign": [
+      {
+        "interlocutors": 2,
+        "key": "telegram / post / launch-1-4",
+        "new_people": 6,
+        "share": 0.3333
+      },
+      {
+        "interlocutors": 2,
+        "key": "habr / article",
+        "new_people": 2,
+        "share": 1.0
+      }
+    ],
+    "by_client": [
+      {
+        "interlocutors": 55,
+        "key": "web",
+        "new_people": 88,
+        "share": 0.625
+      },
+      {
+        "interlocutors": 1,
+        "key": "desktop",
+        "new_people": 1,
+        "share": 1.0
+      }
+    ],
+    "by_country": [
+      {
+        "interlocutors": 36,
+        "key": "RU",
+        "new_people": 53,
+        "share": 0.6792
+      },
+      {
+        "interlocutors": 7,
+        "key": "DE",
+        "new_people": 11,
+        "share": 0.6364
+      },
+      {
+        "interlocutors": 4,
+        "key": "KZ",
+        "new_people": 10,
+        "share": 0.4
+      },
+      {
+        "interlocutors": 5,
+        "key": "BY",
+        "new_people": 8,
+        "share": 0.625
+      },
+      {
+        "interlocutors": 4,
+        "key": "NL",
+        "new_people": 7,
+        "share": 0.5714
+      }
+    ],
+    "by_landing": [
+      {
+        "interlocutors": 11,
+        "key": "home",
+        "new_people": 26,
+        "share": 0.4231
+      },
+      {
+        "interlocutors": 14,
+        "key": "invite",
+        "new_people": 20,
+        "share": 0.7
+      },
+      {
+        "interlocutors": 10,
+        "key": "room",
+        "new_people": 15,
+        "share": 0.6667
+      },
+      {
+        "interlocutors": 9,
+        "key": "app",
+        "new_people": 11,
+        "share": 0.8182
+      },
+      {
+        "interlocutors": 7,
+        "key": "tg",
+        "new_people": 10,
+        "share": 0.7
+      },
+      {
+        "interlocutors": 5,
+        "key": "download",
+        "new_people": 7,
+        "share": 0.7143
+      }
+    ],
+    "by_os": [
+      {
+        "interlocutors": 30,
+        "key": "android",
+        "new_people": 42,
+        "share": 0.7143
+      },
+      {
+        "interlocutors": 23,
+        "key": "windows",
+        "new_people": 42,
+        "share": 0.5476
+      },
+      {
+        "interlocutors": 1,
+        "key": "ios",
+        "new_people": 3,
+        "share": 0.3333
+      },
+      {
+        "interlocutors": 2,
+        "key": "macos",
+        "new_people": 2,
+        "share": 1.0
+      }
+    ],
+    "by_source": [
+      {
+        "interlocutors": 23,
+        "key": "",
+        "new_people": 37,
+        "share": 0.6216
+      },
+      {
+        "interlocutors": 15,
+        "key": "t.me",
+        "new_people": 24,
+        "share": 0.625
+      },
+      {
+        "interlocutors": 12,
+        "key": "google.com",
+        "new_people": 15,
+        "share": 0.8
+      },
+      {
+        "interlocutors": 6,
+        "key": "yandex.ru",
+        "new_people": 12,
+        "share": 0.5
+      },
+      {
+        "interlocutors": 0,
+        "key": "vk.com",
+        "new_people": 1,
+        "share": 0.0
+      }
+    ],
+    "invites": [
+      {
+        "count": 39,
+        "how": "copy"
+      },
+      {
+        "count": 25,
+        "how": "qr"
+      },
+      {
+        "count": 22,
+        "how": "share"
+      }
+    ],
+    "series": [
+      {
+        "by_invite": 1,
+        "day": "2026-10-28",
+        "new_people": 6
+      },
+      {
+        "by_invite": 4,
+        "day": "2026-10-29",
+        "new_people": 9
+      },
+      {
+        "by_invite": 0,
+        "day": "2026-10-30",
+        "new_people": 7
+      },
+      {
+        "by_invite": 0,
+        "day": "2026-10-31",
+        "new_people": 4
+      },
+      {
+        "by_invite": 2,
+        "day": "2026-11-01",
+        "new_people": 6
+      },
+      {
+        "by_invite": 0,
+        "day": "2026-11-02",
+        "new_people": 2
+      },
+      {
+        "by_invite": 3,
+        "day": "2026-11-03",
+        "new_people": 6
+      },
+      {
+        "by_invite": 3,
+        "day": "2026-11-04",
+        "new_people": 9
+      },
+      {
+        "by_invite": 2,
+        "day": "2026-11-05",
+        "new_people": 10
+      },
+      {
+        "by_invite": 0,
+        "day": "2026-11-06",
+        "new_people": 5
+      },
+      {
+        "by_invite": 1,
+        "day": "2026-11-07",
+        "new_people": 6
+      },
+      {
+        "by_invite": 1,
+        "day": "2026-11-08",
+        "new_people": 4
+      },
+      {
+        "by_invite": 1,
+        "day": "2026-11-09",
+        "new_people": 5
+      },
+      {
+        "by_invite": 2,
+        "day": "2026-11-10",
+        "new_people": 10
+      }
+    ],
+    "totals": {
+      "by_invite": 20,
+      "interlocutors": 56,
+      "invite_share": 0.2247,
+      "inviters": 63,
+      "invites_sent": 86,
+      "k_factor": 0.0757,
+      "new_people": 89
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "acquisition",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

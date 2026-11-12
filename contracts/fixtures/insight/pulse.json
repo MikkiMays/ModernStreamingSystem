@@ -1,0 +1,205 @@
+{
+  "data": {
+    "series": [
+      {
+        "day": "2026-10-28",
+        "interlocutors": 33,
+        "new_people": 6,
+        "people": 61,
+        "talk_hours": 14.64,
+        "weekly_interlocutors": 113
+      },
+      {
+        "day": "2026-10-29",
+        "interlocutors": 22,
+        "new_people": 9,
+        "people": 54,
+        "talk_hours": 8.34,
+        "weekly_interlocutors": 116
+      },
+      {
+        "day": "2026-10-30",
+        "interlocutors": 34,
+        "new_people": 7,
+        "people": 66,
+        "talk_hours": 11.34,
+        "weekly_interlocutors": 124
+      },
+      {
+        "day": "2026-10-31",
+        "interlocutors": 36,
+        "new_people": 4,
+        "people": 69,
+        "talk_hours": 13.86,
+        "weekly_interlocutors": 124
+      },
+      {
+        "day": "2026-11-01",
+        "interlocutors": 33,
+        "new_people": 6,
+        "people": 65,
+        "talk_hours": 13.49,
+        "weekly_interlocutors": 122
+      },
+      {
+        "day": "2026-11-02",
+        "interlocutors": 23,
+        "new_people": 2,
+        "people": 57,
+        "talk_hours": 8.5,
+        "weekly_interlocutors": 118
+      },
+      {
+        "day": "2026-11-03",
+        "interlocutors": 34,
+        "new_people": 6,
+        "people": 69,
+        "talk_hours": 12.07,
+        "weekly_interlocutors": 119
+      },
+      {
+        "day": "2026-11-04",
+        "interlocutors": 37,
+        "new_people": 9,
+        "people": 66,
+        "talk_hours": 19.51,
+        "weekly_interlocutors": 122
+      },
+      {
+        "day": "2026-11-05",
+        "interlocutors": 39,
+        "new_people": 10,
+        "people": 74,
+        "talk_hours": 12.87,
+        "weekly_interlocutors": 132
+      },
+      {
+        "day": "2026-11-06",
+        "interlocutors": 28,
+        "new_people": 5,
+        "people": 66,
+        "talk_hours": 11.94,
+        "weekly_interlocutors": 128
+      },
+      {
+        "day": "2026-11-07",
+        "interlocutors": 36,
+        "new_people": 6,
+        "people": 59,
+        "talk_hours": 15.2,
+        "weekly_interlocutors": 132
+      },
+      {
+        "day": "2026-11-08",
+        "interlocutors": 37,
+        "new_people": 4,
+        "people": 75,
+        "talk_hours": 15.41,
+        "weekly_interlocutors": 135
+      },
+      {
+        "day": "2026-11-09",
+        "interlocutors": 34,
+        "new_people": 5,
+        "people": 69,
+        "talk_hours": 14.19,
+        "weekly_interlocutors": 137
+      },
+      {
+        "day": "2026-11-10",
+        "interlocutors": 40,
+        "new_people": 10,
+        "people": 80,
+        "talk_hours": 16.84,
+        "weekly_interlocutors": 142
+      }
+    ],
+    "tiles": {
+      "confirmed": {
+        "change": 0.3056,
+        "previous": 144,
+        "value": 188
+      },
+      "engaged_only": {
+        "change": 0.2444,
+        "previous": 45,
+        "value": 56
+      },
+      "error_free_sessions": {
+        "change": 0.0134,
+        "previous": 0.7958,
+        "value": 0.8065
+      },
+      "interlocutor_share": {
+        "change": 0.0383,
+        "previous": 0.7302,
+        "value": 0.7582
+      },
+      "interlocutors": {
+        "change": 0.3406,
+        "previous": 138,
+        "value": 185
+      },
+      "join_p50_ms": {
+        "change": -0.0635,
+        "previous": 2552,
+        "value": 2390
+      },
+      "join_success": {
+        "change": 0.0396,
+        "previous": 0.9353,
+        "value": 0.9723
+      },
+      "new_people": {
+        "change": 0.0595,
+        "previous": 84,
+        "value": 89
+      },
+      "people": {
+        "change": 0.291,
+        "previous": 189,
+        "value": 244
+      },
+      "resurrected": {
+        "change": 0.2759,
+        "previous": 29,
+        "value": 37
+      },
+      "returning": {
+        "change": 0.4762,
+        "previous": 105,
+        "value": 155
+      },
+      "stickiness": {
+        "change": 0.1213,
+        "previous": 0.1673,
+        "value": 0.1876
+      },
+      "talk_hours": {
+        "change": 0.264,
+        "previous": 148.91,
+        "value": 188.22
+      },
+      "vpn_share": {
+        "change": 0.1711,
+        "previous": 0.0643,
+        "value": 0.0753
+      },
+      "weekly_interlocutors": {
+        "change": 0.2566,
+        "previous": 113,
+        "value": 142
+      }
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "pulse",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

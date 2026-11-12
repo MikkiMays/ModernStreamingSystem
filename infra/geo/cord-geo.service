@@ -1,0 +1,14 @@
+[Unit]
+# Обновление баз адресов службы аналитики `insight`: страна и ASN (DB-IP Lite), ASN хостеров.
+# Что скачивается, откуда и под какими лицензиями — `infra/geo/README.md`; сам ход — в шапке скрипта.
+Description=Cord geo — refresh the address databases of the analytics service
+Documentation=file:@CORD_ROOT@/infra/geo/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=@CORD_ROOT@
+ExecStart=/usr/bin/env bash @CORD_ROOT@/infra/geo/update.sh
+StandardOutput=append:/var/log/cord-geo.log
+StandardError=append:/var/log/cord-geo.log

@@ -1,0 +1,482 @@
+{
+  "data": {
+    "by_kind": [
+      {
+        "avg_minutes": 13.9,
+        "bytes": 2599914017,
+        "bytes_per_hour": 330497545,
+        "errors": 5,
+        "kind": "cinema",
+        "median_minutes": 12.0,
+        "meeting_share": 0.1789,
+        "meetings": 34,
+        "peak_avg": 3.15,
+        "people": 86,
+        "runs": 34,
+        "stall_seconds": 278,
+        "stalls": 136,
+        "stream_hours": 7.87,
+        "watch_hours": 23.96
+      },
+      {
+        "avg_minutes": 9.4,
+        "bytes": 105772840,
+        "bytes_per_hour": 42450638,
+        "errors": 1,
+        "kind": "music",
+        "median_minutes": 8.3,
+        "meeting_share": 0.0842,
+        "meetings": 16,
+        "peak_avg": 2.44,
+        "people": 34,
+        "runs": 16,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 2.49,
+        "watch_hours": 5.48
+      },
+      {
+        "avg_minutes": 17.4,
+        "bytes": 0,
+        "bytes_per_hour": null,
+        "errors": 0,
+        "kind": "board",
+        "median_minutes": 22.0,
+        "meeting_share": 0.0474,
+        "meetings": 9,
+        "peak_avg": 2.89,
+        "people": 26,
+        "runs": 9,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 0.0,
+        "watch_hours": 7.06
+      },
+      {
+        "avg_minutes": 7.9,
+        "bytes": 0,
+        "bytes_per_hour": null,
+        "errors": 0,
+        "kind": "game",
+        "median_minutes": 7.0,
+        "meeting_share": 0.0474,
+        "meetings": 9,
+        "peak_avg": 2.89,
+        "people": 23,
+        "runs": 9,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 0.0,
+        "watch_hours": 3.22
+      }
+    ],
+    "by_variant": [
+      {
+        "avg_minutes": 9.4,
+        "bytes": 105772840,
+        "bytes_per_hour": 42450638,
+        "errors": 1,
+        "kind": "music",
+        "median_minutes": 8.3,
+        "meeting_share": 0.0842,
+        "meetings": 16,
+        "peak_avg": 2.44,
+        "people": 34,
+        "runs": 16,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 2.49,
+        "variant": "yandex",
+        "watch_hours": 5.48
+      },
+      {
+        "avg_minutes": 9.9,
+        "bytes": 658250800,
+        "bytes_per_hour": 331891160,
+        "errors": 1,
+        "kind": "cinema",
+        "median_minutes": 7.5,
+        "meeting_share": 0.0632,
+        "meetings": 12,
+        "peak_avg": 3.25,
+        "people": 35,
+        "runs": 12,
+        "stall_seconds": 56,
+        "stalls": 29,
+        "stream_hours": 1.98,
+        "variant": "rutube",
+        "watch_hours": 6.65
+      },
+      {
+        "avg_minutes": 16.1,
+        "bytes": 956898951,
+        "bytes_per_hour": 325291428,
+        "errors": 1,
+        "kind": "cinema",
+        "median_minutes": 15.5,
+        "meeting_share": 0.0579,
+        "meetings": 11,
+        "peak_avg": 3.18,
+        "people": 34,
+        "runs": 11,
+        "stall_seconds": 105,
+        "stalls": 51,
+        "stream_hours": 2.94,
+        "variant": "youtube",
+        "watch_hours": 8.38
+      },
+      {
+        "avg_minutes": 17.4,
+        "bytes": 0,
+        "bytes_per_hour": null,
+        "errors": 0,
+        "kind": "board",
+        "median_minutes": 22.0,
+        "meeting_share": 0.0474,
+        "meetings": 9,
+        "peak_avg": 2.89,
+        "people": 26,
+        "runs": 9,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 0.0,
+        "variant": "",
+        "watch_hours": 7.06
+      },
+      {
+        "avg_minutes": 16.3,
+        "bytes": 631999193,
+        "bytes_per_hour": 332631154,
+        "errors": 3,
+        "kind": "cinema",
+        "median_minutes": 20.0,
+        "meeting_share": 0.0368,
+        "meetings": 7,
+        "peak_avg": 2.86,
+        "people": 19,
+        "runs": 7,
+        "stall_seconds": 63,
+        "stalls": 31,
+        "stream_hours": 1.9,
+        "variant": "ivi",
+        "watch_hours": 5.31
+      },
+      {
+        "avg_minutes": 15.6,
+        "bytes": 352765073,
+        "bytes_per_hour": 338654470,
+        "errors": 0,
+        "kind": "cinema",
+        "median_minutes": 14.0,
+        "meeting_share": 0.0211,
+        "meetings": 4,
+        "peak_avg": 3.25,
+        "people": 13,
+        "runs": 4,
+        "stall_seconds": 54,
+        "stalls": 25,
+        "stream_hours": 1.04,
+        "variant": "vk",
+        "watch_hours": 3.63
+      },
+      {
+        "avg_minutes": 7.4,
+        "bytes": 0,
+        "bytes_per_hour": null,
+        "errors": 0,
+        "kind": "game",
+        "median_minutes": 5.8,
+        "meeting_share": 0.0211,
+        "meetings": 4,
+        "peak_avg": 3.25,
+        "people": 11,
+        "runs": 4,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 0.0,
+        "variant": "chess",
+        "watch_hours": 1.48
+      },
+      {
+        "avg_minutes": 7.5,
+        "bytes": 0,
+        "bytes_per_hour": null,
+        "errors": 0,
+        "kind": "game",
+        "median_minutes": 7.5,
+        "meeting_share": 0.0211,
+        "meetings": 4,
+        "peak_avg": 2.75,
+        "people": 11,
+        "runs": 4,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 0.0,
+        "variant": "durak",
+        "watch_hours": 1.37
+      },
+      {
+        "avg_minutes": 11.0,
+        "bytes": 0,
+        "bytes_per_hour": null,
+        "errors": 0,
+        "kind": "game",
+        "median_minutes": 11.0,
+        "meeting_share": 0.0053,
+        "meetings": 1,
+        "peak_avg": 2.0,
+        "people": 2,
+        "runs": 1,
+        "stall_seconds": 0,
+        "stalls": 0,
+        "stream_hours": 0.0,
+        "variant": "poker",
+        "watch_hours": 0.37
+      }
+    ],
+    "close_reasons": [
+      {
+        "kind": "cinema",
+        "reason": "closed",
+        "runs": 15
+      },
+      {
+        "kind": "music",
+        "reason": "closed",
+        "runs": 11
+      },
+      {
+        "kind": "cinema",
+        "reason": "ended",
+        "runs": 7
+      },
+      {
+        "kind": "cinema",
+        "reason": "replaced",
+        "runs": 7
+      },
+      {
+        "kind": "game",
+        "reason": "closed",
+        "runs": 6
+      },
+      {
+        "kind": "cinema",
+        "reason": "error",
+        "runs": 5
+      },
+      {
+        "kind": "board",
+        "reason": "ended",
+        "runs": 4
+      },
+      {
+        "kind": "board",
+        "reason": "replaced",
+        "runs": 3
+      },
+      {
+        "kind": "board",
+        "reason": "closed",
+        "runs": 2
+      },
+      {
+        "kind": "game",
+        "reason": "ended",
+        "runs": 2
+      },
+      {
+        "kind": "music",
+        "reason": "ended",
+        "runs": 2
+      },
+      {
+        "kind": "music",
+        "reason": "replaced",
+        "runs": 2
+      },
+      {
+        "kind": "game",
+        "reason": "replaced",
+        "runs": 1
+      },
+      {
+        "kind": "music",
+        "reason": "error",
+        "runs": 1
+      }
+    ],
+    "errors": [
+      {
+        "code": "CINEMA_STREAM_FAILED",
+        "count": 2,
+        "kind": "cinema",
+        "variant": "ivi"
+      },
+      {
+        "code": "CINEMA_GEO",
+        "count": 1,
+        "kind": "cinema",
+        "variant": "ivi"
+      },
+      {
+        "code": "CINEMA_STREAM_FAILED",
+        "count": 1,
+        "kind": "cinema",
+        "variant": "rutube"
+      },
+      {
+        "code": "CINEMA_TIMEOUT",
+        "count": 1,
+        "kind": "cinema",
+        "variant": "youtube"
+      },
+      {
+        "code": "CINEMA_GEO",
+        "count": 1,
+        "kind": "music",
+        "variant": "yandex"
+      }
+    ],
+    "series": [
+      {
+        "board": 0,
+        "cinema": 5,
+        "day": "2026-10-28",
+        "game": 0,
+        "music": 0,
+        "watch_hours": 4.12
+      },
+      {
+        "board": 0,
+        "cinema": 3,
+        "day": "2026-10-29",
+        "game": 0,
+        "music": 0,
+        "watch_hours": 3.03
+      },
+      {
+        "board": 0,
+        "cinema": 3,
+        "day": "2026-10-30",
+        "game": 1,
+        "music": 1,
+        "watch_hours": 1.73
+      },
+      {
+        "board": 1,
+        "cinema": 1,
+        "day": "2026-10-31",
+        "game": 1,
+        "music": 2,
+        "watch_hours": 1.88
+      },
+      {
+        "board": 4,
+        "cinema": 2,
+        "day": "2026-11-01",
+        "game": 0,
+        "music": 1,
+        "watch_hours": 4.33
+      },
+      {
+        "board": 0,
+        "cinema": 4,
+        "day": "2026-11-02",
+        "game": 1,
+        "music": 0,
+        "watch_hours": 2.57
+      },
+      {
+        "board": 1,
+        "cinema": 3,
+        "day": "2026-11-03",
+        "game": 0,
+        "music": 3,
+        "watch_hours": 2.4
+      },
+      {
+        "board": 1,
+        "cinema": 1,
+        "day": "2026-11-04",
+        "game": 1,
+        "music": 2,
+        "watch_hours": 2.6
+      },
+      {
+        "board": 1,
+        "cinema": 2,
+        "day": "2026-11-05",
+        "game": 0,
+        "music": 4,
+        "watch_hours": 5.38
+      },
+      {
+        "board": 0,
+        "cinema": 1,
+        "day": "2026-11-06",
+        "game": 0,
+        "music": 1,
+        "watch_hours": 1.07
+      },
+      {
+        "board": 0,
+        "cinema": 2,
+        "day": "2026-11-07",
+        "game": 2,
+        "music": 0,
+        "watch_hours": 1.63
+      },
+      {
+        "board": 1,
+        "cinema": 2,
+        "day": "2026-11-08",
+        "game": 2,
+        "music": 1,
+        "watch_hours": 4.64
+      },
+      {
+        "board": 0,
+        "cinema": 1,
+        "day": "2026-11-09",
+        "game": 0,
+        "music": 1,
+        "watch_hours": 1.2
+      },
+      {
+        "board": 0,
+        "cinema": 4,
+        "day": "2026-11-10",
+        "game": 1,
+        "music": 0,
+        "watch_hours": 3.14
+      }
+    ],
+    "totals": {
+      "avg_minutes": 12.5,
+      "bytes": 2705686857,
+      "bytes_per_hour": 261208707,
+      "errors": 6,
+      "median_minutes": 10.0,
+      "meeting_share": 0.3579,
+      "meetings": 68,
+      "peak_avg": 2.91,
+      "people": 122,
+      "runs": 68,
+      "stall_seconds": 278,
+      "stalls": 136,
+      "stream_hours": 10.36,
+      "watch_hours": 39.71
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "integrations",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}
