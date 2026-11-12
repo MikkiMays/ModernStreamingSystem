@@ -1,60 +1,58 @@
 # Контекст Cord — общая справка для всех промптов
 
-Снимок на 18.10.2026, сверен с кодом 19.10.2026 (E00), стек клиента и стенды — 31.10.2026. Это **кэш**: окружение (код, манифесты, `docs/`) главнее. Если
-написанное здесь разошлось с кодом — верь коду и поправь этот файл (E00 делает это первым).
+Снимок на 12.11.2026 (волна 1.4), сверен с кодом и с машинами. Это **кэш**: окружение (код, манифесты, `docs/`)
+главнее. Если написанное здесь разошлось с кодом — верь коду и поправь этот файл.
 
 ## Что это
 
-**Cord** — продукт для видеовстреч с интеграциями (кинозал, музыка, игры, Telegram-бот).
-**Не open-source** (решение владельца 18.10.2026): репозитории приватные, наружу не ведёт ни
-одна ссылка на исходники, `setup.sh`/`update.sh` — внутренний способ развёртывания. Комментарии
-в коде вида «репозитории публичные» устарели (T56). Прод — https://meet.nikg.tech, и он
-**переезжает на машину, где идёт эта сессия** (решение владельца 18.10.2026, эпик E17).
+**Cord** — продукт для видеовстреч с интеграциями (кинозал, музыка, игры, доска, Telegram-бот). Учётных записей нет:
+человек — это профиль устройства. Продукт закрытый: в том, что видит человек, нет ссылок на исходники. Репозитории на
+GitHub **публичные** — только ради CI (приватным дают медленные машины и ограниченные минуты); поэтому в репозиторий не
+попадают секреты и подробности ещё не закрытых слабых мест.
 
-Два независимых git-репозитория (GitHub, приватные), рядом в `$CORD_ROOT`:
+Два репозитория рядом в `$CORD_ROOT` (на машине разработки — `/opt`):
 
 | Репозиторий | Что внутри | Стек |
 | --- | --- | --- |
-| `ModernStreamingSystem` | ядро `server/`, веб `web/`, службы `services/`, контракты `contracts/`, инфраструктура `infra/`, `docs/` | Java 25 / Spring Boot 4.1, React 19.2 / TS / Vite 8 / Base UI / Tailwind 4, Python (FastAPI) + Go-издатель звука, LiveKit SFU 1.13.6, PostgreSQL 18, Redis 8, tusd, Caddy |
-| `ModernStreamingSystem.Windows` | клиент Windows: `desktop/` — Electron (сейчас 44), установщик electron-builder (NSIS, один экран); `src/Cord.*` — прежний WinUI, только наследие | TypeScript / Electron; C# / .NET 10 — у наследия |
+| `ModernStreamingSystem` | ядро `server/`, веб `web/`, службы `services/`, новые службы на Rust `rust/` (аналитика `insight`, агент машин `cord-agent`), контракты `contracts/`, инфраструктура `infra/`, Android `mobile/`, `docs/`, `backlog/` | Java 25 / Spring Boot 4.1, React 19 / TS / Vite 8 / Base UI / Tailwind 4, Python (FastAPI) + Go-издатель звука, Rust, LiveKit SFU 1.13.6, PostgreSQL 18, Redis 8, tusd, Caddy |
+| `ModernStreamingSystem.Windows` | клиент Windows: `desktop/` — Electron, установщик NSIS; `src/Cord.*` — прежний WinUI, только наследие | TypeScript / Electron |
 
-Точные версии — только из манифестов (`pom.xml`, `web/package.json`, `services/requirements.lock`,
-`*.csproj`, `global.json`).
+Точные версии — только из манифестов (`pom.xml`, `web/package.json`, `services/requirements.lock`, `rust/Cargo.toml`).
 
-## Сервер — это прод
+## Домены и машины (12.11.2026)
 
-Машина, на которой идёт сессия, — **прод Cord** (решение владельца 18.10.2026). Старый сервер
-выводится после переезда. Переезд — эпик E17, сразу после E00.
+| Имя | Что это |
+| --- | --- |
+| **`cord.online`** | продукт — единственный адрес для людей. Узлы: `<id>.cord.online`, `rtc-<id>`, `turn-<id>` |
+| `callcord.ru` | стенд разработки и пульт (`admin.callcord.ru`); людям не показывается |
+| `cordcam.ru`, `nikg.tech` | прежние имена — убраны совсем; в код, настройки и текущие документы не возвращать |
 
-**Состояние на 31.10.2026:** стендов три — `cord.nikg.tech` (эта машина), `meet.nikg.tech` (108.165.32.23) и
-`cordcam.ru` (157.22.241.114, сервер по умолчанию в каталоге клиента); кто какой выкатывает — `README.md` →
-«Стенды». Ниже — как было на 19.10.2026.
+DNS — файлом `infra/dns/zones.json` (`node scripts/dns.mjs plan|apply`); зоны у Cloudflare, все записи — серое облако.
 
-**Состояние на 19.10.2026:** машина `cord.nikg.tech` (108.165.32.75) — **стенд**, «пока ещё не прод»
-(слова владельца). Стек Cord поднят здесь с именем `cord.nikg.tech` (DNS only), все выкатки бэклога идут
-сюда, e2e — `PLAYWRIGHT_BASE_URL=https://cord.nikg.tech`. Прод `meet.nikg.tech` — на старом сервере до
-переезда; хост этой машины тоже замирает (`journal/ENV-cord.nikg.tech.md`), поэтому переключение DNS —
-решение владельца (`OWNER-ACTIONS.md`).
+| Машина | Где | Роль |
+| --- | --- | --- |
+| meet 108.165.32.23 | Франкфурт | **продукт**: ядро, база, шлюз, службы, медиаузел `main`; установка — `/opt/meet/ModernStreamingSystem`; на той же машине чужой проект — его контейнеры не трогать |
+| msk 157.22.241.114 | Москва | медиаузел `msk`, выход кинозала к ivi |
+| B 152.234.227.199 | Хельсинки | медиаузел `hel`, выход кинозала к YouTube |
+| A 108.165.32.75 | Франкфурт | **эта машина**: стенд `callcord.ru` (`/opt/ModernStreamingSystem`), пульт, мониторинг; людей нет |
 
-Первый запуск на машине (E00, шаг 0) — выяснить и записать в `journal/ENV-<hostname>.md`:
+Хост meet и A замирает целиком на секунды и минуты (`journalctl -k | grep 'soft lockup'`) — это провайдер, не код;
+любую «странность» сначала сверять с этим. Что покупать взамен — `docs/architecture/servers-2026-11.md`.
 
-1. `$CORD_ROOT` — каталог, где рядом лежат обе репы; если репы Windows рядом нет —
-   `git clone` её туда же. Обе на `main`, синхронны с `origin`.
-2. Инструменты: `docker` (+ compose), Node из `web/package.json` → `engines`/CI, `tmux`, `git`,
-   доступ к GitHub (`gh auth status` или токен в окружении — наружу не уходит). Плагины Claude
-   из `README.md` → «Что подключить».
-3. Ресурсы: ядра, память, диск, сеть (полоса, IPv4/IPv6, открытые порты). От них зависят
-   `max-rooms`, нагрузочный прогон E05 и мониторинг E10.
-4. Состояние прода здесь: поднят ли стек Cord (`docker compose ps` в `ModernStreamingSystem`),
-   смотрит ли `meet.nikg.tech` на эту машину (`dig +short meet.nikg.tech` против своего IP).
-   Пока DNS не переключён, проверяй прод-стек подменой адреса (`curl --resolve`, Chromium
-   `--host-resolver-rules`) — камере и микрофону нужен настоящий https.
+Выкатка: стенд — `backlog/bin/deploy.sh <службы>` из `/opt/ModernStreamingSystem`; продукт — `update.sh` на meet
+(вход с A по ключу); только без идущих встреч (`backlog/bin/active-meetings.sh`). Порядок — `docs/RELEASE.md`.
+
+## Куда смотреть в этой волне
+
+- Состояние и задачи — `backlog/release-1.4/STATUS.md`, `TASKS.md`.
+- Проекты: `docs/architecture/analytics-v2.md` (аналитика заново), `control-plane.md` (управление без SSH),
+  `admin-console-v2.md` (пульт), `core-scale.md` (оптимизация ядра, ответ про Rust), `servers-2026-11.md` (серверы),
+  `cord-architecture.cord-board` (схема для доски).
 
 ## Обязательное чтение (по мере надобности эпика)
 
 - Репозиторий: `README.md`, `docs/architecture.md`, `docs/frontend.md`, `docs/INTEGRATIONS.md`,
-  `docs/resilience.md`, `docs/capacity.md`, `docs/deployment.md`,
-  `docs/deployment-meet-nikg-tech.md`, `docs/INSTALL.md`, `docs/verification.md`,
+  `docs/resilience.md`, `docs/capacity.md`, `docs/deployment.md`, `docs/INSTALL.md`, `docs/verification.md`,
   `docs/superpowers/specs/*` и `plans/*` (прошлые проектирования).
 - Windows: `README.md`, `docs/architecture.md`, `docs/installer.md`, `docs/updating.md`.
 - **Заметки о Cord**: `backlog/knowledge/memory/` (индекс — `knowledge/README.md`). Там грабли,
@@ -76,7 +74,7 @@
   поднять собранный образ ядра отдельным контейнером с H2 и включённым springdoc).
   Новый тип команды — в `Contracts.COMMAND_TYPES` (один список).
 - Живая проверка: Playwright из `web/` против стенда
-  (`PLAYWRIGHT_BASE_URL=https://cord.nikg.tech npx playwright test ...`); без переменной
+  (`PLAYWRIGHT_BASE_URL=https://callcord.ru npx playwright test ...`); без переменной
   конфиг поднимает пустой dev-сервер и «всё падает». Скрипты старого сервера из `web/.local/`
   (`stack.sh`, `poker-shots.mjs`, `durak-six.mjs`, `recorded/`) **не переехали** — каталог в
   `.gitignore`; нужное воссоздавать в git (`web/scripts/`). Ядро отвечает 403 на чужой `Origin` —
@@ -102,11 +100,10 @@
   сервере были задержки 32–48 с). `deploy.sh` спрашивает `backlog/bin/active-meetings.sh` сам и держит
   `backlog/.deploy.lock` — одна выкатка за раз.
 - Windows: пуш в `main` репы Windows с новым номером в `desktop/package.json` — CI выпускает `desktop-vX.Y.Z`;
-  затем зеркало `/download` и канал обновлений: `backlog/bin/publish-windows.sh --desktop X.Y.Z`; cordcam — ветка
-  `deploy/cordcam`.
+  затем зеркало `/download` и канал обновлений: `backlog/bin/publish-windows.sh --desktop X.Y.Z` на A и перенос на meet
+  (`docs/RELEASE.md` → «Зеркало»).
 - После выкатки: `docker compose ps` против HEAD, коммит в `<meta name="cord-build">` страницы (в интерфейсе его нет), e2e против прода.
-- CI и релизы — `gh` или GitHub REST с токеном (см. «Сервер — это прод»). Репозитории приватные:
-  анонимный API отвечает 404, это не «релиза нет».
+- CI и релизы — `gh` (на A он авторизован владельцем); токен в файлы и команды не вписывать.
 
 ## Жёсткие границы
 
@@ -137,11 +134,3 @@
 - Прозрачная растянутая кнопка ловит нажатия; абсолютно позиционированное поверх мест — тоже.
 - e2e ждут текст «В эфире» (13 спеков) — меняя бейдж, переведи ожидание на устойчивый признак.
 - Плееру кинозала нужен `hover()` перед нажатием: пульт прячется через 2,8 с.
-
-## Старый сервер
-
-До переезда прод жил на общей ВМ (6 vCPU, 15 ГБ), которая с 14.10.2026 замирала целиком на
-20–55 с (soft lockup на всех vCPU, проблема хоста). Это главная гипотеза T38 («звуки входа и
-выхода сами по себе»): на новом сервере T38 проверяется заново, прежде чем чинить код. Любая
-«странность в звонке» на новом сервере тоже сначала сверяется с `journalctl -k | grep
-'soft lockup'`.
