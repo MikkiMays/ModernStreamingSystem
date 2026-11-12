@@ -393,7 +393,7 @@ Telegram, принять звонок GSM, переключить Bluetooth-га
 клиента Windows и приложения одна версия (Р-46).
 
 **Как устроено.**
-- `capacitor.config.json` → `server.url` — адрес продукта `https://cordcam.ru` (R200, Р-110: продукт один,
+- `capacitor.config.json` → `server.url` — адрес продукта `https://cord.online` (R200, Р-110, R235′: продукт один,
   стенд `callcord.ru` людям не отдаётся); тот же адрес — в кнопке «Повторить» `www/offline.html`.
   `scripts/set-server.mjs` без аргументов сверяет, что оба файла называют один адрес (так CI и собирает);
   другая установка задаёт свой `CORD_ANDROID_SERVER=https://…` — скрипт пишет его в оба файла. Интерфейс
@@ -430,7 +430,7 @@ Actions → «Android app» → прогон → Artifacts, или `gh run downl
 ```bash
 cd mobile
 npm ci
-node scripts/set-server.mjs                                   # продукт cordcam.ru; своя установка — CORD_ANDROID_SERVER=https://…
+node scripts/set-server.mjs                                   # продукт cord.online; своя установка — CORD_ANDROID_SERVER=https://…
 npx cap sync android        # копирует www и конфиг, пишет подключение плагинов
 cd android
 ./gradlew assembleDebug     # → app/build/outputs/apk/debug/app-debug.apk

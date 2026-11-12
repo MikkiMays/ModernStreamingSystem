@@ -16,8 +16,7 @@
 4. CI ветки зелёный → fast-forward в `main` (§4).
 5. Стенд: нет встреч → `backlog/bin/deploy.sh <службы>` → проверки и e2e (§5).
 6. Другие серверы — тот, у кого есть ssh: `./update.sh` после проверки встреч (§6).
-7. Клиент Windows: пуш `main` репы Windows → релиз `desktop-vX.Y.Z` → зеркало на сервере → ветка
-   `deploy/cordcam` (§7).
+7. Клиент Windows: пуш `main` репы Windows → релиз `desktop-vX.Y.Z` → зеркало на продукте и на стенде (§7).
 8. APK — артефакт CI (§8).
 9. Журнал, статус, Grafana (§9).
 
@@ -340,26 +339,27 @@ backlog/bin/active-meetings.sh && docker compose up -d --no-deps core gateway
 
 ## 6. Другие серверы
 
-С этой машины ssh на другие серверы нет, и выкатывать их отсюда не нужно (владелец, 01.11.2026): раздел — для
-того, у кого доступ есть. Раскладка чужих серверов отсюда не проверяется; что известно — ниже, остальное
-смотреть на месте.
+С машины A (стенд и пульт) на машины продукта ходят по ключам (владелец, 08.11.2026): `/root/.ssh/cord_fra` — meet,
+`cord_msk` — узел Москва, `cord_fi` — узел Хельсинки. Пароли root в работе не используются.
 
-| Сервер | Адрес | Что известно | Режим |
+| Машина | Адрес | Что на ней | Каталог |
 | --- | --- | --- | --- |
-| `meet.nikg.tech` | 108.165.32.23 | по записи 09.09.2026 ([deployment-meet-nikg-tech.md](deployment-meet-nikg-tech.md)): каталог `/opt/meet/ModernStreamingSystem`, рядом Kiki — `--legacy-hosts`, порты шлюза и крюков 18091/18090, 80 у Kiki | `strict`: `meet.nikg.tech`, `rtc.nikg.tech`, `turn.nikg.tech` |
-| `cordcam.ru` | 157.22.241.114 | сервер по умолчанию в каталоге клиента; каталог установки отсюда не виден | одно имя; DNS `rtc.cordcam.ru`, `turn.cordcam.ru` → 157.22.241.114 есть — обновить и перевести в `strict` (ниже) |
+| meet | 108.165.32.23 | **продукт `cord.online`**: ядро, база, шлюз, службы, служба аналитики, медиаузел `main`; режим `strict` (`cord.online`, `rtc-fra.cord.online`, `turn-fra.cord.online`); на том же 443 — чужой проект (`--legacy-hosts`), его контейнеры не трогать | `/opt/meet/ModernStreamingSystem` |
+| msk | 157.22.241.114 | медиаузел `msk` (`msk.cord.online`, `rtc-msk`, `turn-msk`), выход кинозала к ivi | `/opt/cord/node` |
+| hel | 152.234.227.199 | медиаузел `hel` (`hel.cord.online`, `rtc-hel`, `turn-hel`), выход кинозала к YouTube | `/opt/cord/node` |
+| A | 108.165.32.75 | стенд `callcord.ru`, пульт `admin.callcord.ru`, мониторинг | `/opt/ModernStreamingSystem` |
 
-Что на них сейчас, видно снаружи с любой машины:
+Что выкачено, видно снаружи с любой машины:
 
 ```bash
-for h in meet.nikg.tech cordcam.ru; do
+for h in cord.online callcord.ru; do
   echo "$h $(curl -s https://$h/ | grep -o 'cord-build" content="[^"]*')"
   curl -s https://$h/downloads/windows/download.json | head -c 120; echo
 done
 ```
 
-01.11.2026: оба — `4667808` (31.10.2026, до Р-52); `/download` у `meet.nikg.tech` — прежний клиент 0.7.5, у
-`cordcam.ru` — 1.0.11.
+Продукт обновляется на meet: `ssh -i /root/.ssh/cord_fra root@108.165.32.23`, там `cd /opt/meet/ModernStreamingSystem &&
+backlog/bin/active-meetings.sh && ./update.sh --check`, затем `./update.sh --yes` — только без идущих встреч.
 
 Первое обновление сервера на `main` с Р-52 (`7dfae28`, TURN/TLS только в `strict`) перевыпускает конфигурацию
 SFU и пересоздаёт `edge` и `livekit` — звонки оборвутся. Строку cron `turn-cert.sh` прежних установок можно
@@ -418,13 +418,13 @@ curl -s https://<домен>/ | grep -o 'name="cord-build" content="[^"]*"'
 curl -fsS https://<домен>/api/v1/ping && curl -fsS https://<домен>/api/v1/load
 node scripts/smoke.mjs                          # нужен Node 20+ на хосте
 node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 \
-  --turn="$(sed -n 's/^TURN_HOST=//p' .env):443" --transport=tls   # strict; у meet.nikg.tech это turn.nikg.tech
-python3 scripts/cohost-cutover.py               # только meet.nikg.tech: проверка совместного 443, без --apply ничего не меняет
+  --turn="$(sed -n 's/^TURN_HOST=//p' .env):443" --transport=tls   # strict; у продукта это turn-fra.cord.online
+python3 scripts/cohost-cutover.py               # только meet: проверка совместного 443 с соседним проектом, без --apply ничего не меняет
 ```
 
 С этой машины — e2e (`PLAYWRIGHT_BASE_URL=https://<домен>`, тот же предел 10 встреч в час) и внешняя проверка
-DNS и TLS трёх имён (имена — `APP_HOST`, `RTC_HOST`, `TURN_HOST` сервера; у `meet.nikg.tech` — `rtc.nikg.tech`,
-`turn.nikg.tech`):
+DNS и TLS трёх имён (имена — `APP_HOST`, `RTC_HOST`, `TURN_HOST` сервера; у продукта — `cord.online`,
+`rtc-fra.cord.online`, `turn-fra.cord.online`):
 
 ```bash
 node scripts/network-audit.mjs --app=<домен> --rtc=rtc.<домен> --turn=turn.<домен> --ip=<IP>
@@ -459,7 +459,7 @@ cp -a infra/generated infra/generated.before-$D-strict && cp -p .env .local/env.
    (`DEPLOY_MODE`, `APP_HOST`, `RTC_HOST`, `TURN_HOST`, `PUBLIC_IP`, `PUBLIC_URL`, `LIVEKIT_URL`, порты шлюза)
    с R200 §8.6 переписывает сам по именам из аргументов и печатает, что поменял (`.env retargeted: …`). До
    этого `LIVEKIT_URL` и `PUBLIC_URL` оставались старыми, и ядро со службой интеграций отказывали по Origin
-   (meet → `cordcam.ru`, 08.11.2026).
+   (meet при смене имени 08.11.2026; 12.11.2026 переезд на `cord.online` прошёл уже этим путём).
 
 3. Конфигурация:
 
@@ -566,20 +566,20 @@ gh release view desktop-vX.Y.Z -R MikkiMays/ModernStreamingSystem.Windows --json
 
 Нет `latest.yml.sig` — нет секрета `CORD_UPDATE_SIGN_KEY` (§11): такое обновление клиенты не примут.
 
-**Снимок каталога серверов** (`dist/shell/catalog.jws` в установщике) сборка берёт с `cordcam.ru/api/v1/catalog`, а
+**Снимок каталога серверов** (`dist/shell/catalog.jws` в установщике) сборка берёт с `cord.online/api/v1/catalog`, а
 если CI до продукта не достучался — из `desktop/build/catalog.jws` репы Windows (из двух — с бо́льшим `seq`). Сборка
 продукта в CI без снимка падает: без него клиент, обновлённый с прошлой сборки, верит её сохранённому каталогу и
-открывает её сервер (1.2.3 так открывал убранный `cord.nikg.tech` — «нет связи»). Подписали новый `seq` каталога
+открывает её сервер (1.2.3 так открывал убранное имя стенда — «нет связи»). Подписали новый `seq` каталога
 продукта — тот же `servers.jws` кладётся в `desktop/build/catalog.jws` и в `.local/catalog/` стенда.
 
 ### Зеркало
 
 GitHub клиент не видит: и `/download`, и обновление при запуске читают только зеркало сервера
 (`/downloads/windows/download.json` и канал `/downloads/windows/desktop/`). Клиент основной сборки обновляется с
-`CORD_DEFAULT_SERVER` — с 1.2.3 это продукт `cordcam.ru` (meet); выпуск кладётся **на meet** — для всех клиентов.
-Зеркало стенда `callcord.ru` (A) — только для разработки и дымового прогона. Клиенты 1.2.2 и старше смотрели на
-`cord.nikg.tech`; с 09.11 этого имени нет (владелец: «nikg.tech вообще не должен больше фигурировать») — их
-переустанавливают установщиком с `https://cordcam.ru/download`. Пока выпуск не выложен, его не видит никто.
+`CORD_DEFAULT_SERVER` — с 1.4.0 это продукт `cord.online` (meet); выпуск кладётся **на meet** — для всех клиентов.
+Зеркало стенда `callcord.ru` (A) — только для разработки и дымового прогона. Клиенты 1.3.1 и старше смотрели на
+прежние имена, которых больше нет (владелец, 12.11.2026: «оставляй только cord.online»), — их переустанавливают
+установщиком с `https://cord.online/download`. Пока выпуск не выложен, его не видит никто.
 
 ```bash
 cd /opt/ModernStreamingSystem
@@ -593,7 +593,7 @@ GitHub, версию и имя в `latest.yml`, вид подписи; отка�
 предварительный выпуск; пишет `latest.yml` последним и `download.json`; держит прошлый установщик для дельт
 (`--keep 2`). Шлюз читает `.local/windows-releases` только на чтение — перезапуск не нужен.
 
-На meet (`/opt/meet/ModernStreamingSystem`, продукт `cordcam.ru`) `gh` нет — файлы приносятся с A:
+На meet (`/opt/meet/ModernStreamingSystem`, продукт `cord.online`) `gh` нет — файлы приносятся с A:
 
 ```bash
 # на машине с gh
@@ -606,23 +606,17 @@ scp -i /root/.ssh/cord_fra -r release.json artifacts root@108.165.32.23:/tmp/cor
 python3 -I scripts/publish-windows-release.py --desktop /tmp/cord-desktop-X.Y.Z/release.json /tmp/cord-desktop-X.Y.Z/artifacts
 ```
 
-Проверка — `curl -s https://cordcam.ru/downloads/windows/desktop/latest.yml | head -3`.
-Манифесты сборки с ключом cordcam (`installations/cordcam.json`, 1.1.x) на meet больше не кладутся: канал `cordcam.ru`
-теперь у основной сборки, подписанной основным ключом.
+Проверка — `curl -s https://cord.online/downloads/windows/desktop/latest.yml | head -3`.
 
-### Сборка cordcam (выведена с 1.2.3)
-
-Отдельная сборка `deploy/cordcam` (свой сервер по умолчанию и свой ключ, `desktop/build/installations/cordcam.json`)
-больше не выпускается: с Р-110′ `cordcam.ru` — единственный продукт, и основная сборка 1.2.3 сама смотрит на него и
-обновляется с него основным ключом. Ветка `deploy/cordcam` оставлена как история; в `main` её не сливать — CI на `main`
-падает, если там есть `desktop/build/installation`. Клиенты 1.1.x той сборки (ключ cordcam) основной манифест не
-примут — их переустанавливают установщиком с `/download`.
+Отдельных сборок под другие серверы нет: сборка `deploy/cordcam` (свой сервер и свой ключ) выведена с 1.2.3, её
+манифест `installations/cordcam.json` удалён в 1.4.0. CI на `main` падает, если в репе есть
+`desktop/build/installation`.
 
 ## 8. Android
 
 - `.github/workflows/android.yml` — на пуш и PR, если тронуты `mobile/**` или сам workflow; вручную —
   `gh workflow run android.yml -R MikkiMays/ModernStreamingSystem --ref main`.
-- Собирает отладочный APK (`assembleDebug`, отладочный ключ) с адресом продукта `https://cordcam.ru` из
+- Собирает отладочный APK (`assembleDebug`, отладочный ключ) с адресом продукта `https://cord.online` из
   `mobile/capacitor.config.json` (R200, Р-110); `mobile/scripts/set-server.mjs` без переменной только сверяет файлы.
   Стенд `callcord.ru` в APK не попадает: переменная `CORD_SERVER_URL` — только для `verify-deployed.yml`.
 - Результат — артефакт `cord-android-debug` (`app-debug.apk`), живёт 14 дней. На сервер и в магазины не
@@ -705,10 +699,10 @@ gh run download <id> -R MikkiMays/ModernStreamingSystem -n cord-android-debug -D
 - **Подпись установщика** — сертификат OV/EV или Azure Trusted Signing, секреты репы Windows
   `CORD_SIGN_PFX_BASE64` и `CORD_SIGN_PASSWORD`. Без него — SmartScreen.
 - **Ключ подписи обновлений** — секрет `CORD_UPDATE_SIGN_KEY` (задан); смена — новый открытый ключ в
-  `desktop/build/update-keys.json`, выпуск клиента, затем новый секрет. Ключ cordcam — только на сервере cordcam.
+  `desktop/build/update-keys.json`, выпуск клиента, затем новый секрет.
 - **Переменные реп:** `CORD_SMOKE_SERVER` (Windows — стенд для дымового прогона CI; пока его нет, берётся
   `CORD_DEFAULT_SERVER`) и `CORD_UPDATE_CHANNEL` (Windows), `CORD_SERVER_URL` (ядро: `verify-deployed.yml`),
-  `CORD_ANDROID_SERVER` (ядро: APK другой установки). Адрес продукта `https://cordcam.ru` — в коде обоих клиентов
+  `CORD_ANDROID_SERVER` (ядро: APK другой установки). Адрес продукта `https://cord.online` — в коде обоих клиентов
   (`desktop/build/update-keys.json`, `mobile/capacitor.config.json`), не в переменных (R200, Р-110).
 - **Ключ каталога серверов** — `node scripts/sign-catalog.mjs keygen --out <путь>.pem`, открытый ключ в
   `contracts/catalog-keys.json` и `desktop/build/catalog-keys.json`, выпуск клиента, затем `sign`.

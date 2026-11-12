@@ -277,9 +277,9 @@ SFU такую дорожку знает — слушателям с RED отд�
   по TLS на `turn.callcord.ru:443` с учёткой участника проходит, relay в интернет — отказ (A12,
   `node scripts/turn-relay-check.mjs --env=.env --signal=ws://127.0.0.1:7880 --turn=turn.callcord.ru:443
   --transport=tls`).
-- **`cordcam.ru`** — записи `rtc.`/`turn.` в DNS есть, но на 01.11.2026 режим одного имени: TURN/TLS на 5349
-  (сертификат `cordcam.ru`), `turn.cordcam.ru:443` не отвечает. Перевод — `configure.mjs --refresh` и
-  перезапуск edge и SFU — по шагам в `docs/RELEASE.md`.
+- **Продукт `cord.online` — в `strict` с 12.11.2026**: `rtc-fra.` и `turn-fra.cord.online` → meet, у узлов —
+  `rtc-<узел>` и `turn-<узел>`; TURN по TLS на 443 каждого имени проверен при переезде (`turn-relay-check.mjs`,
+  произвольные назначения запрещены).
 - Р-34 (`allow_tcp_fallback: false`) на стенде действует с выкатки волны A 31.10: конфигурация SFU
   перевыпущена, раньше она отставала от `configure.mjs`.
 - В приложении Android — `ACCESS_NETWORK_STATE` (выше).
