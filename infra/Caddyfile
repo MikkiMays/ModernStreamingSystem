@@ -135,6 +135,9 @@ http://:{$GATEWAY_PORT:8091} {
 		}
 		@api path /api/v1/*
 		handle @api {
+			# Ответы API — JSON: снимок встречи сжимается в несколько раз, а это каждое событие каждого участника
+			# (docs/architecture/core-scale.md §3.1). Сокет событий и уже сжатое Caddy не трогает.
+			encode zstd gzip
 			reverse_proxy 127.0.0.1:8080 {
 				header_up X-Internal-Secret {$INTERNAL_SECRET}
 				header_up X-Real-IP {remote_host}
