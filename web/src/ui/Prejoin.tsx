@@ -349,7 +349,11 @@ export function Prejoin({
     } catch (e) {
       // Аналитика (R239): отказ в устройстве — с именем ошибки браузера (запрет, нет устройства, занято).
       const refused = e instanceof DOMException ? e.name : 'Error';
-      notePermission(kind === 'video' ? 'cam' : 'mic', refused === 'NotAllowedError' ? 'denied' : 'error', refused);
+      notePermission(
+        kind === 'video' ? 'cam' : 'mic',
+        refused === 'NotAllowedError' ? 'denied' : 'error',
+        refused,
+      );
       setDeviceError(
         failureText(
           e,

@@ -29,7 +29,9 @@ interface Batch {
   events: { n: string; at: number; p: Record<string, unknown> }[];
 }
 const batches = (): Batch[] =>
-  fetchMock.mock.calls.filter(([url]) => url === '/api/v1/t').map(([, init]) => JSON.parse(String(init?.body)) as Batch);
+  fetchMock.mock.calls
+    .filter(([url]) => url === '/api/v1/t')
+    .map(([, init]) => JSON.parse(String(init?.body)) as Batch);
 const sent = () => batches().flatMap((batch) => batch.events);
 
 beforeEach(() => {
@@ -156,8 +158,16 @@ it('тот же экран подряд не повторяется; часты�
   noteFeature('reaction');
   noteFeature('hand');
   await vi.advanceTimersByTimeAsync(15_000);
-  expect(sent().filter((event) => event.n === 'screen').map((event) => event.p.tab)).toEqual(['audio', 'video']);
-  expect(sent().filter((event) => event.n === 'feature').map((event) => event.p)).toEqual([
+  expect(
+    sent()
+      .filter((event) => event.n === 'screen')
+      .map((event) => event.p.tab),
+  ).toEqual(['audio', 'video']);
+  expect(
+    sent()
+      .filter((event) => event.n === 'feature')
+      .map((event) => event.p),
+  ).toEqual([
     { name: 'reaction', count: 2 },
     { name: 'hand', count: 1 },
   ]);

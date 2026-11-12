@@ -560,7 +560,8 @@ export class Meeting {
       ...extra,
     });
     // Аналитика (R239): чем пользуются — группой команды; служебные (`leave`) и поток штрихов не считаются.
-    if (type !== 'leave' && type !== 'gartic.draw') noteFeature(type === 'message.send' ? 'chat' : type.split('.')[0]!);
+    if (type !== 'leave' && type !== 'gartic.draw')
+      noteFeature(type === 'message.send' ? 'chat' : type.split('.')[0]!);
     if (type === 'invite.create' && ack.value) this.invite.set(ack.value);
     if (type === 'invite.revoke') this.invite.set(null);
     // Своя команда — в снимке с номером не меньше ответа. Он уже здесь или едет запросом, который

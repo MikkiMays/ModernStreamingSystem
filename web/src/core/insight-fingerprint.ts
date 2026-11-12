@@ -29,10 +29,41 @@ const AUDIO_TIMEOUT = 800;
 const HASH = 32;
 /** Шрифты разных систем: какие из них стоят — различает Windows, macOS, Linux, Android и офисные пакеты. */
 const FONTS = [
-  'Arial', 'Calibri', 'Cambria', 'Candara', 'Consolas', 'Corbel', 'Segoe UI', 'Tahoma', 'Verdana', 'Trebuchet MS',
-  'Georgia', 'Garamond', 'Palatino', 'Helvetica Neue', 'Menlo', 'Monaco', 'San Francisco', 'Lucida Grande', 'Optima',
-  'Futura', 'Gill Sans', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', 'Roboto', 'Droid Sans', 'PT Sans',
-  'MS Gothic', 'SimSun', 'Malgun Gothic', 'Century Gothic', 'Franklin Gothic Medium', 'Impact', 'Comic Sans MS',
+  'Arial',
+  'Calibri',
+  'Cambria',
+  'Candara',
+  'Consolas',
+  'Corbel',
+  'Segoe UI',
+  'Tahoma',
+  'Verdana',
+  'Trebuchet MS',
+  'Georgia',
+  'Garamond',
+  'Palatino',
+  'Helvetica Neue',
+  'Menlo',
+  'Monaco',
+  'San Francisco',
+  'Lucida Grande',
+  'Optima',
+  'Futura',
+  'Gill Sans',
+  'DejaVu Sans',
+  'Liberation Sans',
+  'Ubuntu',
+  'Noto Sans',
+  'Roboto',
+  'Droid Sans',
+  'PT Sans',
+  'MS Gothic',
+  'SimSun',
+  'Malgun Gothic',
+  'Century Gothic',
+  'Franklin Gothic Medium',
+  'Impact',
+  'Comic Sans MS',
 ];
 const PROBE = 'mmmmmmmmmmlli Щщ 0O';
 
@@ -65,7 +96,8 @@ function canvasHash(): string | undefined {
 
 function webgl(): { gl?: string; glr?: string } {
   const canvas = document.createElement('canvas');
-  const gl = (canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+  const gl = (canvas.getContext('webgl') ??
+    canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
   if (!gl) return {};
   const info = gl.getExtension('WEBGL_debug_renderer_info');
   const vendor = String(gl.getParameter(info ? info.UNMASKED_VENDOR_WEBGL : gl.VENDOR) ?? '');
@@ -91,14 +123,17 @@ function fontsHash(): string | undefined {
   };
   const bases = ['monospace', 'sans-serif', 'serif'].map((base) => [base, width(base)] as const);
   // Шрифт стоит, если строка с ним хотя бы на одной из трёх основ шире или уже самой основы.
-  const present = FONTS.filter((font) => bases.some(([base, plain]) => width(`'${font}', ${base}`) !== plain));
+  const present = FONTS.filter((font) =>
+    bases.some(([base, plain]) => width(`'${font}', ${base}`) !== plain),
+  );
   return present.length ? short(present.join(',')) : undefined;
 }
 
 function audioHash(): Promise<string | undefined> {
   const Offline =
     window.OfflineAudioContext ??
-    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext })
+      .webkitOfflineAudioContext;
   if (!Offline) return Promise.resolve(undefined);
   const rendered = (async () => {
     const context = new Offline(1, 5000, 44100);
@@ -145,6 +180,7 @@ export async function collectFingerprint(): Promise<Fingerprint> {
     touch: navigator.maxTouchPoints,
     plat: navigator.platform ? navigator.platform.slice(0, 64) : undefined,
   };
-  for (const key of Object.keys(print) as (keyof Fingerprint)[]) if (print[key] === undefined) delete print[key];
+  for (const key of Object.keys(print) as (keyof Fingerprint)[])
+    if (print[key] === undefined) delete print[key];
   return print;
 }

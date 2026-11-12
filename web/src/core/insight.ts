@@ -41,7 +41,8 @@ export type InsightEvent =
   | 'leave';
 
 export type Landing = 'home' | 'invite' | 'room' | 'app' | 'tg' | 'download' | 'support' | 'other';
-export type ScreenName = 'home' | 'prejoin' | 'meeting' | 'settings' | 'download' | 'support' | 'activity' | 'other';
+export type ScreenName =
+  'home' | 'prejoin' | 'meeting' | 'settings' | 'download' | 'support' | 'activity' | 'other';
 type Props = Record<string, unknown>;
 interface Queued {
   n: InsightEvent;
@@ -124,7 +125,8 @@ function session(now = Date.now()): { session: Session; fresh: boolean } {
 export function track(name: InsightEvent, props: Props = {}): void {
   if (typeof window === 'undefined') return;
   const clean: Props = {};
-  for (const [key, value] of Object.entries(props)) if (value !== undefined && value !== null && value !== '') clean[key] = value;
+  for (const [key, value] of Object.entries(props))
+    if (value !== undefined && value !== null && value !== '') clean[key] = value;
   queue.push({ n: name, at: Date.now(), p: clean });
   if (queue.length > QUEUE_LIMIT) queue = queue.slice(-QUEUE_LIMIT);
   if (queue.length >= BATCH) void flush();
@@ -162,7 +164,11 @@ export async function flush(leaving = false): Promise<void> {
       method: 'POST',
       keepalive: true,
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-Cord-Profile': profileSecret(), 'X-Cord-Client': clientKind() },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Cord-Profile': profileSecret(),
+        'X-Cord-Client': clientKind(),
+      },
       body: payload,
     });
     // Сервер занят — вернуть события в начало очереди; отказ по существу (4xx) повторять незачем.
@@ -287,7 +293,8 @@ async function engage(): Promise<void> {
   let proof: string | null = null;
   try {
     const response = await fetch(`${ENDPOINT}/proof`, { credentials: 'same-origin' });
-    if (response.ok && response.status !== 204) proof = await solveProof((await response.json()) as Challenge);
+    if (response.ok && response.status !== 204)
+      proof = await solveProof((await response.json()) as Challenge);
   } catch {
     /* Без задачи событие всё равно уходит: решит сервер, считать ли его. */
   }
@@ -339,7 +346,12 @@ export function notePermission(
   track('permission', { device, result, error: error?.slice(0, 64) });
 }
 
-export function noteJoinTiming(timing: { ms: number; signalMs?: number; mediaMs?: number; node?: string }): void {
+export function noteJoinTiming(timing: {
+  ms: number;
+  signalMs?: number;
+  mediaMs?: number;
+  node?: string;
+}): void {
   track('join_timing', {
     ms: Math.round(timing.ms),
     signal_ms: timing.signalMs === undefined ? undefined : Math.round(timing.signalMs),
@@ -363,7 +375,12 @@ export function markJoinAdmitted(): void {
 export function markJoinConnected(node?: string): void {
   if (joinStarted === undefined) return;
   const ms = performance.now() - joinStarted;
-  noteJoinTiming({ ms, signalMs: joinAdmitted, mediaMs: joinAdmitted === undefined ? undefined : ms - joinAdmitted, node });
+  noteJoinTiming({
+    ms,
+    signalMs: joinAdmitted,
+    mediaMs: joinAdmitted === undefined ? undefined : ms - joinAdmitted,
+    node,
+  });
   joinStarted = joinAdmitted = undefined;
 }
 
@@ -417,7 +434,10 @@ export function noteInvite(how: 'copy' | 'share' | 'qr'): void {
   track('invite', { how });
 }
 
-export function noteLeave(reason: 'user' | 'closed' | 'network' | 'removed' | 'ended', seconds: number): void {
+export function noteLeave(
+  reason: 'user' | 'closed' | 'network' | 'removed' | 'ended',
+  seconds: number,
+): void {
   track('leave', { reason, seconds: Math.round(seconds) });
   void flush();
 }
