@@ -45,7 +45,12 @@ public class RoomService {
    */
   private final Map<String, Long> sequences = new java.util.concurrent.ConcurrentHashMap<>();
 
-  /** Когда показывающий в последний раз прислал кадр превью: ключ «комната:участник». */
+  /**
+   * Когда показывающий в последний раз прислал кадр превью: ключ «комната:участник».
+   *
+   * <p>Обе карты живут, пока встреча идёт: с её концом записи уходят ({@link #published}). Раньше
+   * они не чистились вовсе и росли на запись за каждую встречу до перезапуска ядра.
+   */
   private final Map<String, Long> previewAt = new java.util.concurrent.ConcurrentHashMap<>();
 
   /** Чаще этого кадры превью не рассылаются. */
@@ -2124,18 +2129,24 @@ public class RoomService {
         .sql("DELETE FROM room_events WHERE room_id=? AND sequence<=?")
         .params(room.id, room.sequence - config.eventHistoryLimit())
         .update();
-    published(room.id, event.sequence());
+    published(room.id, event.sequence(), room.closedAt != null);
   }
 
   /**
    * Запомнить номер события, когда он станет виден в базе: после фиксации транзакции, а без неё —
    * сразу. Номер из откатившейся транзакции не запоминается — иначе сокеты комнаты каждую секунду
    * искали бы событие, которого нет.
+   *
+   * <p>У завершённой встречи ({@code closed}) запоминать нечего: её последнее событие сокеты
+   * получают рассылкой ({@link RoomEventsPublished}), а отставший догонит редким проходом по базе
+   * ({@link #stored}). Поэтому с концом встречи её записи из памяти уходят — номер события и
+   * отметки кадров превью.
    */
-  private void published(String roomId, long sequence) {
+  private void published(String roomId, long sequence, boolean closed) {
     Runnable remember =
         () -> {
-          sequences.merge(roomId, sequence, Math::max);
+          if (closed) forget(roomId);
+          else sequences.merge(roomId, sequence, Math::max);
           events.publishEvent(new RoomEventsPublished(roomId));
         };
     if (org.springframework.transaction.support.TransactionSynchronizationManager
@@ -2151,12 +2162,49 @@ public class RoomService {
     else remember.run();
   }
 
+  /** Встреча кончилась: что ядро держало о ней в памяти, больше не нужно. */
+  private void forget(String roomId) {
+    sequences.remove(roomId);
+    var prefix = roomId + ":";
+    previewAt.keySet().removeIf(key -> key.startsWith(prefix));
+  }
+
+  /** Сколько комнат ядро помнит в памяти: номера событий и отметки кадров превью. */
+  public int remembered() {
+    return sequences.size() + previewAt.size();
+  }
+
   /**
    * Последний зафиксированный номер события комнаты, известный этому процессу, или -1. Сокет с
    * номером не меньше этого догонять нечего — базу можно не спрашивать.
    */
   public long latest(String roomId) {
     return sequences.getOrDefault(roomId, -1L);
+  }
+
+  /**
+   * Последние номера событий названных комнат по журналу в базе — одним запросом на пачку, а не
+   * чтением каждой комнаты. Нужен редкому проходу сокетов: событие мог записать другой экземпляр
+   * ядра, и памяти этого процесса ({@link #latest}) о нём неоткуда знать. Комнаты, у которой в
+   * журнале ничего нет (тишина дольше часа), в ответе нет: догонять ей нечего.
+   */
+  public Map<String, Long> stored(Collection<String> roomIds) {
+    var latest = new HashMap<String, Long>();
+    var ids = List.copyOf(roomIds);
+    for (int from = 0; from < ids.size(); from += 500)
+      rooms
+          .jdbc()
+          .sql(
+              "SELECT room_id, MAX(sequence) FROM room_events WHERE room_id IN (:ids)"
+                  + " GROUP BY room_id")
+          .param("ids", ids.subList(from, Math.min(ids.size(), from + 500)))
+          .query(
+              (rs, n) -> {
+                latest.put(rs.getString(1), rs.getLong(2));
+                return null;
+              })
+          .list();
+    return latest;
   }
 
   public Replay replay(String roomId, String credential, long after) {

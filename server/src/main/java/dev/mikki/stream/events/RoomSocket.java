@@ -7,7 +7,6 @@ import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.*;
 import dev.mikki.stream.shared.*;
 import jakarta.validation.Validator;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -339,31 +338,27 @@ public class RoomSocket extends TextWebSocketHandler {
    * Страховка редким проходом: событие, записанное другим экземпляром ядра, этот процесс видит
    * только по сообщению Redis, а сообщение может потеряться. Раз в пятнадцать секунд — и сокет
    * узнаёт его, как узнавал раньше каждую секунду.
+   *
+   * <p>ОДИН ЗАПРОС НА ПРОХОД, А НЕ ДВА НА СОКЕТ. Раньше проход читал базу для каждого сокета — на
+   * тысяче сокетов это две тысячи запросов пачкой, почти всегда впустую. Теперь он спрашивает у
+   * журнала событий последние номера комнат, у которых здесь есть сокеты ({@link
+   * RoomService#stored}), и догоняет только отставшие; сокет, у которого номер не отстал, базы не
+   * касается.
    */
   @Scheduled(fixedDelay = 15000)
   public void sweep() {
+    var open = new HashSet<String>();
+    for (var c : sockets.values()) if (c.credential != null) open.add(c.roomId);
+    if (open.isEmpty()) return;
+    var stored = rooms.stored(open);
     for (var c : sockets.values())
       synchronized (c) {
         try {
-          if (c.credential != null) flush(c);
+          if (c.credential != null && stored.getOrDefault(c.roomId, -1L) > c.sequence) flush(c);
         } catch (Exception e) {
           close(c);
         }
       }
-  }
-
-  @Scheduled(fixedDelay = 10000)
-  public void presence() {
-    if (config.redisEnabled())
-      for (var c : sockets.values())
-        if (c.participantId != null) {
-          try {
-            redis
-                .opsForValue()
-                .set("control:" + c.participantId, c.socket.getId(), Duration.ofSeconds(30));
-          } catch (Exception ignored) {
-          }
-        }
   }
 
   @Override
