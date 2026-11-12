@@ -97,7 +97,7 @@ fn serve() -> ExitCode {
         .json()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_env("INSIGHT_LOG")
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,sqlx=warn")),
         )
         .init();
     let config = match Config::from_env() {

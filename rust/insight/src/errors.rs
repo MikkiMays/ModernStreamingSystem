@@ -16,7 +16,8 @@ pub mod cause {
     pub const SERVER: &str = "server";
     /// Площадка не отдала ролик или недоступна из страны.
     pub const PLATFORM: &str = "platform";
-    /// Пределы защиты: слишком много встреч, комната полна, «не робот» не пройдено.
+    /// Пределы защиты и отказы двери по правилу: слишком много встреч, комната полна, «не робот» не пройдено,
+    /// неверный код, встречи нет.
     pub const LIMIT: &str = "limit";
     /// Клиент старше сервера.
     pub const VERSION: &str = "version";
@@ -97,6 +98,16 @@ const RULES: &[(&str, &str, &str)] = &[
     ("join", "*TIMEOUT", NETWORK),
     ("media", "*TIMEOUT", NETWORK),
     ("media", "AbortError", NETWORK),
+    // ── Отказ двери по правилу сервера ───────────────────────────────────────────────────────────
+    // Неверный код или пароль, встречи нет, вход закрыт — это не сбой, а тот же класс, что пределы.
+    // Шаблоны общие, поэтому стоят последними: `WATCH_INVALID` остаётся площадкой, `DEVICE_NOT_FOUND` —
+    // устройством, `WS_CLOSED` — сетью.
+    ("*", "*_INVALID", LIMIT),
+    ("*", "*_REQUIRED", LIMIT),
+    ("*", "*_NOT_FOUND", LIMIT),
+    ("*", "*_CLOSED", LIMIT),
+    ("*", "FORBIDDEN", LIMIT),
+    ("*", "ALREADY_IN_MEETING", LIMIT),
 ];
 
 /// Класс причины по коду и области.
@@ -206,6 +217,12 @@ mod tests {
             ("CHAT_RATE_IP", "chat", LIMIT),
             ("SCREEN_LIMIT", "media", LIMIT),
             ("INTEGRATION_BUSY", "cinema", LIMIT),
+            // Отказ двери по правилу сервера — не сбой.
+            ("CODE_INVALID", "join", LIMIT),
+            ("ROOM_NOT_FOUND", "join", LIMIT),
+            ("SERVER_PASSWORD_REQUIRED", "join", LIMIT),
+            ("ROOM_CLOSED", "join", LIMIT),
+            ("ALREADY_IN_MEETING", "join", LIMIT),
             // Клиент старше сервера.
             ("ChunkLoadError", "app", VERSION),
             ("ANYTHING", "update", VERSION),
@@ -230,6 +247,11 @@ mod tests {
         assert_eq!(cause("MUSIC_TIMEOUT", "music"), PLATFORM);
         assert_eq!(cause("notallowederror", "device"), PERMISSION);
         assert_eq!(cause("room_full", "join"), LIMIT);
+        // Общие шаблоны отказа двери не перебивают площадку и устройство.
+        assert_eq!(cause("WATCH_INVALID", "cinema"), PLATFORM);
+        assert_eq!(cause("DEVICE_NOT_FOUND", "device"), DEVICE);
+        assert_eq!(cause("NotFoundError", "device"), DEVICE);
+        assert_eq!(cause("WS_CLOSED", "join"), NETWORK);
     }
 
     #[test]

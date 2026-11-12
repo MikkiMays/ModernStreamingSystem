@@ -87,7 +87,7 @@ interface Range {
 | шаг воронки (`step`) | `open` (1), `engaged` (2), `prejoin` (3), `permission` (4), `join` (5), `media` (6), `talk` (7) |
 | вид интеграции (`kind`) | `cinema`, `music`, `game`, `board` |
 | кто сообщил об ошибке (`source`) | `client`, `core`, `services` |
-| класс причины ошибки (`cause`) | `permission` — разрешение, `device` — устройство, `network` — сеть, `server` — сервер, `platform` — площадка, `limit` — предел, `version` — версия, `crash` — сбой |
+| класс причины ошибки (`cause`) | `permission` — разрешение, `device` — устройство, `network` — сеть, `server` — сервер, `platform` — площадка, `limit` — предел или отказ двери по правилу (неверный код, встречи нет), `version` — версия, `crash` — сбой и всё, для чего нет правила |
 
 Имена роботов (`bot`): `google`, `yandex`, `bing`, `duckduckgo`, `baidu`, `mailru`, `apple`, `yahoo`, `petal`, `seznam`,
 `naver`, `sogou`, `search-other`, `openai`, `anthropic`, `perplexity`, `bytedance`, `commoncrawl`, `meta-ai`, `ai-other`,
