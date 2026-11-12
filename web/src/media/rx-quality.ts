@@ -48,6 +48,12 @@ export interface RxSummary {
   tx?: TxTrack[];
   /** Смены кодека отдачи за окно (`cord_client_codec_switch_total`). */
   switches?: CodecSwitch[];
+  /**
+   * Байт отдано и принято с прошлой сводки (R239): ядро кладёт их в факт `quality` для аналитики встреч
+   * (`contracts/insight.md` §2). Поля нет — считать было нечего.
+   */
+  bytesUp?: number;
+  bytesDown?: number;
 }
 
 /** Один замер отдачи источника: сколько секунд прошло и сколько из них чем ограничено. */
@@ -59,6 +65,8 @@ export interface TxObservation {
   cpuSeconds: number;
   bandwidthSeconds: number;
   otherSeconds: number;
+  /** Байт отдано за этот замер (разность `bytesSent` слоёв источника); нет — не считали. */
+  bytes?: number;
 }
 
 /** Сколько записей отдачи в одной сводке: два источника, по смене кодека посреди окна. */
@@ -68,6 +76,9 @@ export const MAX_SWITCHES = 8;
 
 /** Как часто уходит сводка; ядро не примет чаще (`QualityController.WINDOW`). */
 export const INTERVAL_MS = 10_000;
+
+/** Потолок счётчика байт в сводке — тот же, что у ядра (`RxQuality.MAX_BYTES`): больше — не трафик, а сбой. */
+export const MAX_BYTES = 100_000_000_000;
 
 export interface RxObservation {
   id: string;
@@ -90,16 +101,29 @@ const finite = (value: number | undefined) =>
 const delta = (current: PlayoutSample, previous: PlayoutSample, key: keyof PlayoutSample) =>
   Math.max(0, finite(current[key] as number | undefined) - finite(previous[key] as number | undefined));
 
+/**
+ * Счётчики байт отчёта inbound-rtp. В `PlayoutSample` их нет — он про самочувствие декодера, — но отчёт
+ * приходит целиком (`playout-control.ts`), и байты читаются из него же, без второго getStats.
+ */
+type InboundBytes = { bytesReceived?: number; headerBytesReceived?: number };
+const received = (sample: PlayoutSample) => {
+  const stat = sample as PlayoutSample & InboundBytes;
+  return finite(stat.bytesReceived) + finite(stat.headerBytesReceived);
+};
+
 export class RxQuality {
   private previous = new Map<string, PlayoutSample>();
   private window = new Map<PlayoutClass, Window>();
   private since: number | null = null;
   private tx = new Map<string, TxTrack>();
   private switches: CodecSwitch[] = [];
+  private bytesUp = 0;
+  private bytesDown = 0;
 
   /** Замер своей отдачи (`MediaSession.sampleUpstream`, раз в 3 с). */
   observeTx(observation: TxObservation) {
     if (!(observation.seconds > 0)) return;
+    this.bytesUp += Math.max(0, finite(observation.bytes));
     const key = `${observation.source}/${observation.codec}/${observation.hw}`;
     const entry = this.tx.get(key) ?? {
       source: observation.source,
@@ -132,6 +156,8 @@ export class RxQuality {
       this.previous.set(id, sample);
       // Первый отчёт дорожки — точка отсчёта, разности считать не с чего.
       if (!before) continue;
+      // Счётчик дорожки пошёл заново (переподписка) — отрицательная разность не трафик.
+      this.bytesDown += Math.max(0, received(sample) - received(before));
       const entry = this.window.get(kind) ?? {
         concealed: 0,
         total: 0,
@@ -187,10 +213,20 @@ export class RxQuality {
         otherSeconds: round(Math.min(entry.otherSeconds, entry.seconds)),
       }));
     const switches = this.switches.slice(-MAX_SWITCHES);
+    const bytesUp = Math.min(MAX_BYTES, Math.round(this.bytesUp));
+    const bytesDown = Math.min(MAX_BYTES, Math.round(this.bytesDown));
     this.tx.clear();
     this.switches = [];
-    if (!tracks.length && !tx.length && !switches.length) return null;
-    return { tracks, ...(tx.length ? { tx } : {}), ...(switches.length ? { switches } : {}) };
+    this.bytesUp = 0;
+    this.bytesDown = 0;
+    if (!tracks.length && !tx.length && !switches.length && !bytesUp && !bytesDown) return null;
+    return {
+      tracks,
+      ...(tx.length ? { tx } : {}),
+      ...(switches.length ? { switches } : {}),
+      ...(bytesUp ? { bytesUp } : {}),
+      ...(bytesDown ? { bytesDown } : {}),
+    };
   }
 
   /** Соединение пересобрано: прежние счётчики ни о чём не говорят, окно начинается заново. */
@@ -198,6 +234,6 @@ export class RxQuality {
     this.previous.clear();
     this.window.clear();
     this.since = null;
-    // Отдача и смены кодека копятся по своим часам и переподключения переживают.
+    // Отдача, смены кодека и уже сосчитанные байты копятся по своим часам и переподключения переживают.
   }
 }

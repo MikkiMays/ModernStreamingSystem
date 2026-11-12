@@ -197,6 +197,8 @@ public class AttachmentService {
 
   @Transactional
   public Attachment reserve(String roomId, String credential, Reserve request) {
+    // Пропуск — до замков (R236 §6): выдуманный в общую очередь не встаёт.
+    rooms.verify(roomId, credential);
     repository.lockGlobal();
     var room = rooms.lock(roomId);
     var member = rooms.authenticate(room, credential);
@@ -256,8 +258,20 @@ public class AttachmentService {
         });
   }
 
+  /**
+   * Кто спрашивает — до замков (R236 §6): вложение есть, пропуск участника настоящий и вложение
+   * его. Без замков вовсе; под замком всё проверяется ещё раз — эта проверка только не подпускает к
+   * общему замку чужих.
+   */
+  private void owned(String id, String credential) {
+    var a = get(id);
+    var room = rooms.read(a.roomId());
+    if (!rooms.authenticate(room, credential).id.equals(a.ownerId())) throw Problem.forbidden();
+  }
+
   @Transactional
   public String begin(String id, String credential, long size) {
+    owned(id, credential);
     repository.lockGlobal();
     var a = get(id);
     var room = rooms.lock(a.roomId());
@@ -331,6 +345,7 @@ public class AttachmentService {
 
   @Transactional
   public void cancel(String id, String credential) {
+    owned(id, credential);
     repository.lockGlobal();
     var a = get(id);
     var room = rooms.lock(a.roomId());

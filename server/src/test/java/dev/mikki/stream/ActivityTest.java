@@ -279,7 +279,7 @@ class ActivityTest {
   }
 
   /**
-   * Десять отказов «слишком часто» за десять минут — и адрес закрыт сам на полчаса, с записью в
+   * Десять отказов предела по адресу за десять минут — и адрес закрыт сам на полчаса, с записью в
    * журнале. Отказы не про адрес («слишком много входов в эту встречу») к этому не ведут: офис за
    * одним NAT не закрывается из-за одной шумной встречи.
    */
@@ -287,9 +287,13 @@ class ActivityTest {
   void tenRefusalsAboutAnAddressCloseItForAWhile() throws Exception {
     var script = fresh();
     var office = fresh();
+    var once = dev.mikki.stream.config.Rate.parse("1 per hour");
+    limits.address("test-auto:" + script, once);
     for (int i = 0; i < 12; i++) {
-      refusal(script, "RATE_LIMITED");
-      refusal(office, "SESSION_LIMIT");
+      refusal(script, refusedBy(() -> limits.address("test-auto:" + script, once)));
+      refusal(
+          office,
+          new Problem(429, "SESSION_LIMIT", "Слишком много повторных входов в эту встречу"));
     }
     var until = blocks.blockedUntil(script, null);
     assertThat(until).isPresent();
@@ -303,7 +307,49 @@ class ActivityTest {
         .anySatisfy(e -> assertThat(e.action()).isEqualTo("block.auto"));
   }
 
-  private void refusal(String remote, String code) throws Exception {
+  /**
+   * Тот же код {@code RATE_LIMITED} и тот же статус, но отказал предел участника, пропуска или
+   * профиля — команды, токены, сводки качества одного кривого клиента. Адрес не закрывается: за ним
+   * может быть офис или мобильная сеть. Раньше автоблок различал отказы только по коду и считал их
+   * вместе с отказами пределов адреса (R236 §6).
+   */
+  @Test
+  void refusalsOfAMemberLimitDoNotCloseTheAddress() throws Exception {
+    var office = fresh();
+    var once = dev.mikki.stream.config.Rate.parse("1 per hour");
+    limits.member("test-member:" + office, once);
+    for (int i = 0; i < 30; i++) {
+      refusal(office, refusedBy(() -> limits.member("test-member:" + office, once)));
+      refusal(office, refusedBy(() -> limits.command("Bearer " + office + ".secret", "leave")));
+      // Предел встреч в час у профиля — тот же код, что у адреса, но не про адрес.
+      refusal(
+          office,
+          new Problem(
+              429, "ROOMS_PER_HOUR", "Слишком много новых встреч за час. Попробуйте позже"));
+    }
+    assertThat(blocks.blockedUntil(office, null)).isEmpty();
+    // А предел адреса с тем же кодом — закрывает.
+    for (int i = 0; i < 12; i++)
+      refusal(
+          office,
+          new Problem(429, "ROOMS_PER_HOUR", "Слишком много новых встреч за час. Попробуйте позже")
+              .perAddress());
+    assertThat(blocks.blockedUntil(office, null)).isPresent();
+  }
+
+  /** Отказ, которым ответил предел: вызов повторяется, пока предел не откажет. */
+  private static Problem refusedBy(Runnable limit) {
+    for (int i = 0; i < 400; i++)
+      try {
+        limit.run();
+      } catch (Problem refused) {
+        return refused;
+      }
+    throw new AssertionError("Предел не отказал");
+  }
+
+  /** Отказ, каким его видит фильтр блоков: ответ и пометки собрал настоящий обработчик ошибок. */
+  private void refusal(String remote, Problem problem) throws Exception {
     var request = new MockHttpServletRequest("POST", "/api/v1/rooms");
     request.setRequestURI("/api/v1/rooms");
     request.setRemoteAddr(remote);
@@ -312,8 +358,15 @@ class ActivityTest {
         request,
         response,
         (req, res) -> {
-          req.setAttribute(ApiErrors.CODE, code);
-          ((HttpServletResponse) res).setStatus(429);
+          org.springframework.web.context.request.RequestContextHolder.setRequestAttributes(
+              new org.springframework.web.context.request.ServletRequestAttributes(
+                  (jakarta.servlet.http.HttpServletRequest) req));
+          try {
+            ((HttpServletResponse) res)
+                .setStatus(new ApiErrors().problem(problem).getStatusCode().value());
+          } finally {
+            org.springframework.web.context.request.RequestContextHolder.resetRequestAttributes();
+          }
         });
   }
 

@@ -171,6 +171,17 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public Long idleSince;
 
+  /**
+   * Номера идущих запусков интеграций: вид ({@link #integrations}) → номер запуска (R239). Номер
+   * даёт {@code RoomService} в тот момент, когда интеграция появилась во встрече, и снимает, когда
+   * её не стало; по нему служба аналитики связывает начало запуска, его конец и то, что происходило
+   * между ними. Номер лежит в самой комнате, а не в памяти ядра: перезапуск ядра посреди просмотра
+   * запуск не рвёт. Карта рядом с комнатой, а не в {@link Watch} или столах, — ради отката образа;
+   * {@code NON_EMPTY} — комната без интеграций пишется как раньше. Наружу не отдаётся.
+   */
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> runs = new LinkedHashMap<>();
+
   public Map<String, Invite> invites = new LinkedHashMap<>();
 
   /** Приглашение, которое раздаёт бот Telegram, — одно на комнату, пока живо (A11). */
@@ -267,6 +278,24 @@ public class RoomState {
 
   /** Сколько партий дурака помнит комната. Они короче, поэтому их влезает больше. */
   public static final int DURAK_HISTORY = 30;
+
+  /**
+   * Что сейчас идёт во встрече: {@code watch}, {@code music}, {@code poker}, {@code durak}, {@code
+   * chess}, {@code gartic}, {@code board}. Музыка — её бот на месте: сам бот не человек, но музыка
+   * — интеграция. Один ответ на всё ядро: метры, статистика и номера запусков ({@link #runs}).
+   */
+  public List<String> integrations() {
+    var kinds = new ArrayList<String>(2);
+    if (watch != null) kinds.add("watch");
+    if (members.values().stream().anyMatch(m -> "music".equals(m.service) && m.occupiesSeat()))
+      kinds.add("music");
+    if (poker != null) kinds.add("poker");
+    if (durak != null) kinds.add("durak");
+    if (chess != null) kinds.add("chess");
+    if (gartic != null) kinds.add("gartic");
+    if (board != null) kinds.add("board");
+    return kinds;
+  }
 
   /**
    * Когда в комнате последний раз был человек.

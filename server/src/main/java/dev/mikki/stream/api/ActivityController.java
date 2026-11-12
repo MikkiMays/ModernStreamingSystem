@@ -113,10 +113,11 @@ public class ActivityController {
   @PostMapping("/session")
   public Session login(@Valid @RequestBody Login request, HttpServletRequest http) {
     var key = address.of(http);
-    limits.check("admin-session:" + key, 30);
+    limits.address("admin-session:" + key, 30);
     var misses = config.abuse().perIp().passwordMisses();
     if (limits.exhausted("admin-miss:" + key, misses))
-      throw new Problem(429, "PASSWORD_MISSES", "Слишком много неверных паролей. Попробуйте позже");
+      throw new Problem(429, "PASSWORD_MISSES", "Слишком много неверных паролей. Попробуйте позже")
+          .perAddress();
     try {
       var issued = admin.connect(request.password());
       audit.record(

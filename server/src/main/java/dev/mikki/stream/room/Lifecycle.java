@@ -106,6 +106,9 @@ public class Lifecycle {
    * сервера: комната в условии не участвует. То есть на тридцати комнатах база получала девяносто
    * одинаковых запросов в секунду вместо трёх, и двадцать девять из каждых тридцати заведомо ничего
    * не находили.
+   *
+   * <p>Сообщения уходят двумя удалениями — по возрасту и по своему сроку: у каждого условия свой
+   * индекс (V19), а одно удаление с {@code OR} раз в секунду просматривало всю переписку сервера.
    */
   @Transactional
   public void sweepLedger() {
@@ -113,10 +116,11 @@ public class Lifecycle {
     retention.deleted(
         "message",
         rooms
-            .jdbc()
-            .sql("DELETE FROM messages WHERE created_at<=? OR expires_at<=?")
-            .params(now - config.retention().messages().toMillis(), now)
-            .update());
+                .jdbc()
+                .sql("DELETE FROM messages WHERE created_at<=?")
+                .param(now - config.retention().messages().toMillis())
+                .update()
+            + rooms.jdbc().sql("DELETE FROM messages WHERE expires_at<=?").param(now).update());
     retention.deleted(
         "room_event",
         rooms.jdbc().sql("DELETE FROM room_events WHERE expires_at<=?").param(now).update());

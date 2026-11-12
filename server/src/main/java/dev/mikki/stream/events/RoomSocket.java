@@ -7,7 +7,6 @@ import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.*;
 import dev.mikki.stream.shared.*;
 import jakarta.validation.Validator;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -28,6 +27,9 @@ public class RoomSocket extends TextWebSocketHandler {
     String roomId, credential, participantId;
     long sequence = -1;
 
+    /** Сколько раз сокет пробовал войти ({@code auth}). */
+    int attempts;
+
     Connection(WebSocketSession session, String address) {
       socket = new ConcurrentWebSocketSessionDecorator(session, 5000, 262144);
       this.address = address;
@@ -46,6 +48,10 @@ public class RoomSocket extends TextWebSocketHandler {
    */
   private final Set<String> pending = ConcurrentHashMap.newKeySet();
 
+  /** Сколько рассылок стоит в очереди или идёт ({@link #quiet}). */
+  private final java.util.concurrent.atomic.AtomicInteger deliveries =
+      new java.util.concurrent.atomic.AtomicInteger();
+
   /**
    * Рассылка — не в потоке того, кто правил комнату (сокет отправителя, HTTP-запрос, планировщик):
    * проход читает базу для каждого сокета встречи, и отправитель его ждать не должен.
@@ -59,6 +65,7 @@ public class RoomSocket extends TextWebSocketHandler {
   private final StreamProperties config;
   private final CommandDispatcher commands;
   private final ClientAddress addresses;
+  private final dev.mikki.stream.activity.InsightFacts facts;
 
   public RoomSocket(
       RoomService rooms,
@@ -67,7 +74,8 @@ public class RoomSocket extends TextWebSocketHandler {
       StringRedisTemplate redis,
       StreamProperties config,
       CommandDispatcher commands,
-      ClientAddress addresses) {
+      ClientAddress addresses,
+      dev.mikki.stream.activity.InsightFacts facts) {
     this.rooms = rooms;
     this.limits = limits;
     this.validator = validator;
@@ -75,6 +83,7 @@ public class RoomSocket extends TextWebSocketHandler {
     this.config = config;
     this.commands = commands;
     this.addresses = addresses;
+    this.facts = facts;
   }
 
   /**
@@ -99,6 +108,7 @@ public class RoomSocket extends TextWebSocketHandler {
     if (limits.exceeded("socket-open:" + address, abuse.socketOpens())
         || sockets.values().stream().filter(c -> address.equals(c.address)).count()
             >= abuse.sockets()) {
+      facts.refused("RATE_LIMITED", 429);
       socket.close(CloseStatus.POLICY_VIOLATION);
       return;
     }
@@ -110,28 +120,15 @@ public class RoomSocket extends TextWebSocketHandler {
     var c = sockets.get(socket.getId());
     if (c == null) return;
     synchronized (c) {
+      if (c.credential == null) {
+        enter(c, message);
+        return;
+      }
       try {
         var body = Json.tree(message.getPayload());
         var type = body.path("type").asText();
-        if (c.credential == null) {
-          if (!type.equals("auth")) throw Problem.forbidden();
-          String id = UUID.fromString(body.path("roomId").asText()).toString();
-          String credential = body.path("credential").asText();
-          var room = rooms.read(id);
-          var member = rooms.authenticate(room, credential);
-          c.roomId = id;
-          c.credential = credential;
-          c.participantId = member.id;
-          c.sequence = body.path("after").asLong(-1);
-          limits.check("ws:" + member.id, 60);
-          oneTooMany(c);
-          send(
-              c,
-              Map.of(
-                  "type", "authenticated", "participantId", member.id, "liveAfter", room.sequence));
-          flush(c);
-        } else if (type.equals("ping")) {
-          limits.check("ws-ping:" + c.participantId, 60);
+        if (type.equals("ping")) {
+          limits.member("ws-ping:" + c.participantId, 60);
           var requestId = body.path("requestId").asText("");
           if (requestId.length() > 64)
             throw new Problem(400, "INVALID_PING", "Связь со встречей сбилась. Обновите страницу");
@@ -150,11 +147,77 @@ public class RoomSocket extends TextWebSocketHandler {
           throw new Problem(
               400, "UNKNOWN_COMMAND", "Сервер не знает этого действия. Обновите страницу");
       } catch (Problem e) {
+        // Отказы защиты по сокету фильтр запросов не видит — в итог минуты аналитики их кладёт
+        // сокет.
+        facts.refused(e.code(), e.status());
         send(c, Map.of("type", "error", "code", e.code(), "message", e.getMessage()));
         if (e.status() == 403 || e.status() == 410) c.socket.close(CloseStatus.POLICY_VIOLATION);
       } catch (IllegalArgumentException e) {
         c.socket.close(CloseStatus.BAD_DATA);
       }
+    }
+  }
+
+  /** Попыток войти у одного сокета: вторую не дожидается никто — отказ закрывает сокет. */
+  static final int AUTH_ATTEMPTS = 1;
+
+  /**
+   * Вход в сокет — первым пакетом {@code auth} и с одной попытки (R236, {@code
+   * docs/architecture/core-scale.md} §6).
+   *
+   * <p>ЛЮБОЙ ОТКАЗ ЗАКРЫВАЕТ СОКЕТ: нет такой встречи, чужой пропуск, история удалена, слишком
+   * частые входы участника, не {@code auth} первым пакетом, мусор вместо пакета. Раньше сокет
+   * закрывался только на «доступ закрыт» и «история удалена», и за пять секунд жизни безымянного
+   * сокета в него помещалось сколько угодно попыток — каждая с чтением комнаты из базы. Теперь
+   * попытка у сокета одна ({@link #AUTH_ATTEMPTS}), сокет после отказа забыт сразу, не дожидаясь
+   * закрытия, а сколько сокетов открывает адрес — считает предел у двери ({@link
+   * #afterConnectionEstablished}).
+   */
+  private void enter(Connection c, TextMessage message) throws Exception {
+    if (++c.attempts > AUTH_ATTEMPTS) {
+      drop(c, CloseStatus.POLICY_VIOLATION);
+      return;
+    }
+    try {
+      var body = Json.tree(message.getPayload());
+      if (!body.path("type").asText().equals("auth")) throw Problem.forbidden();
+      String id = UUID.fromString(body.path("roomId").asText()).toString();
+      String credential = body.path("credential").asText();
+      var room = rooms.read(id);
+      var member = rooms.authenticate(room, credential);
+      limits.member("ws:" + member.id, 60);
+      c.roomId = id;
+      c.credential = credential;
+      c.participantId = member.id;
+      c.sequence = body.path("after").asLong(-1);
+      oneTooMany(c);
+      send(
+          c,
+          Map.of("type", "authenticated", "participantId", member.id, "liveAfter", room.sequence));
+      flush(c);
+    } catch (Problem e) {
+      facts.refused(e.code(), e.status());
+      // Вошедшему отказ после входа (первая рассылка) сокет не отнимает — как у команд.
+      if (c.credential != null && e.status() != 403 && e.status() != 410) {
+        send(c, Map.of("type", "error", "code", e.code(), "message", e.getMessage()));
+        return;
+      }
+      try {
+        send(c, Map.of("type", "error", "code", e.code(), "message", e.getMessage()));
+      } finally {
+        drop(c, CloseStatus.POLICY_VIOLATION);
+      }
+    } catch (IllegalArgumentException e) {
+      drop(c, CloseStatus.BAD_DATA);
+    }
+  }
+
+  /** Забыть сокет сразу и закрыть: следующий его пакет ядро уже не читает. */
+  private void drop(Connection c, CloseStatus status) {
+    sockets.remove(c.socket.getId());
+    try {
+      c.socket.close(status);
+    } catch (Exception ignored) {
     }
   }
 
@@ -214,12 +277,23 @@ public class RoomSocket extends TextWebSocketHandler {
   }
 
   private void flushSoon(String roomId) {
-    if (pending.add(roomId))
+    if (pending.add(roomId)) {
+      deliveries.incrementAndGet();
       fanOut.execute(
           () -> {
-            pending.remove(roomId);
-            flushRoom(roomId);
+            try {
+              pending.remove(roomId);
+              flushRoom(roomId);
+            } finally {
+              deliveries.decrementAndGet();
+            }
           });
+    }
+  }
+
+  /** Нет ли рассылок в очереди и в работе: тесту — знать, что всё зафиксированное разослано. */
+  boolean quiet() {
+    return deliveries.get() == 0;
   }
 
   @jakarta.annotation.PreDestroy
@@ -339,31 +413,27 @@ public class RoomSocket extends TextWebSocketHandler {
    * Страховка редким проходом: событие, записанное другим экземпляром ядра, этот процесс видит
    * только по сообщению Redis, а сообщение может потеряться. Раз в пятнадцать секунд — и сокет
    * узнаёт его, как узнавал раньше каждую секунду.
+   *
+   * <p>ОДИН ЗАПРОС НА ПРОХОД, А НЕ ДВА НА СОКЕТ. Раньше проход читал базу для каждого сокета — на
+   * тысяче сокетов это две тысячи запросов пачкой, почти всегда впустую. Теперь он спрашивает у
+   * журнала событий последние номера комнат, у которых здесь есть сокеты ({@link
+   * RoomService#stored}), и догоняет только отставшие; сокет, у которого номер не отстал, базы не
+   * касается.
    */
   @Scheduled(fixedDelay = 15000)
   public void sweep() {
+    var open = new HashSet<String>();
+    for (var c : sockets.values()) if (c.credential != null) open.add(c.roomId);
+    if (open.isEmpty()) return;
+    var stored = rooms.stored(open);
     for (var c : sockets.values())
       synchronized (c) {
         try {
-          if (c.credential != null) flush(c);
+          if (c.credential != null && stored.getOrDefault(c.roomId, -1L) > c.sequence) flush(c);
         } catch (Exception e) {
           close(c);
         }
       }
-  }
-
-  @Scheduled(fixedDelay = 10000)
-  public void presence() {
-    if (config.redisEnabled())
-      for (var c : sockets.values())
-        if (c.participantId != null) {
-          try {
-            redis
-                .opsForValue()
-                .set("control:" + c.participantId, c.socket.getId(), Duration.ofSeconds(30));
-          } catch (Exception ignored) {
-          }
-        }
   }
 
   @Override

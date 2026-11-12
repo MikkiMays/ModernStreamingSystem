@@ -59,7 +59,7 @@ public class LoadController {
   /** Ступень этого сервера; меняется не чаще замера раз в 5 с — столько её и можно кешировать. */
   @GetMapping("/load")
   public ResponseEntity<LoadMeter.Load> load(HttpServletRequest http) {
-    limits.check("load:" + address.of(http), 120);
+    limits.address("load:" + address.of(http), 120);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(5, TimeUnit.SECONDS).cachePublic())
         .body(meter.current());
@@ -71,7 +71,7 @@ public class LoadController {
    */
   @GetMapping("/nodes")
   public ResponseEntity<List<NodeLoad>> nodes(HttpServletRequest http) {
-    limits.check("load:" + address.of(http), 120);
+    limits.address("load:" + address.of(http), 120);
     var list =
         nodes.all().stream()
             .map(

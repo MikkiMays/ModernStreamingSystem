@@ -23,7 +23,6 @@ public class ActivityRollup {
   private final Audit audit;
   private final MeetingStats stats;
   private final Blocks blocks;
-  private final Analytics analytics;
   private final Participants participants;
   private final RetentionMeter retention;
 
@@ -34,7 +33,6 @@ public class ActivityRollup {
       Audit audit,
       MeetingStats stats,
       Blocks blocks,
-      Analytics analytics,
       Participants participants,
       RetentionMeter retention) {
     this.participants = participants;
@@ -45,7 +43,6 @@ public class ActivityRollup {
     this.audit = audit;
     this.stats = stats;
     this.blocks = blocks;
-    this.analytics = analytics;
   }
 
   @Transactional
@@ -64,7 +61,6 @@ public class ActivityRollup {
             .update());
     jdbc.sql("DELETE FROM activity_daily WHERE expires_at<=?").param(now).update();
     blocks.sweep(now);
-    retention.deleted("analytics", analytics.sweep(now));
     participants.sweep(now);
   }
 

@@ -133,6 +133,19 @@ class AbuseLimitsTest {
             });
   }
 
+  /** Тот же отказ — и чей предел отказал: адреса ({@code true}) или профиля, участника. */
+  static void refused(
+      ThrowableAssert.ThrowingCallable call, int status, String code, boolean byAddress) {
+    assertThatThrownBy(call)
+        .isInstanceOfSatisfying(
+            Problem.class,
+            problem -> {
+              assertThat(problem.code()).isEqualTo(code);
+              assertThat(problem.status()).isEqualTo(status);
+              assertThat(problem.addressScoped()).isEqualTo(byAddress);
+            });
+  }
+
   // A1: встречи пачками ----------------------------------------------------------------------
 
   /**
@@ -148,7 +161,8 @@ class AbuseLimitsTest {
       create(at(script));
       now.addAndGet(RoomState.FRESH_MS + 1);
     }
-    refused(() -> create(at(script)), 429, "ROOMS_PER_HOUR");
+    // Предел адреса — такой отказ считает автоблок.
+    refused(() -> create(at(script)), 429, "ROOMS_PER_HOUR", true);
     assertThat(create(at(fresh())).roomId()).isNotBlank();
   }
 
@@ -168,7 +182,7 @@ class AbuseLimitsTest {
     var script = fresh();
     var held = new ArrayList<Admission>();
     for (int i = 0; i < 3; i++) held.add(create(at(script)));
-    refused(() -> create(at(script)), 429, "OPEN_ROOMS");
+    refused(() -> create(at(script)), 429, "OPEN_ROOMS", true);
     // Подключённые встречи держат место и дальше — предел тот же.
     held.forEach(this::connected);
     now.addAndGet(RoomState.FRESH_MS + 1);
@@ -193,7 +207,8 @@ class AbuseLimitsTest {
       now.addAndGet(RoomState.FRESH_MS + 1);
     }
     var last = new Entrant(Identity.profileHash(secret), previous, fresh());
-    refused(() -> create(last), 429, "ROOMS_PER_HOUR");
+    // Предел профиля: код тот же, но адрес тут ни при чём — автоблок такой отказ не считает.
+    refused(() -> create(last), 429, "ROOMS_PER_HOUR", false);
   }
 
   /** Служба без актора и тест без адреса пределов на адрес не знают. */

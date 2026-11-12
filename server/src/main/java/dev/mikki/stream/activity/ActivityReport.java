@@ -26,9 +26,16 @@ public class ActivityReport {
   private final MeetingStats stats;
   private final Audit audit;
   private final Clock clock;
+  private final dev.mikki.stream.nodes.MediaNodes nodes;
 
   public ActivityReport(
-      RoomRepository rooms, JdbcClient jdbc, MeetingStats stats, Audit audit, Clock clock) {
+      RoomRepository rooms,
+      JdbcClient jdbc,
+      MeetingStats stats,
+      Audit audit,
+      Clock clock,
+      dev.mikki.stream.nodes.MediaNodes nodes) {
+    this.nodes = nodes;
     this.rooms = rooms;
     this.jdbc = jdbc;
     this.stats = stats;
@@ -49,7 +56,9 @@ public class ActivityReport {
       int screens,
       List<String> integrations,
       boolean approvalRequired,
-      boolean createdHere) {}
+      boolean createdHere,
+      /** Медиаузел встречи (R239): пульту — сколько людей на каждом узле. */
+      String mediaNode) {}
 
   public record Now(
       long serverTime,
@@ -97,7 +106,8 @@ public class ActivityReport {
               s,
               Activity.integrations(room),
               room.approvalRequired,
-              room.createdFrom != null));
+              room.createdFrom != null,
+              nodes.resolve(room.mediaNode).id()));
     }
     list.sort(
         Comparator.comparing((LiveRoom r) -> r.startedAt() == null)

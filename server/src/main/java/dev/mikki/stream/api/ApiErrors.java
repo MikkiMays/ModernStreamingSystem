@@ -14,15 +14,28 @@ public class ApiErrors {
    */
   public static final String CODE = "cord.problem.code";
 
+  /**
+   * Атрибут запроса «отказал предел по адресу» ({@link Problem#addressScoped}): только такие отказы
+   * {@code BlockGuard} передаёт автоблоку. Нет атрибута — отказал предел участника, пропуска или
+   * профиля, либо это не предел вовсе.
+   */
+  public static final String ADDRESS_LIMIT = "cord.problem.address-limit";
+
   @ExceptionHandler(Problem.class)
   public ResponseEntity<ProblemDetail> problem(Problem error) {
     var attributes =
         org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
-    if (attributes != null)
+    if (attributes != null) {
       attributes.setAttribute(
           CODE,
           error.code(),
           org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST);
+      if (error.addressScoped())
+        attributes.setAttribute(
+            ADDRESS_LIMIT,
+            Boolean.TRUE,
+            org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST);
+    }
     var body =
         ProblemDetail.forStatusAndDetail(
             HttpStatusCode.valueOf(error.status()), error.getMessage());

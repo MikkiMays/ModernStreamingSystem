@@ -75,10 +75,21 @@ public class FavoriteService {
         .list();
   }
 
+  /*
+   КТО СПРАШИВАЕТ — ДО ОБЩЕГО ЗАМКА (R236, `docs/architecture/core-scale.md` §6). Каждая запись
+   избранного сначала убеждается без единого замка, что запрос настоящий: секрет профиля похож на
+   секрет, пропуск встречи верен, запись, о которой речь, есть. Раньше общий замок системы брался
+   первым — и запрос с выдуманным профилем вставал в одну очередь со входами во встречи. Под замком
+   всё проверяется ещё раз: проверка до него только не подпускает к нему чужих.
+  */
+
   @Transactional
   public void save(String profile, String roomId, String roomCredential) {
-    repository.lockGlobal();
     var key = key(profile);
+    var seen = rooms.read(roomId);
+    if (!rooms.historyAllowed(seen, rooms.authenticate(seen, roomCredential)))
+      throw Problem.forbidden();
+    repository.lockGlobal();
     var room = rooms.lock(roomId);
     var member = rooms.authenticate(room, roomCredential);
     if (!rooms.historyAllowed(room, member)) throw Problem.forbidden();
@@ -146,6 +157,11 @@ public class FavoriteService {
         || new HashSet<>(roomIds).size() != roomIds.size()) {
       throw new Problem(400, "FAVORITE_ORDER_INVALID", "Комнаты в списке не должны повторяться");
     }
+    // Чужой или устаревший список — отказ без замка; нечего переставлять — нечего и запирать.
+    var listed = new HashSet<>(saved(profile));
+    if (!listed.equals(new HashSet<>(roomIds)))
+      throw Problem.conflict("FAVORITES_CHANGED", "Список комнат изменился. Обновите избранное");
+    if (listed.isEmpty()) return;
     // Save/remove share the global lock; row locks also serialize cascade deletion on expiry.
     repository.lockGlobal();
     var current =
@@ -172,12 +188,35 @@ public class FavoriteService {
 
   @Transactional
   public void remove(String credential, String roomId) {
+    var profile = key(credential);
+    // Убирать нечего — повтор или чужой запрос: тот же ответ, без замка.
+    if (member(profile, roomId).isEmpty()) return;
     repository.lockGlobal();
     repository
         .jdbc()
         .sql("DELETE FROM favorites WHERE profile_hash=? AND room_id=?")
-        .params(key(credential), roomId)
+        .params(profile, roomId)
         .update();
+  }
+
+  /** Комнаты избранного профиля — без замка. */
+  private List<String> saved(String profile) {
+    return repository
+        .jdbc()
+        .sql("SELECT room_id FROM favorites WHERE profile_hash=?")
+        .param(profile)
+        .query(String.class)
+        .list();
+  }
+
+  /** Участник, которым профиль сохранил встречу; пусто — такой записи избранного нет. */
+  private Optional<String> member(String profile, String roomId) {
+    return repository
+        .jdbc()
+        .sql("SELECT member_id FROM favorites WHERE profile_hash=? AND room_id=?")
+        .params(profile, roomId)
+        .query(String.class)
+        .optional();
   }
 
   /** Без профиля входящего — для служб и тестов; транзакция своя, как у соседней двери. */
@@ -194,18 +233,14 @@ public class FavoriteService {
   @Transactional
   public Contracts.Admission join(
       String credential, String roomId, Contracts.Rejoin request, Entrant entrant) {
+    var profile = key(credential);
+    // Записи избранного нет — отказ без замка: дверь не открывается выдуманным профилем.
+    if (member(profile, roomId).isEmpty()) throw Problem.forbidden();
     repository.lockGlobal();
-    var memberId =
-        repository
-            .jdbc()
-            .sql("SELECT member_id FROM favorites WHERE profile_hash=? AND room_id=?")
-            .params(key(credential), roomId)
-            .query(String.class)
-            .optional()
-            .orElseThrow(Problem::forbidden);
+    var memberId = member(profile, roomId).orElseThrow(Problem::forbidden);
     // Receipt scope belongs to the stable profile, independent of the replaced media identity.
     return rooms.receipt(
-        "favorite:" + roomId + ":" + key(credential),
+        "favorite:" + roomId + ":" + profile,
         request.commandId(),
         request,
         Contracts.Admission.class,

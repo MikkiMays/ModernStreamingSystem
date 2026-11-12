@@ -543,6 +543,18 @@
     "status": 410,
     "ru": "История встречи удалена"
   },
+  "INSIGHT_NOT_FOUND": {
+    "status": 404,
+    "ru": "{}"
+  },
+  "INSIGHT_REQUEST": {
+    "status": 400,
+    "ru": "{}"
+  },
+  "INSIGHT_UNAVAILABLE": {
+    "status": 503,
+    "ru": "Аналитика сейчас недоступна. Попробуйте позже"
+  },
   "INTEGRATION_BUSY": {
     "status": 409,
     "ru": "{}",

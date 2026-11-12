@@ -50,12 +50,13 @@ public class SessionController {
       return new Session(issued.token(), issued.expiresAt(), access.name(), false);
     }
     var key = address.of(http);
-    limits.check("session:" + key, ATTEMPTS_PER_MINUTE);
+    limits.address("session:" + key, ATTEMPTS_PER_MINUTE);
     // Промахи паролем считаются отдельно и окном подлиннее (A15): шестьдесят попыток в минуту —
     // это 86 400 в сутки с одного адреса. Выбравший предел ждёт конца окна даже с верным паролем.
     var misses = config.abuse().perIp().passwordMisses();
     if (limits.exhausted("password-miss:" + key, misses))
-      throw new Problem(429, "PASSWORD_MISSES", "Слишком много неверных паролей. Попробуйте позже");
+      throw new Problem(429, "PASSWORD_MISSES", "Слишком много неверных паролей. Попробуйте позже")
+          .perAddress();
     try {
       var issued = access.connect(request == null ? null : request.password());
       return new Session(issued.token(), issued.expiresAt(), access.name(), true);

@@ -149,7 +149,7 @@ public class MaintenanceController {
   }
 
   private void lever(String token, HttpServletRequest http) {
-    limits.check("admin-maintenance:" + address.of(http), LEVERS_PER_MINUTE);
+    limits.address("admin-maintenance:" + address.of(http), LEVERS_PER_MINUTE);
     admin.require(token);
   }
 

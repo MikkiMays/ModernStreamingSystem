@@ -6,6 +6,7 @@ public class Problem extends RuntimeException {
   private final int status;
   private final String code;
   private final Map<String, Object> properties;
+  private boolean addressScoped;
 
   public Problem(int status, String code, String message) {
     this(status, code, message, Map.of());
@@ -33,6 +34,23 @@ public class Problem extends RuntimeException {
 
   public Map<String, Object> properties() {
     return properties;
+  }
+
+  /**
+   * Пометить отказ как отказ предела <b>по адресу</b>: частота входов, новых встреч, промахи кода и
+   * пароля — то, что считается на IPv4 или сеть /64. Только такие отказы ведут к автоблоку адреса
+   * ({@code Blocks.refused}). Отказ предела участника, пропуска или профиля — с тем же кодом и тем
+   * же статусом — пометки не несёт: один шумный клиент за общим адресом не закрывает весь офис или
+   * мобильную сеть. Клиенту пометка не видна, код и текст отказа те же.
+   */
+  public Problem perAddress() {
+    addressScoped = true;
+    return this;
+  }
+
+  /** Считается ли предел, который отказал, по адресу ({@link #perAddress}). */
+  public boolean addressScoped() {
+    return addressScoped;
   }
 
   public static Problem forbidden() {

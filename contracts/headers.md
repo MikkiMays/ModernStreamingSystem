@@ -22,14 +22,14 @@
 | | |
 | --- | --- |
 | Значение | слово: `web` (браузер, в том числе браузер телефона), `desktop` (приложение для Windows), `android` (приложение для телефона), `telegram` (Mini App) |
-| Куда | во все запросы веба к ядру (`web/src/core/client-kind.ts`), `POST /api/v1/visit` и сводки `POST /api/v1/client-errors` |
+| Куда | во все запросы веба к ядру (`web/src/core/client-kind.ts`) |
 | Обязателен | нет. Без него или с чужим словом тип угадывается по `User-Agent`: `Electron` — `desktop`, иначе `web` |
-| Что хранит ядро | только слово типа и слово ОС из `User-Agent` (`windows`, `macos`, `linux`, `android`, `ios`, `other`) в строках аналитики (`visitor_days`, V16); строка агента не хранится нигде |
+| Что хранит ядро | только слово типа и слово ОС из `User-Agent` (`windows`, `macos`, `linux`, `android`, `ios`, `other`) в журнале участников (`meeting_participants`, V18); слово типа уходит в факт `join` службы аналитики (`client`); строка агента не хранится нигде |
 | Разбор | `server/.../activity/ClientKind.java` |
 
-Тот же профиль из `X-Cord-Profile` уходит и в `POST /api/v1/visit` (`{stage: "open"|"prejoin"}`, раз на сессию) и в
-`POST /api/v1/client-errors`: ядро ведёт по нему аналитику продукта (`docs/architecture/admin-analytics.md` §2) —
-HMAC его хэша, без адреса. Без профиля событие принимается и не считается.
+Прежней аналитики ядра нет (R239, Р-136): `POST /api/v1/visit` и `GET /api/v1/admin/analytics` удалены вместе с
+таблицами. Профиль из `X-Cord-Profile` ядро превращает в псевдоним (`contracts/insight.md` §4) и кладёт его в факты
+для службы `insight` — входы, присутствие, качество; сам секрет и его хэш из ядра не уходят.
 
 ## `X-Cord-Leave` — выйти оттуда и войти сюда
 
@@ -46,11 +46,11 @@ HMAC его хэша, без адреса. Без профиля событие 
 | | |
 | --- | --- |
 | Значение | base64 от JSON `{algorithm, challenge, number, salt, signature}` — протокол ALTCHA, первая версия (SHA-256, `maxnumber`) |
-| Откуда | `GET /api/v1/proof?for=create\|code` → `{algorithm: "SHA-256", challenge, maxnumber, salt, signature}`; `204` — проверка выключена (`stream.abuse.human-check: off`). Предел — 60 в минуту на адрес |
-| Куда | `POST /api/v1/rooms` (задача `create`) и `POST /api/v1/rooms/join-by-code` (задача `code`) |
+| Откуда | `GET /api/v1/proof?for=create\|code\|support` → `{algorithm: "SHA-256", challenge, maxnumber, salt, signature}`; `204` — проверка выключена (`stream.abuse.human-check: off`). Предел — 60 в минуту на адрес |
+| Куда | `POST /api/v1/rooms` (задача `create`), `POST /api/v1/rooms/join-by-code` (задача `code`) и `POST /api/v1/support` (задача `support`) |
 | Обязателен | да, пока `human-check: proof-of-work`; без него или с чужим — `403 PROOF_INVALID`. Службы с верным `X-Service-Secret` его не присылают |
 | Привязка | в соли — срок (5 минут), действие и отпечаток адреса; ответ годится один раз |
-| Цена | `maxnumber` = `stream.abuse.proof-cost` (50 000); ×4, если адрес выбрал половину своего предела, ×8, пока включён «щит» |
+| Цена | `maxnumber` = `stream.abuse.proof-cost` (250 000, Р-158); ×4, если адрес выбрал половину своего предела, ×8, пока включён «щит» |
 | Разбор | `server/.../access/ProofOfWork.java`; решатель браузера — `web/src/core/proof-solve.ts` (фоновый поток) |
 
 ## `X-Cord-Actor` — от чьего имени действует служба (E11-B, A11)
@@ -70,6 +70,26 @@ HMAC его хэша, без адреса. Без профиля событие 
 | --- | --- |
 | `X-Service-Secret` | ставит служба (бот, музыка, кинозал): ключ `service` — HKDF-SHA256 от `INTERNAL_SECRET`, соль `cord-internal-secret`, base64url без `=` (`server/.../access/InternalKeys.java`, `services/cord_services/keys.py`). Открывает `/internal/`, проходит пароль сервера, делает `X-Cord-Actor` правдой. Сам секрет в этом заголовке — `403` на `/internal/` и не служба |
 | `X-Internal-Secret` | ставит только шлюз — сам `INTERNAL_SECRET` (Caddy ключей не выводит): «пришло через нашу дверь», открывает `/internal/` и `X-Real-IP`, но не пароль сервера и не актора. Службы его не шлют |
+
+## `X-Cord-Probe` — свои проверки (R239)
+
+| | |
+| --- | --- |
+| Значение | `<день UTC ГГГГММДД>.<base64url(HMAC-SHA256(ANALYTICS_PROBE_KEY, день))>` без `=`; принимается подпись сегодняшнего и вчерашнего дня |
+| Кто шлёт | автотесты (`web/playwright.config.ts`), дымовые и нагрузочные скрипты, пробы мониторинга — всё, что ходит на продукт не человеком |
+| Куда | во все свои запросы; в пачке событий клиента (`POST /api/v1/t`) дублируется полем `probe`, потому что `sendBeacon` заголовков не шлёт |
+| Кто читает | служба `insight`: верная подпись — сессия класса «свои», в цифры людей она не попадает (`contracts/insight.md` §5, `docs/architecture/analytics-v2.md` §11). Ключа `ANALYTICS_PROBE_KEY` в окружении службы нет — заголовок не действует |
+| Ядро | заголовок не читает, не проверяет и не хранит; факты ядра о профиле своей проверки отбрасывает сама служба |
+
+## `X-Insight-Key` — ключ фактов и отчётов аналитики (R239)
+
+| | |
+| --- | --- |
+| Значение | ключ назначения `insight`: HKDF-SHA256 от `INTERNAL_SECRET`, соль `cord-internal-secret`, `info = "insight"`, base64url без `=` (43 знака) — та же формула, что у `X-Service-Secret` (`server/.../access/InternalKeys.java`) |
+| Кто шлёт | ядро и службы — с фактами (`POST /internal/facts`); ядро — за отчётами для пульта (`GET /internal/reports/...`) |
+| Куда | только служба `insight` на петле машины ядра (`stream.insight.url`, `INSIGHT_URL`); через шлюз продукта этих путей нет |
+| Ядру | не присылается никем: ядро этот ключ только ставит. Отчёты пульт получает у ядра — `GET /api/v1/admin/insight/{раздел}` с `X-Cord-Admin`, ядро пересылает запрос службе с этим ключом |
+| Без ключа | служба отвечает `401`; ядро на это отвечает пульту `503 INSIGHT_UNAVAILABLE` |
 
 ## Ответы
 
@@ -121,6 +141,10 @@ HMAC его хэша, без адреса. Без профиля событие 
 | `TITLE_INVALID` | 400 | название встречи пусто после очистки |
 | `FILE_TYPE_BLOCKED` | 415 | файл может запустить программу, а `stream.chat.executable-attachments: block` |
 | `PASSWORD_MISSES` | 429 | адрес ошибся паролем сервера `password-misses` раз за окно |
-| `RATE_LIMITED` | 429 | общий предел частоты (входы, сокеты, сигналинг, задачи «не бот») |
+| `RATE_LIMITED` | 429 | общий предел частоты: по адресу (входы, сокеты, сигналинг, задачи «не бот», записи избранного) или по участнику, пропуску, профилю (команды, токены, сводки качества) — код один |
+
+Автоблок адреса (`stream.abuse.blocks.auto-block`) считает только отказы пределов **по адресу**: `ROOMS_PER_HOUR`
+и `OPEN_ROOMS` адреса, `CODE_MISSES`, `RATE_LIMITED` предела адреса. Тот же код от предела участника, пропуска или
+профиля к автоблоку не ведёт: один шумный клиент не закрывает общий адрес офиса или мобильной сети (R236, Р-158).
 
 `MESSAGE_LIMIT` больше не отвечается: история комнаты — кольцо (`stream.chat.room-history`).

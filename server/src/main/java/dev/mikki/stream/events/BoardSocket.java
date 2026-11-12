@@ -251,7 +251,7 @@ public class BoardSocket extends TextWebSocketHandler {
       peer.close("BOARD_CLOSED");
       return;
     }
-    limits.check("board-ws:" + member.id, 60);
+    limits.member("board-ws:" + member.id, 60);
     peer.roomId = roomId;
     peer.memberId = member.id;
     peer.canDraw = Permissions.allows(room, member, Action.BOARD_DRAW);

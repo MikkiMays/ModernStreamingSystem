@@ -51,7 +51,7 @@ public class MediaService {
 
   @Transactional
   public Contracts.Ack screen(String id, String credential, UUID commandId, boolean enabled) {
-    var room = rooms.lock(id);
+    var room = rooms.lockFor(id, credential);
     var member = rooms.authenticate(room, credential);
     rooms.requireActive(room, member);
     return rooms.receipt(
@@ -180,7 +180,7 @@ public class MediaService {
   public void moveRoom(String roomId, String from, String to) {
     var room = rooms.lock(roomId);
     if (room.closedAt != null || !nodes.resolve(room.mediaNode).id().equals(from)) return;
-    reassign(room, from, to, "dead node");
+    reassign(room, from, to, "dead");
   }
 
   /**
@@ -198,7 +198,8 @@ public class MediaService {
         member.recoveryDeadline = deadline;
         member.mediaSid = null;
       }
-    log.warn("room {} moved from {} {} to {}", room.id, why, from, to);
+    log.warn("room {} moved from {} ({}) to {}", room.id, from, why, to);
+    rooms.moved(room, from, to, why);
     rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
     repository.save(room, rooms.now());
   }
@@ -216,7 +217,7 @@ public class MediaService {
    */
   @Transactional
   public Contracts.Ack move(String id, String credential, UUID commandId, String to) {
-    var room = rooms.lock(id);
+    var room = rooms.lockFor(id, credential);
     var member = rooms.authenticate(room, credential);
     rooms.requireActive(room, member);
     Permissions.require(room, member, Permissions.Action.MEDIA_MOVE);
@@ -239,7 +240,7 @@ public class MediaService {
             throw new Problem(
                 429, "MEDIA_MOVE_RATE", "Переводить встречу можно не чаще раза в минуту");
           room.mediaMovedAt = now;
-          reassign(room, from, to, "by creator");
+          reassign(room, from, to, "manual");
           return new Contracts.Ack(commandId, true, room.sequence, to);
         });
   }
@@ -291,11 +292,26 @@ public class MediaService {
     repository.save(room, rooms.now());
   }
 
+  /**
+   * Сверка с SFU раз в две секунды: кто на связи по мнению узла.
+   *
+   * <p>ПИШЕТ ТОЛЬКО ИЗМЕНИВШЕЕСЯ. Раньше комната сохранялась на каждом проходе — и в простое ядро
+   * переписывало каждую открытую комнату раз в две секунды, не изменив в ней ничего ({@code
+   * docs/architecture/core-scale.md} §3.1). Теперь запись — только когда изменилось то, что комната
+   * хранит: статус участника, номер его сессии SFU, «на связи хоть раз был», «медиа разошлось».
+   * Отметка времени прохода ({@code observedAt}) сама по себе записи не стоит: она ложится вместе с
+   * первым настоящим изменением и до тех пор живёт только в этом проходе.
+   */
   @Transactional
   public void observe(String roomId, Map<String, String> present, long observedAt) {
     var room = rooms.lock(roomId);
+    // `changed` — новость для участников (событие и запись); `dirty` — только запись.
     boolean changed = false;
-    if (room.closedAt != null && present.isEmpty()) room.mediaDrained = true;
+    boolean dirty = false;
+    if (room.closedAt != null && present.isEmpty() && !room.mediaDrained) {
+      room.mediaDrained = true;
+      dirty = true;
+    }
     for (var member : room.members.values()) {
       if (observedAt <= member.observedAt) continue;
       member.observedAt = observedAt;
@@ -333,8 +349,15 @@ public class MediaService {
             member.generation++;
             changed = true;
           }
-          member.mediaSid = present.get(member.id);
-          room.everConnected = true;
+          var sid = present.get(member.id);
+          if (!java.util.Objects.equals(member.mediaSid, sid)) {
+            member.mediaSid = sid;
+            dirty = true;
+          }
+          if (!room.everConnected) {
+            room.everConnected = true;
+            dirty = true;
+          }
         } else if (member.status == CONNECTED) {
           member.status = RECOVERING;
           member.recoveryDeadline = rooms.now() + config.recoverySeconds() * 1000L;
@@ -345,7 +368,10 @@ public class MediaService {
     // Здесь же встреча получает начало, если двое уже на связи — и тогда, когда они были на связи
     // ещё до образа ядра, который это начало ставит: метка появится на ближайшем проходе.
     if (room.markStarted(rooms.now())) changed = true;
-    if (changed) rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
-    repository.save(room, rooms.now());
+    if (changed) {
+      rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
+      dirty = true;
+    }
+    if (dirty) repository.save(room, rooms.now());
   }
 }

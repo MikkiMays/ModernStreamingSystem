@@ -4,6 +4,7 @@ import dev.mikki.stream.access.Blocks;
 import dev.mikki.stream.access.Identity;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.activity.Audit;
+import dev.mikki.stream.activity.InsightFacts;
 import dev.mikki.stream.activity.Metrics;
 import dev.mikki.stream.shared.Json;
 import jakarta.servlet.FilterChain;
@@ -32,7 +33,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * них нет адреса человека. Бот Telegram с актором — проверяется: его ключ — пользователь бота.
  *
  * <p>ПОСЛЕ ОТВЕТА — счёт отказов: каждый код ошибки в метры ({@code cord_errors_total}), а отказы
- * «слишком часто» про адрес — в автоблок ({@link Blocks#refused}).
+ * пределов по адресу ({@link ApiErrors#ADDRESS_LIMIT}) — в автоблок ({@link Blocks#refused}). Отказ
+ * предела участника, пропуска или профиля автоблок не считает, каким бы ни был его код. Отказы
+ * защиты — пределы, блок, не пройденная задача «не робот» — считаются и для аналитики: итогом
+ * минуты по коду ({@link InsightFacts#refused}).
  */
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -45,14 +49,21 @@ public class BlockGuard extends OncePerRequestFilter {
   private final Metrics metrics;
   private final Audit audit;
   private final Secrets secrets;
+  private final InsightFacts facts;
 
   public BlockGuard(
-      Blocks blocks, ClientAddress address, Metrics metrics, Audit audit, Secrets secrets) {
+      Blocks blocks,
+      ClientAddress address,
+      Metrics metrics,
+      Audit audit,
+      Secrets secrets,
+      InsightFacts facts) {
     this.blocks = blocks;
     this.address = address;
     this.metrics = metrics;
     this.audit = audit;
     this.secrets = secrets;
+    this.facts = facts;
   }
 
   @Override
@@ -69,6 +80,7 @@ public class BlockGuard extends OncePerRequestFilter {
           blocks.blockedUntil(key, Identity.profileHash(request.getHeader(Identity.PROFILE)));
       if (until.isPresent()) {
         metrics.refused("BLOCKED", 403);
+        facts.refused("BLOCKED", 403);
         response.setStatus(403);
         response.setHeader("Cache-Control", "no-store");
         response.setContentType("application/json;charset=UTF-8");
@@ -91,9 +103,13 @@ public class BlockGuard extends OncePerRequestFilter {
     chain.doFilter(request, response);
     if (!(request.getAttribute(ApiErrors.CODE) instanceof String code)) return;
     metrics.refused(code, response.getStatus());
-    if (guarded && response.getStatus() == 429)
+    // Отказы защиты — аналитике итогом минуты (`refusal`), а не фактом на каждый.
+    facts.refused(code, response.getStatus());
+    if (guarded
+        && response.getStatus() == 429
+        && Boolean.TRUE.equals(request.getAttribute(ApiErrors.ADDRESS_LIMIT)))
       blocks
-          .refused(key, code)
+          .refused(key)
           .ifPresent(
               block -> {
                 metrics.blocked(block.kind(), block.createdBy());
