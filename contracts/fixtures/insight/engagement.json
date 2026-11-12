@@ -1,0 +1,311 @@
+{
+  "data": {
+    "drop_reasons": [
+      {
+        "count": 350,
+        "reason": "left"
+      },
+      {
+        "count": 74,
+        "reason": "lost"
+      },
+      {
+        "count": 67,
+        "reason": "ended"
+      }
+    ],
+    "features": [
+      {
+        "count": 234,
+        "name": "chat",
+        "sessions": 85
+      },
+      {
+        "count": 171,
+        "name": "screen_share",
+        "sessions": 65
+      },
+      {
+        "count": 154,
+        "name": "layout",
+        "sessions": 53
+      },
+      {
+        "count": 144,
+        "name": "background",
+        "sessions": 48
+      },
+      {
+        "count": 135,
+        "name": "pin",
+        "sessions": 48
+      },
+      {
+        "count": 128,
+        "name": "reaction",
+        "sessions": 53
+      },
+      {
+        "count": 126,
+        "name": "noise",
+        "sessions": 43
+      },
+      {
+        "count": 122,
+        "name": "hand",
+        "sessions": 49
+      }
+    ],
+    "frequency": [
+      {
+        "active_days": 1,
+        "people": 85
+      },
+      {
+        "active_days": 2,
+        "people": 33
+      },
+      {
+        "active_days": 3,
+        "people": 23
+      },
+      {
+        "active_days": 4,
+        "people": 20
+      },
+      {
+        "active_days": 5,
+        "people": 15
+      },
+      {
+        "active_days": 6,
+        "people": 12
+      },
+      {
+        "active_days": 7,
+        "people": 6
+      }
+    ],
+    "leave_reasons": [
+      {
+        "count": 207,
+        "reason": "user"
+      },
+      {
+        "count": 109,
+        "reason": "closed"
+      },
+      {
+        "count": 101,
+        "reason": "ended"
+      },
+      {
+        "count": 74,
+        "reason": "network"
+      }
+    ],
+    "meeting_lengths": [
+      {
+        "bucket": "<1m",
+        "meetings": 0
+      },
+      {
+        "bucket": "1-5m",
+        "meetings": 28
+      },
+      {
+        "bucket": "5-15m",
+        "meetings": 26
+      },
+      {
+        "bucket": "15-60m",
+        "meetings": 136
+      },
+      {
+        "bucket": "1-3h",
+        "meetings": 0
+      },
+      {
+        "bucket": "3h+",
+        "meetings": 0
+      }
+    ],
+    "meeting_sizes": [
+      {
+        "bucket": "1",
+        "meetings": 25
+      },
+      {
+        "bucket": "2",
+        "meetings": 82
+      },
+      {
+        "bucket": "3-5",
+        "meetings": 83
+      },
+      {
+        "bucket": "6-10",
+        "meetings": 0
+      },
+      {
+        "bucket": "11+",
+        "meetings": 0
+      }
+    ],
+    "meetings": {
+      "count": 190,
+      "median_minutes": 25.1,
+      "p90_minutes": 44.2,
+      "peak_avg": 2.58,
+      "person_hours": 188.22,
+      "with_peers": 165
+    },
+    "screens": [
+      {
+        "count": 930,
+        "name": "home"
+      },
+      {
+        "count": 571,
+        "name": "prejoin"
+      },
+      {
+        "count": 491,
+        "name": "meeting"
+      },
+      {
+        "count": 175,
+        "name": "settings"
+      }
+    ],
+    "series": [
+      {
+        "day": "2026-10-28",
+        "interlocutors": 33,
+        "meetings": 12,
+        "minutes_per_interlocutor": 26.5621,
+        "talk_hours": 14.64
+      },
+      {
+        "day": "2026-10-29",
+        "interlocutors": 22,
+        "meetings": 7,
+        "minutes_per_interlocutor": 20.7068,
+        "talk_hours": 8.34
+      },
+      {
+        "day": "2026-10-30",
+        "interlocutors": 34,
+        "meetings": 12,
+        "minutes_per_interlocutor": 19.8971,
+        "talk_hours": 11.34
+      },
+      {
+        "day": "2026-10-31",
+        "interlocutors": 36,
+        "meetings": 16,
+        "minutes_per_interlocutor": 22.9944,
+        "talk_hours": 13.86
+      },
+      {
+        "day": "2026-11-01",
+        "interlocutors": 33,
+        "meetings": 14,
+        "minutes_per_interlocutor": 24.4086,
+        "talk_hours": 13.49
+      },
+      {
+        "day": "2026-11-02",
+        "interlocutors": 23,
+        "meetings": 7,
+        "minutes_per_interlocutor": 22.1833,
+        "talk_hours": 8.5
+      },
+      {
+        "day": "2026-11-03",
+        "interlocutors": 34,
+        "meetings": 16,
+        "minutes_per_interlocutor": 20.8593,
+        "talk_hours": 12.07
+      },
+      {
+        "day": "2026-11-04",
+        "interlocutors": 37,
+        "meetings": 16,
+        "minutes_per_interlocutor": 31.5077,
+        "talk_hours": 19.51
+      },
+      {
+        "day": "2026-11-05",
+        "interlocutors": 39,
+        "meetings": 16,
+        "minutes_per_interlocutor": 18.9038,
+        "talk_hours": 12.87
+      },
+      {
+        "day": "2026-11-06",
+        "interlocutors": 28,
+        "meetings": 14,
+        "minutes_per_interlocutor": 25.4893,
+        "talk_hours": 11.94
+      },
+      {
+        "day": "2026-11-07",
+        "interlocutors": 36,
+        "meetings": 13,
+        "minutes_per_interlocutor": 25.2273,
+        "talk_hours": 15.2
+      },
+      {
+        "day": "2026-11-08",
+        "interlocutors": 37,
+        "meetings": 17,
+        "minutes_per_interlocutor": 23.5131,
+        "talk_hours": 15.41
+      },
+      {
+        "day": "2026-11-09",
+        "interlocutors": 34,
+        "meetings": 16,
+        "minutes_per_interlocutor": 24.8446,
+        "talk_hours": 14.19
+      },
+      {
+        "day": "2026-11-10",
+        "interlocutors": 40,
+        "meetings": 14,
+        "minutes_per_interlocutor": 25.1892,
+        "talk_hours": 16.84
+      }
+    ],
+    "totals": {
+      "cam_hours": 21.56,
+      "integration_hours": {
+        "board": 7.06,
+        "cinema": 23.96,
+        "game": 3.22,
+        "music": 5.48
+      },
+      "interlocutors": 185,
+      "joins": 491,
+      "mic_hours": 21.35,
+      "minutes_per_interlocutor_day": 23.838,
+      "people": 244,
+      "screen_hours": 2.42,
+      "sessions": 930,
+      "sessions_per_person": 3.8115,
+      "talk_hours": 188.22,
+      "together_hours": 176.3
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "engagement",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

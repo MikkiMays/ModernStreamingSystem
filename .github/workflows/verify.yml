@@ -130,9 +130,35 @@ jobs:
             .local/*.png
             .local/logs
           retention-days: 7
+  # Служба аналитики `insight` (R239, rust/insight): формат, clippy и тесты — тем же компилятором по digest, что
+  # собирает образ (infra/Dockerfile.insight), с настоящим PostgreSQL образа compose рядом. Тесты с базой заводят
+  # себе по базе на тест; образцы отчётов (contracts/fixtures/insight) сверяются с ответами службы байт в байт.
+  insight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
+        env:
+          POSTGRES_PASSWORD: insight-ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify the analytics service with fmt, clippy and tests against PostgreSQL
+        env:
+          DATABASE_URL: postgres://postgres:insight-ci@127.0.0.1:5432/postgres
+        run: >
+          docker run --rm --network host -e DATABASE_URL -e CARGO_TARGET_DIR=/tmp/target
+          -v "$PWD":/workspace -w /workspace/rust
+          rust:1.99.1-slim-bookworm@sha256:f2c004e3d2d8b547e8cf7ffbc29205385f4e71d23e53e4e383065db5e9f822cd
+          sh -c "rustup component add rustfmt clippy && cargo fmt --all --check
+          && cargo clippy --all-targets --locked -- -D warnings && cargo test --locked"
   deployment-config:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # `docker compose build` собирает и образ `insight` (Rust, release): запас против 25 минут до R239.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020

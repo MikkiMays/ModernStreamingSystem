@@ -1,0 +1,482 @@
+{
+  "data": {
+    "by_cause": [
+      {
+        "cause": "network",
+        "events": 74,
+        "groups": 1,
+        "people": 59,
+        "sessions": 74
+      },
+      {
+        "cause": "limit",
+        "events": 68,
+        "groups": 7,
+        "people": 5,
+        "sessions": 5
+      },
+      {
+        "cause": "permission",
+        "events": 66,
+        "groups": 1,
+        "people": 51,
+        "sessions": 66
+      },
+      {
+        "cause": "crash",
+        "events": 27,
+        "groups": 4,
+        "people": 24,
+        "sessions": 24
+      },
+      {
+        "cause": "version",
+        "events": 14,
+        "groups": 1,
+        "people": 14,
+        "sessions": 14
+      },
+      {
+        "cause": "server",
+        "events": 12,
+        "groups": 2,
+        "people": 6,
+        "sessions": 6
+      },
+      {
+        "cause": "platform",
+        "events": 6,
+        "groups": 4,
+        "people": 0,
+        "sessions": 0
+      }
+    ],
+    "groups": [
+      {
+        "cause": "network",
+        "code": "ICE_FAILED",
+        "events": 74,
+        "first_at": "2026-10-22T08:14:44+00:00",
+        "is_new": false,
+        "key": "ICE_FAILED~media~1.4",
+        "last_at": "2026-11-10T18:18:51+00:00",
+        "people": 59,
+        "people_share": 0.2418,
+        "scope": "media",
+        "sessions": 74,
+        "sessions_share": 0.0796,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "permission",
+        "code": "NotAllowedError",
+        "events": 66,
+        "first_at": "2026-10-22T05:57:33.1+00:00",
+        "is_new": false,
+        "key": "NotAllowedError~device~1.4",
+        "last_at": "2026-11-10T15:45:00.1+00:00",
+        "people": 51,
+        "people_share": 0.209,
+        "scope": "device",
+        "sessions": 66,
+        "sessions_share": 0.071,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "limit",
+        "code": "RATE_LIMITED",
+        "events": 36,
+        "first_at": "2026-09-12T20:00:00+00:00",
+        "is_new": false,
+        "key": "RATE_LIMITED~guard~core",
+        "last_at": "2026-11-10T20:00:00+00:00",
+        "people": 0,
+        "people_share": 0.0,
+        "scope": "guard",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "core",
+        "version": "core"
+      },
+      {
+        "cause": "version",
+        "code": "ChunkLoadError",
+        "events": 14,
+        "first_at": "2026-10-27T13:09:58.5+00:00",
+        "is_new": false,
+        "key": "ChunkLoadError~update~1.4",
+        "last_at": "2026-11-10T09:49:57.5+00:00",
+        "people": 14,
+        "people_share": 0.0574,
+        "scope": "update",
+        "sessions": 14,
+        "sessions_share": 0.0151,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "limit",
+        "code": "PROOF_INVALID",
+        "events": 12,
+        "first_at": "2026-09-12T20:00:00+00:00",
+        "is_new": false,
+        "key": "PROOF_INVALID~guard~core",
+        "last_at": "2026-11-09T20:00:00+00:00",
+        "people": 0,
+        "people_share": 0.0,
+        "scope": "guard",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "core",
+        "version": "core"
+      },
+      {
+        "cause": "crash",
+        "code": "RangeError",
+        "events": 12,
+        "first_at": "2026-10-23T10:46:36.5+00:00",
+        "is_new": false,
+        "key": "RangeError~app~1.4",
+        "last_at": "2026-11-07T08:23:44.5+00:00",
+        "people": 12,
+        "people_share": 0.0492,
+        "scope": "app",
+        "sessions": 12,
+        "sessions_share": 0.0129,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "limit",
+        "code": "BLOCKED",
+        "events": 10,
+        "first_at": "2026-09-14T20:00:00+00:00",
+        "is_new": false,
+        "key": "BLOCKED~guard~core",
+        "last_at": "2026-11-09T20:00:00+00:00",
+        "people": 0,
+        "people_share": 0.0,
+        "scope": "guard",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "core",
+        "version": "core"
+      },
+      {
+        "cause": "crash",
+        "code": "TypeError",
+        "events": 9,
+        "first_at": "2026-10-22T07:41:01.5+00:00",
+        "is_new": false,
+        "key": "TypeError~app~1.4",
+        "last_at": "2026-11-09T11:17:17.5+00:00",
+        "people": 9,
+        "people_share": 0.0369,
+        "scope": "app",
+        "sessions": 9,
+        "sessions_share": 0.0097,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "server",
+        "code": "SERVER_BUSY",
+        "events": 6,
+        "first_at": "2026-10-26T11:41:15.2+00:00",
+        "is_new": false,
+        "key": "SERVER_BUSY~join~1.4",
+        "last_at": "2026-11-03T17:59:47.2+00:00",
+        "people": 6,
+        "people_share": 0.0246,
+        "scope": "join",
+        "sessions": 6,
+        "sessions_share": 0.0065,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "server",
+        "code": "SERVER_BUSY",
+        "events": 6,
+        "first_at": "2026-09-25T13:47:54+00:00",
+        "is_new": false,
+        "key": "SERVER_BUSY~join~core",
+        "last_at": "2026-11-03T17:59:47+00:00",
+        "people": 6,
+        "people_share": 0.0246,
+        "scope": "join",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "core",
+        "version": "core"
+      },
+      {
+        "cause": "platform",
+        "code": "CINEMA_STREAM_FAILED",
+        "events": 3,
+        "first_at": "2026-10-28T14:02:44+00:00",
+        "is_new": true,
+        "key": "CINEMA_STREAM_FAILED~cinema~services",
+        "last_at": "2026-11-07T10:35:56+00:00",
+        "people": 0,
+        "people_share": 0.0,
+        "scope": "cinema",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "services",
+        "version": "services"
+      },
+      {
+        "cause": "crash",
+        "code": "CODE_INVALID",
+        "events": 3,
+        "first_at": "2026-10-23T10:29:11.2+00:00",
+        "is_new": false,
+        "key": "CODE_INVALID~join~1.4",
+        "last_at": "2026-11-07T13:58:57.2+00:00",
+        "people": 3,
+        "people_share": 0.0123,
+        "scope": "join",
+        "sessions": 3,
+        "sessions_share": 0.0032,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "crash",
+        "code": "CODE_INVALID",
+        "events": 3,
+        "first_at": "2026-09-20T06:12:41+00:00",
+        "is_new": false,
+        "key": "CODE_INVALID~join~core",
+        "last_at": "2026-11-07T13:58:57+00:00",
+        "people": 3,
+        "people_share": 0.0123,
+        "scope": "join",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "core",
+        "version": "core"
+      },
+      {
+        "cause": "limit",
+        "code": "ROOM_FULL",
+        "events": 3,
+        "first_at": "2026-10-23T12:41:06.2+00:00",
+        "is_new": false,
+        "key": "ROOM_FULL~join~1.4",
+        "last_at": "2026-11-05T06:22:35.2+00:00",
+        "people": 3,
+        "people_share": 0.0123,
+        "scope": "join",
+        "sessions": 3,
+        "sessions_share": 0.0032,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "limit",
+        "code": "ROOM_FULL",
+        "events": 3,
+        "first_at": "2026-09-15T06:38:38+00:00",
+        "is_new": false,
+        "key": "ROOM_FULL~join~core",
+        "last_at": "2026-11-05T06:22:35+00:00",
+        "people": 3,
+        "people_share": 0.0123,
+        "scope": "join",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "core",
+        "version": "core"
+      },
+      {
+        "cause": "limit",
+        "code": "RATE_LIMITED",
+        "events": 2,
+        "first_at": "2026-10-23T13:31:08.2+00:00",
+        "is_new": false,
+        "key": "RATE_LIMITED~join~1.4",
+        "last_at": "2026-11-08T12:20:48.2+00:00",
+        "people": 2,
+        "people_share": 0.0082,
+        "scope": "join",
+        "sessions": 2,
+        "sessions_share": 0.0022,
+        "source": "client",
+        "version": "1.4"
+      },
+      {
+        "cause": "limit",
+        "code": "RATE_LIMITED",
+        "events": 2,
+        "first_at": "2026-10-03T11:54:12+00:00",
+        "is_new": false,
+        "key": "RATE_LIMITED~join~core",
+        "last_at": "2026-11-08T12:20:48+00:00",
+        "people": 2,
+        "people_share": 0.0082,
+        "scope": "join",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "core",
+        "version": "core"
+      },
+      {
+        "cause": "platform",
+        "code": "CINEMA_GEO",
+        "events": 1,
+        "first_at": "2026-10-28T09:18:20+00:00",
+        "is_new": true,
+        "key": "CINEMA_GEO~cinema~services",
+        "last_at": "2026-10-28T09:18:20+00:00",
+        "people": 0,
+        "people_share": 0.0,
+        "scope": "cinema",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "services",
+        "version": "services"
+      },
+      {
+        "cause": "platform",
+        "code": "CINEMA_GEO",
+        "events": 1,
+        "first_at": "2026-10-31T07:13:42+00:00",
+        "is_new": true,
+        "key": "CINEMA_GEO~music~services",
+        "last_at": "2026-10-31T07:13:42+00:00",
+        "people": 0,
+        "people_share": 0.0,
+        "scope": "music",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "services",
+        "version": "services"
+      },
+      {
+        "cause": "platform",
+        "code": "CINEMA_TIMEOUT",
+        "events": 1,
+        "first_at": "2026-10-28T12:38:45+00:00",
+        "is_new": true,
+        "key": "CINEMA_TIMEOUT~cinema~services",
+        "last_at": "2026-10-28T12:38:45+00:00",
+        "people": 0,
+        "people_share": 0.0,
+        "scope": "cinema",
+        "sessions": 0,
+        "sessions_share": 0.0,
+        "source": "services",
+        "version": "services"
+      }
+    ],
+    "series": [
+      {
+        "day": "2026-10-28",
+        "events": 17,
+        "people": 9,
+        "sessions": 9
+      },
+      {
+        "day": "2026-10-29",
+        "events": 17,
+        "people": 12,
+        "sessions": 12
+      },
+      {
+        "day": "2026-10-30",
+        "events": 23,
+        "people": 14,
+        "sessions": 15
+      },
+      {
+        "day": "2026-10-31",
+        "events": 30,
+        "people": 22,
+        "sessions": 23
+      },
+      {
+        "day": "2026-11-01",
+        "events": 14,
+        "people": 12,
+        "sessions": 12
+      },
+      {
+        "day": "2026-11-02",
+        "events": 18,
+        "people": 9,
+        "sessions": 11
+      },
+      {
+        "day": "2026-11-03",
+        "events": 19,
+        "people": 13,
+        "sessions": 13
+      },
+      {
+        "day": "2026-11-04",
+        "events": 11,
+        "people": 8,
+        "sessions": 9
+      },
+      {
+        "day": "2026-11-05",
+        "events": 28,
+        "people": 17,
+        "sessions": 19
+      },
+      {
+        "day": "2026-11-06",
+        "events": 10,
+        "people": 10,
+        "sessions": 10
+      },
+      {
+        "day": "2026-11-07",
+        "events": 21,
+        "people": 13,
+        "sessions": 15
+      },
+      {
+        "day": "2026-11-08",
+        "events": 24,
+        "people": 15,
+        "sessions": 15
+      },
+      {
+        "day": "2026-11-09",
+        "events": 20,
+        "people": 14,
+        "sessions": 14
+      },
+      {
+        "day": "2026-11-10",
+        "events": 15,
+        "people": 12,
+        "sessions": 12
+      }
+    ],
+    "totals": {
+      "events": 267,
+      "groups": 20,
+      "new_groups": 4,
+      "people_affected": 109,
+      "people_share": 0.4467,
+      "sessions_affected": 189,
+      "sessions_share": 0.2032
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "errors",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

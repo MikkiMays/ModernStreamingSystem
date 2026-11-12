@@ -137,7 +137,7 @@ test('monitoring adds its secrets once, guards SFU metrics with a password and n
 });
 
 test('перевыпуск с новыми именами переписывает адресные ключи .env, не трогая секреты и правки владельца (R200 §8.6)', async () => {
-  // meet → cordcam.ru (08.11.2026): после `--refresh --app=cordcam.ru …` в `.env` оставались прежние
+  // Смена имени продукта (08.11.2026): после `--refresh --app=cord.online …` в `.env` оставались прежние
   // PUBLIC_URL и LIVEKIT_URL — ядро и служба интеграций отказывали по Origin, правилось руками.
   const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
   try {
@@ -156,19 +156,19 @@ test('перевыпуск с новыми именами переписывае
     assert.equal(run('--refresh').status, 0);
     assert.equal(await readFile(join(directory, '.env'), 'utf8'), edited);
 
-    const moved = run('--refresh', '--app=cordcam.example.test', '--rtc=rtc-fra.example.test', '--turn=turn-fra.example.test', '--ip=192.0.2.1');
+    const moved = run('--refresh', '--app=cord.example.test', '--rtc=rtc-fra.example.test', '--turn=turn-fra.example.test', '--ip=192.0.2.1');
     assert.equal(moved.status, 0, moved.stderr);
     assert.match(moved.stdout, /\.env retargeted/);
     assert.match(moved.stdout, /docker compose up -d edge gateway core services livekit/);
     const after = await readFile(join(directory, '.env'), 'utf8');
     for (const [key, value] of Object.entries({
       DEPLOY_MODE: 'strict',
-      APP_HOST: 'cordcam.example.test',
+      APP_HOST: 'cord.example.test',
       RTC_HOST: 'rtc-fra.example.test',
       TURN_HOST: 'turn-fra.example.test',
-      PUBLIC_URL: 'https://cordcam.example.test',
-      LIVEKIT_URL: 'wss://cordcam.example.test',
-      SERVER_NAME: 'cordcam.example.test',
+      PUBLIC_URL: 'https://cord.example.test',
+      LIVEKIT_URL: 'wss://cord.example.test',
+      SERVER_NAME: 'cord.example.test',
       ACCESS_PASSWORD: 'secret word',
       ADMIN_PASSWORD: 'owner',
       STREAM_MAX_PARTICIPANTS: '12',
@@ -275,13 +275,13 @@ test('перевыпуск не возвращает в .env, правленны
     assert.match(calm.stdout, /\.env не меняет/);
     assert.deepEqual(await files(), before);
 
-    // Сервер перенесли на новые имена, поправив только .env (meet → cordcam.ru, 08.11.2026).
+    // Сервер перенесли на новые имена, поправив только .env (смена имени продукта, 08.11.2026).
     const edited = before['.env']
       .replace(/^DEPLOY_MODE=.*$/m, 'DEPLOY_MODE=strict')
-      .replace(/^APP_HOST=.*$/m, 'APP_HOST=cordcam.example.test')
+      .replace(/^APP_HOST=.*$/m, 'APP_HOST=cord.example.test')
       .replace(/^RTC_HOST=.*$/m, 'RTC_HOST=rtc-fra.example.test')
       .replace(/^TURN_HOST=.*$/m, 'TURN_HOST=turn-fra.example.test')
-      .replace(/^PUBLIC_URL=.*$/m, 'PUBLIC_URL=https://cordcam.example.test')
+      .replace(/^PUBLIC_URL=.*$/m, 'PUBLIC_URL=https://cord.example.test')
       .replace(/^LIVEKIT_URL=.*$/m, 'LIVEKIT_URL=wss://rtc-fra.example.test');
     await writeFile(join(directory, '.env'), edited);
     const stale = await files();
@@ -289,11 +289,11 @@ test('перевыпуск не возвращает в .env, правленны
     const warned = run('--refresh', '--check');
     assert.equal(warned.status, 3, warned.stderr);
     assert.match(warned.stdout, /ВНИМАНИЕ: infra\/generated\/topology\.json называет не те адреса, что \.env/);
-    assert.match(warned.stdout, /APP_HOST: cordcam\.example\.test → meet\.example\.test/);
+    assert.match(warned.stdout, /APP_HOST: cord\.example\.test → meet\.example\.test/);
     assert.match(warned.stdout, /ничего не записано/);
     const align = /node scripts\/configure\.mjs (--refresh .*)$/m.exec(warned.stdout)[1].split(' ');
     assert.deepEqual(align, [
-      '--refresh', '--mode=strict', '--app=cordcam.example.test', '--rtc=rtc-fra.example.test',
+      '--refresh', '--mode=strict', '--app=cord.example.test', '--rtc=rtc-fra.example.test',
       '--turn=turn-fra.example.test', '--ip=192.0.2.1',
     ]);
     assert.deepEqual(await files(), stale);
@@ -309,12 +309,12 @@ test('перевыпуск не возвращает в .env, правленны
     assert.equal(aligned.status, 0, aligned.stderr);
     const after = await readFile(join(directory, '.env'), 'utf8');
     for (const line of [
-      'DEPLOY_MODE=strict', 'APP_HOST=cordcam.example.test', 'RTC_HOST=rtc-fra.example.test',
-      'TURN_HOST=turn-fra.example.test', 'PUBLIC_URL=https://cordcam.example.test',
+      'DEPLOY_MODE=strict', 'APP_HOST=cord.example.test', 'RTC_HOST=rtc-fra.example.test',
+      'TURN_HOST=turn-fra.example.test', 'PUBLIC_URL=https://cord.example.test',
     ])
       assert.match(after, new RegExp(`^${line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), line);
     const stored = JSON.parse(await readFile(join(directory, 'infra/generated/topology.json'), 'utf8'));
-    assert.equal(stored.app, 'cordcam.example.test');
+    assert.equal(stored.app, 'cord.example.test');
     assert.equal(stored['legacy-hosts'], 'site.example.test');
     const sfu = JSON.parse(await readFile(join(directory, 'infra/generated/livekit.json'), 'utf8'));
     assert.equal(sfu.turn.domain, 'turn-fra.example.test');
@@ -338,6 +338,52 @@ test('--check бывает только у перевыпуска', async () => 
     assert.notEqual(fresh.status, 0);
     assert.match(fresh.stderr, /--check works only with --refresh/);
     await assert.rejects(readFile(join(directory, '.env'), 'utf8'));
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
+
+test('ключ своих проверок аналитики (R239): создаётся при установке, дописывается перевыпуском один раз и не вращается', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
+  try {
+    const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+    const base = ['--app=app.example.test', '--rtc=rtc.example.test', '--turn=turn.example.test', '--ip=192.0.2.1'];
+    const run = (...extra) =>
+      spawnSync(process.execPath, [script, ...base, ...extra], { cwd: directory, encoding: 'utf8' });
+    const envFile = join(directory, '.env');
+    const first = run();
+    assert.equal(first.status, 0, first.stderr);
+    const installed = await readFile(envFile, 'utf8');
+    // 32 случайных байта в base64url; остальное служба `insight` выводит из секретов, которые уже есть.
+    const probe = /^ANALYTICS_PROBE_KEY=([A-Za-z0-9_-]{43})$/m;
+    assert.match(installed, probe);
+    for (const key of ['INSIGHT_KEY', 'INSIGHT_SECRET', 'ANALYTICS_SECRET'])
+      assert.doesNotMatch(installed, new RegExp(`^${key}=`, 'm'), key);
+
+    // Перевыпуск ключ не вращает и `.env` не трогает.
+    const again = run('--refresh');
+    assert.equal(again.status, 0, again.stderr);
+    assert.equal(await readFile(envFile, 'utf8'), installed);
+
+    // Сервер, поставленный до R239: ключа нет — перевыпуск дописывает его в конец, остальные строки байт в байт.
+    const before = installed.replace(/^ANALYTICS_PROBE_KEY=.*\n/m, '');
+    assert.doesNotMatch(before, probe);
+    await writeFile(envFile, before);
+    const upgraded = run('--refresh');
+    assert.equal(upgraded.status, 0, upgraded.stderr);
+    const after = await readFile(envFile, 'utf8');
+    assert.equal(after.slice(0, before.length), before);
+    assert.match(after.slice(before.length), /^ANALYTICS_PROBE_KEY=[A-Za-z0-9_-]{43}\n$/);
+    assert.notEqual(probe.exec(after)[1], probe.exec(installed)[1]);
+    // И больше не меняет.
+    assert.equal(run('--refresh').status, 0);
+    assert.equal(await readFile(envFile, 'utf8'), after);
+
+    // `--check` ничего не пишет — и ключа тоже.
+    await writeFile(envFile, before);
+    const checked = run('--refresh', '--check');
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(await readFile(envFile, 'utf8'), before);
   } finally {
     await rm(directory, { recursive: true });
   }

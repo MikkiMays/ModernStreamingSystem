@@ -5,6 +5,7 @@
 
 mod common;
 mod facts;
+mod fixtures;
 mod http;
 mod humans;
 mod identity;

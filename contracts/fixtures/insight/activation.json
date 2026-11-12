@@ -1,0 +1,202 @@
+{
+  "data": {
+    "activated_24h": 44,
+    "activated_7d": 56,
+    "funnel": [
+      {
+        "people": 89,
+        "share": 1.0,
+        "step": "open"
+      },
+      {
+        "people": 89,
+        "share": 1.0,
+        "step": "engaged"
+      },
+      {
+        "people": 62,
+        "share": 0.6966,
+        "step": "prejoin"
+      },
+      {
+        "people": 59,
+        "share": 0.6629,
+        "step": "permission"
+      },
+      {
+        "people": 58,
+        "share": 0.6517,
+        "step": "join"
+      },
+      {
+        "people": 58,
+        "share": 0.6517,
+        "step": "media"
+      },
+      {
+        "people": 56,
+        "share": 0.6292,
+        "step": "talk"
+      }
+    ],
+    "mature_24h": 79,
+    "mature_7d": 40,
+    "new_people": 89,
+    "permissions": [
+      {
+        "count": 505,
+        "device": "cam",
+        "result": "granted"
+      },
+      {
+        "count": 505,
+        "device": "mic",
+        "result": "granted"
+      },
+      {
+        "count": 40,
+        "device": "cam",
+        "result": "denied"
+      },
+      {
+        "count": 40,
+        "device": "mic",
+        "result": "denied"
+      },
+      {
+        "count": 26,
+        "device": "cam",
+        "result": "dismissed"
+      },
+      {
+        "count": 26,
+        "device": "mic",
+        "result": "dismissed"
+      }
+    ],
+    "series": [
+      {
+        "activated_24h": 2,
+        "activated_7d": 4,
+        "day": "2026-10-28",
+        "new_people": 6
+      },
+      {
+        "activated_24h": 5,
+        "activated_7d": 7,
+        "day": "2026-10-29",
+        "new_people": 9
+      },
+      {
+        "activated_24h": 4,
+        "activated_7d": 5,
+        "day": "2026-10-30",
+        "new_people": 7
+      },
+      {
+        "activated_24h": 2,
+        "activated_7d": 3,
+        "day": "2026-10-31",
+        "new_people": 4
+      },
+      {
+        "activated_24h": 4,
+        "activated_7d": 4,
+        "day": "2026-11-01",
+        "new_people": 6
+      },
+      {
+        "activated_24h": 0,
+        "activated_7d": 2,
+        "day": "2026-11-02",
+        "new_people": 2
+      },
+      {
+        "activated_24h": 1,
+        "activated_7d": 2,
+        "day": "2026-11-03",
+        "new_people": 6
+      },
+      {
+        "activated_24h": 5,
+        "activated_7d": 5,
+        "day": "2026-11-04",
+        "new_people": 9
+      },
+      {
+        "activated_24h": 4,
+        "activated_7d": 7,
+        "day": "2026-11-05",
+        "new_people": 10
+      },
+      {
+        "activated_24h": 2,
+        "activated_7d": 2,
+        "day": "2026-11-06",
+        "new_people": 5
+      },
+      {
+        "activated_24h": 4,
+        "activated_7d": 4,
+        "day": "2026-11-07",
+        "new_people": 6
+      },
+      {
+        "activated_24h": 3,
+        "activated_7d": 3,
+        "day": "2026-11-08",
+        "new_people": 4
+      },
+      {
+        "activated_24h": 3,
+        "activated_7d": 3,
+        "day": "2026-11-09",
+        "new_people": 5
+      },
+      {
+        "activated_24h": 5,
+        "activated_7d": 5,
+        "day": "2026-11-10",
+        "new_people": 10
+      }
+    ],
+    "share_24h": 0.4937,
+    "share_7d": 0.675,
+    "time_to_talk": [
+      {
+        "bucket": "10m",
+        "people": 18
+      },
+      {
+        "bucket": "1h",
+        "people": 13
+      },
+      {
+        "bucket": "24h",
+        "people": 13
+      },
+      {
+        "bucket": "7d",
+        "people": 12
+      },
+      {
+        "bucket": "later",
+        "people": 0
+      },
+      {
+        "bucket": "never",
+        "people": 33
+      }
+    ]
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "activation",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

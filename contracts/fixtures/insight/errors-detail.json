@@ -1,0 +1,437 @@
+{
+  "data": {
+    "browsers": [
+      {
+        "events": 68,
+        "key": "chrome",
+        "sessions": 68
+      },
+      {
+        "events": 5,
+        "key": "safari",
+        "sessions": 5
+      },
+      {
+        "events": 1,
+        "key": "electron",
+        "sessions": 1
+      }
+    ],
+    "clients": [
+      {
+        "events": 73,
+        "key": "web",
+        "sessions": 73
+      },
+      {
+        "events": 1,
+        "key": "desktop",
+        "sessions": 1
+      }
+    ],
+    "group": {
+      "cause": "network",
+      "code": "ICE_FAILED",
+      "events_total": 112,
+      "first_at": "2026-10-22T08:14:44+00:00",
+      "key": "ICE_FAILED~media~1.4",
+      "last_at": "2026-11-10T18:18:51+00:00",
+      "people_total": 78,
+      "scope": "media",
+      "sessions_total": 112,
+      "source": "client",
+      "version": "1.4"
+    },
+    "nodes": [
+      {
+        "events": 74,
+        "key": "",
+        "sessions": 74
+      }
+    ],
+    "os": [
+      {
+        "events": 40,
+        "key": "windows",
+        "sessions": 40
+      },
+      {
+        "events": 29,
+        "key": "android",
+        "sessions": 29
+      },
+      {
+        "events": 4,
+        "key": "ios",
+        "sessions": 4
+      },
+      {
+        "events": 1,
+        "key": "macos",
+        "sessions": 1
+      }
+    ],
+    "period": {
+      "events": 74,
+      "people": 59,
+      "people_share": 0.2418,
+      "sessions": 74,
+      "sessions_share": 0.0796
+    },
+    "samples": [
+      {
+        "at": "2026-11-10T18:18:51+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-10T18:18:41+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-10T12:08:14+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-10T12:06:43+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-10T07:23:35+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-10T07:23:20+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-10T06:07:22+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-09T18:01:56+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 6,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-09T15:13:12+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-09T13:33:33+00:00",
+        "browser": "safari",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "ios",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-09T13:33:19+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-09T10:22:03+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-09T07:38:54+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-08T14:58:37+00:00",
+        "browser": "electron",
+        "client": "desktop",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-08T14:47:59+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-08T13:07:44+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 6,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-08T11:33:24+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-07T18:17:11+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-07T17:38:59+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "windows",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      },
+      {
+        "at": "2026-11-07T17:02:08+00:00",
+        "browser": "chrome",
+        "client": "web",
+        "detail": "iceConnectionState failed",
+        "fatal": false,
+        "how": null,
+        "os": "android",
+        "screen": "meeting",
+        "step": 7,
+        "version": "1.4.0"
+      }
+    ],
+    "series": [
+      {
+        "day": "2026-10-28",
+        "events": 6,
+        "people": 6,
+        "sessions": 6
+      },
+      {
+        "day": "2026-10-29",
+        "events": 3,
+        "people": 3,
+        "sessions": 3
+      },
+      {
+        "day": "2026-10-30",
+        "events": 7,
+        "people": 7,
+        "sessions": 7
+      },
+      {
+        "day": "2026-10-31",
+        "events": 8,
+        "people": 8,
+        "sessions": 8
+      },
+      {
+        "day": "2026-11-01",
+        "events": 4,
+        "people": 4,
+        "sessions": 4
+      },
+      {
+        "day": "2026-11-02",
+        "events": 3,
+        "people": 3,
+        "sessions": 3
+      },
+      {
+        "day": "2026-11-03",
+        "events": 4,
+        "people": 4,
+        "sessions": 4
+      },
+      {
+        "day": "2026-11-04",
+        "events": 6,
+        "people": 6,
+        "sessions": 6
+      },
+      {
+        "day": "2026-11-05",
+        "events": 7,
+        "people": 7,
+        "sessions": 7
+      },
+      {
+        "day": "2026-11-06",
+        "events": 2,
+        "people": 2,
+        "sessions": 2
+      },
+      {
+        "day": "2026-11-07",
+        "events": 7,
+        "people": 7,
+        "sessions": 7
+      },
+      {
+        "day": "2026-11-08",
+        "events": 4,
+        "people": 4,
+        "sessions": 4
+      },
+      {
+        "day": "2026-11-09",
+        "events": 6,
+        "people": 6,
+        "sessions": 6
+      },
+      {
+        "day": "2026-11-10",
+        "events": 7,
+        "people": 7,
+        "sessions": 7
+      }
+    ],
+    "steps": [
+      {
+        "events": 6,
+        "step": 6
+      },
+      {
+        "events": 68,
+        "step": 7
+      }
+    ],
+    "versions": [
+      {
+        "events": 74,
+        "key": "1.4.0",
+        "sessions": 74
+      }
+    ]
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "errors/{key}",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

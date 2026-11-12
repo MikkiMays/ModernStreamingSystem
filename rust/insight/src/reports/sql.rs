@@ -568,14 +568,13 @@ pub fn quality() -> String {
     let day_success = ratio("j.ok", "j.ok + j.failed");
     let day_clean = ratio("d.sessions - d.error_sessions", "d.sessions");
     let day_vpn = ratio("d.vpn_sessions", "d.sessions");
-    let quality_hours = hours("sum(summaries) * 10");
     let person_hours = hours("sum(person_s)");
     let how = counts("join", "how", None);
     let drops = counts("media_down", "reason", None);
     let refusals = counts("refusal", "code", None);
     let media = |extra: &str| {
         format!(
-            "json_build_object({extra} 'meetings', count(*), 'person_hours', {person_hours}, 'quality_hours', {quality_hours}, \
+            "json_build_object({extra} 'meetings', count(*), 'person_hours', {person_hours}, 'summaries', COALESCE(sum(summaries), 0), \
              'loss_avg', {loss}, 'rtt_avg_ms', round((sum(rtt_sum) / NULLIF(sum(summaries), 0))::numeric, 1), \
              'relay_share', {relay}, 'freezes', COALESCE(sum(freezes), 0), 'freezes_per_hour', {freezes}, \
              'reconnects', COALESCE(sum(reconnects), 0), 'reconnects_per_hour', {reconnects}, \

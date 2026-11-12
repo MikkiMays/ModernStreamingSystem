@@ -189,6 +189,8 @@ pub struct Pending {
     pub seen: HashMap<i64, NaiveDate>,
     /// Человек → день, когда он соединился с медиаузлом.
     pub called: HashMap<i64, NaiveDate>,
+    /// Человек → момент, когда он пробыл во встрече не один минуту.
+    pub peers: HashMap<i64, DateTime<Utc>>,
     pub counts: HashMap<(NaiveDate, &'static str, String, String), i64>,
     pub errors: HashMap<String, ErrorDelta>,
     pub error_days: HashMap<(String, NaiveDate, ErrorDims), (i64, i64)>,
@@ -297,7 +299,18 @@ impl Pending {
         .bind(&days)
         .execute(&mut *conn)
         .await?;
-        // Стал собеседником: был во встрече не один дольше минуты. Момент — эта запись, точнее и не нужно.
+        // Стал собеседником: был во встрече не один дольше минуты. Момент известен, когда минута набралась за
+        // одно присутствие; набралась по кускам — моментом считается эта запись.
+        let peers: Vec<i64> = self.peers.keys().copied().collect();
+        let since: Vec<DateTime<Utc>> = self.peers.values().copied().collect();
+        sqlx::query(
+            "UPDATE an_persons p SET first_peer_at = v.at FROM UNNEST($1::bigint[], $2::timestamptz[]) AS v(id, at) \
+             WHERE p.id = v.id AND p.first_peer_at IS NULL",
+        )
+        .bind(&peers)
+        .bind(&since)
+        .execute(&mut *conn)
+        .await?;
         sqlx::query(
             "UPDATE an_persons p SET first_peer_at = $2 WHERE p.id = ANY($1) AND p.first_peer_at IS NULL \
              AND EXISTS (SELECT 1 FROM an_person_days d WHERE d.person_id = p.id AND d.with_peer)",

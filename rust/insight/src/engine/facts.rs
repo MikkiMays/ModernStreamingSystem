@@ -238,7 +238,8 @@ impl Engine {
                 self.pending.count(day, "join_fail", &code, &how, 1);
                 self.server_error(&code, "join", source, at, day, who.as_ref().map(|w| w.person), 1);
                 if let (Some(who), Some(profile)) = (&who, &profile) {
-                    self.fact_event(who.person, profile, "join_fail", at, day, None, json!({"code": code, "how": how}));
+                    let props = json!({"code": code, "how": how, "key": crate::errors::key(&code, "join", source)});
+                    self.fact_event(who.person, profile, "join_fail", at, day, None, props);
                 }
             }
             "media_up" => {
@@ -537,6 +538,7 @@ impl Engine {
         let Some(state) = meeting.members.get_mut(member) else { return };
         let from = state.since.max(to - Duration::seconds(CREDIT_CAP_SECONDS));
         state.since = state.since.max(to);
+        let was_together = state.together;
         let mut talked = None;
         for (day, seconds) in split_days(from, to, zone) {
             meeting.delta.person_s += seconds;
@@ -558,6 +560,11 @@ impl Engine {
         }
         if state.together >= 60 {
             talked = state.profile.clone();
+            // Минута не в одиночку набралась сейчас: с этого момента человек — собеседник.
+            if let Some(who) = state.who.as_ref().filter(|_| was_together < 60) {
+                let since = self.pending.peers.entry(who.person).or_insert(to);
+                *since = (*since).min(to);
+            }
         }
         meeting.dirty = true;
         meeting.last = meeting.last.max(to);

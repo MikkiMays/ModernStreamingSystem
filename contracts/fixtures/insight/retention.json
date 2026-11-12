@@ -1,0 +1,821 @@
+{
+  "data": {
+    "bucket": "day",
+    "carried": {
+      "previous_people": 94,
+      "share": 0.7234,
+      "stayed": 68
+    },
+    "cohorts": [
+      {
+        "cohort": "2026-10-01",
+        "d1": {
+          "eligible": 4,
+          "returned": 2,
+          "share": 0.5,
+          "talked": 2,
+          "talked_share": 0.5
+        },
+        "d30": {
+          "eligible": 4,
+          "returned": 4,
+          "share": 1.0,
+          "talked": 3,
+          "talked_share": 0.75
+        },
+        "d7": {
+          "eligible": 4,
+          "returned": 2,
+          "share": 0.5,
+          "talked": 2,
+          "talked_share": 0.5
+        },
+        "size": 4
+      },
+      {
+        "cohort": "2026-10-02",
+        "d1": {
+          "eligible": 4,
+          "returned": 1,
+          "share": 0.25,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 4,
+          "returned": 2,
+          "share": 0.5,
+          "talked": 2,
+          "talked_share": 0.5
+        },
+        "d7": {
+          "eligible": 4,
+          "returned": 2,
+          "share": 0.5,
+          "talked": 2,
+          "talked_share": 0.5
+        },
+        "size": 4
+      },
+      {
+        "cohort": "2026-10-03",
+        "d1": {
+          "eligible": 5,
+          "returned": 1,
+          "share": 0.2,
+          "talked": 1,
+          "talked_share": 0.2
+        },
+        "d30": {
+          "eligible": 5,
+          "returned": 4,
+          "share": 0.8,
+          "talked": 4,
+          "talked_share": 0.8
+        },
+        "d7": {
+          "eligible": 5,
+          "returned": 4,
+          "share": 0.8,
+          "talked": 3,
+          "talked_share": 0.6
+        },
+        "size": 5
+      },
+      {
+        "cohort": "2026-10-04",
+        "d1": {
+          "eligible": 6,
+          "returned": 2,
+          "share": 0.3333,
+          "talked": 1,
+          "talked_share": 0.1667
+        },
+        "d30": {
+          "eligible": 6,
+          "returned": 5,
+          "share": 0.8333,
+          "talked": 5,
+          "talked_share": 0.8333
+        },
+        "d7": {
+          "eligible": 6,
+          "returned": 5,
+          "share": 0.8333,
+          "talked": 3,
+          "talked_share": 0.5
+        },
+        "size": 6
+      },
+      {
+        "cohort": "2026-10-05",
+        "d1": {
+          "eligible": 6,
+          "returned": 1,
+          "share": 0.1667,
+          "talked": 1,
+          "talked_share": 0.1667
+        },
+        "d30": {
+          "eligible": 6,
+          "returned": 3,
+          "share": 0.5,
+          "talked": 3,
+          "talked_share": 0.5
+        },
+        "d7": {
+          "eligible": 6,
+          "returned": 3,
+          "share": 0.5,
+          "talked": 3,
+          "talked_share": 0.5
+        },
+        "size": 6
+      },
+      {
+        "cohort": "2026-10-06",
+        "d1": {
+          "eligible": 9,
+          "returned": 1,
+          "share": 0.1111,
+          "talked": 1,
+          "talked_share": 0.1111
+        },
+        "d30": {
+          "eligible": 9,
+          "returned": 7,
+          "share": 0.7778,
+          "talked": 5,
+          "talked_share": 0.5556
+        },
+        "d7": {
+          "eligible": 9,
+          "returned": 4,
+          "share": 0.4444,
+          "talked": 3,
+          "talked_share": 0.3333
+        },
+        "size": 9
+      },
+      {
+        "cohort": "2026-10-07",
+        "d1": {
+          "eligible": 7,
+          "returned": 2,
+          "share": 0.2857,
+          "talked": 2,
+          "talked_share": 0.2857
+        },
+        "d30": {
+          "eligible": 7,
+          "returned": 4,
+          "share": 0.5714,
+          "talked": 4,
+          "talked_share": 0.5714
+        },
+        "d7": {
+          "eligible": 7,
+          "returned": 2,
+          "share": 0.2857,
+          "talked": 2,
+          "talked_share": 0.2857
+        },
+        "size": 7
+      },
+      {
+        "cohort": "2026-10-08",
+        "d1": {
+          "eligible": 4,
+          "returned": 0,
+          "share": 0.0,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 4,
+          "returned": 2,
+          "share": 0.5,
+          "talked": 2,
+          "talked_share": 0.5
+        },
+        "d7": {
+          "eligible": 4,
+          "returned": 1,
+          "share": 0.25,
+          "talked": 1,
+          "talked_share": 0.25
+        },
+        "size": 4
+      },
+      {
+        "cohort": "2026-10-09",
+        "d1": {
+          "eligible": 8,
+          "returned": 2,
+          "share": 0.25,
+          "talked": 1,
+          "talked_share": 0.125
+        },
+        "d30": {
+          "eligible": 8,
+          "returned": 5,
+          "share": 0.625,
+          "talked": 5,
+          "talked_share": 0.625
+        },
+        "d7": {
+          "eligible": 8,
+          "returned": 4,
+          "share": 0.5,
+          "talked": 3,
+          "talked_share": 0.375
+        },
+        "size": 8
+      },
+      {
+        "cohort": "2026-10-10",
+        "d1": {
+          "eligible": 8,
+          "returned": 4,
+          "share": 0.5,
+          "talked": 3,
+          "talked_share": 0.375
+        },
+        "d30": {
+          "eligible": 8,
+          "returned": 8,
+          "share": 1.0,
+          "talked": 7,
+          "talked_share": 0.875
+        },
+        "d7": {
+          "eligible": 8,
+          "returned": 5,
+          "share": 0.625,
+          "talked": 4,
+          "talked_share": 0.5
+        },
+        "size": 8
+      },
+      {
+        "cohort": "2026-10-11",
+        "d1": {
+          "eligible": 10,
+          "returned": 1,
+          "share": 0.1,
+          "talked": 1,
+          "talked_share": 0.1
+        },
+        "d30": {
+          "eligible": 10,
+          "returned": 6,
+          "share": 0.6,
+          "talked": 3,
+          "talked_share": 0.3
+        },
+        "d7": {
+          "eligible": 10,
+          "returned": 3,
+          "share": 0.3,
+          "talked": 1,
+          "talked_share": 0.1
+        },
+        "size": 10
+      },
+      {
+        "cohort": "2026-10-12",
+        "d1": {
+          "eligible": 8,
+          "returned": 1,
+          "share": 0.125,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 8,
+          "returned": 7,
+          "share": 0.875,
+          "talked": 5,
+          "talked_share": 0.625
+        },
+        "d7": {
+          "eligible": 8,
+          "returned": 3,
+          "share": 0.375,
+          "talked": 1,
+          "talked_share": 0.125
+        },
+        "size": 8
+      },
+      {
+        "cohort": "2026-10-13",
+        "d1": {
+          "eligible": 5,
+          "returned": 2,
+          "share": 0.4,
+          "talked": 1,
+          "talked_share": 0.2
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 5,
+          "returned": 2,
+          "share": 0.4,
+          "talked": 1,
+          "talked_share": 0.2
+        },
+        "size": 5
+      },
+      {
+        "cohort": "2026-10-14",
+        "d1": {
+          "eligible": 7,
+          "returned": 2,
+          "share": 0.2857,
+          "talked": 1,
+          "talked_share": 0.1429
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 7,
+          "returned": 4,
+          "share": 0.5714,
+          "talked": 2,
+          "talked_share": 0.2857
+        },
+        "size": 7
+      },
+      {
+        "cohort": "2026-10-15",
+        "d1": {
+          "eligible": 4,
+          "returned": 0,
+          "share": 0.0,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 4,
+          "returned": 3,
+          "share": 0.75,
+          "talked": 2,
+          "talked_share": 0.5
+        },
+        "size": 4
+      },
+      {
+        "cohort": "2026-10-16",
+        "d1": {
+          "eligible": 6,
+          "returned": 1,
+          "share": 0.1667,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 6,
+          "returned": 3,
+          "share": 0.5,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "size": 6
+      },
+      {
+        "cohort": "2026-10-17",
+        "d1": {
+          "eligible": 5,
+          "returned": 2,
+          "share": 0.4,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 5,
+          "returned": 2,
+          "share": 0.4,
+          "talked": 2,
+          "talked_share": 0.4
+        },
+        "size": 5
+      },
+      {
+        "cohort": "2026-10-18",
+        "d1": {
+          "eligible": 6,
+          "returned": 3,
+          "share": 0.5,
+          "talked": 2,
+          "talked_share": 0.3333
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 6,
+          "returned": 3,
+          "share": 0.5,
+          "talked": 3,
+          "talked_share": 0.5
+        },
+        "size": 6
+      },
+      {
+        "cohort": "2026-10-19",
+        "d1": {
+          "eligible": 8,
+          "returned": 0,
+          "share": 0.0,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 8,
+          "returned": 6,
+          "share": 0.75,
+          "talked": 5,
+          "talked_share": 0.625
+        },
+        "size": 8
+      },
+      {
+        "cohort": "2026-10-20",
+        "d1": {
+          "eligible": 9,
+          "returned": 3,
+          "share": 0.3333,
+          "talked": 2,
+          "talked_share": 0.2222
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 9,
+          "returned": 5,
+          "share": 0.5556,
+          "talked": 5,
+          "talked_share": 0.5556
+        },
+        "size": 9
+      },
+      {
+        "cohort": "2026-10-21",
+        "d1": {
+          "eligible": 9,
+          "returned": 3,
+          "share": 0.3333,
+          "talked": 0,
+          "talked_share": 0.0
+        },
+        "d30": {
+          "eligible": 0,
+          "returned": 0,
+          "share": null,
+          "talked": 0,
+          "talked_share": null
+        },
+        "d7": {
+          "eligible": 9,
+          "returned": 5,
+          "share": 0.5556,
+          "talked": 4,
+          "talked_share": 0.4444
+        },
+        "size": 9
+      }
+    ],
+    "curve": [
+      {
+        "active": 138,
+        "age": 0,
+        "eligible": 138,
+        "share": 1.0,
+        "talked": 65,
+        "talked_share": 0.471
+      },
+      {
+        "active": 34,
+        "age": 1,
+        "eligible": 138,
+        "share": 0.2464,
+        "talked": 19,
+        "talked_share": 0.1377
+      },
+      {
+        "active": 27,
+        "age": 2,
+        "eligible": 138,
+        "share": 0.1957,
+        "talked": 19,
+        "talked_share": 0.1377
+      },
+      {
+        "active": 32,
+        "age": 3,
+        "eligible": 138,
+        "share": 0.2319,
+        "talked": 12,
+        "talked_share": 0.087
+      },
+      {
+        "active": 29,
+        "age": 4,
+        "eligible": 138,
+        "share": 0.2101,
+        "talked": 17,
+        "talked_share": 0.1232
+      },
+      {
+        "active": 25,
+        "age": 5,
+        "eligible": 138,
+        "share": 0.1812,
+        "talked": 11,
+        "talked_share": 0.0797
+      },
+      {
+        "active": 29,
+        "age": 6,
+        "eligible": 138,
+        "share": 0.2101,
+        "talked": 17,
+        "talked_share": 0.1232
+      },
+      {
+        "active": 26,
+        "age": 7,
+        "eligible": 138,
+        "share": 0.1884,
+        "talked": 15,
+        "talked_share": 0.1087
+      },
+      {
+        "active": 26,
+        "age": 8,
+        "eligible": 138,
+        "share": 0.1884,
+        "talked": 16,
+        "talked_share": 0.1159
+      },
+      {
+        "active": 21,
+        "age": 9,
+        "eligible": 138,
+        "share": 0.1522,
+        "talked": 8,
+        "talked_share": 0.058
+      },
+      {
+        "active": 30,
+        "age": 10,
+        "eligible": 138,
+        "share": 0.2174,
+        "talked": 11,
+        "talked_share": 0.0797
+      },
+      {
+        "active": 30,
+        "age": 11,
+        "eligible": 138,
+        "share": 0.2174,
+        "talked": 19,
+        "talked_share": 0.1377
+      },
+      {
+        "active": 26,
+        "age": 12,
+        "eligible": 138,
+        "share": 0.1884,
+        "talked": 8,
+        "talked_share": 0.058
+      },
+      {
+        "active": 22,
+        "age": 13,
+        "eligible": 138,
+        "share": 0.1594,
+        "talked": 11,
+        "talked_share": 0.0797
+      },
+      {
+        "active": 26,
+        "age": 14,
+        "eligible": 138,
+        "share": 0.1884,
+        "talked": 11,
+        "talked_share": 0.0797
+      },
+      {
+        "active": 28,
+        "age": 15,
+        "eligible": 138,
+        "share": 0.2029,
+        "talked": 15,
+        "talked_share": 0.1087
+      },
+      {
+        "active": 26,
+        "age": 16,
+        "eligible": 138,
+        "share": 0.1884,
+        "talked": 12,
+        "talked_share": 0.087
+      },
+      {
+        "active": 28,
+        "age": 17,
+        "eligible": 138,
+        "share": 0.2029,
+        "talked": 13,
+        "talked_share": 0.0942
+      },
+      {
+        "active": 27,
+        "age": 18,
+        "eligible": 138,
+        "share": 0.1957,
+        "talked": 15,
+        "talked_share": 0.1087
+      },
+      {
+        "active": 29,
+        "age": 19,
+        "eligible": 138,
+        "share": 0.2101,
+        "talked": 8,
+        "talked_share": 0.058
+      },
+      {
+        "active": 25,
+        "age": 20,
+        "eligible": 138,
+        "share": 0.1812,
+        "talked": 5,
+        "talked_share": 0.0362
+      },
+      {
+        "active": 20,
+        "age": 21,
+        "eligible": 138,
+        "share": 0.1449,
+        "talked": 7,
+        "talked_share": 0.0507
+      },
+      {
+        "active": 22,
+        "age": 22,
+        "eligible": 129,
+        "share": 0.1705,
+        "talked": 13,
+        "talked_share": 0.1008
+      },
+      {
+        "active": 18,
+        "age": 23,
+        "eligible": 120,
+        "share": 0.15,
+        "talked": 9,
+        "talked_share": 0.075
+      },
+      {
+        "active": 15,
+        "age": 24,
+        "eligible": 112,
+        "share": 0.1339,
+        "talked": 8,
+        "talked_share": 0.0714
+      },
+      {
+        "active": 18,
+        "age": 25,
+        "eligible": 106,
+        "share": 0.1698,
+        "talked": 9,
+        "talked_share": 0.0849
+      },
+      {
+        "active": 16,
+        "age": 26,
+        "eligible": 101,
+        "share": 0.1584,
+        "talked": 10,
+        "talked_share": 0.099
+      },
+      {
+        "active": 11,
+        "age": 27,
+        "eligible": 95,
+        "share": 0.1158,
+        "talked": 6,
+        "talked_share": 0.0632
+      },
+      {
+        "active": 14,
+        "age": 28,
+        "eligible": 91,
+        "share": 0.1538,
+        "talked": 8,
+        "talked_share": 0.0879
+      },
+      {
+        "active": 14,
+        "age": 29,
+        "eligible": 84,
+        "share": 0.1667,
+        "talked": 8,
+        "talked_share": 0.0952
+      },
+      {
+        "active": 11,
+        "age": 30,
+        "eligible": 79,
+        "share": 0.1392,
+        "talked": 6,
+        "talked_share": 0.0759
+      }
+    ],
+    "total": {
+      "d1": {
+        "eligible": 138,
+        "returned": 34,
+        "share": 0.2464,
+        "talked": 19,
+        "talked_share": 0.1377
+      },
+      "d30": {
+        "eligible": 79,
+        "returned": 57,
+        "share": 0.7215,
+        "talked": 48,
+        "talked_share": 0.6076
+      },
+      "d7": {
+        "eligible": 138,
+        "returned": 71,
+        "share": 0.5145,
+        "talked": 52,
+        "talked_share": 0.3768
+      },
+      "size": 138
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 21,
+    "from": "2026-10-01",
+    "to": "2026-10-21"
+  },
+  "section": "retention",
+  "strict": false,
+  "view": "cohort",
+  "zone": "Europe/Moscow"
+}

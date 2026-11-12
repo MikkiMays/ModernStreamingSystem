@@ -118,6 +118,21 @@ http://:{$GATEWAY_PORT:8091} {
 			}
 			reverse_proxy 127.0.0.1:18100
 		}
+		# Аналитика (R239, contracts/insight.md): события клиента и задача «не робот» — в службу `insight`, а не
+		# в ядро, поэтому блок стоит выше `@api`. Настоящий адрес и секрет шлюза — как у ядра: без секрета
+		# служба `X-Real-IP` не читает. Тело — не больше 32 КиБ. Ключ фактов и отчётов снаружи не проходит;
+		# самих `/internal/*` службы на шлюзе нет вовсе.
+		@insight path /api/v1/t /api/v1/t/*
+		handle @insight {
+			request_body {
+				max_size 32KiB
+			}
+			reverse_proxy 127.0.0.1:{$INSIGHT_PORT:18300} {
+				header_up X-Internal-Secret {$INTERNAL_SECRET}
+				header_up X-Real-IP {remote_host}
+				header_up -X-Insight-Key
+			}
+		}
 		@api path /api/v1/*
 		handle @api {
 			reverse_proxy 127.0.0.1:8080 {

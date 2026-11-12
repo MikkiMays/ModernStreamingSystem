@@ -145,6 +145,8 @@ pub struct Browser {
     pub tz: &'static str,
     pub landing: &'static str,
     pub source: &'static str,
+    /// Метки кампании: `{source, medium, campaign}` или `null`.
+    pub utm: Value,
     pub fp: Value,
     pub webdriver: bool,
     pub probe: bool,
@@ -166,6 +168,7 @@ impl Browser {
             tz: "Europe/Moscow",
             landing: "home",
             source: "",
+            utm: Value::Null,
             fp: json!({
                 "canvas": format!("canvas-{n}"), "gl": format!("gl-{n}"), "fonts": format!("fonts-{n}"),
                 "audio": "audio", "glr": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)",
@@ -244,7 +247,7 @@ impl Browser {
     /// Открыть страницу: событие `session_start`.
     pub async fn open(&mut self, world: &mut World, sid: &str, now: DateTime<Utc>) {
         let start = json!([{"n": "session_start", "p": {
-            "landing": self.landing, "ref": self.source, "lang": "ru-RU", "tz": self.tz,
+            "landing": self.landing, "ref": self.source, "utm": self.utm, "lang": "ru-RU", "tz": self.tz,
             "screen": {"w": 1920, "h": 1080, "dpr": 1, "depth": 24}, "wd": self.webdriver, "fp": self.fp,
         }}]);
         self.send(world, sid, now, start).await;

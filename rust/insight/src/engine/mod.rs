@@ -622,13 +622,15 @@ impl Engine {
                 let scope = word(&props, "scope");
                 let scope = if scope.is_empty() { "app".to_owned() } else { scope };
                 let version = event::version_series(&live.attrs.version);
-                // На каком шаге воронки человек увидел ошибку.
+                // На каком шаге воронки человек увидел ошибку — и в какую группу она попала: по ключу отчёт
+                // об одной группе находит её последние образцы.
+                let key = errors::key(&code, &scope, &version);
                 props.insert("step".to_owned(), json!(live.step));
+                props.insert("key".to_owned(), json!(key));
                 if counted {
-                    let key = errors::key(&code, &scope, &version);
                     *pending.error_people.entry((key, day, person)).or_default() += 1;
                 } else {
-                    let first = live.error_keys.insert(errors::key(&code, &scope, &version));
+                    let first = live.error_keys.insert(key);
                     live.errors += 1;
                     let sample = error_sample(live, &Event { name, at: 0, props: props.clone() }, at);
                     let note = ErrorNote {

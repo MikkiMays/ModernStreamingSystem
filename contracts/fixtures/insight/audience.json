@@ -1,0 +1,313 @@
+{
+  "data": {
+    "by_browser": [
+      {
+        "key": "chrome",
+        "people": 222,
+        "sessions": 855
+      },
+      {
+        "key": "safari",
+        "people": 14,
+        "sessions": 44
+      },
+      {
+        "key": "electron",
+        "people": 8,
+        "sessions": 31
+      }
+    ],
+    "by_client": [
+      {
+        "key": "web",
+        "people": 236,
+        "sessions": 899
+      },
+      {
+        "key": "desktop",
+        "people": 8,
+        "sessions": 31
+      }
+    ],
+    "by_country": [
+      {
+        "key": "RU",
+        "people": 145,
+        "sessions": 563
+      },
+      {
+        "key": "KZ",
+        "people": 28,
+        "sessions": 108
+      },
+      {
+        "key": "DE",
+        "people": 25,
+        "sessions": 102
+      },
+      {
+        "key": "BY",
+        "people": 25,
+        "sessions": 87
+      },
+      {
+        "key": "NL",
+        "people": 21,
+        "sessions": 70
+      }
+    ],
+    "by_device": [
+      {
+        "key": "desktop",
+        "people": 150,
+        "sessions": 577
+      },
+      {
+        "key": "phone",
+        "people": 94,
+        "sessions": 353
+      }
+    ],
+    "by_network": [
+      {
+        "key": "home",
+        "people": 137,
+        "sessions": 546
+      },
+      {
+        "key": "mobile",
+        "people": 86,
+        "sessions": 314
+      },
+      {
+        "key": "hosting",
+        "people": 21,
+        "sessions": 70
+      }
+    ],
+    "by_os": [
+      {
+        "key": "windows",
+        "people": 143,
+        "sessions": 560
+      },
+      {
+        "key": "android",
+        "people": 87,
+        "sessions": 326
+      },
+      {
+        "key": "ios",
+        "people": 7,
+        "sessions": 27
+      },
+      {
+        "key": "macos",
+        "people": 7,
+        "sessions": 17
+      }
+    ],
+    "frequency": [
+      {
+        "active_days": 1,
+        "people": 85
+      },
+      {
+        "active_days": 2,
+        "people": 33
+      },
+      {
+        "active_days": 3,
+        "people": 23
+      },
+      {
+        "active_days": 4,
+        "people": 20
+      },
+      {
+        "active_days": 5,
+        "people": 15
+      },
+      {
+        "active_days": 6,
+        "people": 12
+      },
+      {
+        "active_days": 7,
+        "people": 6
+      }
+    ],
+    "recognised": {
+      "cookie": 782,
+      "fingerprint": 14,
+      "new": 89,
+      "profile": 45
+    },
+    "series": [
+      {
+        "dau": 61,
+        "day": "2026-10-28",
+        "mau": 250,
+        "new_people": 6,
+        "resurrected": 1,
+        "returning": 55,
+        "stickiness": 0.244,
+        "wau": 149
+      },
+      {
+        "dau": 54,
+        "day": "2026-10-29",
+        "mau": 259,
+        "new_people": 9,
+        "resurrected": 3,
+        "returning": 45,
+        "stickiness": 0.2085,
+        "wau": 156
+      },
+      {
+        "dau": 66,
+        "day": "2026-10-30",
+        "mau": 264,
+        "new_people": 7,
+        "resurrected": 2,
+        "returning": 59,
+        "stickiness": 0.25,
+        "wau": 155
+      },
+      {
+        "dau": 69,
+        "day": "2026-10-31",
+        "mau": 267,
+        "new_people": 4,
+        "resurrected": 1,
+        "returning": 65,
+        "stickiness": 0.2584,
+        "wau": 154
+      },
+      {
+        "dau": 65,
+        "day": "2026-11-01",
+        "mau": 272,
+        "new_people": 6,
+        "resurrected": 4,
+        "returning": 59,
+        "stickiness": 0.239,
+        "wau": 155
+      },
+      {
+        "dau": 57,
+        "day": "2026-11-02",
+        "mau": 273,
+        "new_people": 2,
+        "resurrected": 7,
+        "returning": 55,
+        "stickiness": 0.2088,
+        "wau": 159
+      },
+      {
+        "dau": 69,
+        "day": "2026-11-03",
+        "mau": 278,
+        "new_people": 6,
+        "resurrected": 2,
+        "returning": 63,
+        "stickiness": 0.2482,
+        "wau": 160
+      },
+      {
+        "dau": 66,
+        "day": "2026-11-04",
+        "mau": 284,
+        "new_people": 9,
+        "resurrected": 2,
+        "returning": 57,
+        "stickiness": 0.2324,
+        "wau": 169
+      },
+      {
+        "dau": 74,
+        "day": "2026-11-05",
+        "mau": 293,
+        "new_people": 10,
+        "resurrected": 1,
+        "returning": 64,
+        "stickiness": 0.2526,
+        "wau": 180
+      },
+      {
+        "dau": 66,
+        "day": "2026-11-06",
+        "mau": 295,
+        "new_people": 5,
+        "resurrected": 2,
+        "returning": 61,
+        "stickiness": 0.2237,
+        "wau": 177
+      },
+      {
+        "dau": 59,
+        "day": "2026-11-07",
+        "mau": 299,
+        "new_people": 6,
+        "resurrected": 4,
+        "returning": 53,
+        "stickiness": 0.1973,
+        "wau": 178
+      },
+      {
+        "dau": 75,
+        "day": "2026-11-08",
+        "mau": 297,
+        "new_people": 4,
+        "resurrected": 3,
+        "returning": 71,
+        "stickiness": 0.2525,
+        "wau": 180
+      },
+      {
+        "dau": 69,
+        "day": "2026-11-09",
+        "mau": 303,
+        "new_people": 5,
+        "resurrected": 4,
+        "returning": 64,
+        "stickiness": 0.2277,
+        "wau": 187
+      },
+      {
+        "dau": 80,
+        "day": "2026-11-10",
+        "mau": 306,
+        "new_people": 10,
+        "resurrected": 1,
+        "returning": 70,
+        "stickiness": 0.2614,
+        "wau": 194
+      }
+    ],
+    "totals": {
+      "confirmed": 188,
+      "engaged_only": 56,
+      "new_people": 89,
+      "people": 244,
+      "recognised_by_fingerprint": 14,
+      "resurrected": 37,
+      "returning": 155,
+      "sessions": 930,
+      "sessions_per_person": 3.8115,
+      "stickiness": 0.1876,
+      "vpn_sessions": 70,
+      "vpn_share": 0.0753
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "audience",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

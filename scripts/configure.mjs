@@ -81,9 +81,9 @@ const { ports, app, rtc, turn, ip, mode } = topology;
 /**
  * Адресные ключи `.env`, которые генератор сам выводит из топологии (R200 §8.6). Секреты и то, что правил владелец,
  * `--refresh` не трогает. Но имена, режим и порты задаются аргументами и `topology.json`, а в `.env` лежат их копии —
- * и до R200 при смене имён (`--refresh --app=cordcam.ru …`) там оставались прежние `APP_HOST`, `PUBLIC_URL`,
+ * и до R200 при смене имён (`--refresh --app=cord.online …`) там оставались прежние `APP_HOST`, `PUBLIC_URL`,
  * `LIVEKIT_URL`: ядро и служба интеграций отказывали запросам по Origin, SFU звал клиентов на старое имя, и всё это
- * правилось руками (meet → `cordcam.ru`, 08.11.2026). Теперь ключи при расхождении переписываются на месте; остальные
+ * правилось руками (meet → новое имя продукта, 08.11.2026). Теперь ключи при расхождении переписываются на месте; остальные
  * строки остаются байт в байт. `SERVER_NAME` — имя для людей, его меняем только пока оно равно прежнему адресу.
  */
 const derived = {
@@ -109,7 +109,7 @@ const describe = ([k, from, to]) => `${k}: ${from === undefined ? "(не был�
 /**
  * Имена topology.json против .env (ревью R200 §8.6). Перевыпуск без имён в командной строке берёт имена из
  * topology.json — и переписал бы ими адресные ключи `.env`, а заодно `edge.json` и `livekit.json`. Если `.env` правили
- * руками (meet → cordcam.ru, 08.11.2026), а topology.json остался прежним, обычное `./update.sh` вернуло бы продукт на
+ * руками (meet → новое имя продукта, 08.11.2026), а topology.json остался прежним, обычное `./update.sh` вернуло бы продукт на
  * старое имя. Поэтому имя, режим или адрес, которые разошлись с `.env` и не названы в этой команде, — отказ до записи
  * чего-либо и готовая команда, которая выровняет topology.json по `.env`. Названы — значит, переезд и задуман.
  */
@@ -167,6 +167,16 @@ const MONITORING_KEYS = {
   LIVEKIT_METRICS_PASSWORD: () => secret(),
   GRAFANA_PASSWORD: () => randomBytes(18).toString("base64url"),
 };
+/**
+ * Аналитика (R239, docs/architecture/analytics-v2.md §11, contracts/insight.md §5). Служба `insight` всё своё выводит
+ * из секретов, которые уже есть: псевдонимы и подпись куки — из `SESSION_SECRET`, ключ фактов и отчётов — из
+ * `INTERNAL_SECRET` (HKDF, назначение `insight`), база — та же. Новый секрет один: `ANALYTICS_PROBE_KEY` — им
+ * автотесты, дымовые и нагрузочные проверки подписывают `X-Cord-Probe`, чтобы не попадать в цифры. Он создаётся
+ * при установке, а перевыпуск дописывает его серверу, поставленному раньше, — один раз, без вращения.
+ */
+const ANALYTICS_KEYS = {
+  ANALYTICS_PROBE_KEY: () => randomBytes(32).toString("base64url"),
+};
 const key = refresh ? saved.LIVEKIT_API_KEY : `API${randomBytes(9).toString("hex")}`;
 const mediaSecret = refresh ? saved.LIVEKIT_API_SECRET : secret();
 const redis = refresh ? saved.REDIS_PASSWORD : secret();
@@ -221,6 +231,7 @@ const values = {
   // Имя пульта флота (R207, Р-119): только у A (`--admin=admin.callcord.ru`). Пусто — блока `@admin` на
   // шлюзе как бы нет, служба `fleet` не поднимается (профиль `admin`).
   ADMIN_HOST: topology.admin ?? "",
+  ...Object.fromEntries(Object.entries(ANALYTICS_KEYS).map(([k, make]) => [k, make()])),
   ...(monitoring
     ? {
         ...Object.fromEntries(Object.entries(MONITORING_KEYS).map(([k, make]) => [k, make()])),
@@ -279,6 +290,20 @@ if (refresh && "admin" in args) {
   text = /^ADMIN_HOST=.*$/m.test(text) ? text.replace(/^ADMIN_HOST=.*$/m, line) : text + line + "\n";
   env.ADMIN_HOST = topology.admin ?? "";
   await writeFile(".env", text, { mode: 0o600 });
+}
+
+// Ключи аналитики серверу, поставленному до R239: дописываются в конец `.env`, остальные строки — байт в байт.
+if (refresh) {
+  const missing = Object.entries(ANALYTICS_KEYS).filter(([k]) => !saved[k]);
+  if (missing.length) {
+    let text = await readFile(".env", "utf8");
+    if (!text.endsWith("\n")) text += "\n";
+    for (const [k, make] of missing) {
+      env[k] = make();
+      text += `${k}=${env[k]}\n`;
+    }
+    await writeFile(".env", text, { mode: 0o600 });
+  }
 }
 
 /**

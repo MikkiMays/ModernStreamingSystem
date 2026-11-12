@@ -1,0 +1,340 @@
+{
+  "data": {
+    "drops": [
+      {
+        "count": 350,
+        "reason": "left"
+      },
+      {
+        "count": 74,
+        "reason": "lost"
+      },
+      {
+        "count": 67,
+        "reason": "ended"
+      }
+    ],
+    "join": {
+      "attempts": 505,
+      "by_how": [
+        {
+          "count": 190,
+          "how": "create"
+        },
+        {
+          "count": 154,
+          "how": "link"
+        },
+        {
+          "count": 85,
+          "how": "code"
+        },
+        {
+          "count": 62,
+          "how": "saved"
+        }
+      ],
+      "by_node": [
+        {
+          "joined": 243,
+          "node": "fra"
+        },
+        {
+          "joined": 130,
+          "node": "hel"
+        },
+        {
+          "joined": 118,
+          "node": "msk"
+        }
+      ],
+      "failed": 14,
+      "failures": [
+        {
+          "code": "SERVER_BUSY",
+          "count": 6,
+          "share": 0.4286
+        },
+        {
+          "code": "CODE_INVALID",
+          "count": 3,
+          "share": 0.2143
+        },
+        {
+          "code": "ROOM_FULL",
+          "count": 3,
+          "share": 0.2143
+        },
+        {
+          "code": "RATE_LIMITED",
+          "count": 2,
+          "share": 0.1429
+        }
+      ],
+      "joined": 491,
+      "success": 0.9723
+    },
+    "join_time": {
+      "by_node": [
+        {
+          "media_p50_ms": 1190,
+          "node": "fra",
+          "p50_ms": 2381,
+          "p95_ms": 4010,
+          "samples": 243,
+          "signal_p50_ms": 793
+        },
+        {
+          "media_p50_ms": 1155,
+          "node": "hel",
+          "p50_ms": 2310,
+          "p95_ms": 4051,
+          "samples": 130,
+          "signal_p50_ms": 770
+        },
+        {
+          "media_p50_ms": 1256,
+          "node": "msk",
+          "p50_ms": 2513,
+          "p95_ms": 4048,
+          "samples": 118,
+          "signal_p50_ms": 838
+        }
+      ],
+      "total": {
+        "media_p50_ms": 1195,
+        "p50_ms": 2390,
+        "p95_ms": 4027,
+        "samples": 491,
+        "signal_p50_ms": 796
+      }
+    },
+    "media": {
+      "by_node": [
+        {
+          "freezes": 161,
+          "freezes_per_hour": 1.7678,
+          "loss_avg": 0.015,
+          "meetings": 89,
+          "node": "fra",
+          "node_moves": 0,
+          "person_hours": 91.08,
+          "reconnects": 59,
+          "reconnects_per_hour": 0.6478,
+          "relay_share": 0.1589,
+          "rtt_avg_ms": 102.4,
+          "summaries": 5323
+        },
+        {
+          "freezes": 90,
+          "freezes_per_hour": 1.6462,
+          "loss_avg": 0.0151,
+          "meetings": 56,
+          "node": "hel",
+          "node_moves": 4,
+          "person_hours": 54.67,
+          "reconnects": 35,
+          "reconnects_per_hour": 0.6402,
+          "relay_share": 0.1376,
+          "rtt_avg_ms": 101.2,
+          "summaries": 3190
+        },
+        {
+          "freezes": 64,
+          "freezes_per_hour": 1.5068,
+          "loss_avg": 0.0152,
+          "meetings": 45,
+          "node": "msk",
+          "node_moves": 0,
+          "person_hours": 42.47,
+          "reconnects": 24,
+          "reconnects_per_hour": 0.5651,
+          "relay_share": 0.2089,
+          "rtt_avg_ms": 103.0,
+          "summaries": 2485
+        }
+      ],
+      "total": {
+        "freezes": 315,
+        "freezes_per_hour": 1.6736,
+        "loss_avg": 0.0151,
+        "meetings": 190,
+        "node_moves": 4,
+        "person_hours": 188.22,
+        "reconnects": 118,
+        "reconnects_per_hour": 0.6269,
+        "relay_share": 0.164,
+        "rtt_avg_ms": 102.2,
+        "summaries": 10998
+      }
+    },
+    "networks": [
+      {
+        "error_free_share": 0.815,
+        "net": "home",
+        "people": 137,
+        "sessions": 546,
+        "vpn_share": 0.0
+      },
+      {
+        "error_free_share": 0.7898,
+        "net": "mobile",
+        "people": 86,
+        "sessions": 314,
+        "vpn_share": 0.0
+      },
+      {
+        "error_free_share": 0.8143,
+        "net": "hosting",
+        "people": 21,
+        "sessions": 70,
+        "vpn_share": 1.0
+      }
+    ],
+    "refusals": [
+      {
+        "code": "RATE_LIMITED",
+        "count": 36
+      },
+      {
+        "code": "PROOF_INVALID",
+        "count": 12
+      },
+      {
+        "code": "BLOCKED",
+        "count": 10
+      }
+    ],
+    "series": [
+      {
+        "day": "2026-10-28",
+        "error_free_share": 0.8525,
+        "failed": 0,
+        "joined": 34,
+        "success": 1.0,
+        "vpn_share": 0.1148
+      },
+      {
+        "day": "2026-10-29",
+        "error_free_share": 0.7778,
+        "failed": 2,
+        "joined": 23,
+        "success": 0.92,
+        "vpn_share": 0.037
+      },
+      {
+        "day": "2026-10-30",
+        "error_free_share": 0.7879,
+        "failed": 2,
+        "joined": 35,
+        "success": 0.9459,
+        "vpn_share": 0.0303
+      },
+      {
+        "day": "2026-10-31",
+        "error_free_share": 0.6812,
+        "failed": 2,
+        "joined": 37,
+        "success": 0.9487,
+        "vpn_share": 0.1014
+      },
+      {
+        "day": "2026-11-01",
+        "error_free_share": 0.8154,
+        "failed": 1,
+        "joined": 36,
+        "success": 0.973,
+        "vpn_share": 0.0923
+      },
+      {
+        "day": "2026-11-02",
+        "error_free_share": 0.8421,
+        "failed": 1,
+        "joined": 23,
+        "success": 0.9583,
+        "vpn_share": 0.0877
+      },
+      {
+        "day": "2026-11-03",
+        "error_free_share": 0.8116,
+        "failed": 2,
+        "joined": 37,
+        "success": 0.9487,
+        "vpn_share": 0.058
+      },
+      {
+        "day": "2026-11-04",
+        "error_free_share": 0.8788,
+        "failed": 0,
+        "joined": 39,
+        "success": 1.0,
+        "vpn_share": 0.0758
+      },
+      {
+        "day": "2026-11-05",
+        "error_free_share": 0.7703,
+        "failed": 2,
+        "joined": 42,
+        "success": 0.9545,
+        "vpn_share": 0.0676
+      },
+      {
+        "day": "2026-11-06",
+        "error_free_share": 0.8485,
+        "failed": 0,
+        "joined": 30,
+        "success": 1.0,
+        "vpn_share": 0.0758
+      },
+      {
+        "day": "2026-11-07",
+        "error_free_share": 0.7797,
+        "failed": 1,
+        "joined": 37,
+        "success": 0.9737,
+        "vpn_share": 0.1186
+      },
+      {
+        "day": "2026-11-08",
+        "error_free_share": 0.8,
+        "failed": 1,
+        "joined": 40,
+        "success": 0.9756,
+        "vpn_share": 0.08
+      },
+      {
+        "day": "2026-11-09",
+        "error_free_share": 0.7971,
+        "failed": 0,
+        "joined": 37,
+        "success": 1.0,
+        "vpn_share": 0.1014
+      },
+      {
+        "day": "2026-11-10",
+        "error_free_share": 0.85,
+        "failed": 0,
+        "joined": 41,
+        "success": 1.0,
+        "vpn_share": 0.025
+      }
+    ],
+    "sessions": {
+      "error_free_share": 0.8065,
+      "total": 930,
+      "vpn": 70,
+      "vpn_share": 0.0753,
+      "without_errors": 750
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "quality",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}

@@ -1,0 +1,719 @@
+{
+  "data": {
+    "bots": [
+      {
+        "bot": "google",
+        "visits": 39
+      },
+      {
+        "bot": "yandex",
+        "visits": 33
+      },
+      {
+        "bot": "telegram",
+        "visits": 31
+      },
+      {
+        "bot": "whatsapp",
+        "visits": 21
+      },
+      {
+        "bot": "openai",
+        "visits": 20
+      },
+      {
+        "bot": "curl",
+        "visits": 18
+      },
+      {
+        "bot": "bing",
+        "visits": 16
+      },
+      {
+        "bot": "semrush",
+        "visits": 16
+      },
+      {
+        "bot": "ahrefs",
+        "visits": 15
+      },
+      {
+        "bot": "monitor",
+        "visits": 15
+      },
+      {
+        "bot": "python",
+        "visits": 15
+      }
+    ],
+    "by_class": [
+      {
+        "class": "human",
+        "share": 0.5879,
+        "visits": 930
+      },
+      {
+        "class": "bot",
+        "share": 0.1511,
+        "visits": 239
+      },
+      {
+        "class": "unclear",
+        "share": 0.1169,
+        "visits": 185
+      },
+      {
+        "class": "own",
+        "share": 0.1062,
+        "visits": 168
+      },
+      {
+        "class": "automation",
+        "share": 0.0379,
+        "visits": 60
+      }
+    ],
+    "by_client": [
+      {
+        "automation": 60,
+        "bot": 239,
+        "human": 899,
+        "key": "web",
+        "own": 168,
+        "unclear": 180
+      },
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 31,
+        "key": "desktop",
+        "own": 0,
+        "unclear": 5
+      }
+    ],
+    "by_country": [
+      {
+        "automation": 0,
+        "bot": 52,
+        "human": 563,
+        "key": "RU",
+        "own": 168,
+        "unclear": 170
+      },
+      {
+        "automation": 60,
+        "bot": 48,
+        "human": 102,
+        "key": "DE",
+        "own": 0,
+        "unclear": 1
+      },
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 108,
+        "key": "KZ",
+        "own": 0,
+        "unclear": 5
+      },
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 87,
+        "key": "BY",
+        "own": 0,
+        "unclear": 4
+      },
+      {
+        "automation": 0,
+        "bot": 89,
+        "human": 0,
+        "key": "US",
+        "own": 0,
+        "unclear": 0
+      },
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 70,
+        "key": "NL",
+        "own": 0,
+        "unclear": 5
+      },
+      {
+        "automation": 0,
+        "bot": 50,
+        "human": 0,
+        "key": "FI",
+        "own": 0,
+        "unclear": 0
+      }
+    ],
+    "by_network": [
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 546,
+        "key": "home",
+        "own": 168,
+        "unclear": 110
+      },
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 314,
+        "key": "mobile",
+        "own": 0,
+        "unclear": 70
+      },
+      {
+        "automation": 60,
+        "bot": 239,
+        "human": 70,
+        "key": "hosting",
+        "own": 0,
+        "unclear": 5
+      }
+    ],
+    "by_os": [
+      {
+        "automation": 30,
+        "bot": 0,
+        "human": 560,
+        "key": "windows",
+        "own": 168,
+        "unclear": 111
+      },
+      {
+        "automation": 0,
+        "bot": 23,
+        "human": 326,
+        "key": "android",
+        "own": 0,
+        "unclear": 72
+      },
+      {
+        "automation": 0,
+        "bot": 216,
+        "human": 0,
+        "key": "other",
+        "own": 0,
+        "unclear": 0
+      },
+      {
+        "automation": 30,
+        "bot": 0,
+        "human": 0,
+        "key": "linux",
+        "own": 0,
+        "unclear": 0
+      },
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 27,
+        "key": "ios",
+        "own": 0,
+        "unclear": 2
+      },
+      {
+        "automation": 0,
+        "bot": 0,
+        "human": 17,
+        "key": "macos",
+        "own": 0,
+        "unclear": 0
+      }
+    ],
+    "series": [
+      {
+        "automation": 4,
+        "bot": 13,
+        "day": "2026-10-28",
+        "human": 61,
+        "own": 12,
+        "unclear": 12
+      },
+      {
+        "automation": 6,
+        "bot": 20,
+        "day": "2026-10-29",
+        "human": 54,
+        "own": 12,
+        "unclear": 15
+      },
+      {
+        "automation": 6,
+        "bot": 19,
+        "day": "2026-10-30",
+        "human": 66,
+        "own": 12,
+        "unclear": 15
+      },
+      {
+        "automation": 6,
+        "bot": 14,
+        "day": "2026-10-31",
+        "human": 69,
+        "own": 12,
+        "unclear": 13
+      },
+      {
+        "automation": 5,
+        "bot": 20,
+        "day": "2026-11-01",
+        "human": 65,
+        "own": 12,
+        "unclear": 13
+      },
+      {
+        "automation": 3,
+        "bot": 24,
+        "day": "2026-11-02",
+        "human": 57,
+        "own": 12,
+        "unclear": 8
+      },
+      {
+        "automation": 6,
+        "bot": 16,
+        "day": "2026-11-03",
+        "human": 69,
+        "own": 12,
+        "unclear": 19
+      },
+      {
+        "automation": 3,
+        "bot": 10,
+        "day": "2026-11-04",
+        "human": 66,
+        "own": 12,
+        "unclear": 16
+      },
+      {
+        "automation": 4,
+        "bot": 18,
+        "day": "2026-11-05",
+        "human": 74,
+        "own": 12,
+        "unclear": 10
+      },
+      {
+        "automation": 4,
+        "bot": 18,
+        "day": "2026-11-06",
+        "human": 66,
+        "own": 12,
+        "unclear": 12
+      },
+      {
+        "automation": 3,
+        "bot": 15,
+        "day": "2026-11-07",
+        "human": 59,
+        "own": 12,
+        "unclear": 10
+      },
+      {
+        "automation": 2,
+        "bot": 22,
+        "day": "2026-11-08",
+        "human": 75,
+        "own": 12,
+        "unclear": 18
+      },
+      {
+        "automation": 6,
+        "bot": 17,
+        "day": "2026-11-09",
+        "human": 69,
+        "own": 12,
+        "unclear": 8
+      },
+      {
+        "automation": 2,
+        "bot": 13,
+        "day": "2026-11-10",
+        "human": 80,
+        "own": 12,
+        "unclear": 16
+      }
+    ],
+    "totals": {
+      "automation": 60,
+      "bot": 239,
+      "human": 930,
+      "human_share": 0.5879,
+      "own": 168,
+      "unclear": 185,
+      "visits": 1582
+    }
+  },
+  "generated_at": "2026-11-11T09:00:00Z",
+  "previous": {
+    "data": {
+      "bots": [
+        {
+          "bot": "yandex",
+          "visits": 32
+        },
+        {
+          "bot": "telegram",
+          "visits": 27
+        },
+        {
+          "bot": "google",
+          "visits": 26
+        },
+        {
+          "bot": "openai",
+          "visits": 22
+        },
+        {
+          "bot": "bing",
+          "visits": 20
+        },
+        {
+          "bot": "monitor",
+          "visits": 20
+        },
+        {
+          "bot": "curl",
+          "visits": 18
+        },
+        {
+          "bot": "ahrefs",
+          "visits": 17
+        },
+        {
+          "bot": "python",
+          "visits": 17
+        },
+        {
+          "bot": "semrush",
+          "visits": 14
+        },
+        {
+          "bot": "whatsapp",
+          "visits": 11
+        }
+      ],
+      "by_class": [
+        {
+          "class": "human",
+          "share": 0.5408,
+          "visits": 715
+        },
+        {
+          "class": "bot",
+          "share": 0.1694,
+          "visits": 224
+        },
+        {
+          "class": "own",
+          "share": 0.1271,
+          "visits": 168
+        },
+        {
+          "class": "unclear",
+          "share": 0.121,
+          "visits": 160
+        },
+        {
+          "class": "automation",
+          "share": 0.0416,
+          "visits": 55
+        }
+      ],
+      "by_client": [
+        {
+          "automation": 55,
+          "bot": 224,
+          "human": 695,
+          "key": "web",
+          "own": 168,
+          "unclear": 158
+        },
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 20,
+          "key": "desktop",
+          "own": 0,
+          "unclear": 2
+        }
+      ],
+      "by_country": [
+        {
+          "automation": 0,
+          "bot": 45,
+          "human": 437,
+          "key": "RU",
+          "own": 168,
+          "unclear": 148
+        },
+        {
+          "automation": 55,
+          "bot": 35,
+          "human": 60,
+          "key": "DE",
+          "own": 0,
+          "unclear": 4
+        },
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 109,
+          "key": "KZ",
+          "own": 0,
+          "unclear": 5
+        },
+        {
+          "automation": 0,
+          "bot": 100,
+          "human": 0,
+          "key": "US",
+          "own": 0,
+          "unclear": 0
+        },
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 63,
+          "key": "BY",
+          "own": 0,
+          "unclear": 2
+        },
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 46,
+          "key": "NL",
+          "own": 0,
+          "unclear": 1
+        },
+        {
+          "automation": 0,
+          "bot": 44,
+          "human": 0,
+          "key": "FI",
+          "own": 0,
+          "unclear": 0
+        }
+      ],
+      "by_network": [
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 445,
+          "key": "home",
+          "own": 168,
+          "unclear": 77
+        },
+        {
+          "automation": 55,
+          "bot": 224,
+          "human": 46,
+          "key": "hosting",
+          "own": 0,
+          "unclear": 1
+        },
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 224,
+          "key": "mobile",
+          "own": 0,
+          "unclear": 82
+        }
+      ],
+      "by_os": [
+        {
+          "automation": 20,
+          "bot": 0,
+          "human": 456,
+          "key": "windows",
+          "own": 168,
+          "unclear": 78
+        },
+        {
+          "automation": 0,
+          "bot": 13,
+          "human": 228,
+          "key": "android",
+          "own": 0,
+          "unclear": 81
+        },
+        {
+          "automation": 0,
+          "bot": 211,
+          "human": 0,
+          "key": "other",
+          "own": 0,
+          "unclear": 0
+        },
+        {
+          "automation": 35,
+          "bot": 0,
+          "human": 0,
+          "key": "linux",
+          "own": 0,
+          "unclear": 0
+        },
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 16,
+          "key": "ios",
+          "own": 0,
+          "unclear": 1
+        },
+        {
+          "automation": 0,
+          "bot": 0,
+          "human": 15,
+          "key": "macos",
+          "own": 0,
+          "unclear": 0
+        }
+      ],
+      "series": [
+        {
+          "automation": 2,
+          "bot": 12,
+          "day": "2026-10-14",
+          "human": 40,
+          "own": 12,
+          "unclear": 8
+        },
+        {
+          "automation": 6,
+          "bot": 11,
+          "day": "2026-10-15",
+          "human": 45,
+          "own": 12,
+          "unclear": 7
+        },
+        {
+          "automation": 3,
+          "bot": 18,
+          "day": "2026-10-16",
+          "human": 46,
+          "own": 12,
+          "unclear": 12
+        },
+        {
+          "automation": 4,
+          "bot": 10,
+          "day": "2026-10-17",
+          "human": 40,
+          "own": 12,
+          "unclear": 15
+        },
+        {
+          "automation": 2,
+          "bot": 20,
+          "day": "2026-10-18",
+          "human": 47,
+          "own": 12,
+          "unclear": 8
+        },
+        {
+          "automation": 6,
+          "bot": 18,
+          "day": "2026-10-19",
+          "human": 49,
+          "own": 12,
+          "unclear": 16
+        },
+        {
+          "automation": 5,
+          "bot": 11,
+          "day": "2026-10-20",
+          "human": 51,
+          "own": 12,
+          "unclear": 13
+        },
+        {
+          "automation": 2,
+          "bot": 21,
+          "day": "2026-10-21",
+          "human": 55,
+          "own": 12,
+          "unclear": 12
+        },
+        {
+          "automation": 3,
+          "bot": 20,
+          "day": "2026-10-22",
+          "human": 51,
+          "own": 12,
+          "unclear": 14
+        },
+        {
+          "automation": 5,
+          "bot": 18,
+          "day": "2026-10-23",
+          "human": 55,
+          "own": 12,
+          "unclear": 15
+        },
+        {
+          "automation": 6,
+          "bot": 15,
+          "day": "2026-10-24",
+          "human": 58,
+          "own": 12,
+          "unclear": 15
+        },
+        {
+          "automation": 6,
+          "bot": 10,
+          "day": "2026-10-25",
+          "human": 58,
+          "own": 12,
+          "unclear": 10
+        },
+        {
+          "automation": 2,
+          "bot": 18,
+          "day": "2026-10-26",
+          "human": 59,
+          "own": 12,
+          "unclear": 5
+        },
+        {
+          "automation": 3,
+          "bot": 22,
+          "day": "2026-10-27",
+          "human": 61,
+          "own": 12,
+          "unclear": 10
+        }
+      ],
+      "totals": {
+        "automation": 55,
+        "bot": 224,
+        "human": 715,
+        "human_share": 0.5408,
+        "own": 168,
+        "unclear": 160,
+        "visits": 1322
+      }
+    },
+    "range": {
+      "days": 14,
+      "from": "2026-10-14",
+      "to": "2026-10-27"
+    }
+  },
+  "range": {
+    "days": 14,
+    "from": "2026-10-28",
+    "to": "2026-11-10"
+  },
+  "section": "traffic",
+  "strict": false,
+  "view": "period",
+  "zone": "Europe/Moscow"
+}
