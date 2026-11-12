@@ -1,0 +1,28 @@
+# Служба аналитики `insight` (R239, docs/architecture/analytics-v2.md): один статически понятный файл
+# `cord-insight` в образе без оболочки и пакетов. Компилятор закреплён по digest и по номеру — тот же номер в
+# `rust/rust-toolchain.toml` (разработчик и CI).
+#
+# Ступень `toolchain` — компилятор с rustfmt и clippy: ею же пользуется `rust/cargo.sh` (cargo в контейнере,
+# на машине разработки Rust не стоит).
+FROM rust:1.99.1-slim-bookworm@sha256:f2c004e3d2d8b547e8cf7ffbc29205385f4e71d23e53e4e383065db5e9f822cd AS toolchain
+RUN rustup component add rustfmt clippy
+WORKDIR /workspace/rust
+
+FROM toolchain AS build
+# Сколько заданий компилятора вести разом: на машине с малой памятью — `--build-arg CARGO_BUILD_JOBS=2`.
+ARG CARGO_BUILD_JOBS
+COPY rust/Cargo.toml rust/Cargo.lock rust/rust-toolchain.toml ./
+COPY rust/insight/Cargo.toml insight/Cargo.toml
+# Зависимости — отдельным слоем: правка кода службы их не пересобирает.
+RUN mkdir -p insight/src && echo 'fn main() {}' > insight/src/main.rs \
+    && cargo build --release --locked && rm -rf insight/src
+COPY rust/insight insight
+RUN touch insight/src/main.rs insight/src/lib.rs && cargo build --release --locked
+
+# Без оболочки, без пакетного менеджера; glibc и её соседи — всё, что нужно файлу. Проверку здоровья делает сам
+# файл (`cord-insight healthcheck`), wget в образе не нужен. Пояса часов и список роботов вшиты в файл; базы
+# адресов — том `/geo` только для чтения (`infra/geo/README.md`), без него служба работает.
+FROM gcr.io/distroless/cc-debian12:nonroot@sha256:9dac0a79194e45a7da0158a9c6da57b217585af0786db3845d1f0ec1a0dd182f
+COPY --from=build /workspace/rust/target/release/cord-insight /cord-insight
+USER 10001:10001
+ENTRYPOINT ["/cord-insight"]

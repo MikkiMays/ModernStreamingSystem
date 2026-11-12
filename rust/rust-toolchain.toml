@@ -1,0 +1,5 @@
+# Один компилятор у разработчика, CI и образа: тот же номер — в `infra/Dockerfile.insight`.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

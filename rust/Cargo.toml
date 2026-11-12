@@ -1,0 +1,32 @@
+# Службы Cord на Rust. Первая — `insight`, аналитика продукта (R239, docs/architecture/analytics-v2.md).
+[workspace]
+resolver = "3"
+members = ["insight"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "deny"
+
+# Отладочная сборка без полных символов: на общей машине разработки (4 ядра, мало памяти) это
+# заметно быстрее, а строки в трассировке паники остаются.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+opt-level = 2
+lto = "thin"
+strip = true
+panic = "abort"
