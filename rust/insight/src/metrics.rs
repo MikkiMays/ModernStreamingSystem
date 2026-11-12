@@ -16,6 +16,7 @@ const SERIES: &[(&str, &str, &str)] = &[
     ("insight_events_dropped_total", "counter", "События клиента, отброшенные по причине"),
     ("insight_sessions_total", "counter", "Сессии по классу и причине"),
     ("insight_identity_total", "counter", "Как узнан человек у сессии"),
+    ("insight_engaged_refused_total", "counter", "Событие engaged, не сделавшее сессию человеком"),
     ("insight_facts_accepted_total", "counter", "Факты ядра и служб по типу"),
     ("insight_facts_dropped_total", "counter", "Факты, отброшенные по причине"),
     ("insight_db_errors_total", "counter", "Отказы базы по месту"),

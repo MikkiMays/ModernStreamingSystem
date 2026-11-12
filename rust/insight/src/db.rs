@@ -25,7 +25,8 @@ pub fn pool(database: &Database) -> PgPool {
         // База — на той же машине, по петле: TLS не нужен и в сборку не входит.
         .ssl_mode(PgSslMode::Disable)
         .application_name("cord-insight")
-        .options([("search_path", SCHEMA)]);
+        // Запрос, застрявший в базе, не должен держать движок: через полминуты он отменяется.
+        .options([("search_path", SCHEMA), ("statement_timeout", "30000")]);
     PgPoolOptions::new()
         .max_connections(4)
         .acquire_timeout(Duration::from_secs(5))
