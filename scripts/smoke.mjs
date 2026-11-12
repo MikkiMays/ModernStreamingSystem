@@ -82,7 +82,9 @@ if (process.env.SMOKE_INSIGHT !== "0") {
     await delay(250);
   }
   assert([200, 204].includes(proof?.status), `Analytics route must answer through the gateway: ${proof?.status ?? proof?.message}`);
+  // The gateway has no route to the service's internal API: such a path gets the app page (or 404), never the service.
   const internal = await get("/internal/facts", env.APP_HOST);
-  assert(![200, 204].includes(internal.status), "Analytics facts endpoint must not be reachable through the gateway");
+  assert(internal.status === 404 || /<!doctype html/i.test(internal.body),
+    `Analytics facts endpoint must not be reachable through the gateway: ${internal.status}`);
 }
 console.log("PASS: database/Redis health, production web/API and integrations through PROXY protocol, signaling access and direct-download gates, analytics route");
