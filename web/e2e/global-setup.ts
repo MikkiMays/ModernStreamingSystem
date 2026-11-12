@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { FullConfig } from '@playwright/test';
@@ -10,6 +11,16 @@ import type { FullConfig } from '@playwright/test';
  * — как настоящий человек со второго раза. Свежий профиль берёт себе `e2e/onboarding.spec.ts`.
  */
 export const RETURNING = '.local/e2e/returning.json';
+
+/**
+ * Подпись «своя проверка» для аналитики (`contracts/insight.md` §5): `<день UTC>.<HMAC-SHA256(ключ, день)>`.
+ * Ключ — `ANALYTICS_PROBE_KEY` из `.env` той установки, против которой идут сценарии; без него сценарии
+ * работают как раньше, а их сессии попадут в «неясно» или «автоматику».
+ */
+export function probeToken(key: string, now = new Date()): string {
+  const day = now.toISOString().slice(0, 10).replaceAll('-', '');
+  return `${day}.${createHmac('sha256', key).update(day).digest('base64url')}`;
+}
 
 export default function globalSetup(config: FullConfig) {
   const base = config.projects[0]?.use.baseURL ?? 'http://localhost:5173';
@@ -30,6 +41,10 @@ export default function globalSetup(config: FullConfig) {
             name: 'cord:preferences:v1',
             value: JSON.stringify({ audio: { suppression: 'browser', suppressionChosen: true } }),
           },
+          // Сценарии — не люди: с подписью их сессии аналитика относит к «своим проверкам» (R239).
+          ...(process.env.ANALYTICS_PROBE_KEY
+            ? [{ name: 'cord:probe', value: probeToken(process.env.ANALYTICS_PROBE_KEY) }]
+            : []),
         ],
       },
     ],

@@ -4,6 +4,7 @@ import type { CinemaApi } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import type { Preferences } from '../../../core/preferences';
 import { noteFailure } from '../../../core/failure';
+import { noteCinemaStall } from '../../../core/insight-views';
 import { t } from '../../../i18n';
 import { useStore } from '../../primitives';
 import type { AdBreak } from './ad-breaks';
@@ -230,6 +231,8 @@ export function usePlayback({
     let odd = false;
     /** Отказ поставило лечение: картинка пошла сама — отказ снимается (движок под ним живёт дальше). */
     let gaveUp = false;
+    // Сколько длится нынешний застой картинки — для аналитики (R239): считается, когда картинка пошла снова.
+    let stalledFor = 0;
     /**
      * `fresh` у `reopen` — новый разбор у площадки (данных нет); без него — новый движок на том же адресе.
      * `soft` — лечится звук при идущей картинке: кончились попытки — отказа поверх идущего фильма нет.
@@ -310,6 +313,11 @@ export function usePlayback({
       // У самого конца ролика позиция стоит законно: дальше просто нечего играть.
       const end = Number.isFinite(element.duration) && element.currentTime >= element.duration - END_S;
       const stalled = end ? 0 : playhead.stalledMs(now);
+      if (stalled > 0) stalledFor = stalled;
+      else if (stalledFor > 0) {
+        noteCinemaStall(stalledFor);
+        stalledFor = 0;
+      }
       const health = {
         ahead: aheadOf(element),
         loading: element.networkState === NETWORK_LOADING,

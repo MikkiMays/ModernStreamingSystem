@@ -37,6 +37,7 @@ import {
 import { t } from '../i18n';
 import { meetingEnded, meetingStarted } from './live-meetings';
 import { markJoinConnected, noteFeature, noteLeave } from './insight';
+import { IntegrationViews, activeIntegrations } from './insight-views';
 
 /** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
 const CLOCK_MEMORY = 10 * 60_000;
@@ -128,6 +129,10 @@ export class Meeting {
   private reported = false;
   private initialDevicesApplied = false;
   private syncTimer?: ReturnType<typeof setInterval>;
+  /** Сколько человек провёл за интеграциями — событиями аналитики (`insight-views.ts`). */
+  private views?: IntegrationViews;
+  private viewTimer?: ReturnType<typeof setInterval>;
+  private viewTicks = 0;
   private subscriptions: (() => void)[] = [];
   constructor(
     readonly admission: Admission,
@@ -176,6 +181,9 @@ export class Meeting {
       if (this.media.state.get().status !== 'connected' || this.control.state.get() !== 'connected')
         void this.refresh();
     }, 2000);
+    // Просмотр интеграций — аналитике (R239): замер раз в пять секунд, событие — раз в полминуты и при уходе.
+    this.views = new IntegrationViews(this.admission.roomId);
+    this.viewTimer = setInterval(this.observeViews, 5_000);
     this.subscriptions.push(maintenance.subscribe(this.closeForMaintenance));
     window.addEventListener('online', this.refreshOnReturn);
     window.addEventListener('pagehide', this.report);
@@ -801,6 +809,7 @@ export class Meeting {
         own ? 'user' : snapshot.closedAt || byMaintenance ? 'ended' : 'removed',
         (performance.now() - this.openedAt) / 1000,
       );
+    this.stopViews();
     if (byMaintenance) reason = t(($) => $.meeting.end.maintenance);
     else if (snapshot.closedAt) reason = t(($) => $.meeting.end.closed);
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
@@ -821,6 +830,23 @@ export class Meeting {
     if (byMaintenance && first && recent) noteMeetingEnded();
     else if (!own) wakeMaintenanceWatch();
   }
+  private observeViews = () => {
+    if (!this.views || this.ended.get()) return;
+    const connected = this.media.state.get().status === 'connected';
+    this.views.tick(
+      connected ? activeIntegrations(this.snapshot.get()) : [],
+      document.visibilityState === 'visible',
+      performance.now(),
+    );
+    this.viewTicks += 1;
+    if (this.viewTicks % 6 === 0) this.views.flush();
+  };
+  private stopViews() {
+    clearInterval(this.viewTimer);
+    this.viewTimer = undefined;
+    this.views?.flush();
+    this.views = undefined;
+  }
   /**
    * Итог звонка — владельцу сервера, один раз: при конце встречи, уходе со страницы или закрытии вкладки
    * (`pagehide`). Короткий заход итога не даёт (`CallQuality.summary`).
@@ -837,6 +863,7 @@ export class Meeting {
     if (!this.disposed) meetingEnded();
     this.disposed = true;
     clearInterval(this.syncTimer);
+    this.stopViews();
     clearTimeout(this.ownScreenGone);
     window.removeEventListener('online', this.refreshOnReturn);
     window.removeEventListener('pagehide', this.report);
