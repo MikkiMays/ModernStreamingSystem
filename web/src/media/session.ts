@@ -19,6 +19,7 @@ import {
 } from 'livekit-client';
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from '../core/store';
+import { notePermission } from '../core/insight';
 import { RecoveryWindow } from '../core/recovery';
 import {
   cameraHint,
@@ -3261,8 +3262,10 @@ export class MediaSession {
           targetId: reservation.value,
         });
     } catch (error) {
-      if (!(error instanceof DOMException && ['NotAllowedError', 'AbortError'].includes(error.name)))
-        this.report(error, 'screen');
+      // Запрет и закрытое окно выбора — не ошибка для человека, но аналитике это ответ на запрос показа (R239).
+      if (error instanceof DOMException && ['NotAllowedError', 'AbortError'].includes(error.name))
+        notePermission('screen', error.name === 'NotAllowedError' ? 'denied' : 'dismissed', error.name);
+      else this.report(error, 'screen');
       await this.stopScreen();
     } finally {
       if (this.screenPublishAbort === operation) this.screenPublishAbort = undefined;

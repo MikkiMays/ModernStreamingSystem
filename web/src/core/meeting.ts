@@ -36,7 +36,7 @@ import {
 } from './desktop-notify';
 import { t } from '../i18n';
 import { meetingEnded, meetingStarted } from './live-meetings';
-import { noteFeature, noteLeave } from './insight';
+import { markJoinConnected, noteFeature, noteLeave } from './insight';
 
 /** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
 const CLOCK_MEMORY = 10 * 60_000;
@@ -206,6 +206,8 @@ export class Meeting {
         );
         if (state.status === 'connected' && !this.initialDevicesApplied) {
           this.initialDevicesApplied = true;
+          // Аналитика (R239): вход закончен — от нажатия «Войти» до связи с медиаузлом.
+          markJoinConnected(this.snapshot.get().mediaNode ?? undefined);
           // Вход — всегда со звуком встречи (R161): выключенный в прошлый раз сюда не переносится.
           // Тот же участник после перезагрузки страницы или из соседней вкладки у ядра ещё «в
           // наушниках» — сказать ему, что уже нет, иначе остальные видели бы наушники зря.

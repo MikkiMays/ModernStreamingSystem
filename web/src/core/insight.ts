@@ -348,6 +348,25 @@ export function noteJoinTiming(timing: { ms: number; signalMs?: number; mediaMs?
   });
 }
 
+let joinStarted: number | undefined;
+let joinAdmitted: number | undefined;
+/** Нажато «Войти»: отсюда считается время входа. */
+export function markJoinStart(): void {
+  joinStarted = performance.now();
+  joinAdmitted = undefined;
+}
+/** Дверь ядра ответила — кончилась «сигнальная» часть входа. */
+export function markJoinAdmitted(): void {
+  if (joinStarted !== undefined) joinAdmitted = performance.now() - joinStarted;
+}
+/** Медиа соединилось с узлом — вход закончен; событие уходит один раз на вход. */
+export function markJoinConnected(node?: string): void {
+  if (joinStarted === undefined) return;
+  const ms = performance.now() - joinStarted;
+  noteJoinTiming({ ms, signalMs: joinAdmitted, mediaMs: joinAdmitted === undefined ? undefined : ms - joinAdmitted, node });
+  joinStarted = joinAdmitted = undefined;
+}
+
 const featureCounts = new Map<string, number>();
 let featureTimer: ReturnType<typeof setTimeout> | undefined;
 /** Возможность использована. Частые (реакции, горячие клавиши) копятся и уходят счётчиком раз в 10 с. */
@@ -413,6 +432,7 @@ export function resetInsightForTest(): void {
   queue = [];
   sending = false;
   started = false;
+  joinStarted = joinAdmitted = undefined;
   lastScreen = undefined;
   memorySession = undefined;
   featureCounts.clear();

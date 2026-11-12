@@ -28,7 +28,7 @@ import { AudioFields, QualityFields } from './Settings';
 import { SettingGroup, SettingRow } from './settings/Row';
 import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
-import { notePrejoin } from '../core/insight';
+import { markJoinAdmitted, markJoinStart, notePermission, notePrejoin } from '../core/insight';
 import { beginInviteCopy, inviteLink } from '../core/invite-copy';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
@@ -243,8 +243,10 @@ export function Prejoin({
       «Ссылка на встречу скопирована» покажет уже открывшаяся встреча.
     */
     const settle = destination ? null : beginInviteCopy();
+    markJoinStart();
     try {
       const admission = await admit(name.trim() || t(($) => $.prejoin.defaultName), leave);
+      markJoinAdmitted();
       settle?.(inviteLink(admission));
       if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
       // Имя — тоже общая настройка (R146): через savePreferences, чтобы его узнала оболочка.
@@ -315,6 +317,7 @@ export function Prejoin({
                 },
               },
         );
+        notePermission(kind === 'video' ? 'cam' : 'mic', 'granted');
         if (!mounted.current) {
           acquired.getTracks().forEach((t) => t.stop());
           return;
@@ -344,6 +347,9 @@ export function Prejoin({
       }
       refreshDevices();
     } catch (e) {
+      // Аналитика (R239): отказ в устройстве — с именем ошибки браузера (запрет, нет устройства, занято).
+      const refused = e instanceof DOMException ? e.name : 'Error';
+      notePermission(kind === 'video' ? 'cam' : 'mic', refused === 'NotAllowedError' ? 'denied' : 'error', refused);
       setDeviceError(
         failureText(
           e,
