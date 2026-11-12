@@ -227,9 +227,14 @@ test('меню избранного: пункт под курсором посл
   expect(await next.evaluate((element) => getComputedStyle(element).boxShadow)).toMatch(/inset/);
 
   // Закрыли мышью — кнопка «…» получает фокус обратно без кольца, даже после Shift.
+  // Каждый шаг ждёт своего итога: меню закрывается и открывается с переходом, и Escape, нажатый до того, как
+  // фокус вошёл в открывшееся меню, не закрывал его — сценарий падал через раз (CI, 12.11.2026).
   await page.mouse.click(5, 5);
+  await expect(page.getByRole('menu')).toBeHidden();
   await trigger.click();
+  await expect(item).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toBeHidden();
   await expect(trigger).toBeFocused();
   await page.keyboard.press('Shift');
   expect(await outline(trigger)).toBe('none');
