@@ -489,19 +489,18 @@
   background: currentColor;
 }
 
+/*
+  Команды «вживую» — режим, а не беда: спокойная плашка с янтарной точкой. Красное в пульте значит только
+  сбой (Р-147), и красная мигающая плашка в шапке каждого экрана отучала на красное смотреть.
+*/
 .admin-executor[data-live] {
-  background: var(--danger-soft);
-  color: var(--danger);
+  background: none;
+  box-shadow: inset 0 0 0 var(--hairline) var(--line);
+  color: var(--muted);
 }
 
 .admin-executor[data-live] .admin-executor__dot {
-  animation: admin-breathe 2s var(--ease-standard) infinite;
-}
-
-@keyframes admin-breathe {
-  50% {
-    opacity: 0.35;
-  }
+  background: var(--state-warn);
 }
 
 .admin-grafana .admin-grafana__out {
@@ -860,8 +859,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .admin-skeleton span,
-  .admin-executor[data-live] .admin-executor__dot {
+  .admin-skeleton span {
     animation: none;
   }
 }

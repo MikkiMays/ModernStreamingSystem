@@ -41,15 +41,15 @@
 }
 
 .fleet-map__path svg {
-  width: 14px;
-  height: 14px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex: none;
 }
 
 .fleet-map__legend {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-0-5);
   margin-left: auto;
   font-size: 12px;
 }
@@ -57,7 +57,7 @@
 .fleet-map__legend i {
   width: 18px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: var(--radius-1);
 }
 
 .fleet-map__canvas {
@@ -79,7 +79,7 @@
   display: grid;
   grid-template-rows: 58px minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
   transition:
@@ -101,11 +101,11 @@
   display: grid;
   grid-template-rows: auto auto;
   align-content: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
   padding: 6px 10px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
   background: none;
   color: var(--text);
   font: inherit;
@@ -175,7 +175,7 @@
 .fleet-map__meter {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-variant-numeric: tabular-nums;
 }
 
@@ -183,7 +183,7 @@
   width: 34px;
   height: 4px;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: var(--radius-1);
   background: var(--surface-3);
 }
 
@@ -213,12 +213,12 @@
   position: absolute;
   display: grid;
   align-content: start;
-  gap: 1px;
+  gap: var(--space-0-5);
   min-width: 0;
   overflow: hidden;
   padding: 4px 6px 4px 8px;
   border: 0;
-  border-left: 3px solid var(--tone);
+  border-left: var(--hairline-strong) solid var(--tone);
   border-radius: var(--radius-1);
   background: color-mix(in srgb, var(--tone) var(--mix), var(--surface-1));
   color: var(--text);
@@ -234,13 +234,13 @@
 
 .fleet-map__tile:hover,
 .fleet-map__tile:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline: var(--hairline-strong) solid var(--accent);
+  outline-offset: var(--focus-offset-inset);
 }
 
 .fleet-map__tile[data-selected] {
-  outline: 2px solid var(--text);
-  outline-offset: -2px;
+  outline: var(--hairline-strong) solid var(--text);
+  outline-offset: var(--focus-offset-inset);
 }
 
 .fleet-map__tile strong {
@@ -334,7 +334,7 @@
 .fleet-map__table th,
 .fleet-map__table td {
   padding: 3px 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
   text-align: left;
   font-weight: 400;
 }

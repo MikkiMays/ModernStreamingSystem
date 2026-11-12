@@ -315,7 +315,7 @@ function ErrorGroupDetail({
   });
   const back = (
     <button type="button" className="an-switch" onClick={onBack}>
-      <ArrowLeft size={14} aria-hidden="true" /> {t.back}
+      <ArrowLeft size={16} aria-hidden="true" /> {t.back}
     </button>
   );
   if (detail.error)

@@ -29,8 +29,8 @@
   gap: var(--space-4);
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--state-ok);
+  border: var(--hairline) solid var(--line);
+  border-left: var(--space-1) solid var(--state-ok);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -53,8 +53,8 @@
 
 .pulse__state svg {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--state-ok);
 }
 
@@ -95,7 +95,7 @@
   column-gap: var(--space-2);
   min-width: 0;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -155,7 +155,7 @@
 .pulse__side > section {
   min-height: 0;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -194,7 +194,7 @@
 .pulse__attention,
 .pulse__rooms {
   display: grid;
-  gap: 2px;
+  gap: var(--space-0-5);
   margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
@@ -206,7 +206,7 @@
   align-items: start;
   column-gap: var(--space-2);
   padding: 6px 0;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   font-size: 13px;
 }
 
@@ -215,8 +215,8 @@
 }
 
 .pulse__attention svg {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   margin-top: 1px;
   color: var(--muted);
 }
@@ -250,7 +250,7 @@
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 40px auto;
   gap: var(--space-2);
   padding: 5px 0;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   font-size: 13px;
   color: var(--muted);
 }
@@ -274,9 +274,9 @@
 .pulse__detail > header button {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--line);
+  width: var(--control-xs);
+  height: var(--control-xs);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   background: none;
   color: var(--text);
@@ -284,8 +284,8 @@
 }
 
 .pulse__detail > header svg {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .pulse__detail > header div {
@@ -312,7 +312,7 @@
   grid-template-columns: 84px minmax(0, 1fr);
   gap: var(--space-2);
   padding: 5px 0;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   font-size: 13px;
 }
 

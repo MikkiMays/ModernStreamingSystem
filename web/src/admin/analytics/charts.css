@@ -25,7 +25,7 @@
 
 .an-bar__dates label {
   display: grid;
-  gap: 2px;
+  gap: var(--space-0-5);
   font-size: 12px;
   color: var(--muted);
 }
@@ -33,7 +33,7 @@
 .an-bar__dates input {
   height: 32px;
   padding: 0 var(--space-2);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   background: var(--surface-1);
   color: var(--text);
@@ -64,9 +64,9 @@
 
 .an-tabs {
   display: flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   overflow-x: auto;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
   scrollbar-width: none;
 }
 
@@ -74,7 +74,7 @@
   flex: none;
   padding: var(--space-2) var(--space-3);
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: var(--hairline-strong) solid transparent;
   background: none;
   color: var(--muted);
   font: inherit;
@@ -101,7 +101,7 @@
 .an-note {
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   background: var(--surface-2);
   font-size: 13px;
@@ -127,7 +127,7 @@
   gap: var(--space-3);
   min-width: 0;
   padding: var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -174,10 +174,10 @@
 .an-kpi {
   display: grid;
   align-content: start;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -245,7 +245,7 @@
 .an-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   color: var(--text);
 }
 
@@ -254,7 +254,7 @@
   flex: none;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: var(--radius-1);
   background: var(--slot);
 }
 
@@ -290,7 +290,7 @@
 
 .an-switch {
   padding: 2px var(--space-2);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   background: none;
   color: var(--muted);
@@ -352,10 +352,10 @@
   top: 8px;
   z-index: 1;
   display: grid;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 150px;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   background: var(--surface-3, var(--surface-1));
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
@@ -371,7 +371,7 @@
 .an-tip span {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .an-tip b {
@@ -389,7 +389,7 @@
 .an-bars ul,
 .an-funnel {
   display: grid;
-  gap: 6px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -417,7 +417,7 @@
 .an-bars__track,
 .an-funnel__track {
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-1);
   background: color-mix(in srgb, var(--text) 7%, transparent);
 }
 
@@ -426,7 +426,7 @@
   display: block;
   height: 100%;
   min-width: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-1);
   background: var(--data-1);
 }
 
@@ -493,7 +493,7 @@
 .an-cohorts th,
 .an-cohorts td {
   padding: 6px var(--space-2);
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   text-align: left;
   white-space: nowrap;
 }
@@ -534,8 +534,8 @@
   display: inline-block;
   margin-left: 6px;
   padding: 0 6px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-full);
   color: var(--muted);
   font-size: 11px;
 }
@@ -560,7 +560,7 @@
 
 .an-cohorts tfoot th,
 .an-cohorts tfoot td {
-  border-top: 2px solid var(--line);
+  border-top: var(--hairline-strong) solid var(--line);
   font-weight: 600;
 }
 
